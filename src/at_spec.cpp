@@ -15,7 +15,7 @@ ATSpec::~ATSpec()
 
 
 ATComponentDef* ATSpec::define_component(const std::string& name, 
-											ATComponentDef::InsterFunc inster)
+										 const ATComponentDef::InsterFunc& inster)
 {
 	ATComponentDef* comp = new ATComponentDef(name, inster);
 	m_comp_defs[name] = comp;
@@ -33,8 +33,8 @@ ATLinkDef* ATSpec::define_link(const std::string &src, const std::string &dest)
 }
 
 
-ATInstanceDef* ATSpec::define_instance(const std::string &name, 
-										  const std::string &component)
+ATInstanceDef* ATSpec::define_instance(const std::string &name,
+									   const std::string &component)
 {
 	ATInstanceDef* inst = new ATInstanceDef;
 	inst->comp_name = component;
@@ -45,7 +45,8 @@ ATInstanceDef* ATSpec::define_instance(const std::string &name,
 
 
 
-ATComponentDef::ATComponentDef(const std::string &name, ATComponentDef::InsterFunc inster)
+ATComponentDef::ATComponentDef(const std::string &name, 
+							   const ATComponentDef::InsterFunc& inster)
 : m_name(name), m_inster(inster)
 {
 }
@@ -53,7 +54,7 @@ ATComponentDef::ATComponentDef(const std::string &name, ATComponentDef::InsterFu
 
 ATComponentDef::~ATComponentDef()
 {
-	at_delete_all_2<IfaceMap>(m_iface_defs);
+	at_delete_all_2(m_iface_defs);
 }
 
 
@@ -67,7 +68,8 @@ ATInterfaceDef* ATComponentDef::define_interface(const std::string& name,
 }
 
 
-void ATComponentDef::define_clock(ATClockSignalDef::BinderFunc binder, const std::string &name)
+void ATComponentDef::define_clock(const ATClockSignalDef::BinderFunc& binder, 
+								  const std::string &name)
 {
 	ATClockSignalDef* def = new ATClockSignalDef;
 	def->binder = binder;
@@ -98,11 +100,12 @@ ATInterfaceDef::~ATInterfaceDef()
 	if (m_sigdef_sop) delete m_sigdef_sop;
 	if (m_sigdef_eop) delete m_sigdef_eop;
 	if (m_sigdef_addr) delete m_sigdef_addr;
+	if (m_sigdef_ep) delete m_sigdef_ep;
 }
 
 
-void ATInterfaceDef::define_address_signal(ATAddrSignalDef::BinderFunc binder,
-										   ATAddrSignalDef::CreateFunc creator, int width)
+void ATInterfaceDef::define_address_signal(const ATAddrSignalDef::BinderFunc& binder,
+										   const ATAddrSignalDef::CreateFunc& creator, int width)
 {
 	ATAddrSignalDef* def = new ATAddrSignalDef;
 	def->binder = binder;
@@ -112,8 +115,19 @@ void ATInterfaceDef::define_address_signal(ATAddrSignalDef::BinderFunc binder,
 }
 
 
-void ATInterfaceDef::define_data_signal(ATDataSignalDef::BinderFunc binder,
-										ATDataSignalDef::CreateFunc creator,
+void ATInterfaceDef::define_ep_signal(const ATAddrSignalDef::BinderFunc& binder,
+									  const ATAddrSignalDef::CreateFunc& creator, int width)
+{
+	ATAddrSignalDef* def = new ATAddrSignalDef;
+	def->binder = binder;
+	def->creator = creator;
+	def->width = width;
+	m_sigdef_ep = def;
+}
+
+
+void ATInterfaceDef::define_data_signal(const ATDataSignalDef::BinderFunc& binder,
+										const ATDataSignalDef::CreateFunc& creator,
 										const std::string& usertype, int width)
 {
 	ATDataSignalDef* def = new ATDataSignalDef;
@@ -126,8 +140,8 @@ void ATInterfaceDef::define_data_signal(ATDataSignalDef::BinderFunc binder,
 }
 
 
-void ATInterfaceDef::define_header_signal(ATDataSignalDef::BinderFunc binder,
-										  sc_bv_signal* (*creator)(),
+void ATInterfaceDef::define_header_signal(const ATDataSignalDef::BinderFunc& binder,
+										  const ATDataSignalDef::CreateFunc& creator,
 										  const std::string &usertype, int width)
 {
 	ATDataSignalDef* def = new ATDataSignalDef;
@@ -140,7 +154,7 @@ void ATInterfaceDef::define_header_signal(ATDataSignalDef::BinderFunc binder,
 }
 
 
-void ATInterfaceDef::define_ready_signal(ATCtrlSignalDef::BinderFunc binder)
+void ATInterfaceDef::define_ready_signal(const ATCtrlSignalDef::BinderFunc& binder)
 {
 	ATCtrlSignalDef* def = new ATCtrlSignalDef;
 	def->binder = binder;
@@ -148,7 +162,7 @@ void ATInterfaceDef::define_ready_signal(ATCtrlSignalDef::BinderFunc binder)
 }
 
 
-void ATInterfaceDef::define_eop_signal(ATCtrlSignalDef::BinderFunc binder)
+void ATInterfaceDef::define_eop_signal(const ATCtrlSignalDef::BinderFunc& binder)
 {
 	ATCtrlSignalDef* def = new ATCtrlSignalDef;
 	def->binder = binder;
@@ -156,7 +170,7 @@ void ATInterfaceDef::define_eop_signal(ATCtrlSignalDef::BinderFunc binder)
 }
 
 
-void ATInterfaceDef::define_sop_signal(ATCtrlSignalDef::BinderFunc binder)
+void ATInterfaceDef::define_sop_signal(const ATCtrlSignalDef::BinderFunc& binder)
 {
 	ATCtrlSignalDef* def = new ATCtrlSignalDef;
 	def->binder = binder;
@@ -164,7 +178,7 @@ void ATInterfaceDef::define_sop_signal(ATCtrlSignalDef::BinderFunc binder)
 }
 
 
-void ATInterfaceDef::define_valid_signal(ATCtrlSignalDef::BinderFunc binder)
+void ATInterfaceDef::define_valid_signal(const ATCtrlSignalDef::BinderFunc& binder)
 {
 	ATCtrlSignalDef* def = new ATCtrlSignalDef;
 	def->binder = binder;
@@ -173,6 +187,7 @@ void ATInterfaceDef::define_valid_signal(ATCtrlSignalDef::BinderFunc binder)
 
 
 bool ATInterfaceDef::has_address() { return m_sigdef_addr != 0; }
+bool ATInterfaceDef::has_ep() { return m_sigdef_ep!= 0; }
 bool ATInterfaceDef::has_data() { return !m_sigdefs_data.empty(); }
 bool ATInterfaceDef::has_eop() { return m_sigdef_eop != 0; }
 bool ATInterfaceDef::has_header() { return !m_sigdefs_header.empty(); }

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <map>
+#include <unordered_map>
+#include <functional>
 #include <systemc.h>
 #include "sc_bv_signal.h"
 
@@ -21,7 +22,7 @@ class ATComponentDef;
 
 struct ATClockSignalDef
 {
-	typedef void (*BinderFunc)(sc_module&, sc_clock*);
+	typedef std::function<void(sc_module&, sc_clock*)> BinderFunc;
 
 	BinderFunc binder;
 	std::string name;
@@ -30,7 +31,7 @@ struct ATClockSignalDef
 
 struct ATCtrlSignalDef
 {
-	typedef void (*BinderFunc)(sc_module&, sc_signal<bool>*);
+	typedef std::function<void(sc_module&, sc_signal<bool>*)> BinderFunc;
 	
 	BinderFunc binder;
 };
@@ -38,8 +39,8 @@ struct ATCtrlSignalDef
 
 struct ATDataSignalDef
 {
-	typedef void (*BinderFunc)(sc_module&, sc_bv_signal*);
-	typedef sc_bv_signal* (*CreateFunc)();
+	typedef std::function<void(sc_module&, sc_bv_signal*)> BinderFunc;
+	typedef std::function<sc_bv_signal*(void)> CreateFunc;
 
 	BinderFunc binder;
 	CreateFunc creator;
@@ -50,8 +51,8 @@ struct ATDataSignalDef
 
 struct ATAddrSignalDef
 {
-	typedef void (*BinderFunc)(sc_module&, sc_bv_signal*);
-	typedef sc_bv_signal* (*CreateFunc)();
+	typedef std::function<void(sc_module&, sc_bv_signal*)> BinderFunc;
+	typedef std::function<sc_bv_signal*(void)> CreateFunc;
 
 	BinderFunc binder;
 	CreateFunc creator;
@@ -64,8 +65,8 @@ struct ATAddrSignalDef
 class ATInterfaceDef
 {
 public:
-	typedef std::map<std::string, struct ATEndpointDef*> EndpointMap;
-	typedef std::map<std::string, struct ATDataSignalDef*> DataSigMap;
+	typedef std::unordered_map<std::string, struct ATEndpointDef*> EndpointMap;
+	typedef std::unordered_map<std::string, struct ATDataSignalDef*> DataSigMap;
 
 	enum Type
 	{
@@ -84,22 +85,29 @@ public:
 
 	void define_endpoint(const std::string& name, int addr);
 
-	void define_data_signal(ATDataSignalDef::BinderFunc binder, 
-		ATDataSignalDef::CreateFunc creator,
+	void define_data_signal(
+		const ATDataSignalDef::BinderFunc& binder, 
+		const ATDataSignalDef::CreateFunc& creator,
 		const std::string& usertype, int width);
-	void define_header_signal(ATDataSignalDef::BinderFunc binder, 
-		ATDataSignalDef::CreateFunc creator,
+	void define_header_signal(
+		const ATDataSignalDef::BinderFunc& binder, 
+		const ATDataSignalDef::CreateFunc& creator,
 		const std::string& usertype, int width);
-	void define_address_signal(ATAddrSignalDef::BinderFunc binder, 
-		ATAddrSignalDef::CreateFunc creator, int width);
-	void define_valid_signal(ATCtrlSignalDef::BinderFunc binder);
-	void define_ready_signal(ATCtrlSignalDef::BinderFunc binder);
-	void define_sop_signal(ATCtrlSignalDef::BinderFunc binder);
-	void define_eop_signal(ATCtrlSignalDef::BinderFunc binder);
+	void define_address_signal(
+		const ATAddrSignalDef::BinderFunc& binder, 
+		const ATAddrSignalDef::CreateFunc& creator, int width);
+	void define_ep_signal(
+		const ATAddrSignalDef::BinderFunc& binder,
+		const ATAddrSignalDef::CreateFunc& creator, int width);
+	void define_valid_signal(const ATCtrlSignalDef::BinderFunc& binder);
+	void define_ready_signal(const ATCtrlSignalDef::BinderFunc& binder);
+	void define_sop_signal(const ATCtrlSignalDef::BinderFunc& binder);
+	void define_eop_signal(const ATCtrlSignalDef::BinderFunc& binder);
 
 	bool has_data();
 	bool has_header();
 	bool has_address();
+	bool has_ep();
 	bool has_valid();
 	bool has_ready();
 	bool has_sop();
@@ -116,13 +124,13 @@ public:
 	ATCtrlSignalDef* get_sop_signal() { return m_sigdef_sop; }
 	ATCtrlSignalDef* get_eop_signal() { return m_sigdef_eop; }
 	ATAddrSignalDef* get_address_signal() { return m_sigdef_addr; }
+	ATAddrSignalDef* get_ep_signal() { return m_sigdef_ep; }
 
+	const DataSigMap& data_signals() { return m_sigdefs_data; }
 	ATDataSignalDef* get_data_signal(const std::string& nm) { return m_sigdefs_data[nm]; }
-	DataSigMap::iterator data_sigs_begin() { return m_sigdefs_data.begin(); }
-	DataSigMap::iterator data_sigs_end() { return m_sigdefs_data.end(); }
+	
+	const DataSigMap& header_signals() { return m_sigdefs_header; }
 	ATDataSignalDef* get_header_signal(const std::string& nm) { return m_sigdefs_header[nm]; }
-	DataSigMap::iterator header_sigs_begin() { return m_sigdefs_header.begin(); }
-	DataSigMap::iterator header_sigs_end() { return m_sigdefs_header.end(); }
 
 private:
 	std::string m_name;
@@ -137,6 +145,7 @@ private:
 	DataSigMap m_sigdefs_data;
 	DataSigMap m_sigdefs_header;
 	ATAddrSignalDef* m_sigdef_addr;
+	ATAddrSignalDef* m_sigdef_ep;
 
 	int m_header_width;
 	int m_data_width;
@@ -178,28 +187,28 @@ struct ATInstanceDef
 class ATComponentDef
 {
 public:
-	typedef std::map<std::string, ATInterfaceDef*> IfaceMap;
-	typedef sc_module* (*InsterFunc)(const char*);
-	typedef std::map<std::string, ATClockSignalDef*> ClockMap;
+	typedef std::unordered_map<std::string, ATInterfaceDef*> IfaceMap;
+	typedef std::unordered_map<std::string, ATClockSignalDef*> ClockMap;
+	typedef std::function<sc_module*(const char*)> InsterFunc;
 
-	ATComponentDef(const std::string& name, InsterFunc inster);
+	ATComponentDef(const std::string& name, const InsterFunc& inster);
 	~ATComponentDef();
 
-	ATInterfaceDef* define_interface(const std::string& name, 
+	ATInterfaceDef* define_interface(
+		const std::string& name, 
 		const std::string& clock,
 		ATInterfaceDef::Type type);
 
-	void define_clock(ATClockSignalDef::BinderFunc binder,
+	void define_clock(
+		const ATClockSignalDef::BinderFunc& binder,
 		const std::string& name);
 
 	InsterFunc get_inster() { return m_inster; }
 
-	IfaceMap::iterator iface_begin() { return m_iface_defs.begin(); }
-	IfaceMap::iterator iface_end() { return m_iface_defs.end(); }
+	const IfaceMap& interfaces() { return m_iface_defs; }
 	ATInterfaceDef* get_iface(const std::string& n) { return m_iface_defs[n]; }
 
-	ClockMap::iterator clock_begin() { return m_clock_defs.begin(); }
-	ClockMap::iterator clock_end() { return m_clock_defs.end(); }
+	const ClockMap& clocks() { return m_clock_defs; }
 	ATClockSignalDef* get_clock(const std::string& n) { return m_clock_defs[n]; }
 
 private:
@@ -215,14 +224,14 @@ private:
 class ATSpec
 {
 public:
-	typedef std::map<std::string, ATComponentDef*> CompDefMap;
-	typedef std::map<std::string, ATInstanceDef*> InstDefMap;
+	typedef std::unordered_map<std::string, ATComponentDef*> CompDefMap;
+	typedef std::unordered_map<std::string, ATInstanceDef*> InstDefMap;
 	typedef std::vector<ATLinkDef*> LinkDefVec;
 
 	ATSpec();
 	~ATSpec();
 
-	ATComponentDef* define_component(const std::string& name, ATComponentDef::InsterFunc inster);
+	ATComponentDef* define_component(const std::string& name, const ATComponentDef::InsterFunc& inster);
 	ATInstanceDef* define_instance(const std::string& name, const std::string& component);
 	ATLinkDef* define_link(const std::string& src, const std::string& dest);
 	

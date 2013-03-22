@@ -15,9 +15,9 @@ ATInstanceNode::ATInstanceNode(ATInstanceDef* def)
 	assert(compdef);
 
 	// Create ports for interfaces
-	for (auto i = compdef->iface_begin(); i != compdef->iface_end(); ++i)
+	for (auto it : compdef->interfaces())
 	{
-		ATInterfaceDef* ifacedef = i->second;
+		ATInterfaceDef* ifacedef = it.second;
 		ATLinkProtocol proto;
 
 		proto.addr_width = ifacedef->has_address() ?
@@ -92,20 +92,20 @@ void ATInstanceNode::instantiate()
 	sc_module* mod = (compdef->get_inster())(instname.c_str());
 	m_impl = mod;
 
-	for (auto i = compdef->clock_begin(); i != compdef->clock_end(); ++i)
+	for (auto it : compdef->clocks())
 	{
-		const std::string& name = i->first;
+		const std::string& name = it.first;
 		sc_clock* sig = mgr->get_clock(name);
 		assert(sig);
 
-		i->second->binder(*mod, sig);
+		it.second->binder(*mod, sig);
 	}
 
 	// Create packers/unpackers, connect
-	for (auto i = m_recv_map.begin(); i != m_recv_map.end(); ++i)
+	for (auto it : m_recv_map)
 	{
-		ATNetInPort* port = i->second;
-		ATInterfaceDef* ifacedef = compdef->get_iface(i->first);
+		ATNetInPort* port = it.second;
+		ATInterfaceDef* ifacedef = compdef->get_iface(it.first);
 		assert(ifacedef);
 
 		// Create unpacker
@@ -122,9 +122,9 @@ void ATInstanceNode::instantiate()
 
 		if (ifacedef->has_data())
 		{
-			for (auto i = ifacedef->data_sigs_begin(); i != ifacedef->data_sigs_end(); ++i)
+			for (auto it : ifacedef->data_signals())
 			{
-				ATDataSignalDef* sigdef = i->second;
+				ATDataSignalDef* sigdef = it.second;
 				sc_bv_signal* sig = sigdef->creator();
 				pack->add_data_signal(sig, idx, sigdef->width);
 				sigdef->binder(*mod, sig);
@@ -135,9 +135,9 @@ void ATInstanceNode::instantiate()
 
 		if (ifacedef->has_header())
 		{
-			for (auto i = ifacedef->header_sigs_begin(); i != ifacedef->header_sigs_end(); ++i)
+			for (auto it : ifacedef->header_signals())
 			{
-				ATDataSignalDef* sigdef = i->second;
+				ATDataSignalDef* sigdef = it.second;
 				sc_bv_signal* sig = sigdef->creator();
 				pack->add_data_signal(sig, idx, sigdef->width);
 				sigdef->binder(*mod, sig);
@@ -186,10 +186,10 @@ void ATInstanceNode::instantiate()
 		}
 	}
 
-	for (auto i : m_send_map)
+	for (auto it : m_send_map)
 	{
-		ATNetOutPort* port = i.second;
-		ATInterfaceDef* ifacedef = compdef->get_iface(i.first);
+		ATNetOutPort* port = it.second;
+		ATInterfaceDef* ifacedef = compdef->get_iface(it.first);
 		assert(ifacedef);
 
 		// Create packer
@@ -206,10 +206,9 @@ void ATInstanceNode::instantiate()
 
 		if (ifacedef->has_data())
 		{
-			for (ATInterfaceDef::DataSigMap::iterator i = ifacedef->data_sigs_begin();
-				i != ifacedef->data_sigs_end(); ++i)
+			for (auto it : ifacedef->data_signals())
 			{
-				ATDataSignalDef* sigdef = i->second;
+				ATDataSignalDef* sigdef = it.second;
 				sc_bv_signal* sig = sigdef->creator();
 				pack->add_data_signal(sig, idx, sigdef->width);
 				sigdef->binder(*mod, sig);
@@ -220,10 +219,9 @@ void ATInstanceNode::instantiate()
 
 		if (ifacedef->has_header())
 		{
-			for (ATInterfaceDef::DataSigMap::iterator i = ifacedef->header_sigs_begin();
-				i != ifacedef->header_sigs_end(); ++i)
+			for (auto it : ifacedef->header_signals())
 			{
-				ATDataSignalDef* sigdef = i->second;
+				ATDataSignalDef* sigdef = it.second;
 				sc_bv_signal* sig = sigdef->creator();
 				pack->add_data_signal(sig, idx, sigdef->width);
 				sigdef->binder(*mod, sig);

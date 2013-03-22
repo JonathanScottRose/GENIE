@@ -64,27 +64,23 @@ namespace _at_macros
 			_initializer () \
 			{ \
 				ATSpec* spec = ATManager::inst()->get_spec(); \
-				struct create { \
-				static sc_module* create_func(const char* nm) \
-				{ \
-					return new _comptype(nm); \
-				} \
-				}; \
-				ATComponentDef* comp = spec->define_component(#x, create::create_func); \
+				ATComponentDef* comp = spec->define_component(#x, \
+					[](const char* nm) { return new _comptype(nm); } \
+				); \
 				ATInterfaceDef* iface; \
 				std::string cur_clock; \
 				{
 
 #define AT_CLOCK(x,n) \
 				} \
-				struct bind_clock_##n { \
-				static void bind_func(sc_module& module, sc_clock* sig) \
-				{ \
-				_comptype& cmodule = static_cast<_comptype&>(module); \
-				cmodule.##x(*sig); \
-				} \
-				}; \
-				comp->define_clock(bind_clock_##n::bind_func, #n); \
+				comp->define_clock( \
+					[](sc_module& module, sc_clock* sig) \
+					{ \
+						_comptype& cmodule = static_cast<_comptype&>(module); \
+						cmodule.##x(*sig); \
+					}, \
+					#n \
+				); \
 				cur_clock = #n; \
 				{ \
 
@@ -104,14 +100,13 @@ namespace _at_macros
 					iface->define_endpoint(n,a);
 
 #define _AT_BOOL(p,t) \
-					struct t { \
-					static void bind_func(sc_module& module, sc_signal<bool>* sig) \
-					{ \
-						_comptype& cmodule = static_cast<_comptype&>(module); \
-						cmodule.##p##(*sig); \
-					} \
-					}; \
-					iface->define_##t##_signal(t::bind_func);
+					iface->define_##t##_signal( \
+						[](sc_module& module, sc_signal<bool>* sig) \
+						{ \
+							_comptype& cmodule = static_cast<_comptype&>(module); \
+							cmodule.##p##(*sig); \
+						} \
+					);
 
 #define _AT_VECONE(t,n,w) iface->define_##t##_signal( t##_##n::bind_func, t##_##n::create_func, w)
 #define _AT_VECTWO(t,n,w) iface->define_##t##_signal( t##_##n::bind_func, t##_##n::create_func, #n, w)
