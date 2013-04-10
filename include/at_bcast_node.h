@@ -6,18 +6,18 @@
 class ATBcastNode : public ATNetNode
 {
 public:
-	ATBcastNode(int n_outputs, const ATLinkProtocol& in_proto, const ATLinkProtocol& out_proto,
-		const std::string& clock);
+	ATBcastNode(ATNet* net, const ATLinkProtocol& proto, const std::string& clock);
 	~ATBcastNode();
 
 	void instantiate();
-	void set_addr(int port, int addr);
-
+	ATNetInPort* get_bcast_input();
+	
 protected:
-	int m_n_outputs;
-	ATLinkProtocol m_in_proto;
-	ATLinkProtocol m_out_proto;
+	typedef std::vector<ATNetOutPort*> DestVec;
+	typedef std::unordered_map<int, DestVec> RouteMap;
+
+	ATLinkProtocol m_proto;
+	RouteMap m_route_map;
 	std::string m_clock;
-	std::vector<int> m_addr_map;
 };
 

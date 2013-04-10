@@ -8,20 +8,15 @@
     <ClCompile Include="..\..\src\ati_arb.cpp" />
     <ClCompile Include="..\..\src\ati_bcast.cpp" />
     <ClCompile Include="..\..\src\ati_channel.cpp" />
-    <ClCompile Include="..\..\src\ati_proto_adapter.cpp" />
     <ClCompile Include="..\..\src\ati_sig_pack.cpp" />
-    <ClCompile Include="..\..\src\at_adapter_node.cpp" />
     <ClCompile Include="..\..\src\at_arb_node.cpp" />
     <ClCompile Include="..\..\src\at_bcast_node.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ati_bcast.h" />
     <ClInclude Include="..\..\include\ati_channel.h" />
-    <ClInclude Include="..\..\include\ati_proto_adapter.h" />
     <ClInclude Include="..\..\include\ati_sig_pack.h" />
-    <ClInclude Include="..\..\include\sc_bv_port.h" />
     <ClInclude Include="..\..\include\sc_bv_signal.h" />
-    <ClInclude Include="..\..\include\at_adapter_node.h" />
     <ClInclude Include="..\..\include\at_arb_node.h" />
     <ClInclude Include="..\..\include\at_bcast_node.h" />
     <ClInclude Include="..\..\include\at_instance_node.h" />

@@ -1,12 +1,12 @@
 #include <algorithm>
 #include <cstdio>
+#include <stack>
 #include "at_manager.h"
 #include "at_util.h"
 #include "sc_bv_signal.h"
 #include "at_instance_node.h"
 #include "at_arb_node.h"
 #include "at_bcast_node.h"
-#include "at_adapter_node.h"
 #include "at_netlist.h"
 
 
@@ -26,24 +26,6 @@ ATManager::~ATManager()
 {
 }
 
-class ATPath
-{
-public:
-	ATPath(const std::string& path)
-	{
-		std::stringstream strm(path);
-		std::getline(strm, m_inst, '.');
-		std::getline(strm, m_iface, '.');
-	}
-
-	const std::string& get_inst() { return m_inst; }
-	const std::string& get_iface() { return m_iface; }
-
-private:
-	std::string m_inst;
-	std::string m_iface;
-};
-
 
 void ATManager::bind_clock(sc_clock& clk, const std::string& name)
 {
@@ -51,9 +33,10 @@ void ATManager::bind_clock(sc_clock& clk, const std::string& name)
 }
 
 
-void ATManager::build_netlist()
+void ATManager::init_netlist()
 {
 	int addr = 1;
+	int flow_id = 1;
 
 	// Create instance nodes from instance definitions
 	for (auto i : m_spec.inst_defs())
@@ -62,260 +45,189 @@ void ATManager::build_netlist()
 		assert(instdef);
 
 		ATInstanceNode* node = new ATInstanceNode(instdef);
+		node->set_addr(addr++);
+
 		m_netlist.add_node(node);
 	}
 
-	// Connect instance nodes together according to link definitions
+	// Bin flows by source linkpoint
+	std::map<std::string, std::vector<ATLinkDef*>> binned_links;
 	for (ATLinkDef* linkdef : m_spec.link_defs())
 	{
-		assert(linkdef);
+		binned_links[linkdef->src.get_path()].push_back(linkdef);
+	}
 
-		ATPath s_path(linkdef->src);
-		ATPath d_path(linkdef->dest);
+	// Iterate over bins
+	for (auto it : binned_links)
+	{
+		auto& bin = it.second;
+
+		// Check linkpoint properties
+		ATLinkPointDef temp(it.first);
+		ATComponentDef* compdef = m_spec.get_component_def_for_instance(temp.get_inst());
+		ATEndpointDef* epd = compdef->get_iface(temp.get_iface())->get_endpoint(temp.get_ep());
+		bool is_broadcast = epd->type == ATEndpointDef::BROADCAST;
+
+		for (ATLinkDef* linkdef : bin)
+		{
+			ATNetFlow* flow = new ATNetFlow;
+			flow->set_id(flow_id);
+			flow->set_def(linkdef);
 		
-		ATInstanceNode* s_node = m_netlist.get_instance_node(s_path.get_inst());
-		ATInstanceNode* d_node = m_netlist.get_instance_node(d_path.get_inst());
-		assert(s_node);
-		assert(d_node);
+			ATNetNode* s_node = m_netlist.get_node(linkdef->src.get_inst());
+			ATNetNode* d_node = m_netlist.get_node(linkdef->dest.get_inst());
+			assert(s_node);
+			assert(d_node);
 
-		ATNetOutPort* s_port = s_node->get_port_for_send(s_path.get_iface());
-		ATNetInPort* d_port = d_node->get_port_for_recv(d_path.get_iface());
-		assert(s_port);
-		assert(d_port);
+			ATNetOutPort* s_port = s_node->get_outport(linkdef->src.get_iface());
+			ATNetInPort* d_port = d_node->get_inport(linkdef->dest.get_iface());
+			assert(s_port);
+			assert(d_port);
 
-		s_port->get_fanout().push_back(d_port);
-		d_port->get_fanin().push_back(s_port);
+			s_port->add_flow(flow);
+			d_port->add_flow(flow);
+			flow->set_src_port(s_port);
+			flow->set_dest_port(d_port);
+
+			// Flows that are part of a broadcast group share flow_id
+			if (!is_broadcast)
+				flow_id++;
+		}
 	}
 }
 
 
-void ATManager::xform_arbs()
+void ATManager::create_arb_bcast()
 {
-	ATNetlist::NodeVec to_add;
+	std::stack<ATNetOutPort*> to_visit;
 
-	// For each node, find any inports with multiple fanins and insert arbiters
-	for (ATNetNode* dest_node : m_netlist.nodes())
+	// Initialize stack with all outports of instance nodes
+	for (auto it : m_netlist.nodes())
 	{
-		ATNetNode::InPortVec& dest_inports = dest_node->get_inports();
+		ATNetNode* node = it.second;
+		if (node->get_type() != ATNetNode::INSTANCE)
+			continue;
 
-		for (ATNetInPort* dest_inport : dest_inports)
+		for (auto it : node->outports())
 		{
-			ATNetInPort::FaninVec& dest_fanin = dest_inport->get_fanin();
-			int n_fanin = (int)dest_fanin.size();
+			ATNetOutPort* port = it.second;
+			to_visit.push(port);
+		}
+	}
 
-			// Ignore single fanins
-			if (n_fanin <= 1)
-				continue;
+	// For every instance node's inport, this holds all the outports
+	// competing for that inport. This will be used to generate ARBs.
+	std::map<ATNetInPort*, std::vector<ATNetOutPort*>> done_pile;
+
+	// Visit all the outports and instantiate broadcast nodes
+	while (!to_visit.empty())
+	{
+		ATNetOutPort* port = to_visit.top();
+		to_visit.pop();
+
+		// Get the list of flows traveling through this outport
+		auto& flows = port->flows();
+		if (flows.empty())
+			throw std::runtime_error("Unconnected port");
+
+		// See if all the flows have the same physical destination or not
+		bool all_same_dest = true;
+		std::for_each(flows.begin(), flows.end(), [&](ATNetFlow* f)
+		{
+			all_same_dest &= f->same_phys_dest(flows.front());
+		});
+
+		if (all_same_dest)
+		{
+			// The common destination of all the flows
+			ATNetInPort* final_dest = flows.front()->get_dest_port();
 			
-			// Only instances can have addresses for now
-			assert(dest_node->get_type() == ATNetNode::INSTANCE);
-
-			// Instantiate arb node
-			const ATLinkProtocol& src_proto = dest_fanin.front()->get_proto();
-			const ATLinkProtocol& dest_proto = dest_inport->get_proto();
-			const std::string& dest_clock = dest_inport->get_clock();
-
-			ATArbNode* arb_node = new ATArbNode(n_fanin, 
-				src_proto, dest_proto, dest_clock);
-
-			to_add.push_back(arb_node);
-
-			// Rewire netlist to include arb node
-			for (int j = 0; j < n_fanin; j++)
-			{
-				ATNetInPort* arb_inport = arb_node->get_inports().at(j);
-
-				// Outport that feeds dest_node's fanin
-				ATNetOutPort* src_outport = dest_fanin[j];
-				ATNetOutPort::FanoutVec& src_fanout = src_outport->get_fanout();
-				
-				// Disconnect dest node from src node, replace with connection to arbiter
-				ATNetOutPort::FanoutVec::iterator k = 
-					std::find(src_fanout.begin(), src_fanout.end(),	dest_inport);
-
-				// Connect upstream node to arbiter
-				*k = arb_inport;
-				arb_inport->get_fanin().push_back(src_outport);
-
-				// Inform arbiter of the address associated with this input
-				arb_node->set_addr(j, j);
-			}
-
-			// Connect arbiter's output to dest_node
-			ATNetOutPort* arb_outport = arb_node->get_outports().front();
-			dest_fanin.clear();
-			dest_fanin.push_back(arb_outport);
-			arb_outport->get_fanout().push_back(dest_inport);
+			// The outport now competes with potentially others for this destination
+			done_pile[final_dest].push_back(port);
 		}
-	}
-
-	for (auto i : to_add)
-	{
-		m_netlist.add_node(i);
-	}
-}
-
-
-void ATManager::xform_bcasts()
-{
-	ATNetlist::NodeVec to_add;
-
-	// For each node, find any outports with multiple fanouts and insert broadcasters
-	for (ATNetNode* src_node : m_netlist.nodes())
-	{
-		ATNetNode::OutPortVec& src_outports = src_node->get_outports();
-
-		for (ATNetOutPort* src_outport : src_outports)
+		else
 		{
-			ATNetOutPort::FanoutVec& src_fanout = src_outport->get_fanout();
-			int n_fanout = (int)src_fanout.size();
+			// Create a broadcast node
+			ATNet* net = new ATNet(port);
 
-			// Ignore single fanouts
-			if (n_fanout <= 1)
-				continue;
-			
-			// Only instances can have addresses for now
-			assert(src_node->get_type() == ATNetNode::INSTANCE);
+			ATBcastNode* bc = new ATBcastNode(net, port->get_proto(), port->get_clock());
+			m_netlist.add_node(bc);
 
-			// Instantiate bcast node
-			const ATLinkProtocol& dest_proto = src_fanout.front()->get_proto();
-			const ATLinkProtocol& src_proto = src_outport->get_proto();
-			const std::string& src_clock = src_outport->get_clock();
-
-			ATBcastNode* bcast_node = new ATBcastNode(n_fanout, 
-				src_proto, dest_proto, src_clock);
-
-			to_add.push_back(bcast_node);
-
-			// Rewire netlist to include bcast node
-			for (int j = 0; j < n_fanout; j++)
+			// Push its outports onto visitation stack
+			for (auto it : bc->outports())
 			{
-				ATNetOutPort* bcast_outport = bcast_node->get_outports().at(j);
-
-				// Inport that's fed as fanout of src_outport
-				ATNetInPort* dest_inport = src_fanout[j];
-				ATNetInPort::FaninVec& dest_fanin = dest_inport->get_fanin();
-				
-				// Disconnect dest node from src node, replace with connection to bcaster
-				ATNetInPort::FaninVec::iterator k = 
-					std::find(dest_fanin.begin(), dest_fanin.end(),	src_outport);
-
-				// Connect downstream node to bcaster
-				*k = bcast_outport;
-				bcast_outport->get_fanout().push_back(dest_inport);
-
-				// Inform bcaster of the address associated with this output
-				bcast_node->set_addr(j, j);
+				to_visit.push(it.second);
 			}
-
-			// Connect bcaster's input to src_node
-			ATNetInPort* bcast_inport = bcast_node->get_inports().front();
-			src_fanout.clear();
-			src_fanout.push_back(bcast_inport);
-			bcast_inport->get_fanin().push_back(src_outport);
 		}
 	}
 
-	for (auto i : to_add)
+	// Now visit the done pile and create arbiters
+	for (auto i : done_pile)
 	{
-		m_netlist.add_node(i);
-	}
-}
+		// The destination inport port...
+		ATNetInPort* dest_inport = i.first;
 
+		// ... which all of these outports compete for
+		auto& src_outports = i.second;
 
-void ATManager::xform_proto_match()
-{
-	ATNetlist::NodeVec to_add;
-
-	for (ATNetNode* src_node : m_netlist.nodes())
-	{
-		ATNetNode::OutPortVec& src_outports = src_node->get_outports();
-
-		for (ATNetOutPort* src_outport : src_outports)
+		if (src_outports.size() > 1)
 		{
-			const ATLinkProtocol& src_proto = src_outport->get_proto();
-			ATNetOutPort::FanoutVec& src_fanout = src_outport->get_fanout();
-
-			for (ATNetInPort*& dest_inport : src_fanout)
+			// Create a net for each outport to drive, collect these nets
+			std::vector<ATNet*> src_nets;
+			for (ATNetOutPort* src_outport : src_outports)
 			{
-				ATNetNode* dest_node = dest_inport->get_node();
-				const ATLinkProtocol& dest_proto = dest_inport->get_proto();
-
-				if (src_proto.compatible_with(dest_proto))
-					continue;
-
-				ATAdapterNode* ad_node = new ATAdapterNode(src_proto, dest_proto);
-				to_add.push_back(ad_node);
-
-				ATNetOutPort* ad_outport = ad_node->get_outports().front();
-				ATNetOutPort::FanoutVec& ad_fanout = ad_outport->get_fanout();
-				ATNetInPort* ad_inport = ad_node->get_inports().front();
-				ATNetInPort::FaninVec& ad_fanin = ad_inport->get_fanin();
-
-				ATNetInPort::FaninVec& dest_fanin = dest_inport->get_fanin();
-				ATNetInPort::FaninVec::iterator k = 
-					std::find(dest_fanin.begin(), dest_fanin.end(), src_outport);
-				
-				*k = ad_outport;
-				ad_fanout.push_back(dest_inport);
-
-				dest_inport = ad_inport;
-				ad_fanin.push_back(src_outport);
+				ATNet* net = new ATNet(src_outport);
+				src_nets.push_back(net);
 			}
+
+			// Create an arbiter node and give it all these nets as inputs
+			ATArbNode* arb = new ATArbNode(src_nets, dest_inport->get_proto(), dest_inport->get_clock());
+			m_netlist.add_node(arb);
+
+			// Connect the output of the arb node to its final destination via a net
+			ATNetOutPort* arb_outport = arb->get_arb_outport();
+			ATNet* net = new ATNet(arb_outport);
+			ATNetlist::connect_net_to_inport(net, dest_inport);
+		}
+		else
+		{
+			ATNetOutPort* the_outport = src_outports.front();
+			ATNet* net = new ATNet(the_outport);
+			ATNetlist::connect_net_to_inport(net, dest_inport);
 		}
 	}
-
-	for (auto i : to_add)
-	{
-		m_netlist.add_node(i);
-	}
-}
-
-
-void ATManager::transform_netlist()
-{
-	xform_arbs();
-	xform_bcasts();
-	xform_proto_match();
 }
 
 
 void ATManager::build_system()
 {
-	build_netlist();
-	transform_netlist();
+	m_spec.validate_and_preprocess();
+
+	init_netlist();
+	create_arb_bcast();
 
 	// Instantiate every node in the netlist
-	for (ATNetNode* node : m_netlist.nodes())
+	for (auto it : m_netlist.nodes())
 	{
+		ATNetNode* node = it.second;
 		node->instantiate();
-
-		if (node->get_type() == ATNetNode::INSTANCE)
-		{
-			ATInstanceNode* inode = (ATInstanceNode*)node;
-			const std::string& name = inode->get_instance_def()->inst_name;
-			m_modules[name] = inode->get_impl();
-		}
 	}
 
 	// Make connections between nodes
-	for (ATNetNode* src_node : m_netlist.nodes())
+	for (auto it : m_netlist.nodes())
 	{
-		ATNetNode::OutPortVec& src_outports = src_node->get_outports();
+		ATNetNode* src_node = it.second;
 
 		// For each outport, connect to its fanout
-		for (ATNetOutPort* src_outport : src_outports)
+		for (auto it : src_node->outports())
 		{
+			ATNetOutPort* src_outport = it.second;
 			ati_send* send = src_outport->get_impl();
 
-			ATNetOutPort::FanoutVec& src_fanout = src_outport->get_fanout();
-			assert (src_fanout.size() == 1);
-
-			for (ATNetInPort* dest_inport : src_fanout)
+			for (ATNetInPort* dest_inport : src_outport->get_net()->fanout())
 			{
 				ati_recv* recv = dest_inport->get_impl();
 
-				assert(dest_inport->get_fanin().size() == 1);
 				assert(dest_inport->get_proto().compatible_with(src_outport->get_proto()));
 
 				ati_channel* chan = new ati_channel(src_outport->get_proto());

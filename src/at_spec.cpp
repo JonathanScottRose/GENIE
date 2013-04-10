@@ -1,6 +1,10 @@
 #include "at_spec.h"
 #include "at_util.h"
 
+//
+// Spec
+//
+
 ATSpec::ATSpec()
 {
 }
@@ -26,8 +30,8 @@ ATComponentDef* ATSpec::define_component(const std::string& name,
 ATLinkDef* ATSpec::define_link(const std::string &src, const std::string &dest)
 {
 	ATLinkDef* link = new ATLinkDef;
-	link->src = src;
-	link->dest = dest;
+	link->src = ATLinkPointDef(src);
+	link->dest = ATLinkPointDef(dest);
 	m_link_defs.push_back(link);
 	return link;
 }
@@ -43,6 +47,43 @@ ATInstanceDef* ATSpec::define_instance(const std::string &name,
 	return inst;
 }
 
+
+ATComponentDef* ATSpec::get_component_def_for_instance(const std::string& name)
+{
+	const std::string& cname = get_instance_def(name)->comp_name;
+	return get_component_def(cname);
+}
+
+
+ATEndpointDef* ATSpec::get_endpoint_def_for_linkpoint(const ATLinkPointDef& lp_def)
+{
+	auto compdef = get_component_def_for_instance(lp_def.get_inst());
+	auto ifacedef = compdef->get_iface(lp_def.get_iface());
+	return ifacedef->get_endpoint(lp_def.get_ep());
+}
+
+
+void ATSpec::validate_and_preprocess()
+{
+	// For now, just create default endpoints for interfaces
+	for (auto i : m_comp_defs)
+	{
+		for (auto j : i.second->interfaces())
+		{
+			ATInterfaceDef* iface_def = j.second;
+
+			if (iface_def->endpoints().empty())
+			{
+				iface_def->define_endpoint("ep", 0, iface_def->get_default_ep_type());				
+			}
+		}
+	}
+}
+
+
+//
+// ComponentDef
+//
 
 
 ATComponentDef::ATComponentDef(const std::string &name, 
@@ -60,9 +101,10 @@ ATComponentDef::~ATComponentDef()
 
 ATInterfaceDef* ATComponentDef::define_interface(const std::string& name, 
 												 const std::string& clock,
-												 ATInterfaceDef::Type type)
+												 ATInterfaceDef::Type type,
+												 ATEndpointDef::Type def_ep_type)
 {
-	ATInterfaceDef* def = new ATInterfaceDef(name, clock, type);
+	ATInterfaceDef* def = new ATInterfaceDef(name, clock, type, def_ep_type);
 	m_iface_defs[name] = def;
 	return def;
 }
@@ -78,15 +120,22 @@ void ATComponentDef::define_clock(const ATClockSignalDef::BinderFunc& binder,
 }
 
 
+//
+// InterfaceDef
+//
+
+
 ATInterfaceDef::ATInterfaceDef(const std::string &name, const std::string& clock,
-							   ATInterfaceDef::Type type)
-: m_name(name), m_clock(clock), m_type(type), m_header_width(0), m_data_width(0)
+							   ATInterfaceDef::Type type, ATEndpointDef::Type def_ep_type)
+: m_name(name), m_clock(clock), m_type(type), m_header_width(0), m_data_width(0),
+m_def_ep_type(def_ep_type)
 {
-	m_sigdef_addr = 0;
-	m_sigdef_valid = 0;
-	m_sigdef_ready = 0;
-	m_sigdef_sop = 0;
-	m_sigdef_eop = 0;
+	m_sigdef_addr = nullptr;
+	m_sigdef_valid = nullptr;
+	m_sigdef_ready = nullptr;
+	m_sigdef_sop = nullptr;
+	m_sigdef_eop = nullptr;
+	m_sigdef_ep = nullptr;
 }
 
 
@@ -196,15 +245,26 @@ bool ATInterfaceDef::has_sop() { return m_sigdef_sop != 0; }
 bool ATInterfaceDef::has_valid() { return m_sigdef_valid != 0; }
 
 
-void ATInterfaceDef::define_endpoint(const std::string &name, int addr)
+void ATInterfaceDef::define_endpoint(const std::string &name, int addr, ATEndpointDef::Type type)
 {
-	ATEndpointDef* ep = new ATEndpointDef(name, addr);
+	ATEndpointDef* ep = new ATEndpointDef(name, addr, type);
 	m_ep_defs[name] = ep;
 }
 
 
-ATEndpointDef::ATEndpointDef(const std::string &name, int value)
-: name(name), value(value) { }
+//
+// EndpointDef
+//
 
 
-ATEndpointDef::~ATEndpointDef() { }
+ATEndpointDef::ATEndpointDef(const std::string &name, int ep_id, Type type)
+	: name(name), ep_id(ep_id), type(type)
+{
+}
+
+
+ATEndpointDef::~ATEndpointDef()
+{
+}
+
+

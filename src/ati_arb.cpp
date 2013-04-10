@@ -15,12 +15,6 @@ ati_arb::ati_arb(sc_module_name nm, ATLinkProtocol& in_proto, ATLinkProtocol& ou
 	assert(in_proto.has_valid && out_proto.has_valid);
 	assert(in_proto.has_ready && out_proto.has_ready);
 
-	m_addrs = new sc_bv_base* [n_inputs];
-	for (int i = 0; i < n_inputs; i++)
-	{
-		m_addrs[i] = new sc_bv_base(out_proto.addr_width);
-	}
-
 	SC_HAS_PROCESS(ati_arb);
 	SC_THREAD(process_clk);
 	sensitive << i_clk.pos();
@@ -44,11 +38,9 @@ ati_arb::~ati_arb()
 	for (int i = 0; i < m_n_inputs; i++)
 	{
 		delete m_in[i];
-		delete m_addrs[i];
 	}
 
 	delete[] m_in;
-	delete[] m_addrs;
 }
 
 
@@ -75,7 +67,7 @@ void ati_arb::process_cont()
 {
 	ati_recv* cur_in = m_in[m_cur_input];
 
-	o_out.addr() = *m_addrs[m_cur_input];
+	o_out.addr() = cur_in->addr();
 	o_out.valid() = cur_in->valid();
 	if (m_out_proto.data_width > 0) o_out.data() = cur_in->data();
 	if (m_out_proto.is_packet)
@@ -120,8 +112,3 @@ void ati_arb::process_clk()
 	}
 }
 
-
-void ati_arb::set_addr(int i, sc_dt::sc_bv_base *val)
-{
-	*m_addrs[i] = *val;
-}

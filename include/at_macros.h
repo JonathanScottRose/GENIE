@@ -1,7 +1,6 @@
 #pragma once
 #include "at_manager.h"
 #include "at_spec.h"
-#include "sc_bv_port.h"
 
 
 namespace _at_macros
@@ -88,16 +87,16 @@ namespace _at_macros
 				} \
 				{ \
 					using namespace _at_send; \
-					iface = comp->define_interface(#x, cur_clock, ATInterfaceDef::SEND);
+					iface = comp->define_interface(#x, cur_clock, ATInterfaceDef::SEND, ATEndpointDef::UNICAST);
 
 #define AT_RECV_INTERFACE(x) \
 				} \
 				{ \
 					using namespace _at_recv; \
-					iface = comp->define_interface(#x, cur_clock, ATInterfaceDef::RECV);
+					iface = comp->define_interface(#x, cur_clock, ATInterfaceDef::RECV, ATEndpointDef::UNICAST);
 
-#define AT_ENDPOINT(n,a) \
-					iface->define_endpoint(n,a);
+#define AT_ENDPOINT(n,a,t) \
+					iface->define_endpoint(n,a,ATEndpointDef::##t);
 
 #define _AT_BOOL(p,t) \
 					iface->define_##t##_signal( \
@@ -134,6 +133,7 @@ namespace _at_macros
 #define AT_DATA_BUNDLE(x,n) _AT_VEC(x,data,n,##_AT_VECTWO)
 #define AT_HEADER(x,n) _AT_VEC(x,header,n,##_AT_VECTWO)
 #define AT_ADDRESS(x) _AT_VEC(x,address,,##_AT_VECONE)
+#define AT_EPID(x) _AT_VEC(x,ep,,##_AT_VECONE)
 
 #define AT_ENDCOMPONENT \
 				} \

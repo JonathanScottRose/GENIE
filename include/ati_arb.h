@@ -14,8 +14,6 @@ public:
 	ati_arb(sc_module_name nm, ATLinkProtocol& in_proto, ATLinkProtocol& out_proto, int n_inputs);
 	~ati_arb();
 
-	void set_addr(int i, sc_bv_base* val);
-
 protected:
 	void process_cont();
 	void process_clk();
@@ -27,5 +25,4 @@ protected:
 	ATLinkProtocol m_in_proto;
 	ATLinkProtocol m_out_proto;
 	ati_recv** m_in;
-	sc_bv_base** m_addrs;
 };

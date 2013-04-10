@@ -2,29 +2,43 @@
 #include "at_manager.h"
 #include "ati_arb.h"
 
-ATArbNode::ATArbNode(int n_inputs, const ATLinkProtocol &in_proto, const ATLinkProtocol &out_proto,
+ATArbNode::ATArbNode(const std::vector<ATNet*>& nets, const ATLinkProtocol& proto,
 					 const std::string& clock)
-: m_in_proto(in_proto), m_out_proto(out_proto), m_n_inputs(n_inputs), m_clock(clock)
+	: m_proto(proto), m_clock(clock)
 {
 	m_type = ATNetNode::ARB;
 
-	m_in_proto.is_packet = true;
-	m_out_proto.has_ready = true;
+	char buf[128];
+	static int s_id = 0;
+	sprintf(buf, "arb%d", s_id++);
+	m_name = buf;
 
-	for (int i = 0; i < n_inputs; i++)
+	// Create the arbiter output port
+	ATNetOutPort* new_outport = new ATNetOutPort(this);
+	new_outport->set_name("out");
+	new_outport->set_clock(clock);
+	new_outport->set_proto(proto);
+	add_outport(new_outport);
+
+	// Create inport for each net and connect
+	int port_no = 0;
+	for (ATNet* net : nets)
 	{
-		ATNetInPort* inport = new ATNetInPort(this);
-		inport->set_proto(m_in_proto);
-		inport->set_clock(clock);
-		m_inports.push_back(inport);
+		ATNetOutPort* driver = net->get_driver();
+		ATNetInPort* new_inport = new ATNetInPort(this);
+		new_inport->set_clock(m_clock);
+		new_inport->set_proto(m_proto);
+
+		sprintf(buf, "in%d", port_no++);
+		new_inport->set_name(buf);
+		new_inport->add_flows(driver->flows());
+		add_inport(new_inport);
+
+		ATNetlist::connect_net_to_inport(net, new_inport);
+
+		// Make sure to add the flows to the outport too
+		new_outport->add_flows(driver->flows());
 	}
-
-	ATNetOutPort* outport = new ATNetOutPort(this);
-	outport->set_proto(m_out_proto);
-	outport->set_clock(clock);
-	m_outports.push_back(outport);
-
-	m_addr_map.resize(n_inputs);
 }
 
 
@@ -33,13 +47,21 @@ ATArbNode::~ATArbNode()
 }
 
 
+ATNetOutPort* ATArbNode::get_arb_outport()
+{
+	return m_outports["out"];
+}
+
+
 void ATArbNode::instantiate()
 {
 	ATManager* mgr = ATManager::inst();
 
+	int n_inputs = (int)m_inports.size();
+
 	// Instantiate arbiter module
 	ati_arb* arb = new ati_arb(sc_gen_unique_name("ati_arb"),
-		m_in_proto, m_out_proto, m_n_inputs);
+		m_proto, m_proto, n_inputs);
 	
 	// Connect clock
 	sc_clock* clk = mgr->get_clock(m_clock);
@@ -47,25 +69,18 @@ void ATArbNode::instantiate()
 	arb->i_clk(*clk);
 
 	// Attach outport to the module's ati_send
-	ATNetOutPort* outport = m_outports.front();
+	ATNetOutPort* outport = get_arb_outport();
 	assert(outport);
 
 	outport->set_impl(&arb->o_out);
 
 	// Attach inports to the module's ati_recvs, assign addresses
-	for (int i = 0; i < m_n_inputs; i++)
+	int i = 0;
+	for (auto it : m_inports)
 	{
-		ATNetInPort* inport = m_inports[i];
-		inport->set_impl(&arb->i_in(i));
-
-		sc_bv_base addr(m_out_proto.addr_width);
-		addr = m_addr_map[i];
-		arb->set_addr(i, &addr);
+		ATNetInPort* inport = it.second;
+		inport->set_impl(&arb->i_in(i++));
 	}
 }
 
 
-void ATArbNode::set_addr(int port, int addr)
-{
-	m_addr_map[port] = addr;
-}

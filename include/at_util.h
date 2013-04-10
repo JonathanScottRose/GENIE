@@ -3,9 +3,6 @@
 template<class T>
 static void at_delete_all(T& container)
 {
-	T::iterator i = container.begin();
-	T::iterator end = container.end();
-
 	for (auto i : container)
 	{
 		delete i;

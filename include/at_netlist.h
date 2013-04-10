@@ -1,124 +1,195 @@
 #pragma once
 
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include "at_protocol.h"
 #include "at_spec.h"
 #include "ati_channel.h"
 
-class ATInstanceNode;
+class ATNetlist;
+class ATNetNode;
+class ATNetPort;
+class ATNetInPort;
+class ATNetOutPort;
+class ATNetFlow;
+class ATNet;
+
 
 class ATNetlist
 {
 public:
-	typedef std::vector<class ATNetNode*> NodeVec;
+	typedef std::unordered_map<std::string, ATNetNode*> NodeMap;
+	typedef std::vector<ATNetFlow*> FlowGroup;
+	typedef std::unordered_map<int, FlowGroup> FlowMap;
+
+	static void connect_net_to_inport(ATNet* net, ATNetInPort* inport);
+	static void connect_outport_to_net(ATNetOutPort* outport, ATNet* net);
 
 	ATNetlist();
 	~ATNetlist();
 
-	const NodeVec& nodes() { return m_nodes; }
+	const NodeMap& nodes() { return m_nodes; }
+	ATNetNode* get_node(const std::string& name) { return m_nodes[name]; }
 	void add_node(ATNetNode* node);
 	void remove_node(ATNetNode* node);
-	ATInstanceNode* get_instance_node(const std::string& name);
-	void clear();
+
+	const FlowMap& flows() { return m_flows; }
+	const FlowGroup& get_flow(int id) { return m_flows[id]; }
+	void add_flow(ATNetFlow* flow);
+
+	ATNetNode* get_node_for_linkpoint(const ATLinkPointDef& lp_def);
 
 private:
-	typedef std::map<std::string, ATInstanceNode*> InstNodeMap;
-
-	NodeVec m_nodes;
-	InstNodeMap m_inst_node_map;
+	NodeMap m_nodes;
+	FlowMap m_flows;
 };
 
 
 class ATNetNode
 {
 public:
-	typedef std::vector<class ATNetInPort*> InPortVec;
-	typedef std::vector<class ATNetOutPort*> OutPortVec;
+	typedef std::unordered_map<std::string, ATNetInPort*> InPortMap;
+	typedef std::unordered_map<std::string, ATNetOutPort*> OutPortMap;
 
 	enum Type
 	{
 		INSTANCE,
 		ARB,
-		BCAST,
-		ADAPTER
+		BCAST
 	};
 
 	ATNetNode();
 	virtual ~ATNetNode();
 
-	InPortVec& get_inports() { return m_inports; }
-	OutPortVec& get_outports() { return m_outports; }
-	Type get_type() { return m_type; }
+	void set_name(const std::string& name) { m_name = name; }
+	const std::string& get_name() { return m_name; }
 
+	const InPortMap& inports() { return m_inports; }
+	ATNetInPort* get_inport(const std::string& name) { return m_inports[name]; }
+
+	const OutPortMap& outports() { return m_outports; }
+	ATNetOutPort* get_outport(const std::string& name) { return m_outports[name]; }
+
+	Type get_type() { return m_type; }
 	virtual void instantiate() = 0;
 	
 protected:
+	void add_inport(ATNetInPort* port);
+	void add_outport(ATNetOutPort* port);
+
 	Type m_type;
-	InPortVec m_inports;
-	OutPortVec m_outports;
+	std::string m_name;
+	InPortMap m_inports;
+	OutPortMap m_outports;
 };
 
 
-class ATNetInPort
+class ATNetPort
 {
 public:
-	typedef std::vector<class ATNetOutPort*> FaninVec;
+	typedef std::vector<ATNetFlow*> FlowVec;
 
-	ATNetInPort(ATNetNode* node);
+	ATNetPort(ATNetNode* node);
+	~ATNetPort();
 
-	FaninVec& get_fanin() { return m_fanin; }
-	ATNetNode* get_node() { return m_node; }
+	ATNetNode* get_parent() { return m_parent; }
 
-	const ATLinkProtocol& get_proto() { return m_proto; }
+	void set_name(const std::string& name) { m_name = name; }
+	const std::string& get_name() { return m_name; }
+
 	void set_proto(const ATLinkProtocol& p) { m_proto = p; }
+	const ATLinkProtocol& get_proto() { return m_proto; }
 
 	void set_clock(const std::string& clk) { m_clk = clk; }
 	const std::string& get_clock() { return m_clk; }
+
+	void set_net(ATNet* net) { m_net = net; }
+	ATNet* get_net() { return m_net; }
+
+	const FlowVec& flows() { return m_flows; }
+	void add_flow(ATNetFlow* f);
+	void remove_flow(ATNetFlow* f);
+	bool has_flow(ATNetFlow* f);
+	void clear_flows();
+	void add_flows(const FlowVec& f);
+
+protected:
+	std::string m_name;
+	ATNetNode* m_parent;	
+	ATLinkProtocol m_proto;
+	std::string m_clk;
+	ATNet* m_net;
+	FlowVec m_flows;
+};
+
+
+class ATNetInPort : public ATNetPort
+{
+public:
+	ATNetInPort(ATNetNode* node) : ATNetPort(node) { }
 
 	void set_impl(ati_recv* s) { m_impl = s; }
 	ati_recv* get_impl() { return m_impl; }
 
-	void set_addr(int a) { m_addr = a; }
-	int get_addr() { return m_addr; }
-
 protected:
-	ATLinkProtocol m_proto;
-	FaninVec m_fanin;
-	std::string m_clk;
 	ati_recv* m_impl;
-	ATNetNode* m_node;
-	int m_addr;
 };
 
 
-class ATNetOutPort
+class ATNetOutPort : public ATNetPort
 {
 public:
-	typedef std::vector<class ATNetInPort*> FanoutVec;
-
-	ATNetOutPort(ATNetNode* node);
-
-	FanoutVec& get_fanout() { return m_fanout; }
-	ATNetNode* get_node() { return m_node; }
-
-	const ATLinkProtocol& get_proto() { return m_proto; }
-	void set_proto(const ATLinkProtocol& p) { m_proto = p; }
-
-	void set_clock(const std::string& clk) { m_clk = clk; }
-	const std::string& get_clock() { return m_clk; }
+	ATNetOutPort(ATNetNode* node) : ATNetPort(node) { }
 
 	void set_impl(ati_send* s) { m_impl = s; }
 	ati_send* get_impl() { return m_impl; }
 
-	void set_addr(int a) { m_addr = a; }
-	int get_addr() { return m_addr; }
-
-private:
-	ATLinkProtocol m_proto;
-	FanoutVec m_fanout;
-	std::string m_clk;
+protected:
 	ati_send* m_impl;
-	ATNetNode* m_node;
-	int m_addr;
+};
+
+
+class ATNet
+{
+public:
+	typedef std::vector<ATNetInPort*> PortVec;
+
+	ATNet();
+	ATNet(ATNetOutPort* driver);
+
+	void set_driver(ATNetOutPort* p) { m_driver = p; }
+	ATNetOutPort* get_driver() { return m_driver; }
+
+	const PortVec& fanout() { return m_fanout; }
+	void add_fanout(ATNetInPort* p);
+	void remove_fanout(ATNetInPort* p);
+	
+protected:
+	ATNetOutPort* m_driver;
+	PortVec m_fanout;
+};
+
+
+class ATNetFlow
+{
+public:
+	void set_src_port(ATNetOutPort* port) { m_src_port = port; }
+	ATNetOutPort* get_src_port() { return m_src_port; }
+
+	void set_dest_port(ATNetInPort* port) { m_dest_port = port; }
+	ATNetInPort* get_dest_port() { return m_dest_port;}
+
+	void set_def(ATLinkDef* def) { m_link_def = def; }
+	ATLinkDef* get_def() { return m_link_def; }
+
+	int get_id() { return m_id; }
+	void set_id(int id) { m_id = id; }
+
+	bool same_phys_dest(ATNetFlow* other);
+
+protected:
+	ATNetOutPort* m_src_port;
+	ATNetInPort* m_dest_port;
+	ATLinkDef* m_link_def;
+	int m_id;
 };
