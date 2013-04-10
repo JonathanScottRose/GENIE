@@ -4,12 +4,16 @@ ati_bcast::ati_bcast(sc_module_name nm, const ATLinkProtocol& proto, int n_outpu
 : sc_module(nm), m_proto(proto), i_in(proto)
 {
 	SC_HAS_PROCESS(ati_bcast);
-	SC_METHOD(process);
+	SC_THREAD(process_clk);
+	sensitive << i_clk;
+
+	SC_METHOD(process_cont);
 	
 	m_out.resize(n_outputs);
-	for (auto& send : m_out)
+	for (auto& out : m_out)
 	{
-		send = new ati_send(proto);
+		out.send = new ati_send(proto);
+		out.latch = new sc_signal<bool>();
 	}
 
 	sensitive << i_in.addr();
@@ -25,7 +29,7 @@ ati_bcast::ati_bcast(sc_module_name nm, const ATLinkProtocol& proto, int n_outpu
 	{
 		for (auto output : m_out)
 		{
-			sensitive << output->ready();
+			sensitive << output.send->ready();
 		}
 	}
 }
@@ -38,15 +42,40 @@ ati_bcast::~ati_bcast()
 
 void ati_bcast::register_output(int flow_id, int output)
 {
-	m_route_map[flow_id].push_back(m_out[output]);
+	m_route_map[flow_id].push_back(&m_out[output]);
 }
 
 
-void ati_bcast::process()
+void ati_bcast::process_clk()
 {
-	for (ati_send* output : m_out)
+	while(true)
 	{
-		output->valid() = false;
+		int flow_id = i_in.addr().read().to_int();
+
+		bool all_ready = true;
+		for (auto out : m_route_map[flow_id])
+		{
+			ati_send* output = out->send;
+			all_ready &= (output->ready() | *out->latch);
+
+			if (i_in.valid())
+			{
+				if (output->ready() && !all_ready) *out->latch = true;
+				else if (all_ready) *out->latch = false;
+			}
+		}
+
+		wait();		
+	}
+}
+
+
+void ati_bcast::process_cont()
+{
+	for (auto out : m_out)
+	{
+		out.send->valid() = false;
+		out.latch = false;
 	}
 
 	i_in.ready() = true;
@@ -56,17 +85,19 @@ void ati_bcast::process()
 		int flow_id = i_in.addr().read().to_int();
 
 		bool all_ready = true;
-		for (ati_send* output : m_route_map[flow_id])
+		for (auto out : m_route_map[flow_id])
 		{
-			all_ready &= output->ready();
+			ati_send* output = out->send;
+			all_ready &= (output->ready() | *out->latch);
 		}
 
 		i_in.ready() = all_ready;
 
-		for (ati_send* output : m_route_map[flow_id])
+		for (auto out : m_route_map[flow_id])
 		{
+			ati_send* output = out->send;
 			output->data() = i_in.data();
-			output->valid() = all_ready;
+			output->valid() = i_in.valid() & !*out->latch;
 			output->sop() = i_in.sop();
 			output->eop() = i_in.eop();
 			output->addr() = i_in.addr();

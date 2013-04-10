@@ -73,6 +73,7 @@ void ATManager::init_netlist()
 			ATNetFlow* flow = new ATNetFlow;
 			flow->set_id(flow_id);
 			flow->set_def(linkdef);
+			m_netlist.add_flow(flow);
 		
 			ATNetNode* s_node = m_netlist.get_node(linkdef->src.get_inst());
 			ATNetNode* d_node = m_netlist.get_node(linkdef->dest.get_inst());
@@ -93,6 +94,10 @@ void ATManager::init_netlist()
 			if (!is_broadcast)
 				flow_id++;
 		}
+
+		// Make sure next flow will get an ID different than the ones in the broadcast group
+		if (is_broadcast)
+			flow_id++;
 	}
 }
 

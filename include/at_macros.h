@@ -96,7 +96,7 @@ namespace _at_macros
 					iface = comp->define_interface(#x, cur_clock, ATInterfaceDef::RECV, ATEndpointDef::UNICAST);
 
 #define AT_ENDPOINT(n,a,t) \
-					iface->define_endpoint(n,a,ATEndpointDef::##t);
+					iface->define_endpoint(#n,a,ATEndpointDef::##t);
 
 #define _AT_BOOL(p,t) \
 					iface->define_##t##_signal( \

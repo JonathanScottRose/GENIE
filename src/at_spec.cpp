@@ -32,6 +32,9 @@ ATLinkDef* ATSpec::define_link(const std::string &src, const std::string &dest)
 	ATLinkDef* link = new ATLinkDef;
 	link->src = ATLinkPointDef(src);
 	link->dest = ATLinkPointDef(dest);
+	link->src_bind_pos = m_bind_positions[link->src.get_path()]++;
+	link->dest_bind_pos = m_bind_positions[link->dest.get_path()]++;
+
 	m_link_defs.push_back(link);
 	return link;
 }

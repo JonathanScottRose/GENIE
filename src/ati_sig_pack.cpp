@@ -139,8 +139,9 @@ void ati_signal_packer::process()
 		{
 			int addr = m_addr_sig? m_addr_sig->read().to_int() : 0;
 			int epid = m_epid_sig? m_epid_sig->read().to_int() : 0;
-
-			flow_bv = find_by_mapping(epid, addr);
+			int flow_id = find_by_mapping(epid, addr);
+			
+			flow_bv = flow_id;
 			m_send->addr() = flow_bv;
 		}
 

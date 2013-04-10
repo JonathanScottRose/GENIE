@@ -67,6 +67,8 @@ void ati_arb::process_cont()
 {
 	ati_recv* cur_in = m_in[m_cur_input];
 
+	int flow_id = cur_in->addr().read().to_int();
+
 	o_out.addr() = cur_in->addr();
 	o_out.valid() = cur_in->valid();
 	if (m_out_proto.data_width > 0) o_out.data() = cur_in->data();

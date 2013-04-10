@@ -68,7 +68,6 @@ struct ATEndpointDef
 	enum Type
 	{
 		UNICAST,
-		UNICAST_NATIVE,
 		BROADCAST
 	};
 
@@ -202,8 +201,7 @@ public:
 
 	std::string get_path()
 	{
-		std::string result(m_inst);
-		return result.append(".").append(m_iface).append(".").append(m_ep);
+		return m_inst + '.' + m_iface + '.' + m_ep;
 	}
 
 private:
@@ -219,6 +217,8 @@ struct ATLinkDef
 {
 	ATLinkPointDef src;
 	ATLinkPointDef dest;
+	int src_bind_pos;
+	int dest_bind_pos;
 };
 
 
@@ -277,6 +277,7 @@ public:
 	typedef std::unordered_map<std::string, ATComponentDef*> CompDefMap;
 	typedef std::unordered_map<std::string, ATInstanceDef*> InstDefMap;
 	typedef std::vector<ATLinkDef*> LinkDefVec;
+	typedef std::unordered_map<std::string, int> BindPosMap;
 
 	ATSpec();
 	~ATSpec();
@@ -301,4 +302,5 @@ private:
 	CompDefMap m_comp_defs;
 	InstDefMap m_inst_defs;
 	LinkDefVec m_link_defs;
+	BindPosMap m_bind_positions;
 };

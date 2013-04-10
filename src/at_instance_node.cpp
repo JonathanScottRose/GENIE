@@ -114,14 +114,6 @@ void ATInstanceNode::instantiate()
 		name.append(ifacedef->get_name());
 		ati_signal_unpacker* pack = new ati_signal_unpacker(inport->get_proto(), name.c_str());
 
-		// haky hack time.
-		int addr = 0;
-		std::vector<ATNetFlow*> sorted_flows(inport->flows());
-		std::sort(sorted_flows.begin(), sorted_flows.end(), [](ATNetFlow* l, ATNetFlow* r)
-		{
-			return l->get_id() < r->get_id();
-		});
-
 		for (ATNetFlow* flow : inport->flows())
 		{
 			int flow_id = flow->get_id();
@@ -131,11 +123,9 @@ void ATInstanceNode::instantiate()
 			ATEndpointDef* dest_ep_def = spec->get_endpoint_def_for_linkpoint(dest_lp_def);
 
 			int ep_id = dest_ep_def->ep_id;
+			int addr = link_def->dest_bind_pos;
 
-			ATInstanceNode* src_node = (ATInstanceNode*)flow->get_src_port()->get_parent();
-			//int addr = src_node->get_addr();
-
-			pack->define_flow_mapping(flow_id, ep_id, addr++);
+			pack->define_flow_mapping(flow_id, ep_id, addr);
 		}
 
 		// Tell the netports about the implementation
@@ -157,32 +147,20 @@ void ATInstanceNode::instantiate()
 		name.append(ifacedef->get_name());
 		ati_signal_packer* pack = new ati_signal_packer(outport->get_proto(), name.c_str());
 
-		// haky hack time.
-		int aaddr = 0;
-		std::vector<ATNetFlow*> sorted_flows(outport->flows());
-		std::sort(sorted_flows.begin(), sorted_flows.end(), [](ATNetFlow* l, ATNetFlow* r)
-		{
-			return l->get_id() < r->get_id();
-		});
-
 		for (ATNetFlow* flow : outport->flows())
 		{
 			int flow_id = flow->get_id();
 
 			ATLinkDef* link_def = flow->get_def();
 			ATLinkPointDef& src_lp_def = link_def->src;
-			ATLinkPointDef& dest_lp_def = link_def->dest;
 			ATEndpointDef* src_ep_def = spec->get_endpoint_def_for_linkpoint(src_lp_def);
-			ATEndpointDef* dest_ep_def = spec->get_endpoint_def_for_linkpoint(dest_lp_def);
 
 			int ep_id = src_ep_def->ep_id;
 			int addr = ati_signal_punpack_base::ANY_ADDR;
 			
-			if (dest_ep_def->type != ATEndpointDef::BROADCAST)
+			if (src_ep_def->type == ATEndpointDef::UNICAST)
 			{
-				ATInstanceNode* dest_node = (ATInstanceNode*)flow->get_dest_port()->get_parent();
-				//addr = dest_node->get_addr();
-				addr = aaddr++;
+				addr = link_def->src_bind_pos;
 			}
 
 			pack->define_flow_mapping(flow_id, ep_id, addr);
