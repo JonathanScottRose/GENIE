@@ -14,8 +14,7 @@ ATBcastNode::ATBcastNode(ATNet* net, const ATLinkProtocol& proto, const std::str
 
 	// Create inport
 	ATNetInPort* inport = new ATNetInPort(this);
-	net->add_fanout(inport);
-	inport->set_net(net);
+	ATNetlist::connect_net_to_inport(net, inport);
 	inport->set_name("in");
 	inport->set_clock(m_clock);
 	inport->set_proto(m_proto);
@@ -23,27 +22,29 @@ ATBcastNode::ATBcastNode(ATNet* net, const ATLinkProtocol& proto, const std::str
 	add_inport(inport);
 	
 	// Bin flows by destination
-	std::map<ATNetInPort*, ATNetFlow*> binned_flows;
+	std::map<ATNetInPort*, std::vector<ATNetFlow*>> binned_flows;
 	for (ATNetFlow* f : inport->flows())
 	{
-		binned_flows[f->get_dest_port()] = f;
+		binned_flows[f->get_dest_port()].push_back(f);
 	}
 
 	// Create outport, one for each physical destination
 	int port_no = 0;
 	for (auto it : binned_flows)
 	{
-		ATNetFlow* flow = it.second;
 		ATNetOutPort* outport = new ATNetOutPort(this);
 
 		outport->set_name(std::to_string(port_no++));
 		outport->set_clock(m_clock);
 		outport->set_proto(m_proto);
-		outport->add_flow(flow);
+		outport->add_flows(it.second);
 		add_outport(outport);
 
-		// Also add this port ot the route map
-		m_route_map[flow->get_id()].push_back(outport);
+		// Update the flow->port mapping
+		for (ATNetFlow* flow : it.second)
+		{
+			m_route_map[flow->get_id()].push_back(outport);
+		}
 	}
 }
 
@@ -64,7 +65,7 @@ void ATBcastNode::instantiate()
 	ATManager* mgr = ATManager::inst();
 
 	// Instantiate broadcast module
-	ati_bcast* bcast = new ati_bcast(sc_gen_unique_name("ati_bcast"), m_proto, m_route_map.size());
+	ati_bcast* bcast = new ati_bcast(sc_gen_unique_name("ati_bcast"), m_proto, m_outports.size());
 	
 	// Connect clock
 	sc_clock* clk = mgr->get_clock(m_clock);
