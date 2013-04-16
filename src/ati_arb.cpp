@@ -2,13 +2,14 @@
 
 ati_arb::ati_arb(sc_module_name nm, ATLinkProtocol& in_proto, ATLinkProtocol& out_proto, 
 				 int n_inputs)
-: sc_module(nm), m_n_inputs(n_inputs), o_out(out_proto),
+: sc_module(nm), o_out(out_proto),
 	m_out_proto(out_proto), m_in_proto(in_proto)
 {
-	m_in = new ati_recv* [n_inputs];
-	for (int i = 0; i < n_inputs; i++)
+	m_in.resize(n_inputs);
+
+	for (auto& input : m_in)
 	{
-		m_in[i] = new ati_recv(in_proto);
+		input.in = new ati_recv(in_proto);
 	}
 
 	assert(out_proto.addr_width > 0);
@@ -22,25 +23,21 @@ ati_arb::ati_arb(sc_module_name nm, ATLinkProtocol& in_proto, ATLinkProtocol& ou
 
 	SC_METHOD(process_cont);
 	sensitive << m_cur_input;
+	sensitive << m_state;
 	sensitive << o_out.ready();
-	for (int i = 0; i < n_inputs; i++)
+
+	for (auto& input : m_in)
 	{
-		if (m_in_proto.data_width > 0) sensitive << m_in[i]->data();
-		sensitive << m_in[i]->valid();
-		sensitive << m_in[i]->sop();
-		sensitive << m_in[i]->eop();
+		if (m_in_proto.data_width > 0) sensitive << input.in->data();
+		sensitive << input.in->valid();
+		sensitive << input.in->sop();
+		sensitive << input.in->eop();
 	}
 }
 
 
 ati_arb::~ati_arb()
 {
-	for (int i = 0; i < m_n_inputs; i++)
-	{
-		delete m_in[i];
-	}
-
-	delete[] m_in;
 }
 
 
@@ -48,9 +45,9 @@ bool ati_arb::find_next_input()
 {
 	bool found = false;
 	int next = m_cur_input;
-	for (int i = 0; i < m_n_inputs; i++)
+	for (int i = 0; i < (int)m_in.size(); i++)
 	{
-		next = (next + 1) % m_n_inputs;
+		next = (next + 1) % m_in.size();
 		if (i_in(next).valid())
 		{
 			found = true;
@@ -65,52 +62,53 @@ bool ati_arb::find_next_input()
 
 void ati_arb::process_cont()
 {
-	ati_recv* cur_in = m_in[m_cur_input];
-
+	ati_recv* cur_in = m_in[m_cur_input].in;
 	int flow_id = cur_in->addr().read().to_int();
 
 	o_out.addr() = cur_in->addr();
-	o_out.valid() = cur_in->valid();
+	o_out.valid() = (m_state == State::TRANSMIT) && cur_in->valid();
 	if (m_out_proto.data_width > 0) o_out.data() = cur_in->data();
-	if (m_out_proto.is_packet)
-	{
-		o_out.sop() = cur_in->sop();
-		o_out.eop() = cur_in->eop();
-	}
+	o_out.sop() = cur_in->sop();
+	o_out.eop() = cur_in->eop();
 
-	for (int i = 0; i < m_n_inputs; i++)
+	for (int i = 0; i < (int)m_in.size(); i++)
 	{
-		if (i == m_cur_input) cur_in->ready() = o_out.ready();
-		else m_in[i]->ready() = false;
+		ati_recv* in = m_in[i].in;
+		in->ready() = (m_state == State::TRANSMIT) && (m_cur_input == i) && o_out.ready();
 	}
 }
 
 
 void ati_arb::process_clk()
 {
-	sc_event_or_list any_valid;
-
-	for (int i = 0; i < m_n_inputs; i++)
-	{
-		any_valid |= m_in[i]->valid().value_changed_event();
-	}
+	m_state = State::IDLE;
 
 	while(true)
 	{
 		wait();
 
-		while (!find_next_input())
-		{
-			wait(any_valid);
-			wait();
-		}
+		ati_recv* cur_in = m_in[m_cur_input].in;
 
-		ati_recv* cur_in = m_in[m_cur_input.get_new_value()];
-
-		while ( !(cur_in->valid() && cur_in->ready() && cur_in->eop()) )
+		switch (m_state)
 		{
-			wait();
+		case State::IDLE:
+			if (find_next_input()) m_state = State::TRANSMIT;
+			break;
+
+		case State::TRANSMIT:
+			if (cur_in->valid() && o_out.ready() && cur_in->eop())
+			{
+				m_state = State::IDLE;
+			}
+			break;
 		}
 	}
+}
+
+#include "at_manager.h"
+void ati_arb::trace_internal(const std::string& prefix)
+{
+	sc_trace(ATManager::inst()->get_trace_file(), m_cur_input, prefix + "cur_input");
+	sc_trace(ATManager::inst()->get_trace_file(), m_state, prefix + "state");
 }
 

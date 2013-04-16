@@ -57,9 +57,13 @@ void ati_bcast::process_clk()
 		{
 			ati_send* output = out->send;
 			all_ready &= (output->ready() | *out->latch);
+		}
 
-			if (i_in.valid())
+		if (i_in.valid())
+		{
+			for (auto out : m_route_map[flow_id])
 			{
+				ati_send* output = out->send;
 				if (output->ready() && !all_ready) *out->latch = true;
 				else if (all_ready) *out->latch = false;
 			}

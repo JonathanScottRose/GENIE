@@ -19,6 +19,8 @@ public:
 
 	ATLinkProtocol& get_proto() { return m_proto; }
 
+	void trace(const std::string& prefix);
+
 private:
 	sc_bv_signal* m_data;
 	sc_bv_signal* m_addr;
@@ -48,6 +50,7 @@ public:
 
 	void bind(ati_channel&);
 	void operator() (ati_channel&);
+	void trace(const std::string& prefix);
 
 private:
 	sc_out<sc_bv_base>* m_data;
@@ -78,6 +81,7 @@ public:
 
 	void bind(ati_channel&);
 	void operator() (ati_channel&);
+	void trace(const std::string& prefix);
 
 private:
 	sc_in<sc_bv_base>* m_data;

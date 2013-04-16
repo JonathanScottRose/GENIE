@@ -39,6 +39,8 @@ public:
 
 	ATNetNode* get_node_for_linkpoint(const ATLinkPointDef& lp_def);
 
+	void dump_graph();
+
 private:
 	NodeMap m_nodes;
 	FlowMap m_flows;

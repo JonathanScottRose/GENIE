@@ -18,6 +18,7 @@ ATManager* ATManager::inst()
 
 
 ATManager::ATManager()
+	: m_trace_enabled(false)
 {
 }
 
@@ -211,6 +212,8 @@ void ATManager::build_system()
 	init_netlist();
 	create_arb_bcast();
 
+	m_netlist.dump_graph();
+
 	// Instantiate every node in the netlist
 	for (auto it : m_netlist.nodes())
 	{
@@ -229,9 +232,18 @@ void ATManager::build_system()
 			ATNetOutPort* src_outport = it.second;
 			ati_send* send = src_outport->get_impl();
 
+			if (m_trace_enabled)
+				send->trace(src_node->get_name() + '_' + src_outport->get_name());
+
 			for (ATNetInPort* dest_inport : src_outport->get_net()->fanout())
 			{
 				ati_recv* recv = dest_inport->get_impl();
+
+				if (m_trace_enabled)
+				{
+					recv->trace(dest_inport->get_parent()->get_name() + '_' +
+						dest_inport->get_name());
+				}
 
 				assert(dest_inport->get_proto().compatible_with(src_outport->get_proto()));
 
@@ -241,5 +253,24 @@ void ATManager::build_system()
 			}
 		}
 	}
+}
+
+
+void ATManager::open_trace_file()
+{
+	m_trace_enabled = true;
+	m_trace_file = sc_create_vcd_trace_file("trace.vcd");
+}
+
+
+void ATManager::close_trace_file()
+{
+	sc_close_vcd_trace_file(m_trace_file);
+}
+
+
+sc_trace_file* ATManager::get_trace_file()
+{
+	return m_trace_file;
 }
 

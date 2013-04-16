@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <fstream>
 #include "at_netlist.h"
 #include "at_util.h"
 #include "at_instance_node.h"
@@ -71,6 +72,39 @@ ATNetNode* ATNetlist::get_node_for_linkpoint(const ATLinkPointDef& lp_def)
 	assert(inst_node->get_type() == ATNetNode::INSTANCE);
 
 	return inst_node;
+}
+
+void ATNetlist::dump_graph()
+{
+	std::ofstream out("graph.dot");
+
+	out << "digraph netlist {" << std::endl;
+
+	for (auto it : m_nodes)
+	{
+		ATNetNode* src_node = it.second;
+		
+		for (auto jt : src_node->outports())
+		{
+			ATNet* net = jt.second->get_net();
+
+			for (auto kt : net->fanout())
+			{
+				ATNetNode* dest_node = kt->get_parent();
+				std::string label;
+
+				for (ATNetFlow* flow : jt.second->flows())
+				{
+					label += ' ' + std::to_string(flow->get_id());
+				}
+
+				out << src_node->get_name() << " -> " << dest_node->get_name() 
+					<< " [label=\"" << label << "\"];" << std::endl;
+			}
+		}
+	}
+
+	out << "}" << std::endl;
 }
 
 //

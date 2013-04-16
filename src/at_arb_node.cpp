@@ -8,10 +8,8 @@ ATArbNode::ATArbNode(const std::vector<ATNet*>& nets, const ATLinkProtocol& prot
 {
 	m_type = ATNetNode::ARB;
 
-	char buf[128];
 	static int s_id = 0;
-	sprintf(buf, "arb%d", s_id++);
-	m_name = buf;
+	m_name = "arb" + std::to_string(s_id++);
 
 	// Create the arbiter output port
 	ATNetOutPort* new_outport = new ATNetOutPort(this);
@@ -28,9 +26,7 @@ ATArbNode::ATArbNode(const std::vector<ATNet*>& nets, const ATLinkProtocol& prot
 		ATNetInPort* new_inport = new ATNetInPort(this);
 		new_inport->set_clock(m_clock);
 		new_inport->set_proto(m_proto);
-
-		sprintf(buf, "in%d", port_no++);
-		new_inport->set_name(buf);
+		new_inport->set_name("in" + std::to_string(port_no++));
 		new_inport->add_flows(driver->flows());
 		add_inport(new_inport);
 
@@ -60,9 +56,8 @@ void ATArbNode::instantiate()
 	int n_inputs = (int)m_inports.size();
 
 	// Instantiate arbiter module
-	ati_arb* arb = new ati_arb(sc_gen_unique_name("ati_arb"),
-		m_proto, m_proto, n_inputs);
-	
+	ati_arb* arb = new ati_arb(m_name.c_str(), m_proto, m_proto, n_inputs);
+
 	// Connect clock
 	sc_clock* clk = mgr->get_clock(m_clock);
 	assert(clk);
