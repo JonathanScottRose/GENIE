@@ -89,7 +89,7 @@ namespace
 
 					for (Protocol::Field* field : proto.fields())
 					{
-						bool sig_o = port_o ^ (field->sense == Protocol::Field::FWD);
+						bool sig_o = port_o ^ (field->sense == Protocol::Field::REV);
 
 						write_sig(
 							sig_o,

@@ -23,6 +23,7 @@ Protocol::Protocol(const Protocol& o)
 		nf->name = f->name;
 		nf->width = f->width;
 		nf->sigdef = f->sigdef;
+		nf->sense = f->sense;
 		
 		m_fields.push_front(nf);
 	}
@@ -41,6 +42,7 @@ Protocol& Protocol::operator= (const Protocol& o)
 		nf->name = f->name;
 		nf->width = f->width;
 		nf->sigdef = f->sigdef;
+		nf->sense = f->sense;
 		
 		m_fields.push_front(nf);
 	}
