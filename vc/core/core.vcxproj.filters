@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Public">
+      <UniqueIdentifier>{0217f364-c611-4575-92d5-ff0e68a30902}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\instance_node.cpp" />
+    <ClCompile Include="..\..\src\manager.cpp" />
+    <ClCompile Include="..\..\src\p2p.cpp" />
+    <ClCompile Include="..\..\src\spec.cpp" />
+    <ClCompile Include="..\..\src\sys_spec.cpp" />
+    <ClCompile Include="..\..\src\comp_spec.cpp" />
+    <ClCompile Include="..\..\src\ct.cpp" />
+    <ClCompile Include="..\..\src\merge_node.cpp">
+      <Filter>Public</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\split_node.cpp">
+      <Filter>Public</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\system_node.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\include\ct\p2p.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\instance_node.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\comp_spec.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\common.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\sys_spec.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\static_init.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\spec.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\ct.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\split_node.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\merge_node.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\system_node.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
