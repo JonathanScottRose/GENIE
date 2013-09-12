@@ -75,18 +75,22 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\main\build_spec.cpp" />
     <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
+    <ClCompile Include="..\..\src\main\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\main\io.cpp" />
     <ClCompile Include="..\..\src\main\main.cpp" />
     <ClCompile Include="..\..\src\main\tinyxml\tinyxml2.cpp" />
-    <ClCompile Include="..\..\src\main\write_verilog.cpp" />
+    <ClCompile Include="..\..\src\main\vlog.cpp" />
+    <ClCompile Include="..\..\src\main\write_vlog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\build_spec.h" />
     <ClInclude Include="..\..\src\main\getoptpp\getopt_pp.h" />
     <ClInclude Include="..\..\src\main\globals.h" />
+    <ClInclude Include="..\..\src\main\impl_vlog.h" />
     <ClInclude Include="..\..\src\main\io.h" />
     <ClInclude Include="..\..\src\main\tinyxml\tinyxml2.h" />
-    <ClInclude Include="..\..\src\main\write_verilog.h" />
+    <ClInclude Include="..\..\src\main\vlog.h" />
+    <ClInclude Include="..\..\src\main\write_vlog.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

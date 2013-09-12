@@ -5,7 +5,8 @@
 #include "build_spec.h"
 #include "io.h"
 #include "ct/ct.h"
-#include "write_verilog.h"
+#include "write_vlog.h"
+#include "impl_vlog.h"
 
 namespace
 {
@@ -30,6 +31,7 @@ int main(int argc, char** argv)
 		parse_args(argc, argv);
 		BuildSpec::go();
 		ct::go();
+		ImplVerilog::go();
 		WriteVerilog::go();
 	}
 	catch (std::exception& e)

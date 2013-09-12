@@ -43,7 +43,7 @@ namespace P2P
 		const Fields& fields() const { return m_fields; }
 
 		void add_field(Field* f);
-		Field* get_field(const std::string& name);
+		Field* get_field(const std::string& name) const;
 		bool has_field(const std::string& name);
 
 	protected:

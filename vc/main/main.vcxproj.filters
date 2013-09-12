@@ -10,7 +10,9 @@
       <Filter>GetOptPP</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\main\io.cpp" />
-    <ClCompile Include="..\..\src\main\write_verilog.cpp" />
+    <ClCompile Include="..\..\src\main\vlog.cpp" />
+    <ClCompile Include="..\..\src\main\impl_vlog.cpp" />
+    <ClCompile Include="..\..\src\main\write_vlog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\globals.h" />
@@ -22,7 +24,9 @@
       <Filter>GetOptPP</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\main\io.h" />
-    <ClInclude Include="..\..\src\main\write_verilog.h" />
+    <ClInclude Include="..\..\src\main\vlog.h" />
+    <ClInclude Include="..\..\src\main\impl_vlog.h" />
+    <ClInclude Include="..\..\src\main\write_vlog.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="GetOptPP">

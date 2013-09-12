@@ -1,0 +1,158 @@
+\documentclass{article}
+\usepackage{graphicx}
+
+\begin{document}
+
+\title{ConnecTool Manual}
+\author{Alex Rodionov}
+\maketitle
+
+\section{Introduction}
+
+ConnecTool is a system integration tool focused on generating a wide variety of interconnect. It generates a Verilog implementation of a system given metadata files describing:
+
+\begin{itemize}
+\item{components: wrappers around Verilog modules/hierarchies describing their interfaces to the outside world}
+\item{the system: instantiates components and defines logical/desired connectivity between them}
+\end{itemize}
+
+\section{Component/System Architecture}
+
+The user's top-level system is composed of instances of \textit{components}. Each component corresponds to an HDL module and its hierarchy. A component contains one or more \textit{interfaces}, and an interface defines a group of \textit{signals}. Each signal has a one-to-one mapping to an input/output port of the component's HDL module.
+
+Interfaces come in many different types (sender, receiver, clock source, etc). The signals in each interface are also classified by type, corresponding to their role in the interface (data, valid, ready, address, etc). There are many valid combinations of signal types allowed in an interface.
+
+At the system level, components are instantiated into \textit{component instances}. Interfaces of specific instances are connected by defining \textit{links}. To connect to the world outside the system, \textit{exports} are defined, which act the same way interfaces do in components, and serve as named targets for links. As a convenience, any unconnected interface will have a corresponding export automatically named and generated, along with the link linking the two.
+
+\section{Component Specification}
+
+This section describes the XML tags related to defining components.
+
+\subsection{\texttt{<component>}}
+
+Describes a component.
+
+\begin{itemize}
+\item{Parameters:}
+\begin{itemize}
+\item{name : unique name of the component}
+\item{hier : name of the associated top-level Verilog module}
+\end{itemize}
+\item{Parent tag: none}
+\end{itemize}
+
+\subsection{\texttt{<interface>}}
+
+Describes an interface within a component. There must be at least one clock\_sink interface.
+
+\begin{itemize}
+\item{Parameters}
+\begin{itemize}
+\item{name : name of the interface, unique within the component}
+\item{type}
+\begin{itemize}
+\item{clock\_source, clock\_sink : clock output and clock input. Each component must have at least one clock\_sink.}
+\item{reset\_source, reset\_sink : for reset signals. optional}
+\item{send, recv : for sending and receiving data}
+\end{itemize}
+\item{(clock) : name of associated clock interface, used only for send and recv interface types}
+\end{itemize}
+\item{Parent tag: \texttt{component}}
+\end{itemize}
+
+\subsection{\texttt{<signal>}}
+
+Defines a signal role and binding within an interface. Todo : matrix of allowable combinations of signal types within send/recv interfaces.
+
+\begin{itemize}
+\item{Parameters:}
+\begin{itemize}
+\item{type}
+\begin{itemize}
+\item{clock : clock signal, valid only in clock\_src and clock\_sink interfaces, which must contain exactly one of these.}
+\item{reset : reset signal, valid only in reset\_src and reset\_sink interfaces, which must contain exactly one of these.}
+\item{data : data to be transmitted/received. can have more than one per interface, distinguished by usertype field}
+\item{valid : high during cycles containing valid data}
+\item{ready : high when destination is ready to receive data. this is the only signal type to have opposite direction/sense} 
+\item{sop : start of packet. used to begin multi-cycle transmissions}
+\item{eop : end of packet. used to end multi-cycle transmissions}
+\item{lp\_id : linkpoint ID. selects linkpoint on send (or identifies linkpoint on recv) interfaces}
+\item{link\_id : link ID for distinguishing between multiple links on a unicast linkpoint}
+\item{header : like \textit{data}, but used for signals that only need to be valid during the first cycle of a multi-cycle transmission. can have multiple of these in an interface, distinguished by usertype field}
+\end{itemize}
+\item{(usertype) : optional, used with \textit{data} and \textit{header} signals to distinguish between user-defined data fields}
+\item{(width) : used with \textit{data}, \textit{header}, \textit{lp\_id}, and \textit{link\_id} types to define bit width of the signal}
+\end{itemize}
+\item{Parent tag: \texttt{interface}}
+\item{Contents: HDL signal name}
+\end{itemize}
+
+\subsection{\texttt{<linkpoint>}}
+
+TODO.
+
+\begin{itemize}
+\item{Parent tag: \texttt{interface}}
+\end{itemize}
+
+\section{System Specification}
+
+This section describes the XML tags used in defining systems.
+
+\subsection{\texttt{<system>}}
+
+Defines a system. There should be at least one of these.
+
+\begin{itemize}
+\item{Parameters:}
+\begin{itemize}
+\item{name : name for the system, which is used to name the generated Verilog file}
+\end{itemize}
+\item{Parent tag: none}
+\end{itemize}
+
+\subsection{\texttt{<instance>}}
+
+Instantiates a component.
+
+\begin{itemize}
+\item{Parameters:}
+\begin{itemize}
+\item{name : name for this instance}
+\item{comp : name of component to instantiate}
+\end{itemize}
+\item{Parent tag: \texttt{system}}
+\end{itemize}
+
+\subsection{\texttt{<export>}}
+
+Defines an \textit{export}, which is an interface of the system visible to the outside world. 
+
+\begin{itemize}
+\item{Parameters:}
+\begin{itemize}
+\item{name : unique name of this export. does not have to match the name of the interface exported}
+\item{type : takes same values as the \texttt{type} field in the \texttt{interface} specification. this \textit{must} be the same type as any interface connected to this export.}
+\end{itemize}
+\item{Parent tag: \texttt{system}}
+\end{itemize}
+
+\subsection{\texttt{<link>}}
+
+Defines a logical connection between two things, which can be either an interface/linkpoint of an instance, or an export. The \texttt{src} and \texttt{dest} targets have the following format:
+\begin{itemize}
+\item{for interfaces/linkpoints : ''instance\_name.interface\_name[.linkpoint\_name]"}
+\item{for exports : "export\_name"}
+\end{itemize}
+
+\begin{itemize}
+\item{Parameters:}
+\begin{itemize}
+\item{src : source path}
+\item{dest : destination path}
+\end{itemize}
+\item{Parent tag: \texttt{system}}
+\end{itemize}
+
+
+\end{document}

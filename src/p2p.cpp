@@ -60,8 +60,8 @@ void Protocol::add_field(Field* f)
 	assert (!has_field(f->name));
 	m_fields.push_front(f);
 }
-
-Protocol::Field* Protocol::get_field(const std::string& name)
+ 
+Protocol::Field* Protocol::get_field(const std::string& name) const
 {
 	auto it = std::find_if(m_fields.begin(), m_fields.end(), [&](Field* f)
 	{

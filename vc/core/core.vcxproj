@@ -14,7 +14,6 @@
     <ClCompile Include="..\..\src\comp_spec.cpp" />
     <ClCompile Include="..\..\src\instance_node.cpp" />
     <ClCompile Include="..\..\src\ct.cpp" />
-    <ClCompile Include="..\..\src\manager.cpp" />
     <ClCompile Include="..\..\src\merge_node.cpp" />
     <ClCompile Include="..\..\src\p2p.cpp" />
     <ClCompile Include="..\..\src\spec.cpp" />

@@ -18,6 +18,27 @@
 #define PROP_GET_SET(name,type,field) \
 	PROP_GET(name,type,field) \
 	PROP_SET(name,type,field)
+
+#define PROP_DICT(name_plur,name_sing,vtype) \
+	typedef std::unordered_map<std::string, vtype*> name_plur; \
+	const name_plur& name_sing##s() { return m_##name_sing##s; } \
+	void add_##name_sing(vtype* v) \
+	{ \
+		assert (m_##name_sing##s.count(v->get_name()) == 0); \
+		m_##name_sing##s[v->get_name()] = v; \
+	} \
+	vtype* get_##name_sing(const std::string& name) \
+	{ \
+		if (m_##name_sing##s.count(name) == 0) return nullptr; \
+		else return m_##name_sing##s[name]; \
+	} \
+	bool has_##name_sing(const std::string& name) \
+	{ \
+		return (m_##name_sing##s.count(name) != 0); \
+	} \
+	protected: \
+		name_plur m_##name_sing##s; \
+	public:
 	
 namespace ct
 {
