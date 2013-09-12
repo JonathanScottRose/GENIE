@@ -12,27 +12,43 @@ namespace P2P
 	class Flow;
 	class Conn;
 	class Protocol;
+	struct Field;
+	class FieldBinding;
+
+	struct Field
+	{
+		enum Sense
+		{
+			FWD,
+			REV
+		};
+
+		Field();
+		Field(const std::string&, int, Sense);
+
+		std::string name;
+		int width;
+		Sense sense;
+	};
+
+	class FieldBinding
+	{
+	public:
+		FieldBinding();
+		FieldBinding(const std::string& name, Spec::Signal* sigdef);
+		~FieldBinding();
+
+		PROP_GET_SET(name, const std::string&, m_name);
+		PROP_GET_SET(sig_def, Spec::Signal*, m_sig_def);
+
+	protected:
+		std::string m_name;
+		Spec::Signal* m_sig_def;
+	};
 
 	class Protocol
 	{
 	public:
-		struct Field
-		{
-			enum Sense
-			{
-				FWD,
-				REV
-			};
-
-			Field();
-			Field(const std::string&, int, Sense, Spec::Signal* sigdef = nullptr);
-
-			std::string name;
-			int width;
-			Spec::Signal* sigdef;
-			Sense sense;
-		};
-
 		typedef std::forward_list<Field*> Fields;
 
 		Protocol();
@@ -81,9 +97,6 @@ namespace P2P
 		Node* m_parent;
 	};
 
-	#undef IN
-	#undef OUT
-
 	class Port
 	{
 	public:
@@ -109,6 +122,7 @@ namespace P2P
 		PROP_GET_SET(parent, Node*, m_parent);
 		PROP_GET_SET(conn, Conn*, m_conn);
 		PROP_GET_SET(iface_def, Spec::Interface*, m_iface_def);
+		PROP_DICT(FieldBindings, field_binding, FieldBinding);		
 
 		static Dir rev_dir(Dir dir);
 

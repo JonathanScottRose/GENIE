@@ -22,7 +22,6 @@ Protocol::Protocol(const Protocol& o)
 		Field* nf = new Field;
 		nf->name = f->name;
 		nf->width = f->width;
-		nf->sigdef = f->sigdef;
 		nf->sense = f->sense;
 		
 		m_fields.push_front(nf);
@@ -41,7 +40,6 @@ Protocol& Protocol::operator= (const Protocol& o)
 		Field* nf = new Field;
 		nf->name = f->name;
 		nf->width = f->width;
-		nf->sigdef = f->sigdef;
 		nf->sense = f->sense;
 		
 		m_fields.push_front(nf);
@@ -61,7 +59,7 @@ void Protocol::add_field(Field* f)
 	m_fields.push_front(f);
 }
  
-Protocol::Field* Protocol::get_field(const std::string& name) const
+Field* Protocol::get_field(const std::string& name) const
 {
 	auto it = std::find_if(m_fields.begin(), m_fields.end(), [&](Field* f)
 	{
@@ -77,16 +75,35 @@ bool Protocol::has_field(const std::string& name)
 }
 
 //
-// Protocol::Field
+// Field
 //
 
-Protocol::Field::Field()
+Field::Field()
 {
 }
 
-Protocol::Field::Field(const std::string& name_, int width_, Sense sense_, Spec::Signal* sigdef_)
-	: name(name_), width(width_), sense(sense_), sigdef(sigdef_)
+Field::Field(const std::string& name_, int width_, Sense sense_)
+	: name(name_), width(width_), sense(sense_)
 {
+}
+
+//
+// FieldBinding
+//
+
+FieldBinding::FieldBinding()
+	: m_sig_def(nullptr)
+{
+}
+
+FieldBinding::FieldBinding(const std::string& name, Spec::Signal* sig_def)
+	: m_name(name), m_sig_def(sig_def)
+{
+}
+
+FieldBinding::~FieldBinding()
+{
+	if (m_sig_def) delete m_sig_def;
 }
 
 //

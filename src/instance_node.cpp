@@ -20,22 +20,22 @@ namespace
 		// Add fields
 		for (auto& i : iface->signals())
 		{
-			Protocol::Field* f = nullptr;
+			Field* f = nullptr;
 
 			switch (i->get_type())
 			{
 			case Spec::Signal::VALID:
-				f = new Protocol::Field("valid", 1, Protocol::Field::FWD, i);
+				f = new Field("valid", 1, Field::FWD);
 				break;
 			case Spec::Signal::READY:
-				f = new Protocol::Field("ready", 1, Protocol::Field::REV, i);
+				f = new Field("ready", 1, Field::REV);
 				break;
 			case Spec::Signal::DATA:
 				{
 					std::string nm = "data";
 					if (!i->get_subtype().empty())
 						nm += '.' + i->get_subtype();
-					f = new Protocol::Field(nm, i->get_width(), Protocol::Field::FWD, i);
+					f = new Field(nm, i->get_width(), Field::FWD);
 				}
 				break;
 			case Spec::Signal::HEADER:
@@ -43,25 +43,26 @@ namespace
 					std::string nm = "header";
 					if (!i->get_subtype().empty())
 						nm += '.' + i->get_subtype();
-					f = new Protocol::Field(nm, i->get_width(), Protocol::Field::FWD, i);
+					f = new Field(nm, i->get_width(), Field::FWD);
 				}
 				break;
 			case Spec::Signal::SOP:
-				f = new Protocol::Field("sop", 1, Protocol::Field::FWD, i);
+				f = new Field("sop", 1, Field::FWD);
 				break;
 			case Spec::Signal::EOP:
-				f = new Protocol::Field("eop", 1, Protocol::Field::FWD, i);
+				f = new Field("eop", 1, Field::FWD);
 				break;
 			case Spec::Signal::LINK_ID:
-				f = new Protocol::Field("link_id", 1, Protocol::Field::FWD, i);
+				f = new Field("link_id", 1, Field::FWD);
 				break;
 			case Spec::Signal::LP_ID:
-				f = new Protocol::Field("lp_id", 1, Protocol::Field::FWD, i);
+				f = new Field("lp_id", 1, Field::FWD);
 			default:
 				assert(false);
 			}
 
 			proto.add_field(f);
+			result->add_field_binding(new FieldBinding(f->name, i));
 		}
 
 		result->set_proto(proto);

@@ -21,11 +21,11 @@ namespace
 	Vlog::Module* impl_sys_node(P2P::SystemNode* node);
 	Vlog::Module* impl_inst_node(P2P::InstanceNode* node);
 	Vlog::Port::Dir conv_port_dir(P2P::Port::Dir dir, 
-		P2P::Protocol::Field::Sense sense = P2P::Protocol::Field::FWD);
+		P2P::Field::Sense sense = P2P::Field::FWD);
 	Vlog::Port::Dir conv_port_dir(Spec::Interface::Type itype, Spec::Signal::Type stype);
 	std::string concat(const std::string& a, const std::string& b);
 	const std::string& get_vlog_port_name(P2P::ClockResetPort* port);
-	const std::string& get_vlog_port_name(P2P::Protocol::Field* field);
+	const std::string& get_vlog_port_name(P2P::DataPort* port, P2P::Field* field);
 	void conv_top_level_port(P2P::Port* port, Vlog::SystemModule* module);
 	void bind_net_to_port(Vlog::Instance* inst, Vlog::Port* port, Vlog::Net* net);
 
@@ -60,7 +60,7 @@ namespace
 				P2P::DataPort* dport = (DataPort*)port;
 				const P2P::Protocol& proto = dport->get_proto();
 
-				for (P2P::Protocol::Field* field : proto.fields())
+				for (P2P::Field* field : proto.fields())
 				{
 					std::string pname = concat(dport->get_name(), field->name);
 					Vlog::Port* vport = new Vlog::Port(pname, module);
@@ -88,9 +88,9 @@ namespace
 		return impl->signal_name;
 	}
 
-	const std::string& get_vlog_port_name(P2P::Protocol::Field* field)
+	const std::string& get_vlog_port_name(P2P::DataPort* port, P2P::Field* field)
 	{
-		Spec::Signal* sigdef = field->sigdef;
+		Spec::Signal* sigdef = port->get_field_binding(field->name)->get_sig_def();
 		BuildSpec::SignalImpl* impl = (BuildSpec::SignalImpl*) sigdef->get_impl();
 		return impl->signal_name;
 	}
@@ -100,9 +100,9 @@ namespace
 		return a + "_" + b;
 	}
 
-	Vlog::Port::Dir conv_port_dir(P2P::Port::Dir dir, P2P::Protocol::Field::Sense sense)
+	Vlog::Port::Dir conv_port_dir(P2P::Port::Dir dir, P2P::Field::Sense sense)
 	{
-		P2P::Port::Dir dir2 = sense == P2P::Protocol::Field::FWD ? dir :
+		P2P::Port::Dir dir2 = sense == P2P::Field::FWD ? dir :
 			P2P::Port::rev_dir(dir);
 
 		switch (dir2)
@@ -272,7 +272,7 @@ namespace
 				{
 					const Protocol& proto = ((DataPort*)p2psrc)->get_proto();
 
-					for (Protocol::Field* f : proto.fields())
+					for (Field* f : proto.fields())
 					{
 						Vlog::Net* net;
 
@@ -300,7 +300,7 @@ namespace
 						{
 							Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
 							Vlog::Port* src_port = src_inst->get_module()->get_port(
-								get_vlog_port_name(f));
+								get_vlog_port_name((P2P::DataPort*)p2psrc, f));
 							bind_net_to_port(src_inst, src_port, net);
 						}
 
@@ -308,9 +308,8 @@ namespace
 						if (!sink_is_top)
 						{
 							Vlog::Instance* sink_inst = result->get_instance(p2psink_0_node->get_name());
-							auto dst_field = ((P2P::DataPort*)p2psink_0)->get_proto().get_field(f->name);
 							Vlog::Port* sink_port = sink_inst->get_module()->get_port(
-								get_vlog_port_name(dst_field));
+								get_vlog_port_name((P2P::DataPort*)p2psink_0, f));
 							bind_net_to_port(sink_inst, sink_port, net);
 						}
 					}
