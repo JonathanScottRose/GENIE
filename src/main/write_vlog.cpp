@@ -15,7 +15,7 @@ namespace
 	void write_line(const std::string& line, bool indent = true, bool newline = true);
 	void write_port(Port* port);
 	void write_wire(WireNet* net);
-	void write_port_binding(PortBinding* binding);
+	void write_port_binding_group(PortBinding* binding);
 
 	void write_sys_ports(SystemModule* mod);
 	void write_sys_nets(SystemModule* mod);
@@ -97,12 +97,57 @@ namespace
 		}
 	}
 
-	void write_port_binding(PortBinding* binding)
+	void write_port_binding_group(PortBindingGroup* group)
 	{
-		const std::string& portname = binding->get_name();
-		const std::string& netname = binding->get_net()->get_name();
+		const std::string& portname = group->get_name();
+		std::string bindstr = "";
+
+		if (group->is_empty())
+		{
+			// leave as "" , unconnected
+		}
+		else if (group->is_simple())
+		{
+			PortBinding* binding = group->get_sole_binding();
+			assert(binding->target_simple()); // lazy
+			bindstr = binding->get_net()->get_name();
+		}
+		else
+		{
+			bindstr = "{";
+
+			int cur_bit = group->get_port()->get_width() - 1;
+			for (auto it = group->bindings().begin(); it != group->bindings().end(); ++it)
+			{
+				PortBinding* binding = *it;
+				Net* net = binding->get_net();
+
+				bindstr += net->get_name();
+				if (!binding->target_simple())
+				{
+					bindstr += "[";
+					bindstr += binding->get_net_lo() + binding->get_width() - 1;
+					bindstr += ":";
+					bindstr += binding->get_net_lo();
+					bindstr += "]";
+				}
+
+				auto it2(it);
+				bool last = (++it2 == group->bindings().end());
+				if (!last) bindstr += ",";
+
+				assert(cur_bit == binding->get_port_lo() + binding->get_width() - 1);
+				cur_bit -= binding->get_width() - 1;
+				assert(cur_bit == binding->get_port_lo());
+				cur_bit--;
+			}
+
+			assert(cur_bit == 0);
+
+			bindstr += "}";
+		}
 		
-		write_line("." + portname + "(" + netname + ")", true, false);	
+		write_line("." + portname + "(" + bindstr + ")", true, false);	
 	}
 
 	void write_sys_insts(SystemModule* mod)
@@ -121,8 +166,8 @@ namespace
 			int portno = inst->port_bindings().size();
 			for (auto& j : inst->port_bindings())
 			{
-				PortBinding* binding = j.second;
-				write_port_binding(binding);
+				PortBindingGroup* bindgroup = j.second;
+				write_port_binding_group(bindgroup);
 
 				portno--;
 				if (portno != 0)

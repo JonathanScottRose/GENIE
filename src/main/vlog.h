@@ -10,6 +10,7 @@ class Port;
 class Parameter;
 class Instance;
 class PortBinding;
+class PortBindingGroup;
 class ParamBinding;
 class Net;
 class WireNet;
@@ -78,22 +79,55 @@ protected:
 	std::string m_name;
 };
 
+class PortBindingGroup
+{
+public:
+	typedef std::forward_list<PortBinding*> PortBindings;
+
+	PortBindingGroup();
+	~PortBindingGroup();
+
+	PROP_GET_SET(parent, Instance*, m_parent);
+	PROP_GET_SET(port, Port*, m_port);
+
+	const std::string& get_name();
+
+	const PortBindings& bindings() { return m_bindings; }
+	bool is_empty();
+	bool is_simple();
+
+	PortBinding* get_sole_binding();
+	PortBinding* bind(Net* net);
+	PortBinding* bind(Net* net, int lo);
+	PortBinding* bind(Net* net, int port_lo, int net_lo);
+	
+protected:
+	PortBindings m_bindings;
+	Instance* m_parent;
+	Port* m_port;
+};
+
 class PortBinding
 {
 public:
 	PortBinding();
 	~PortBinding();
 
-	PROP_GET_SET(parent, Instance*, m_parent);
-	PROP_GET_SET(port, Port*, m_port);
 	PROP_GET_SET(net, Net*, m_net);
+	PROP_GET_SET(port_lo, int, m_port_lo);
+	PROP_GET_SET(net_lo, int, m_net_lo);
+	PROP_GET_SET(width, int, m_width);
+	PROP_GET_SET(parent, PortBindingGroup*, m_parent);
 
-	const std::string& get_name();
+	bool sole_binding();
+	bool target_simple();
 
 protected:
-	Instance* m_parent;
-	Port* m_port;
 	Net* m_net;
+	PortBindingGroup* m_parent;
+	int m_port_lo;
+	int m_net_lo;
+	int m_width;
 };
 
 class ParamBinding
@@ -128,6 +162,7 @@ public:
 
 	PROP_GET_SET(type, Type, m_type);
 	virtual const std::string& get_name() = 0;
+	virtual int get_width() = 0;
 
 protected:
 	Type m_type;
@@ -143,6 +178,7 @@ public:
 
 	const std::string& get_name();
 	void set_name(const std::string& name);
+	int get_width();
 
 protected:
 	std::string m_name;
@@ -158,6 +194,7 @@ public:
 	PROP_GET_SET(port, Port*, m_port);
 	
 	const std::string& get_name();
+	int get_width();
 
 protected:
 	Port* m_port;
@@ -166,18 +203,30 @@ protected:
 class Instance
 {
 public:
+	typedef std::unordered_map<std::string, PortBindingGroup*> PortBindings;
+	typedef std::unordered_map<std::string, ParamBinding*> ParamBindings;
+
 	Instance(const std::string& name, Module* module);
 	virtual ~Instance();
 	
 	PROP_GET_SET(name, const std::string&, m_name);
 	PROP_GET_SET(module, Module*, m_module);
-	PROP_DICT(PortBindings, port_binding, PortBinding);
-	PROP_DICT(ParamBindings, param_binding, ParamBinding);
+	
+	const PortBindings& port_bindings() { return m_port_bindings; }
+	PortBindingGroup* get_port_bindings(const std::string& name);
+	PortBinding* get_sole_binding(const std::string& port);
+	PortBinding* bind_port(const std::string& port, Net* net);
+	PortBinding* bind_port(const std::string& port, Net* net, int lo);
+	PortBinding* bind_port(const std::string& port, Net* net, int port_lo, int net_lo);
+
+	const ParamBindings& param_bindings() { return m_param_bindings; }
+	ParamBinding* get_param_binding(const std::string& name);
 
 protected:
 	std::string m_name;
 	Module* m_module;
-
+	PortBindings m_port_bindings;
+	ParamBindings m_param_bindings;
 };
 
 class SystemModule : public Module

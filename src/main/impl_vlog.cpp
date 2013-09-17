@@ -31,11 +31,7 @@ namespace
 
 	void bind_net_to_port(Vlog::Instance* inst, Vlog::Port* port, Vlog::Net* net)
 	{
-		Vlog::PortBinding* bind = new Vlog::PortBinding();
-		bind->set_parent(inst);
-		bind->set_port(port);
-		bind->set_net(net);
-		inst->add_port_binding(bind);
+		inst->bind_port(port->get_name(), net);
 	}
 
 	void conv_top_level_port(P2P::Port* port, Vlog::SystemModule* module)
