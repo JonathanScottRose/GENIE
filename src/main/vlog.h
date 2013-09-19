@@ -10,7 +10,7 @@ class Port;
 class Parameter;
 class Instance;
 class PortBinding;
-class PortBindingGroup;
+class PortState;
 class ParamBinding;
 class Net;
 class WireNet;
@@ -79,16 +79,17 @@ protected:
 	std::string m_name;
 };
 
-class PortBindingGroup
+class PortState
 {
 public:
 	typedef std::forward_list<PortBinding*> PortBindings;
 
-	PortBindingGroup();
-	~PortBindingGroup();
+	PortState();
+	~PortState();
 
 	PROP_GET_SET(parent, Instance*, m_parent);
 	PROP_GET_SET(port, Port*, m_port);
+	PROP_GET_SET(width, int, m_width);
 
 	const std::string& get_name();
 
@@ -102,6 +103,7 @@ public:
 	PortBinding* bind(Net* net, int port_lo, int net_lo);
 	
 protected:
+	int m_width;
 	PortBindings m_bindings;
 	Instance* m_parent;
 	Port* m_port;
@@ -117,14 +119,14 @@ public:
 	PROP_GET_SET(port_lo, int, m_port_lo);
 	PROP_GET_SET(net_lo, int, m_net_lo);
 	PROP_GET_SET(width, int, m_width);
-	PROP_GET_SET(parent, PortBindingGroup*, m_parent);
+	PROP_GET_SET(parent, PortState*, m_parent);
 
 	bool sole_binding();
 	bool target_simple();
 
 protected:
 	Net* m_net;
-	PortBindingGroup* m_parent;
+	PortState* m_parent;
 	int m_port_lo;
 	int m_net_lo;
 	int m_width;
@@ -203,7 +205,7 @@ protected:
 class Instance
 {
 public:
-	typedef std::unordered_map<std::string, PortBindingGroup*> PortBindings;
+	typedef std::unordered_map<std::string, PortState*> PortStates;
 	typedef std::unordered_map<std::string, ParamBinding*> ParamBindings;
 
 	Instance(const std::string& name, Module* module);
@@ -212,8 +214,8 @@ public:
 	PROP_GET_SET(name, const std::string&, m_name);
 	PROP_GET_SET(module, Module*, m_module);
 	
-	const PortBindings& port_bindings() { return m_port_bindings; }
-	PortBindingGroup* get_port_bindings(const std::string& name);
+	const PortStates& port_states() { return m_port_states; }
+	PortState* get_port_state(const std::string& name);
 	PortBinding* get_sole_binding(const std::string& port);
 	PortBinding* bind_port(const std::string& port, Net* net);
 	PortBinding* bind_port(const std::string& port, Net* net, int lo);
@@ -225,7 +227,7 @@ public:
 protected:
 	std::string m_name;
 	Module* m_module;
-	PortBindings m_port_bindings;
+	PortStates m_port_states;
 	ParamBindings m_param_bindings;
 };
 

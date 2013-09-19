@@ -15,7 +15,7 @@ namespace
 	void write_line(const std::string& line, bool indent = true, bool newline = true);
 	void write_port(Port* port);
 	void write_wire(WireNet* net);
-	void write_port_binding_group(PortBinding* binding);
+	void write_port_bindings(PortBinding* binding);
 
 	void write_sys_ports(SystemModule* mod);
 	void write_sys_nets(SystemModule* mod);
@@ -97,7 +97,7 @@ namespace
 		}
 	}
 
-	void write_port_binding_group(PortBindingGroup* group)
+	void write_port_bindings(PortState* group)
 	{
 		const std::string& portname = group->get_name();
 		std::string bindstr = "";
@@ -163,11 +163,11 @@ namespace
 			write_line("(");
 			s_cur_indent++;
 
-			int portno = inst->port_bindings().size();
-			for (auto& j : inst->port_bindings())
+			int portno = inst->port_states().size();
+			for (auto& j : inst->port_states())
 			{
-				PortBindingGroup* bindgroup = j.second;
-				write_port_binding_group(bindgroup);
+				PortState* ps = j.second;
+				write_port_bindings(ps);
 
 				portno--;
 				if (portno != 0)

@@ -43,25 +43,25 @@ Module::~Module()
 }
 
 //
-// PortBindingGroup
+// PortState
 //
 
-PortBindingGroup::PortBindingGroup()
+PortState::PortState()
 	: m_parent(nullptr), m_port(nullptr)
 {
 }
 
-PortBindingGroup::~PortBindingGroup()
+PortState::~PortState()
 {
 	ct::Util::delete_all(m_bindings);
 }
 
-const std::string& PortBindingGroup::get_name()
+const std::string& PortState::get_name()
 {
 	return m_port->get_name();
 }
 
-bool PortBindingGroup::is_simple()
+bool PortState::is_simple()
 {
 	bool result = is_empty();
 	if (!result)
@@ -72,12 +72,12 @@ bool PortBindingGroup::is_simple()
 	return result;
 }
 
-bool PortBindingGroup::is_empty()
+bool PortState::is_empty()
 {
 	return m_bindings.empty();
 }
 
-PortBinding* PortBindingGroup::get_sole_binding()
+PortBinding* PortState::get_sole_binding()
 {
 	if (is_empty())
 		return nullptr;
@@ -87,7 +87,7 @@ PortBinding* PortBindingGroup::get_sole_binding()
 	return result;
 }
 
-PortBinding* PortBindingGroup::bind(Net* net, int port_lo, int net_lo)
+PortBinding* PortState::bind(Net* net, int port_lo, int net_lo)
 {
 	PortBinding* result = nullptr;
 
@@ -118,12 +118,12 @@ PortBinding* PortBindingGroup::bind(Net* net, int port_lo, int net_lo)
 	return result;
 }
 
-PortBinding* PortBindingGroup::bind(Net* net, int lo)
+PortBinding* PortState::bind(Net* net, int lo)
 {
 	return bind(net, lo, 0);
 }
 
-PortBinding* PortBindingGroup::bind(Net* net)
+PortBinding* PortState::bind(Net* net)
 {
 	return bind(net, 0);
 }
@@ -264,10 +264,10 @@ Instance::Instance(const std::string& name, Module* module)
 	{
 		Port* port = i.second;
 		
-		PortBindingGroup* group = new PortBindingGroup();
-		group->set_parent(this);
-		group->set_port(port);
-		m_port_bindings[port->get_name()] = group;
+		PortState* st = new PortState();
+		st->set_parent(this);
+		st->set_port(port);
+		m_port_states[port->get_name()] = st;
 	}
 
 	for (auto& i : module->params())
@@ -284,27 +284,27 @@ Instance::Instance(const std::string& name, Module* module)
 
 Instance::~Instance()
 {
-	ct::Util::delete_all_2(m_port_bindings);
+	ct::Util::delete_all_2(m_port_states);
 	ct::Util::delete_all_2(m_param_bindings);
 }
 
 PortBinding* Instance::get_sole_binding(const std::string& port)
 {
-	PortBindingGroup* grp = m_port_bindings[port];
+	PortState* grp = m_port_states[port];
 	return grp->get_sole_binding();
 }
 
-PortBindingGroup* Instance::get_port_bindings(const std::string& name)
+PortState* Instance::get_port_state(const std::string& name)
 {
-	return m_port_bindings[name];
+	return m_port_states[name];
 }
 
 PortBinding* Instance::bind_port(const std::string& pname, Net* net, int port_lo, int net_lo)
 {
 	PortBinding* result = nullptr;
 
-	PortBindingGroup* grp = m_port_bindings[pname];
-	return grp->bind(net, port_lo, net_lo);
+	PortState* st = m_port_states[pname];
+	return st->bind(net, port_lo, net_lo);
 }
 
 PortBinding* Instance::bind_port(const std::string& port, Net* net, int lo)

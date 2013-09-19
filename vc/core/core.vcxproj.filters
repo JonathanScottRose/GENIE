@@ -19,6 +19,7 @@
       <Filter>Public</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\system_node.cpp" />
+    <ClCompile Include="..\..\src\expressions.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ct\p2p.h">
@@ -52,6 +53,9 @@
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\ct\system_node.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\expressions.h">
       <Filter>Public</Filter>
     </ClInclude>
   </ItemGroup>
