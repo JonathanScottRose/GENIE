@@ -92,18 +92,20 @@ protected:
 class Instance : public SysObject
 {
 public:
-	typedef std::unordered_map<std::string, InterfaceState*> IfaceStates;
+	typedef std::unordered_map<std::string, Expression> ParamBindings;
 
 	Instance(const std::string& name, const std::string& component);
 	~Instance();
 
 	PROP_GET_SET(component, const std::string&, m_component);
 
-	IfaceStates interface_states() { return m_iface_states; }
+	const ParamBindings& param_bindings() { return m_param_bindings; }
+	const Expression& get_param_binding(const std::string& name);
+	void set_param_binding(const std::string& name, const Expression& expr);
 
 protected:
+	ParamBindings m_param_bindings;
 	std::string m_component;
-	IfaceStates m_iface_states;
 };
 
 

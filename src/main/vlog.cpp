@@ -15,12 +15,27 @@ Port::~Port()
 {
 }
 
+void Port::set_width(int i)
+{
+	m_width = i;
+}
+
+void Port::set_width(const std::string& expr)
+{
+	m_width = expr;
+}
+
+int Port::get_width()
+{
+	return m_width.get_const_value();
+}
+
 //
 // Parameter
 //
 
 Parameter::Parameter(const std::string& name, Module* parent)
-	: m_parent(parent), m_name(name), m_is_vec(false), m_def_val(0)
+	: m_parent(parent), m_name(name), m_def_val(0)
 {
 }
 
@@ -49,6 +64,7 @@ Module::~Module()
 PortState::PortState()
 	: m_parent(nullptr), m_port(nullptr)
 {
+	
 }
 
 PortState::~PortState()
@@ -59,6 +75,11 @@ PortState::~PortState()
 const std::string& PortState::get_name()
 {
 	return m_port->get_name();
+}
+
+int PortState::get_width()
+{
+	return m_port->width().get_value(m_parent->get_param_resolver());
 }
 
 bool PortState::is_simple()
@@ -93,7 +114,7 @@ PortBinding* PortState::bind(Net* net, int port_lo, int net_lo)
 
 	Port* port = get_port();
 
-	int width = port->get_width();
+	int width = get_width();
 	int port_hi = port_lo + width - 1;
 
 	for (auto& i : bindings())
@@ -145,7 +166,7 @@ bool PortBinding::sole_binding()
 {
 	bool result = 
 		(m_port_lo == 0) &&
-		(m_width == m_parent->get_port()->get_width());
+		(m_width == m_parent->get_width());
 
 	return result;
 }
@@ -160,7 +181,7 @@ bool PortBinding::target_simple()
 //
 
 ParamBinding::ParamBinding()
-	: m_parent(nullptr), m_value(0), m_param(nullptr)
+	: m_parent(nullptr), m_param(nullptr)
 {
 }
 
@@ -172,6 +193,17 @@ const std::string& ParamBinding::get_name()
 {
 	return m_param->get_name();
 }
+
+void ParamBinding::set_value(int val)
+{
+	m_value = val;
+}
+
+int ParamBinding::get_value()
+{
+	return m_value.get_const_value();
+}
+
 
 //
 // Net
@@ -212,6 +244,11 @@ void WireNet::set_name(const std::string& name)
 int WireNet::get_width()
 {
 	return m_width;
+}
+
+void WireNet::set_width(int width)
+{
+	m_width = width;
 }
 
 //
@@ -280,6 +317,11 @@ Instance::Instance(const std::string& name, Module* module)
 		binding->set_value(param->get_def_val());
 		m_param_bindings[binding->get_name()] = binding;
 	}
+
+	m_resolv = [this] (const std::string& name)
+	{
+		return &(get_param_binding(name)->value());
+	};
 }
 
 Instance::~Instance()

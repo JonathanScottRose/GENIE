@@ -16,6 +16,7 @@ namespace
 	void write_port(Port* port);
 	void write_wire(WireNet* net);
 	void write_port_bindings(PortBinding* binding);
+	void write_param_binding(ParamBinding* binding);
 
 	void write_sys_ports(SystemModule* mod);
 	void write_sys_nets(SystemModule* mod);
@@ -40,9 +41,11 @@ namespace
 	{
 		std::string dir_str = port->get_dir() == Port::OUT ? "output " : "input ";
 		std::string size_str;
-		if (port->get_is_vec())
+
+		int width = port->get_width();
+		if (width > 1)
 		{
-			int hi = port->get_width() - 1;
+			int hi = width - 1;
 			int lo = 0;
 			size_str = "[" + std::to_string(hi) + ":" + std::to_string(lo) + "] ";
 		}
@@ -150,6 +153,13 @@ namespace
 		write_line("." + portname + "(" + bindstr + ")", true, false);	
 	}
 
+	void write_param_binding(ParamBinding* binding)
+	{
+		const std::string& paramname = binding->get_name();
+		std::string paramval = binding->value().to_string();
+		write_line("." + paramname + "(" + paramval + ")", true, false);
+	}
+
 	void write_sys_insts(SystemModule* mod)
 	{
 		write_line("");
@@ -159,7 +169,32 @@ namespace
 			Instance* inst = i.second;
 			Module* mod = inst->get_module();
 
-			write_line(mod->get_name() + " " + inst->get_name());
+			bool has_params = !inst->param_bindings().empty();
+
+			write_line(mod->get_name() + " ", true, false);
+			if (has_params)
+			{
+				write_line("#", false, true);
+				write_line("(");
+				s_cur_indent++;
+
+				int paramno = inst->param_bindings().size();
+				for (auto& j : inst->param_bindings())
+				{
+					ParamBinding* b = j.second;
+					write_param_binding(b);
+
+					if (--paramno != 0)
+						write_line(",", false, true);
+				}
+
+				write_line("", false, true);
+				s_cur_indent--;
+				write_line(")");
+				write_line("", true, false);
+			}
+
+			write_line(inst->get_name(), false, true);
 			write_line("(");
 			s_cur_indent++;
 
@@ -169,8 +204,7 @@ namespace
 				PortState* ps = j.second;
 				write_port_bindings(ps);
 
-				portno--;
-				if (portno != 0)
+				if (--portno != 0)
 					write_line(",", false, true);
 			}
 

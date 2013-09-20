@@ -27,6 +27,7 @@ namespace
 	Spec::Component* s_cur_component = nullptr;
 	Spec::Interface* s_cur_interface = nullptr;
 	Spec::System* s_cur_system = nullptr;
+	Spec::Instance* s_cur_instance = nullptr;
 	
 	// Forward function declarations
 	void xml_check_error(const std::string& prefix);
@@ -36,6 +37,7 @@ namespace
 	void visit_signal(const XMLElement& elem, const XMLAttribute* attr);
 	void visit_instance(const XMLAttribute* attr);
 	void visit_export(const XMLAttribute* attr);
+	void visit_param_binding(const XMLElement& elem);
 
 	// Private function bodies
 
@@ -104,6 +106,21 @@ namespace
 		Spec::define_component(s_cur_component);
 	}
 
+	void visit_param_binding(const XMLAttribute* attr)
+	{
+		using namespace ct::Spec;
+
+		if (s_cur_instance == nullptr)
+			throw std::exception("Unexpected <param>");
+
+		RequiredAttribs req;
+		req.emplace_back("name", true);
+		req.emplace_back("value", true);
+		auto attrs = parse_attribs(req, attr);
+
+		s_cur_instance->set_param_binding(attrs["name"], attrs["value"]);
+	}
+
 	void visit_interface(const XMLAttribute* attr)
 	{
 		using namespace ct::Spec;
@@ -149,7 +166,7 @@ namespace
 		req.emplace_back("usertype", false);
 		auto attrs = parse_attribs(req, attr);
 
-		int swidth = 1;
+		std::string swidth = "1";
 
 		Signal::Type stype = Signal::type_from_string(attrs["type"]);
 		if (stype == Signal::DATA || stype == Signal::HEADER ||
@@ -158,7 +175,7 @@ namespace
 			if (attrs.count("width") == 0)
 				throw std::exception("Missing signal width");
 
-			swidth = std::stoi(attrs["width"]);
+			swidth = attrs["width"];
 		}
 
 		if (stype != Signal::DATA && stype != Signal::HEADER &&
@@ -189,8 +206,8 @@ namespace
 		req.emplace_back("comp", true);
 		auto attrs = parse_attribs(req, attr);
 
-		Instance* inst = new Instance(attrs["name"], attrs["comp"]);
-		Spec::get_system()->add_object(inst);
+		s_cur_instance = new Instance(attrs["name"], attrs["comp"]);
+		Spec::get_system()->add_object(s_cur_instance);
 	}
 
 	void visit_link(const XMLAttribute* attr)
@@ -263,6 +280,10 @@ namespace
 			else if (e_name == "link") visit_link(attr);
 			else if (e_name == "export") visit_export(attr);
 			else if (e_name == "system") visit_system(attr);
+			else if (e_name == "param")
+			{
+				visit_param_binding(attr);
+			}
 			else throw std::exception(("Unknown element: " + e_name).c_str());
 
 			return true;
@@ -275,6 +296,7 @@ namespace
 			if (e_name == "component") s_cur_component = nullptr;
 			else if (e_name == "interface") s_cur_interface = nullptr;
 			else if (e_name == "system") s_cur_system = nullptr;
+			else if (e_name == "instance") s_cur_instance = nullptr;
 
 			return true;
 		}

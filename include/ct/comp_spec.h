@@ -1,6 +1,9 @@
 #pragma once
 
 #include "common.h"
+#include "expressions.h"
+
+using ct::Expressions::Expression;
 
 namespace ct
 {
@@ -31,11 +34,11 @@ public:
 		LINK_ID
 	};
 	
-	Signal(Type type, int width);
+	Signal(Type type, const Expression& width);
 	~Signal();
 
 	PROP_GET_SET(impl, OpaqueDeletable*, m_impl);
-	PROP_GET_SET(width, int, m_width);
+	PROP_GET_SET(width, const Expression&, m_width);
 	PROP_GET_SET(type, Type, m_type);
 	PROP_GET_SET(subtype, const std::string&, m_subtype);
 
@@ -45,7 +48,7 @@ protected:
 	Type m_type;
 	std::string m_subtype;
 	OpaqueDeletable* m_impl;
-	int m_width;
+	Expression m_width;
 };
 
 class Linkpoint

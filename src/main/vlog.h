@@ -1,6 +1,10 @@
 #pragma once
 
 #include "ct/common.h"
+#include "ct/expressions.h"
+
+using ct::Expressions::Expression;
+using ct::Expressions::NameResolver;
 
 namespace Vlog
 {
@@ -31,16 +35,18 @@ public:
 	Port(const std::string& m_name, Module* parent);
 	virtual ~Port();
 
-	PROP_GET_SET(is_vec, bool, m_is_vec);
-	PROP_GET_SET(width, int, m_width);
 	PROP_GET_SET(name, const std::string&, m_name);
 	PROP_GET_SET(dir, Dir, m_dir);
 	PROP_GET_SET(parent, Module*, m_parent);
 
+	Expression& width() { return m_width; }
+	void set_width(int i);
+	void set_width(const std::string& expr);
+	int get_width();
+
 protected:
 	Module* m_parent;
-	bool m_is_vec;
-	int m_width;
+	Expression m_width;
 	std::string m_name;
 	Dir m_dir;
 };
@@ -52,16 +58,12 @@ public:
 	virtual ~Parameter();
 
 	PROP_GET_SET(name, const std::string&, m_name);
-	PROP_GET_SET(width, int, m_width);
 	PROP_GET_SET(def_val, int, m_def_val);
-	PROP_GET_SET(is_vec, bool, m_is_vec);
 	PROP_GET_SET(parent, Module*, m_parent);
 
 protected:
 	Module* m_parent;
 	std::string m_name;
-	int m_width;
-	bool m_is_vec;
 	int m_def_val;
 };
 
@@ -89,9 +91,9 @@ public:
 
 	PROP_GET_SET(parent, Instance*, m_parent);
 	PROP_GET_SET(port, Port*, m_port);
-	PROP_GET_SET(width, int, m_width);
 
 	const std::string& get_name();
+	int get_width();
 
 	const PortBindings& bindings() { return m_bindings; }
 	bool is_empty();
@@ -103,7 +105,6 @@ public:
 	PortBinding* bind(Net* net, int port_lo, int net_lo);
 	
 protected:
-	int m_width;
 	PortBindings m_bindings;
 	Instance* m_parent;
 	Port* m_port;
@@ -138,14 +139,16 @@ public:
 	ParamBinding();
 	~ParamBinding();
 
-	PROP_GET_SET(value, int, m_value);
 	PROP_GET_SET(parent, Instance*, m_parent);
 	PROP_GET_SET(param, Parameter*, m_param);
 
 	const std::string& get_name();
+	Expression& value() { return m_value; }
+	void set_value(int val);
+	int get_value();
 
 protected:
-	int m_value;
+	Expression m_value;
 	Instance* m_parent;
 	Parameter* m_param;
 };
@@ -176,11 +179,10 @@ public:
 	WireNet();
 	virtual ~WireNet();
 
-	PROP_GET_SET(width, int, m_width);
-
 	const std::string& get_name();
 	void set_name(const std::string& name);
 	int get_width();
+	void set_width(int width);
 
 protected:
 	std::string m_name;
@@ -224,7 +226,10 @@ public:
 	const ParamBindings& param_bindings() { return m_param_bindings; }
 	ParamBinding* get_param_binding(const std::string& name);
 
+	const NameResolver& get_param_resolver() { return m_resolv; }
+
 protected:
+	NameResolver m_resolv;
 	std::string m_name;
 	Module* m_module;
 	PortStates m_port_states;

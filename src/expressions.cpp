@@ -68,7 +68,7 @@ void OpNode::set_rhs(Node* node)
 	m_rhs = node;
 }
 
-Node* OpNode::clone()
+Node* OpNode::clone() const
 {
 	OpNode* result = new OpNode(m_op);
 	result->set_lhs(m_lhs->clone());
@@ -76,7 +76,7 @@ Node* OpNode::clone()
 	return result;
 }
 
-std::string OpNode::to_string()
+std::string OpNode::to_string() const
 {
 	std::string result = m_lhs->to_string();
 	result.append(1, m_op);
@@ -97,7 +97,7 @@ ConstNode::ConstNode(int val)
 {
 }
 
-Node* ConstNode::clone()
+Node* ConstNode::clone() const
 {
 	return new ConstNode(*this);
 }
@@ -112,7 +112,7 @@ void ConstNode::set_value(int val)
 	m_value = val;
 }
 
-std::string ConstNode::to_string()
+std::string ConstNode::to_string() const
 {
 	return std::to_string(m_value);
 }
@@ -130,18 +130,18 @@ NameNode::NameNode(const std::string& name)
 {
 }
 
-Node* NameNode::clone()
+Node* NameNode::clone() const
 {
 	return new NameNode(*this);
 }
 
 int NameNode::get_value(const NameResolver& r)
 {
-	Expression* expr = r(m_ref);
+	const Expression* expr = r(m_ref);
 	return expr->get_value(r);
 }
 
-std::string NameNode::to_string()
+std::string NameNode::to_string() const
 {
 	return m_ref;
 }
@@ -156,8 +156,21 @@ Expression::Expression()
 }
 
 Expression::Expression(const Expression& other)
+	: m_root(nullptr)
 {
-	m_root = other.m_root->clone();
+	*this = other;
+}
+
+Expression::Expression(const std::string& str)
+	: m_root(nullptr)
+{
+	*this = str;
+}
+
+Expression::Expression(int val)
+	: m_root(nullptr)
+{
+	*this = val;
 }
 
 Expression::~Expression()
@@ -165,7 +178,7 @@ Expression::~Expression()
 	delete m_root;
 }
 
-std::string Expression::to_string()
+std::string Expression::to_string() const
 {
 	return m_root->to_string();
 }
@@ -176,20 +189,61 @@ void Expression::set_root(Node* root)
 	m_root = root;
 }
 
-int Expression::get_value(const NameResolver& r)
+int Expression::get_value(const NameResolver& r) const
 {
 	return m_root->get_value(r);
+}
+
+int Expression::get_const_value() const
+{
+	static NameResolver r = [] (const std::string& name)
+	{
+		assert(false);
+		return nullptr;
+	};
+
+	return get_value(r);
+}
+
+Expression& Expression::operator= (const Expression& other)
+{
+	if (other.get_root() == nullptr)
+	{
+		set_root(nullptr);
+	}
+	else
+	{
+		set_root(other.get_root()->clone());
+	}
+	return *this;
+}
+
+Expression& Expression::operator= (int val)
+{
+	set_root(new ConstNode(val));
+	return *this;
+}
+
+Expression& Expression::operator= (const std::string& str)
+{
+	set_root(build_root(str));
+	return *this;
 }
 
 Expression* Expression::build(const std::string& str)
 {
 	Expression* result = new Expression();
+	result->set_root(build_root(str));
+	return result;
+}
 
+Node* Expression::build_root(const std::string& str)
+{
 	std::string s = str;
 	std::smatch mr;
-	std::regex regex("\\s*(\\d+)|([+-/*])|([[:alpha:]]+)\\s");
+	std::regex regex("\\s*(\\d+)|([+-/*])|([[:alpha:]]+)");
 
-	Node* node;
+	Node* node = nullptr;
 	Node* last = nullptr;
 	char op = 0;
 	bool has_op = false;
@@ -210,6 +264,10 @@ Expression* Expression::build(const std::string& str)
 		else if (mr[3].matched)
 		{
 			node = new NameNode(mr[3]);
+		}
+		else
+		{
+			assert(false);
 		}
 
 		if (node)
@@ -235,7 +293,5 @@ Expression* Expression::build(const std::string& str)
 	}
 
 	assert(node);
-	result->set_root(node);
-
-	return result;
+	return node;
 }

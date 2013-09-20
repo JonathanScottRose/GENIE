@@ -7,13 +7,13 @@ using namespace ct::Spec;
 // Signal
 //
 
-Signal::Signal(Type type, int width)
+Signal::Signal(Type type, const Expression& width)
 	: m_width(width), m_type(type), m_impl(nullptr)
 {
 	if (type == CLOCK || type == RESET || type == VALID || type == READY ||
 		type == SOP || type == EOP)
 	{
-		assert(width == 1);
+		assert(width.get_const_value() == 1);
 	}
 }
 

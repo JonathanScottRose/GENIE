@@ -42,7 +42,6 @@ namespace
 		case Port::CLOCK:
 			{
 				Vlog::Port* vport = new Vlog::Port(port->get_name(), module);
-				vport->set_is_vec(false);
 				vport->set_dir(conv_port_dir(P2P::Port::rev_dir(port->get_dir()))); // reverse
 				vport->set_width(1);
 				module->add_port(vport);
@@ -60,7 +59,6 @@ namespace
 				{
 					std::string pname = concat(dport->get_name(), field->name);
 					Vlog::Port* vport = new Vlog::Port(pname, module);
-					vport->set_is_vec(field->width > 1);
 					vport->set_width(field->width);
 					vport->set_dir(conv_port_dir(P2P::Port::rev_dir(dport->get_dir()), 
 						field->sense)); // reverse
@@ -156,7 +154,7 @@ namespace
 		Spec::Component* comp_def = Spec::get_component_for_instance(node->get_instance()->get_name());
 		const std::string& comp_name = comp_def->get_name();
 		
-		// Component already module-ized
+		// Component already module-ized?
 		Vlog::Module* result = s_mod_reg.get_module(comp_name);
 		if (result != nullptr)
 			return result;
@@ -164,6 +162,15 @@ namespace
 		result = new Vlog::Module();
 		result->set_name(comp_def->get_name());
 		
+		// Convert parameters
+		Spec::Instance* inst_def = node->get_instance();
+		for (auto& i : inst_def->param_bindings())
+		{
+			Vlog::Parameter* param = new Vlog::Parameter(i.first, result);
+			result->add_param(param);
+			// derp: add default parameter value?
+		}
+
 		// Convert ports
 		for (auto& i : comp_def->interfaces())
 		{
@@ -176,8 +183,7 @@ namespace
 
 				Vlog::Port* port = new Vlog::Port(impl->signal_name, result);
 				port->set_dir(conv_port_dir(iface->get_type(), sig->get_type()));
-				port->set_width(sig->get_width());
-				port->set_is_vec(sig->get_width() > 1);
+				port->width() = sig->get_width();
 				result->add_port(port);
 			}
 		}
@@ -199,9 +205,20 @@ namespace
 			// Get the module associated with the child node (could be recursive!)
 			Vlog::Module* child_mod = impl_node(child);
 
-			// This is common to all modules... need to specialize for parameters, etc
+			// Create instance and add to module
 			Vlog::Instance* child_inst = new Vlog::Instance(child->get_name(), child_mod);
 			result->add_instance(child_inst);
+
+			// Copy parameter bindings... uh oh
+			if (child->get_type() == P2P::Node::INSTANCE)
+			{
+				P2P::InstanceNode* child2 = (P2P::InstanceNode*)child;
+				Spec::Instance* inst_def = child2->get_instance();
+				for (auto& j : inst_def->param_bindings())
+				{
+					child_inst->get_param_binding(j.first)->value() = j.second;
+				}
+			}
 		}
 
 		// Convert top-level Ports into top-level ports

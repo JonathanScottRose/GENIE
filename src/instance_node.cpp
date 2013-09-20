@@ -5,7 +5,7 @@ using namespace ct::P2P;
 
 namespace
 {
-	DataPort* create_data_port(Node* node, Port::Dir dir, Spec::DataInterface* iface)
+	DataPort* create_data_port(Node* node, Port::Dir dir, Spec::DataInterface* iface, Spec::Instance* inst)
 	{
 		DataPort* result = new DataPort(node, dir);
 
@@ -22,20 +22,25 @@ namespace
 		{
 			Field* f = nullptr;
 
+			int width = i->get_width().get_value([=] (const std::string& name)
+			{
+				return &(inst->get_param_binding(name));
+			});
+
 			switch (i->get_type())
 			{
 			case Spec::Signal::VALID:
-				f = new Field("valid", 1, Field::FWD);
+				f = new Field("valid", width, Field::FWD);
 				break;
 			case Spec::Signal::READY:
-				f = new Field("ready", 1, Field::REV);
+				f = new Field("ready", width, Field::REV);
 				break;
 			case Spec::Signal::DATA:
 				{
 					std::string nm = "data";
 					if (!i->get_subtype().empty())
 						nm += '.' + i->get_subtype();
-					f = new Field(nm, i->get_width(), Field::FWD);
+					f = new Field(nm, width, Field::FWD);
 				}
 				break;
 			case Spec::Signal::HEADER:
@@ -43,20 +48,20 @@ namespace
 					std::string nm = "header";
 					if (!i->get_subtype().empty())
 						nm += '.' + i->get_subtype();
-					f = new Field(nm, i->get_width(), Field::FWD);
+					f = new Field(nm, width, Field::FWD);
 				}
 				break;
 			case Spec::Signal::SOP:
-				f = new Field("sop", 1, Field::FWD);
+				f = new Field("sop", width, Field::FWD);
 				break;
 			case Spec::Signal::EOP:
-				f = new Field("eop", 1, Field::FWD);
+				f = new Field("eop", width, Field::FWD);
 				break;
 			case Spec::Signal::LINK_ID:
-				f = new Field("link_id", 1, Field::FWD);
+				f = new Field("link_id", width, Field::FWD);
 				break;
 			case Spec::Signal::LP_ID:
-				f = new Field("lp_id", 1, Field::FWD);
+				f = new Field("lp_id", width, Field::FWD);
 			default:
 				assert(false);
 			}
@@ -114,7 +119,7 @@ InstanceNode::InstanceNode(Spec::Instance* def)
 			break;
 		case Spec::Interface::RECV: pdir = Port::IN;
 		case Spec::Interface::SEND:
-			port = create_data_port(this, pdir, (Spec::DataInterface*)ifacedef);
+			port = create_data_port(this, pdir, (Spec::DataInterface*)ifacedef, def);
 			break;
 		default:
 			assert(false);

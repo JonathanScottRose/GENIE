@@ -82,6 +82,16 @@ Instance::~Instance()
 {
 }
 
+const Expression& Instance::get_param_binding(const std::string& name)
+{
+	return m_param_bindings[name];
+}
+
+void Instance::set_param_binding(const std::string& name, const Expression& expr)
+{
+	m_param_bindings[name] = expr;
+}
+
 //
 // Export
 //

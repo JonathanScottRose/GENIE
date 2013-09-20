@@ -81,7 +81,7 @@ Defines a signal role and binding within an interface. Todo : matrix of allowabl
 \item{header : like \textit{data}, but used for signals that only need to be valid during the first cycle of a multi-cycle transmission. can have multiple of these in an interface, distinguished by usertype field}
 \end{itemize}
 \item{(usertype) : optional, used with \textit{data} and \textit{header} signals to distinguish between user-defined data fields}
-\item{(width) : used with \textit{data}, \textit{header}, \textit{lp\_id}, and \textit{link\_id} types to define bit width of the signal}
+\item{(width) : used with \textit{data}, \textit{header}, \textit{lp\_id}, and \textit{link\_id} types to define bit width of the signa. This is an expression consisting of integer constants, HDL parameter names, and the operators + - * /}
 \end{itemize}
 \item{Parent tag: \texttt{interface}}
 \item{Contents: HDL signal name}
@@ -122,6 +122,19 @@ Instantiates a component.
 \item{comp : name of component to instantiate}
 \end{itemize}
 \item{Parent tag: \texttt{system}}
+\end{itemize}
+
+\subsection{\texttt{<param>}}
+
+Sets a specific parameter value for the component that an instance instantiates.
+
+\begin{itemize}
+\item{Parameters:}
+\begin{itemize}
+\item{name : HDL name of the parameter}
+\item{value : an expression}
+\end{itemize}
+\item{Parent tag: \texttt{instance}}
 \end{itemize}
 
 \subsection{\texttt{<export>}}
