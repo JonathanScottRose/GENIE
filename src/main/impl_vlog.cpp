@@ -27,8 +27,7 @@ namespace
 	Vlog::Port::Dir conv_port_dir(P2P::Port::Dir dir, 
 		P2P::Field::Sense sense = P2P::Field::FWD);
 	std::string concat(const std::string& a, const std::string& b);
-	const std::string& get_vlog_port_name(P2P::ClockResetPort* port);
-	const std::string& get_vlog_port_name(P2P::DataPort* port, P2P::Field* field);
+	const std::string& get_vlog_port_name(P2P::Port* port, P2P::Field* field);
 	void conv_top_level_port(P2P::Port* port, Vlog::SystemModule* module);
 	void bind_net_to_port(Vlog::Instance* inst, Vlog::Port* port, Vlog::Net* net);
 
@@ -39,53 +38,26 @@ namespace
 
 	void conv_top_level_port(P2P::Port* port, Vlog::SystemModule* module)
 	{
-		switch (port->get_type())
+		const P2P::Protocol& proto = port->get_proto();
+
+		// haaack
+		bool single_field = proto.fields().size() == 1;
+
+		for (P2P::Field* field : proto.fields())
 		{
-		case Port::RESET:
-		case Port::CLOCK:
-			{
-				Vlog::Port* vport = new Vlog::Port(port->get_name(), module);
-				vport->set_dir(conv_port_dir(P2P::Port::rev_dir(port->get_dir()))); // reverse
-				vport->set_width(1);
-				module->add_port(vport);
+			std::string pname = single_field? port->get_name() : 
+				concat(port->get_name(), field->name);
+			Vlog::Port* vport = new Vlog::Port(pname, module);
+			vport->set_width(field->width);
+			vport->set_dir(conv_port_dir(P2P::Port::rev_dir(port->get_dir()), 
+				field->sense)); // reverse
+			module->add_port(vport);
 
-				module->add_net(new Vlog::ExportNet(vport));
-			}
-			break;
-
-		case Port::DATA:
-			{
-				P2P::DataPort* dport = (DataPort*)port;
-				const P2P::Protocol& proto = dport->get_proto();
-
-				for (P2P::Field* field : proto.fields())
-				{
-					std::string pname = concat(dport->get_name(), field->name);
-					Vlog::Port* vport = new Vlog::Port(pname, module);
-					vport->set_width(field->width);
-					vport->set_dir(conv_port_dir(P2P::Port::rev_dir(dport->get_dir()), 
-						field->sense)); // reverse
-					module->add_port(vport);
-
-					module->add_net(new Vlog::ExportNet(vport));
-				}
-			}
-			break;
-
-		default:
-			assert(false);
-			break;
-		}
+			module->add_net(new Vlog::ExportNet(vport));
+		}	
 	}
 
-	const std::string& get_vlog_port_name(P2P::ClockResetPort* port)
-	{
-		Spec::Signal* sigdef = port->get_sig_def();
-		BuildSpec::SignalImpl* impl = (BuildSpec::SignalImpl*) sigdef->get_impl();
-		return impl->signal_name;
-	}
-
-	const std::string& get_vlog_port_name(P2P::DataPort* port, P2P::Field* field)
+	const std::string& get_vlog_port_name(P2P::Port* port, P2P::Field* field)
 	{
 		Spec::Signal* sigdef = port->get_field_binding(field->name)->get_sig_def();
 		BuildSpec::SignalImpl* impl = (BuildSpec::SignalImpl*) sigdef->get_impl();
@@ -172,98 +144,61 @@ namespace
 			bool sink_is_top = p2psink_0_node == node;
 
 			bool internal = !src_is_top && !sink_is_top;
-			assert(!src_is_top || !sink_is_top);
-			
-			switch (p2psrc->get_type())
+			assert(!src_is_top || !sink_is_top);		
+
+			const Protocol& proto = ((DataPort*)p2psrc)->get_proto();
+
+			bool single_field = proto.fields().size() == 1;
+
+			for (Field* f : proto.fields())
+			{
+				Vlog::Net* net;
+
+				// Create/get net
+				if (src_is_top)
 				{
-				case Port::RESET:
-				case Port::CLOCK:
-					{
-						Vlog::Net* net;
-
-						if (internal)
-						{
-							Vlog::WireNet* wnet = new Vlog::WireNet();
-							net = wnet;
-
-							wnet->set_name(concat(p2psrc_node->get_name(), p2psrc->get_name()));
-							wnet->set_width(1);
-
-							Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
-							Vlog::Port* src_port = src_inst->get_module()->get_port(
-								get_vlog_port_name((ClockResetPort*)p2psrc));
-
-							bind_net_to_port(src_inst, src_port, wnet);							
-
-							result->add_net(wnet);
-						}
-						else
-						{
-							net = result->get_net(p2psrc->get_name());
-						}
-
-						for (P2P::Port* p2pdest : conn->get_sinks())
-						{
-							Node* p2pdest_node = p2pdest->get_parent();
-							Vlog::Instance* dest_inst = result->get_instance(p2pdest_node->get_name());
-							Vlog::Port* dest_port = dest_inst->get_module()->get_port(
-								get_vlog_port_name((ClockResetPort*)p2pdest));
-							bind_net_to_port(dest_inst, dest_port, net);							
-						}						
-					}
-					break;
-
-				case Port::DATA:
+					std::string netname = single_field? p2psrc->get_name() :
+						concat(p2psrc->get_name(), f->name);
+					net = result->get_net(netname);
+				}
+				else if (sink_is_top)
 				{
-					const Protocol& proto = ((DataPort*)p2psrc)->get_proto();
+					std::string netname = single_field? p2psink_0->get_name() :
+						concat(p2psink_0->get_name(), f->name);
+					net = result->get_net(netname);
+				}
+				else
+				{
+					Vlog::WireNet* wnet = new Vlog::WireNet();
+					std::string subname = single_field? p2psrc->get_name() :
+						concat(p2psrc->get_name(), f->name);
+					wnet->set_name(concat(p2psrc_node->get_name(), subname));
+					wnet->set_width(f->width);
+					result->add_net(wnet);
+					net = wnet;
+				}
 
-					for (Field* f : proto.fields())
+				// Bind source
+				if (!src_is_top)
+				{
+					Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
+					Vlog::Port* src_port = src_inst->get_module()->get_port(
+						get_vlog_port_name(p2psrc, f));
+					bind_net_to_port(src_inst, src_port, net);
+				}
+
+				// Bind sink
+				if (!sink_is_top)
+				{
+					for (P2P::Port* p2psink : conn->get_sinks())
 					{
-						Vlog::Net* net;
-
-						// Create/get net
-						if (src_is_top)
-						{
-							net = result->get_net(concat(p2psrc->get_name(), f->name));
-						}
-						else if (sink_is_top)
-						{
-							net = result->get_net(concat(p2psink_0->get_name(), f->name));
-						}
-						else
-						{
-							Vlog::WireNet* wnet = new Vlog::WireNet();
-							wnet->set_name(concat(p2psrc_node->get_name(), concat(p2psrc->get_name(),
-								f->name)));
-							wnet->set_width(f->width);
-							result->add_net(wnet);
-							net = wnet;
-						}
-
-						// Bind source
-						if (!src_is_top)
-						{
-							Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
-							Vlog::Port* src_port = src_inst->get_module()->get_port(
-								get_vlog_port_name((P2P::DataPort*)p2psrc, f));
-							bind_net_to_port(src_inst, src_port, net);
-						}
-
-						// Bind sink
-						if (!sink_is_top)
-						{
-							Vlog::Instance* sink_inst = result->get_instance(p2psink_0_node->get_name());
-							Vlog::Port* sink_port = sink_inst->get_module()->get_port(
-								get_vlog_port_name((P2P::DataPort*)p2psink_0, f));
-							bind_net_to_port(sink_inst, sink_port, net);
-						}
+						Node* p2psink_node = p2psink->get_parent();
+						Vlog::Instance* sink_inst = result->get_instance(p2psink_node->get_name());
+						Vlog::Port* sink_port = sink_inst->get_module()->get_port(
+							get_vlog_port_name(p2psink, f));
+						bind_net_to_port(sink_inst, sink_port, net);
 					}
 				}
-				break;
-
-			default:
-				assert(false);
-				break;
 			}
 		}
 

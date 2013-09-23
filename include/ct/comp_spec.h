@@ -78,7 +78,7 @@ protected:
 class Interface
 {
 public:
-	typedef std::forward_list<Signal*> Signals;
+	typedef std::list<Signal*> Signals;
 	typedef std::unordered_map<std::string, Linkpoint*> Linkpoints;
 
 	enum Type

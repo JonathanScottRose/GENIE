@@ -14,7 +14,7 @@ namespace
 		assert(clockport);
 		result->set_clock(clockport);
 
-		// Create protocol
+		// Create data port protocol
 		Protocol proto;
 
 		// Add fields
@@ -78,8 +78,19 @@ namespace
 	ClockResetPort* create_cr_port(Node* node, Port::Type type, Port::Dir dir,
 		Spec::ClockResetInterface* iface)
 	{
-		Spec::Signal* sigdef = iface->signals().front();
-		ClockResetPort* result = new ClockResetPort(type, dir, node, sigdef);
+		ClockResetPort* result = new ClockResetPort(type, dir, node);
+
+		// Protocol is already created.
+
+		// Should only be one signal
+		assert(iface->signals().size() == 1);
+		Spec::Signal* sig = iface->signals().front();
+
+		// Get the lone field (could be clock or reset)
+		Field* f = result->get_proto().fields().front();
+
+		// Create field binding
+		result->add_field_binding(new FieldBinding(f->name, sig));
 
 		return result;
 	}

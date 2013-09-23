@@ -155,9 +155,18 @@ Port::Dir Port::rev_dir(Dir dir)
 // ClockResetPort
 //
 
-ClockResetPort::ClockResetPort(Type type, Dir dir, Node* node, Spec::Signal* sigdef)
-	: Port(type, dir, node), m_sigdef(sigdef)
+ClockResetPort::ClockResetPort(Type type, Dir dir, Node* node)
+	: Port(type, dir, node)
 {
+	std::string fname;
+	switch (type)
+	{
+	case Port::CLOCK: fname = "clock"; break;
+	case Port::RESET: fname = "reset"; break;
+	default: assert(false);
+	}
+
+	m_proto.add_field(new Field(fname, 1, Field::FWD));
 }
 
 ClockResetPort::~ClockResetPort()

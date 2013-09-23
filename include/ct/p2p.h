@@ -49,7 +49,7 @@ namespace P2P
 	class Protocol
 	{
 	public:
-		typedef std::forward_list<Field*> Fields;
+		typedef std::list<Field*> Fields;
 
 		Protocol();
 		Protocol(const Protocol&);
@@ -123,6 +123,7 @@ namespace P2P
 		PROP_GET_SET(conn, Conn*, m_conn);
 		PROP_GET_SET(iface_def, Spec::Interface*, m_iface_def);
 		PROP_DICT(FieldBindings, field_binding, FieldBinding);		
+		PROP_GET_SET(proto, const Protocol&, m_proto);
 
 		static Dir rev_dir(Dir dir);
 
@@ -133,18 +134,14 @@ namespace P2P
 		Node* m_parent;	
 		Conn* m_conn;
 		Spec::Interface* m_iface_def;
+		Protocol m_proto;
 	};
 
 	class ClockResetPort : public Port
 	{
 	public:
-		ClockResetPort(Type type, Dir dir, Node* node, Spec::Signal* def = nullptr);
+		ClockResetPort(Type type, Dir dir, Node* node);
 		~ClockResetPort();
-
-		PROP_GET_SET(sig_def, Spec::Signal*, m_sigdef);
-
-	protected:
-		Spec::Signal* m_sigdef;
 	};
 
 	class DataPort : public Port
@@ -156,7 +153,7 @@ namespace P2P
 		~DataPort();
 
 		PROP_GET_SET(clock, ClockResetPort*, m_clock);
-		PROP_GET_SET(proto, const Protocol&, m_proto);
+		
 
 		const FlowVec& flows() { return m_flows; }
 		void add_flow(Flow* f);
@@ -168,7 +165,6 @@ namespace P2P
 	protected:
 		ClockResetPort* m_clock;
 		FlowVec m_flows;
-		Protocol m_proto;
 	};
 
 	class Conn

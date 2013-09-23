@@ -75,6 +75,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\main\build_spec.cpp" />
     <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
+    <ClCompile Include="..\..\src\main\impl\instance.cpp" />
     <ClCompile Include="..\..\src\main\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\main\io.cpp" />
     <ClCompile Include="..\..\src\main\main.cpp" />
