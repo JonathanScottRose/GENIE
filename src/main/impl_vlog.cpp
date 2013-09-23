@@ -12,17 +12,20 @@ using namespace ct;
 using namespace ct::Spec;
 using namespace ct::P2P;
 
+using namespace ImplVerilog;
+
 namespace
 {
+	typedef std::unordered_map<P2P::Node::Type, ModuleImpl*> ModuleImpls;
+
 	Vlog::Module* s_top;
 	Vlog::ModuleRegistry s_mod_reg;
+	ModuleImpls s_module_impls;
 
 	Vlog::Module* impl_node(P2P::Node* node);
 	Vlog::Module* impl_sys_node(P2P::SystemNode* node);
-	Vlog::Module* impl_inst_node(P2P::InstanceNode* node);
 	Vlog::Port::Dir conv_port_dir(P2P::Port::Dir dir, 
 		P2P::Field::Sense sense = P2P::Field::FWD);
-	Vlog::Port::Dir conv_port_dir(Spec::Interface::Type itype, Spec::Signal::Type stype);
 	std::string concat(const std::string& a, const std::string& b);
 	const std::string& get_vlog_port_name(P2P::ClockResetPort* port);
 	const std::string& get_vlog_port_name(P2P::DataPort* port, P2P::Field* field);
@@ -107,90 +110,25 @@ namespace
 		}
 	}
 
-	Vlog::Port::Dir conv_port_dir(Spec::Interface::Type itype, Spec::Signal::Type stype)
-	{
-		Vlog::Port::Dir in, out;
-		if (stype != Spec::Signal::READY)
-		{
-			in = Vlog::Port::IN;
-			out = Vlog::Port::OUT;
-		}
-		else
-		{
-			in = Vlog::Port::OUT;
-			out = Vlog::Port::IN;
-		}
-
-		switch (itype)
-		{
-		case Interface::CLOCK_SINK:
-		case Interface::RESET_SINK:
-		case Interface::RECV:
-			return in;
-		case Interface::CLOCK_SRC:
-		case Interface::RESET_SRC:
-		case Interface::SEND:
-			return out;
-		default:
-			assert(false);
-			return out;
-		}
-	}
-
+	
 	Vlog::Module* impl_node(P2P::Node* node)
 	{
-		switch (node->get_type())
+		if (node->get_type() == P2P::Node::SYSTEM)
+			return impl_sys_node((P2P::SystemNode*) node);
+
+		ModuleImpl* impl = s_module_impls[node->get_type()];
+		const std::string& mod_name = impl->get_module_name(node);
+
+		Vlog::Module* result = s_mod_reg.get_module(mod_name);
+		if (result == nullptr)
 		{
-		case P2P::Node::SYSTEM: return impl_sys_node((P2P::SystemNode*)node); break;
-		case P2P::Node::INSTANCE: return impl_inst_node((P2P::InstanceNode*)node); break;
-		default: assert(false);
+			result = impl->implement(node);
+			s_mod_reg.add_module(result);
 		}
 
-		return nullptr;
-	}
-
-	Vlog::Module* impl_inst_node(P2P::InstanceNode* node)
-	{
-		Spec::Component* comp_def = Spec::get_component_for_instance(node->get_instance()->get_name());
-		const std::string& comp_name = comp_def->get_name();
-		
-		// Component already module-ized?
-		Vlog::Module* result = s_mod_reg.get_module(comp_name);
-		if (result != nullptr)
-			return result;
-
-		result = new Vlog::Module();
-		result->set_name(comp_def->get_name());
-		
-		// Convert parameters
-		Spec::Instance* inst_def = node->get_instance();
-		for (auto& i : inst_def->param_bindings())
-		{
-			Vlog::Parameter* param = new Vlog::Parameter(i.first, result);
-			result->add_param(param);
-			// derp: add default parameter value?
-		}
-
-		// Convert ports
-		for (auto& i : comp_def->interfaces())
-		{
-			Spec::Interface* iface = i.second;
-			const std::string& ifacename = iface->get_name();
-
-			for (Spec::Signal* sig : iface->signals())
-			{
-				BuildSpec::SignalImpl* impl = (BuildSpec::SignalImpl*)sig->get_impl();
-
-				Vlog::Port* port = new Vlog::Port(impl->signal_name, result);
-				port->set_dir(conv_port_dir(iface->get_type(), sig->get_type()));
-				port->width() = sig->get_width();
-				result->add_port(port);
-			}
-		}
-
-		s_mod_reg.add_module(result);
 		return result;
 	}
+
 
 	Vlog::Module* impl_sys_node(P2P::SystemNode* node)
 	{
@@ -209,16 +147,10 @@ namespace
 			Vlog::Instance* child_inst = new Vlog::Instance(child->get_name(), child_mod);
 			result->add_instance(child_inst);
 
-			// Copy parameter bindings... uh oh
-			if (child->get_type() == P2P::Node::INSTANCE)
-			{
-				P2P::InstanceNode* child2 = (P2P::InstanceNode*)child;
-				Spec::Instance* inst_def = child2->get_instance();
-				for (auto& j : inst_def->param_bindings())
-				{
-					child_inst->get_param_binding(j.first)->value() = j.second;
-				}
-			}
+			// Parameterize instance
+			ModuleImpl* impl = s_module_impls[child->get_type()];
+			assert(impl);
+			impl->parameterize(child, child_inst);
 		}
 
 		// Convert top-level Ports into top-level ports
@@ -335,17 +267,16 @@ namespace
 			}
 		}
 
-		// Register module
-		s_mod_reg.add_module(result);
-
 		return result;
 	}
-
-	
 }
 
 void ImplVerilog::go()
 {
+	// Register all modules
+	ImplVerilog::BuiltinRegHost::execute_inits();
+
+	// Implement system module
 	s_top = impl_node(ct::get_root_node());
 }
 
@@ -354,7 +285,8 @@ Vlog::Module* ImplVerilog::get_top_module()
 	return s_top;
 }
 
-Vlog::ModuleRegistry* ImplVerilog::get_module_registry()
+void ImplVerilog::register_impl(P2P::Node::Type type, ModuleImpl* impl)
 {
-	return &s_mod_reg;
+	s_module_impls[type] = impl;
 }
+

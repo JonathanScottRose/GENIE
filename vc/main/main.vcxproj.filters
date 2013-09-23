@@ -13,6 +13,9 @@
     <ClCompile Include="..\..\src\main\vlog.cpp" />
     <ClCompile Include="..\..\src\main\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\main\write_vlog.cpp" />
+    <ClCompile Include="..\..\src\main\builtins\instance.cpp">
+      <Filter>builtins</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\globals.h" />
@@ -34,6 +37,9 @@
     </Filter>
     <Filter Include="tinyxml">
       <UniqueIdentifier>{a4305b77-979c-46e9-b400-17aad1e650ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="builtins">
+      <UniqueIdentifier>{5d2cb114-125e-4741-bc3e-92994c20092d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

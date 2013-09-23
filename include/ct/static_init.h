@@ -15,9 +15,9 @@ namespace Util
 // The argument T should be a StaticInitHost.
 
 #define DEFINE_INIT_HOST(name,hname,cname) \
-	class name_##init_host_id {}; \
-	typedef StaticInitHost<name_##init_host_id> hname; \
-	typedef StaticInitClient<hname> cname;
+	class name##_init_host_id {}; \
+	typedef ct::Util::StaticInitHost<name##_init_host_id> hname; \
+	typedef ct::Util::StaticInitClient<hname> cname;
 
 template<typename T>
 class StaticInitClient
@@ -101,7 +101,8 @@ public:
 
 	~InitShutdown()
 	{
-		m_shutdown_func();
+		if (m_shutdown_func)
+			m_shutdown_func();
 	}
 
 protected:
