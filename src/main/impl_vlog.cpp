@@ -16,11 +16,11 @@ using namespace ImplVerilog;
 
 namespace
 {
-	typedef std::unordered_map<P2P::Node::Type, ModuleImpl*> ModuleImpls;
+	typedef std::unordered_map<P2P::Node::Type, IModuleImpl*> IModuleImpls;
 
 	Vlog::Module* s_top;
 	Vlog::ModuleRegistry s_mod_reg;
-	ModuleImpls s_module_impls;
+	IModuleImpls s_module_impls;
 
 	Vlog::Module* impl_node(P2P::Node* node);
 	Vlog::Module* impl_sys_node(P2P::SystemNode* node);
@@ -29,13 +29,7 @@ namespace
 	std::string concat(const std::string& a, const std::string& b);
 	const std::string& get_vlog_port_name(P2P::Port* port, P2P::Field* field);
 	void conv_top_level_port(P2P::Port* port, Vlog::SystemModule* module);
-	void bind_net_to_port(Vlog::Instance* inst, Vlog::Port* port, Vlog::Net* net);
-
-	void bind_net_to_port(Vlog::Instance* inst, Vlog::Port* port, Vlog::Net* net)
-	{
-		inst->bind_port(port->get_name(), net);
-	}
-
+	
 	void conv_top_level_port(P2P::Port* port, Vlog::SystemModule* module)
 	{
 		const P2P::Protocol& proto = port->get_proto();
@@ -88,7 +82,7 @@ namespace
 		if (node->get_type() == P2P::Node::SYSTEM)
 			return impl_sys_node((P2P::SystemNode*) node);
 
-		ModuleImpl* impl = s_module_impls[node->get_type()];
+		IModuleImpl* impl = s_module_impls[node->get_type()];
 		const std::string& mod_name = impl->get_module_name(node);
 
 		Vlog::Module* result = s_mod_reg.get_module(mod_name);
@@ -120,7 +114,7 @@ namespace
 			result->add_instance(child_inst);
 
 			// Parameterize instance
-			ModuleImpl* impl = s_module_impls[child->get_type()];
+			IModuleImpl* impl = s_module_impls[child->get_type()];
 			assert(impl);
 			impl->parameterize(child, child_inst);
 		}
@@ -181,10 +175,12 @@ namespace
 				// Bind source
 				if (!src_is_top)
 				{
+					ImplVerilog::GPNInfo ci;
+					ImplVerilog::IModuleImpl* impl = s_module_impls[p2psrc_node->get_type()];
+					impl->get_port_name(p2psrc, f, &ci);
+
 					Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
-					Vlog::Port* src_port = src_inst->get_module()->get_port(
-						get_vlog_port_name(p2psrc, f));
-					bind_net_to_port(src_inst, src_port, net);
+					src_inst->bind_port(ci.port, net, ci.lo);
 				}
 
 				// Bind sink
@@ -193,10 +189,12 @@ namespace
 					for (P2P::Port* p2psink : conn->get_sinks())
 					{
 						Node* p2psink_node = p2psink->get_parent();
+						ImplVerilog::GPNInfo ci;
+						ImplVerilog::IModuleImpl* impl = s_module_impls[p2psink_node->get_type()];
+						impl->get_port_name(p2psink, f, &ci);
+
 						Vlog::Instance* sink_inst = result->get_instance(p2psink_node->get_name());
-						Vlog::Port* sink_port = sink_inst->get_module()->get_port(
-							get_vlog_port_name(p2psink, f));
-						bind_net_to_port(sink_inst, sink_port, net);
+						sink_inst->bind_port(ci.port, net, ci.lo);
 					}
 				}
 			}
@@ -220,7 +218,7 @@ Vlog::Module* ImplVerilog::get_top_module()
 	return s_top;
 }
 
-void ImplVerilog::register_impl(P2P::Node::Type type, ModuleImpl* impl)
+void ImplVerilog::register_impl(P2P::Node::Type type, IModuleImpl* impl)
 {
 	s_module_impls[type] = impl;
 }

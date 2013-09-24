@@ -40,7 +40,7 @@ namespace
 		}
 	}
 
-	class : public ImplVerilog::ModuleImpl
+	class : public ImplVerilog::IModuleImpl
 	{
 		const std::string& get_module_name(ct::P2P::Node* node)
 		{
@@ -89,7 +89,7 @@ namespace
 			return result;
 		}
 
-		virtual void parameterize(P2P::Node* generic_node, Vlog::Instance* vinst)
+		void parameterize(P2P::Node* generic_node, Vlog::Instance* vinst)
 		{
 			P2P::InstanceNode* node = (P2P::InstanceNode*) generic_node;
 			assert(node->get_type() == P2P::Node::INSTANCE);
@@ -99,11 +99,21 @@ namespace
 			{
 				vinst->get_param_binding(j.first)->value() = j.second;
 			}
-		}	
-	} s_builtin;
+		}
 
-	ImplVerilog::BuiltinReg s_builtin_reg ([]
+		void get_port_name(P2P::Port* port, P2P::Field* field, ImplVerilog::GPNInfo* result)
+		{
+			P2P::FieldBinding* fb = port->get_field_binding(field->name);
+			Spec::Signal* sig = fb->get_sig_def();
+			BuildSpec::SignalImpl* sig_impl = (BuildSpec::SignalImpl*)sig->get_impl();
+			
+			result->port = sig_impl->signal_name;			
+			result->lo = 0;
+		}
+	} s_impl;
+
+	ImplVerilog::BuiltinReg s_impl_reg ([]
 	{
-		ImplVerilog::register_impl(P2P::Node::INSTANCE, &s_builtin);
+		ImplVerilog::register_impl(P2P::Node::INSTANCE, &s_impl);
 	});
 }
