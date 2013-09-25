@@ -27,7 +27,6 @@ namespace
 	Vlog::Port::Dir conv_port_dir(P2P::Port::Dir dir, 
 		P2P::Field::Sense sense = P2P::Field::FWD);
 	std::string concat(const std::string& a, const std::string& b);
-	const std::string& get_vlog_port_name(P2P::Port* port, P2P::Field* field);
 	void conv_top_level_port(P2P::Port* port, Vlog::SystemModule* module);
 	
 	void conv_top_level_port(P2P::Port* port, Vlog::SystemModule* module)
@@ -49,13 +48,6 @@ namespace
 
 			module->add_net(new Vlog::ExportNet(vport));
 		}	
-	}
-
-	const std::string& get_vlog_port_name(P2P::Port* port, P2P::Field* field)
-	{
-		Spec::Signal* sigdef = port->get_field_binding(field->name)->get_sig_def();
-		BuildSpec::SignalImpl* impl = (BuildSpec::SignalImpl*) sigdef->get_impl();
-		return impl->signal_name;
 	}
 
 	std::string concat(const std::string& a, const std::string& b)
@@ -175,8 +167,8 @@ namespace
 				// Bind source
 				if (!src_is_top)
 				{
-					ImplVerilog::GPNInfo ci;
-					ImplVerilog::IModuleImpl* impl = s_module_impls[p2psrc_node->get_type()];
+					GPNInfo ci;
+					IModuleImpl* impl = s_module_impls[p2psrc_node->get_type()];
 					impl->get_port_name(p2psrc, f, &ci);
 
 					Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
@@ -189,8 +181,8 @@ namespace
 					for (P2P::Port* p2psink : conn->get_sinks())
 					{
 						Node* p2psink_node = p2psink->get_parent();
-						ImplVerilog::GPNInfo ci;
-						ImplVerilog::IModuleImpl* impl = s_module_impls[p2psink_node->get_type()];
+						GPNInfo ci;
+						IModuleImpl* impl = s_module_impls[p2psink_node->get_type()];
 						impl->get_port_name(p2psink, f, &ci);
 
 						Vlog::Instance* sink_inst = result->get_instance(p2psink_node->get_name());

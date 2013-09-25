@@ -42,6 +42,8 @@ public:
 	PROP_GET_SET(type, Type, m_type);
 	PROP_GET_SET(subtype, const std::string&, m_subtype);
 
+	std::string get_field_name() const;
+
 	static Type type_from_string(const std::string& str);
 
 protected:
@@ -102,6 +104,7 @@ public:
 	Signals get_signals(Signal::Type type);
 	Signal* get_signal(Signal::Type type);
 	Signal* get_signal(Signal::Type type, const std::string& subtype);
+	Signal* get_signal(const std::string& field_name);
 
 	const Linkpoints& linkpoints() { return m_linkpoints; }
 	void add_linkpoint(Linkpoint* lp);

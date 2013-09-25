@@ -103,8 +103,8 @@ namespace
 
 		void get_port_name(P2P::Port* port, P2P::Field* field, ImplVerilog::GPNInfo* result)
 		{
-			P2P::FieldBinding* fb = port->get_field_binding(field->name);
-			Spec::Signal* sig = fb->get_sig_def();
+			Spec::Interface* iface = port->get_iface_def();
+			Spec::Signal* sig = iface->get_signal(field->name);
 			BuildSpec::SignalImpl* sig_impl = (BuildSpec::SignalImpl*)sig->get_impl();
 			
 			result->port = sig_impl->signal_name;			

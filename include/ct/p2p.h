@@ -13,7 +13,6 @@ namespace P2P
 	class Conn;
 	class Protocol;
 	struct Field;
-	class FieldBinding;
 
 	struct Field
 	{
@@ -29,21 +28,6 @@ namespace P2P
 		std::string name;
 		int width;
 		Sense sense;
-	};
-
-	class FieldBinding
-	{
-	public:
-		FieldBinding();
-		FieldBinding(const std::string& name, Spec::Signal* sigdef);
-		~FieldBinding();
-
-		PROP_GET_SET(name, const std::string&, m_name);
-		PROP_GET_SET(sig_def, Spec::Signal*, m_sig_def);
-
-	protected:
-		std::string m_name;
-		Spec::Signal* m_sig_def;
 	};
 
 	class Protocol
@@ -122,7 +106,6 @@ namespace P2P
 		PROP_GET_SET(parent, Node*, m_parent);
 		PROP_GET_SET(conn, Conn*, m_conn);
 		PROP_GET_SET(iface_def, Spec::Interface*, m_iface_def);
-		PROP_DICT(FieldBindings, field_binding, FieldBinding);		
 		PROP_GET_SET(proto, const Protocol&, m_proto);
 
 		static Dir rev_dir(Dir dir);

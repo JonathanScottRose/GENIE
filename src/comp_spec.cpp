@@ -41,6 +41,38 @@ Signal::Type Signal::type_from_string(const std::string& str)
 	return CLOCK;
 }
 
+std::string Signal::get_field_name() const
+{
+	switch (m_type)
+	{
+	case CLOCK: return "clock";
+	case RESET: return "reset";
+	case DATA:
+		{
+			std::string nm = "data";
+			if (!get_subtype().empty())
+				nm += "_" + get_subtype();
+			return nm;
+		}
+	case HEADER:
+		{
+			std::string nm = "header";
+			if (!get_subtype().empty())
+				nm += "_" + get_subtype();
+			return nm;
+		}
+	case SOP: return "sop";
+	case EOP: return "eop";
+	case LINK_ID: return "link_id";
+	case LP_ID: return "lp_id";
+	case VALID: return "valid";
+	case READY: return "ready";
+	default: assert (false);
+	}
+
+	return "";
+}
+
 //
 // Linkpoint
 //
@@ -98,6 +130,17 @@ Signal* Interface::get_signal(Signal::Type type, const std::string& subtype)
 	for (auto& i : m_signals)
 	{
 		if (i->get_type() == type && i->get_subtype() == subtype)
+			return i;
+	}
+
+	return nullptr;
+}
+
+Signal* Interface::get_signal(const std::string& field_name)
+{
+	for (auto& i : m_signals)
+	{
+		if (i->get_field_name() == field_name)
 			return i;
 	}
 

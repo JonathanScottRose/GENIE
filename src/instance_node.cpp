@@ -3,97 +3,38 @@
 using namespace ct;
 using namespace ct::P2P;
 
-namespace
+
+DataPort* InstanceNode::create_data_port(Port::Dir dir, Spec::DataInterface* iface, Spec::Instance* inst)
 {
-	DataPort* create_data_port(Node* node, Port::Dir dir, Spec::DataInterface* iface, Spec::Instance* inst)
+	DataPort* result = new DataPort(this, dir);
+
+	// Assign clock
+	ClockResetPort* clockport = (ClockResetPort*)this->get_port(iface->get_clock());
+	assert(clockport);
+	result->set_clock(clockport);
+
+	// Create data port protocol
+	Protocol proto;
+
+	// Add fields
+	for (auto& i : iface->signals())
 	{
-		DataPort* result = new DataPort(node, dir);
-
-		// Assign clock
-		ClockResetPort* clockport = (ClockResetPort*)node->get_port(iface->get_clock());
-		assert(clockport);
-		result->set_clock(clockport);
-
-		// Create data port protocol
-		Protocol proto;
-
-		// Add fields
-		for (auto& i : iface->signals())
+		int width = i->get_width().get_value([=] (const std::string& name)
 		{
-			Field* f = nullptr;
+			return &(inst->get_param_binding(name));
+		});
 
-			int width = i->get_width().get_value([=] (const std::string& name)
-			{
-				return &(inst->get_param_binding(name));
-			});
+		std::string field_name = i->get_field_name();
+		Field::Sense field_sense = field_name == "ready" ? Field::Sense::REV :
+			Field::Sense::FWD;
 
-			switch (i->get_type())
-			{
-			case Spec::Signal::VALID:
-				f = new Field("valid", width, Field::FWD);
-				break;
-			case Spec::Signal::READY:
-				f = new Field("ready", width, Field::REV);
-				break;
-			case Spec::Signal::DATA:
-				{
-					std::string nm = "data";
-					if (!i->get_subtype().empty())
-						nm += '.' + i->get_subtype();
-					f = new Field(nm, width, Field::FWD);
-				}
-				break;
-			case Spec::Signal::HEADER:
-				{
-					std::string nm = "header";
-					if (!i->get_subtype().empty())
-						nm += '.' + i->get_subtype();
-					f = new Field(nm, width, Field::FWD);
-				}
-				break;
-			case Spec::Signal::SOP:
-				f = new Field("sop", width, Field::FWD);
-				break;
-			case Spec::Signal::EOP:
-				f = new Field("eop", width, Field::FWD);
-				break;
-			case Spec::Signal::LINK_ID:
-				f = new Field("link_id", width, Field::FWD);
-				break;
-			case Spec::Signal::LP_ID:
-				f = new Field("lp_id", width, Field::FWD);
-			default:
-				assert(false);
-			}
-
-			proto.add_field(f);
-			result->add_field_binding(new FieldBinding(f->name, i));
-		}
-
-		result->set_proto(proto);
-
-		return result;
+		Field* f = new Field(field_name, width, field_sense);
+		proto.add_field(f);
 	}
 
-	ClockResetPort* create_cr_port(Node* node, Port::Type type, Port::Dir dir,
-		Spec::ClockResetInterface* iface)
-	{
-		ClockResetPort* result = new ClockResetPort(type, dir, node);
+	result->set_proto(proto);
 
-		// Protocol is already created.
-
-		// Should only be one signal
-		assert(iface->signals().size() == 1);
-		Spec::Signal* sig = iface->signals().front();
-
-		// Get the lone field (could be clock or reset)
-		Field* f = result->get_proto().fields().front();
-
-		// Create field binding
-		result->add_field_binding(new FieldBinding(f->name, sig));
-
-		return result;
-	}
+	return result;
 }
 
 InstanceNode::InstanceNode(Spec::Instance* def)
@@ -122,15 +63,15 @@ InstanceNode::InstanceNode(Spec::Instance* def)
 		{
 		case Spec::Interface::CLOCK_SINK: pdir = Port::IN;
 		case Spec::Interface::CLOCK_SRC:
-			port = create_cr_port(this, Port::CLOCK, pdir, (Spec::ClockResetInterface*)ifacedef);
+			port = new ClockResetPort(Port::CLOCK, pdir, this);
 			break;
 		case Spec::Interface::RESET_SINK: pdir = Port::IN;
 		case Spec::Interface::RESET_SRC:
-			port = create_cr_port(this, Port::RESET, pdir, (Spec::ClockResetInterface*)ifacedef);
+			port = new ClockResetPort(Port::RESET, pdir, this);
 			break;
 		case Spec::Interface::RECV: pdir = Port::IN;
 		case Spec::Interface::SEND:
-			port = create_data_port(this, pdir, (Spec::DataInterface*)ifacedef, def);
+			port = create_data_port(pdir, (Spec::DataInterface*)ifacedef, def);
 			break;
 		default:
 			assert(false);
@@ -142,198 +83,6 @@ InstanceNode::InstanceNode(Spec::Instance* def)
 	}
 }
 
-
 InstanceNode::~InstanceNode()
 {
 }
-
-
-/*
-void InstanceNode::instantiate()
-{
-	ATManager* mgr = ATManager::inst();
-	ATSpec* spec = mgr->get_spec();
-
-	std::string& compname = m_instance->comp_name;
-	std::string& instname = m_instance->inst_name;
-
-	ATComponentDef* compdef = spec->get_component_def(compname);
-	assert(compdef);
-
-	sc_module* mod = (compdef->get_inster())(instname.c_str());
-	m_impl = mod;
-
-	for (auto it : compdef->clocks())
-	{
-		const std::string& name = it.first;
-		sc_clock* sig = mgr->get_clock(name);
-		assert(sig);
-
-		it.second->binder(*mod, sig);
-	}
-
-	struct Foo
-	{
-		ati_signal_punpack_base* punpack;
-		ATInterfaceDef* ifacedef;
-		ATNetPort* port;
-	};
-
-	std::vector<Foo> foos;
-
-	// Create packers/unpackers, connect
-	for (auto it : m_inports)
-	{
-		ATNetInPort* inport = it.second;
-		ATInterfaceDef* ifacedef = compdef->get_iface(it.first);
-		assert(ifacedef);
-
-		// Create unpacker
-		std::string name(instname);
-		name.append("_unpack_");
-		name.append(ifacedef->get_name());
-		ati_signal_unpacker* pack = new ati_signal_unpacker(inport->get_proto(), name.c_str());
-
-		for (ATNetFlow* flow : inport->flows())
-		{
-			int flow_id = flow->get_id();
-
-			ATLinkDef* link_def = flow->get_def();
-			ATLinkPointDef& dest_lp_def = link_def->dest;
-			ATEndpointDef* dest_ep_def = spec->get_endpoint_def_for_linkpoint(dest_lp_def);
-
-			int ep_id = dest_ep_def->ep_id;
-			int addr = link_def->dest_bind_pos;
-
-			pack->define_flow_mapping(flow_id, ep_id, addr);
-		}
-
-		// Tell the netports about the implementation
-		inport->set_impl(&pack->recv());
-
-		Foo newfoo = {pack, ifacedef, inport};
-		foos.push_back(newfoo);
-	}
-
-	for (auto it : m_outports)
-	{
-		ATNetOutPort* outport = it.second;
-		ATInterfaceDef* ifacedef = compdef->get_iface(it.first);
-		assert(ifacedef);
-
-		// Create packer
-		std::string name(instname);
-		name.append("_pack_");
-		name.append(ifacedef->get_name());
-		ati_signal_packer* pack = new ati_signal_packer(outport->get_proto(), name.c_str());
-
-		for (ATNetFlow* flow : outport->flows())
-		{
-			int flow_id = flow->get_id();
-
-			ATLinkDef* link_def = flow->get_def();
-			ATLinkPointDef& src_lp_def = link_def->src;
-			ATEndpointDef* src_ep_def = spec->get_endpoint_def_for_linkpoint(src_lp_def);
-
-			int ep_id = src_ep_def->ep_id;
-			int addr = ati_signal_punpack_base::ANY_ADDR;
-			
-			if (src_ep_def->type == ATEndpointDef::UNICAST)
-			{
-				addr = link_def->src_bind_pos;
-			}
-
-			pack->define_flow_mapping(flow_id, ep_id, addr);
-		}
-
-		// Tell the netports about the implementation
-		outport->set_impl(&pack->send());
-
-		Foo newfoo = {pack, ifacedef, outport};
-		foos.push_back(newfoo);
-	}
-
-	// Register signals 
-	for (Foo& foo : foos)
-	{
-		ATInterfaceDef* ifacedef = foo.ifacedef;
-		ati_signal_punpack_base* pack = foo.punpack;
-		ATNetPort* port = foo.port;
-		
-		int idx = 0;
-
-		if (ifacedef->has_data())
-		{
-			for (auto it : ifacedef->data_signals())
-			{
-				ATDataSignalDef* sigdef = it.second;
-				sc_bv_signal* sig = sigdef->creator();
-				pack->add_data_signal(sig, idx, sigdef->width);
-				sigdef->binder(*mod, sig);
-
-				idx += sigdef->width;
-			}
-		}
-
-		if (ifacedef->has_header())
-		{
-			for (auto it : ifacedef->header_signals())
-			{
-				ATDataSignalDef* sigdef = it.second;
-				sc_bv_signal* sig = sigdef->creator();
-				pack->add_data_signal(sig, idx, sigdef->width);
-				sigdef->binder(*mod, sig);
-
-				idx += sigdef->width;
-			}
-		}
-
-		if (ifacedef->has_address())
-		{
-			ATAddrSignalDef* sigdef = ifacedef->get_address_signal();
-			sc_bv_signal* sig = sigdef->creator();
-			pack->add_addr_signal(sig);
-			sigdef->binder(*mod, sig);
-		}
-
-		if (ifacedef->has_ep())
-		{
-			ATAddrSignalDef* sigdef = ifacedef->get_ep_signal();
-			sc_bv_signal* sig = sigdef->creator();
-			pack->add_epid_signal(sig);
-			sigdef->binder(*mod, sig);
-		}
-
-		if (ifacedef->has_valid())
-		{
-			ATCtrlSignalDef* sigdef = ifacedef->get_valid_signal();
-			sc_signal<bool>* sig = new sc_signal<bool>();
-			pack->add_valid_signal(sig);
-			sigdef->binder(*mod, sig);
-		}
-
-		if (ifacedef->has_ready())
-		{
-			ATCtrlSignalDef* sigdef = ifacedef->get_ready_signal();
-			sc_signal<bool>* sig = new sc_signal<bool>();
-			pack->add_ready_signal(sig);
-			sigdef->binder(*mod, sig);
-		}
-
-		if (ifacedef->has_sop())
-		{
-			assert(ifacedef->has_eop());
-
-			ATCtrlSignalDef* sigdef = ifacedef->get_sop_signal();
-			sc_signal<bool>* sig = new sc_signal<bool>();
-			pack->add_sop_signal(sig);
-			sigdef->binder(*mod, sig);
-
-			sigdef = ifacedef->get_eop_signal();
-			sig = new sc_signal<bool>();
-			pack->add_eop_signal(sig);
-			sigdef->binder(*mod, sig);
-		}
-	}
-}
-*/

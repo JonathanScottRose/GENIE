@@ -9,7 +9,7 @@ namespace ImplVerilog
 	// Lets module implementations register themselves
 	DEFINE_INIT_HOST(builtin_reg, BuiltinRegHost, BuiltinReg);
 
-	// Used as return value for connect()
+	// Used as return value for get_port_name()
 	struct GPNInfo
 	{
 		std::string port;

@@ -88,25 +88,6 @@ Field::Field(const std::string& name_, int width_, Sense sense_)
 }
 
 //
-// FieldBinding
-//
-
-FieldBinding::FieldBinding()
-	: m_sig_def(nullptr)
-{
-}
-
-FieldBinding::FieldBinding(const std::string& name, Spec::Signal* sig_def)
-	: m_name(name), m_sig_def(sig_def)
-{
-}
-
-FieldBinding::~FieldBinding()
-{
-	if (m_sig_def) delete m_sig_def;
-}
-
-//
 // Node
 //
 

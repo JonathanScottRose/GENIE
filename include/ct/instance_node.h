@@ -17,6 +17,8 @@ namespace P2P
 		PROP_GET_SET(instance, Spec::Instance*, m_instance);
 	
 	private:
+		DataPort* create_data_port(Port::Dir dir, Spec::DataInterface* iface, Spec::Instance* inst);
+
 		Spec::Instance* m_instance;
 	};
 }
