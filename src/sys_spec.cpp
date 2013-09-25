@@ -177,25 +177,29 @@ void System::validate()
 					break;
 			}
 
-			bool connected;
-
-			if (is_out)	connected = srcs.count(tmp.get_path()) > 0;
-			else connected = dests.count(tmp.get_path()) > 0;
-
-			if (!connected)
+			for (auto& k : iface->linkpoints())
 			{
-				assert(! (is_data && iface->linkpoints().size() > 1) );
+				tmp.set_lp(k.first);
+				bool connected;
 
-				std::string exname = instname + '_' + ifname;
-				Export* ex = new Export(exname, iface->get_type());
-				add_object(ex);
+				if (is_out)	connected = srcs.count(tmp.get_path()) > 0;
+				else connected = dests.count(tmp.get_path()) > 0;
 
-				LinkTarget ex_target(exname);
-				Link* link;
-				if (is_out) link = new Link(tmp, ex_target);
-				else link = new Link(ex_target, tmp);
+				if (!connected)
+				{
+					assert(! (is_data && iface->linkpoints().size() > 1) );
 
-				add_link(link);
+					std::string exname = instname + '_' + ifname;
+					Export* ex = new Export(exname, iface->get_type());
+					add_object(ex);
+
+					LinkTarget ex_target(exname);
+					Link* link;
+					if (is_out) link = new Link(tmp, ex_target);
+					else link = new Link(ex_target, tmp);
+
+					add_link(link);
+				}
 			}
 		}
 	}

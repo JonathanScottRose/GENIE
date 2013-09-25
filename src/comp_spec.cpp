@@ -87,6 +87,16 @@ Linkpoint::~Linkpoint()
 	if (m_encoding) delete m_encoding;
 }
 
+Linkpoint::Type Linkpoint::type_from_string(const std::string& str)
+{
+	std::string str2 = Util::str_tolower(str);
+	if (str2 == "unicast") return UNICAST;
+	else if (str2 == "broadcast") return BROADCAST;
+	else throw std::exception(("Unknown linkpoint type " + str).c_str());
+
+	return UNICAST;
+}
+
 //
 // Interface
 //

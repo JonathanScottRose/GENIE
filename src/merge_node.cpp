@@ -50,7 +50,7 @@ DataPort* MergeNode::get_outport()
 
 DataPort* MergeNode::get_inport(int i)
 {
-	return (DataPort*)m_ports["out" + std::to_string(i)];
+	return (DataPort*)m_ports["in" + std::to_string(i)];
 }
 
 ClockResetPort* MergeNode::get_clock_port()

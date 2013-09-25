@@ -30,10 +30,10 @@ namespace
 			port = new ClockResetPort(Port::CLOCK, Port::IN, &s_root);
 			break;
 		case Spec::Interface::RESET_SRC:
-			port = new ClockResetPort(Port::RESET, Port::OUT, &s_root);
+			port = new ClockResetPort(Port::RESET, Port::IN, &s_root);
 			break;
 		case Spec::Interface::RESET_SINK:
-			port = new ClockResetPort(Port::RESET, Port::IN, &s_root);
+			port = new ClockResetPort(Port::RESET, Port::OUT, &s_root);
 			break;
 		case Spec::Interface::SEND:
 			port = new DataPort(&s_root, Port::IN);

@@ -16,5 +16,10 @@ namespace BuildSpec
 		std::string signal_name;
 	};
 
+	struct LinkpointImpl : public OpaqueDeletable
+	{
+		std::string encoding;
+	};
+
 	void go();
 }

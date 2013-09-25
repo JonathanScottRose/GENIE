@@ -70,6 +70,8 @@ public:
 	PROP_GET(iface, DataInterface*, m_iface);
 	PROP_GET(type, Type, m_type);
 
+	static Type type_from_string(const std::string& type);
+
 protected:	
 	std::string m_name;
 	DataInterface* m_iface;

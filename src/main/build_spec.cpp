@@ -37,7 +37,8 @@ namespace
 	void visit_signal(const XMLElement& elem, const XMLAttribute* attr);
 	void visit_instance(const XMLAttribute* attr);
 	void visit_export(const XMLAttribute* attr);
-	void visit_param_binding(const XMLElement& elem);
+	void visit_defparam(const XMLElement& elem);
+	void visit_linkpoint(const XMLElement& elem, const XMLAttribute* attr);
 
 	// Private function bodies
 
@@ -106,12 +107,12 @@ namespace
 		Spec::define_component(s_cur_component);
 	}
 
-	void visit_param_binding(const XMLAttribute* attr)
+	void visit_defparam(const XMLAttribute* attr)
 	{
 		using namespace ct::Spec;
 
 		if (s_cur_instance == nullptr)
-			throw std::exception("Unexpected <param>");
+			throw std::exception("Unexpected <defparam>");
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
@@ -265,6 +266,29 @@ namespace
 		s_cur_system->set_name(attrs["name"]);
 	}
 
+	void visit_linkpoint(const XMLElement& elem, const XMLAttribute* attr)
+	{
+		using namespace ct::Spec;
+
+		if (s_cur_component == nullptr || s_cur_interface == nullptr)
+			throw std::exception("Unexpected <linkpoint>");
+
+		RequiredAttribs req;
+		req.emplace_back("name", true);
+		req.emplace_back("type", true);
+		auto attrs = parse_attribs(req, attr);
+
+		Linkpoint::Type type = Linkpoint::type_from_string(attrs["type"]);
+		
+		LinkpointImpl* limpl = new LinkpointImpl;
+		limpl->encoding = elem.GetText();
+
+		Linkpoint* lp = new Linkpoint(attrs["name"], type, (DataInterface*)s_cur_interface);
+		lp->set_encoding(limpl);
+
+		s_cur_interface->add_linkpoint(lp);
+	}
+
 	// Single instance of XML element visitor
 	class : public XMLVisitor
 	{
@@ -280,10 +304,8 @@ namespace
 			else if (e_name == "link") visit_link(attr);
 			else if (e_name == "export") visit_export(attr);
 			else if (e_name == "system") visit_system(attr);
-			else if (e_name == "param")
-			{
-				visit_param_binding(attr);
-			}
+			else if (e_name == "defparam") visit_defparam(attr);
+			else if (e_name == "linkpoint") visit_linkpoint(elem, attr);
 			else throw std::exception(("Unknown element: " + e_name).c_str());
 
 			return true;
