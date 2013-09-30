@@ -72,7 +72,9 @@ namespace P2P
 
 		const PortMap& ports() { return m_ports; }
 		Port* get_port(const std::string& name) { return m_ports[name]; }
-		void add_port(Port* port);		
+		void add_port(Port* port);
+		void remove_port(Port* port);
+		void remove_port(const std::string& name);
 	
 	protected:
 		Type m_type;

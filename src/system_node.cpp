@@ -70,16 +70,6 @@ void SystemNode::remove_conn(Conn* conn)
 	delete conn;
 }
 
-/*
-Node* SystemNode::get_node_for_linkpoint(const LinkPointDef& lp_def)
-{
-	const std::string& inst_name = lp_def.get_inst();
-	ATInstanceNode* inst_node = (ATInstanceNode*)get_node(inst_name);
-	assert(inst_node->get_type() == Node::INSTANCE);
-
-	return inst_node;
-}*/
-
 void SystemNode::dump_graph()
 {
 	std::ofstream out("graph.dot");
@@ -112,3 +102,20 @@ void SystemNode::add_conn(Conn* conn)
 {
 	m_conns.push_back(conn);
 }
+
+ClockResetPort* SystemNode::get_a_reset_port()
+{
+	for (auto& port : ports())
+	{
+		ClockResetPort* p = (ClockResetPort*)port.second;
+		if (p->get_type() == Port::RESET &&
+			p->get_dir() == Port::OUT)
+		{
+			return p;
+		}
+	}
+	
+	assert(false);
+	return nullptr;
+}
+

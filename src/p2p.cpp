@@ -108,6 +108,16 @@ void Node::add_port(Port* port)
 	m_ports.emplace(port->get_name(), port);
 }
 
+void Node::remove_port(Port* port)
+{
+	m_ports.erase(port->get_name());
+}
+
+void Node::remove_port(const std::string& name)
+{
+	m_ports.erase(name);
+}
+
 //
 // Port
 //

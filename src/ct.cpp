@@ -49,6 +49,38 @@ namespace
 		s_root.add_port(port);
 	}
 
+	Conn* get_system_reset_conn()
+	{
+		ClockResetPort* rst = s_root.get_a_reset_port();
+		Conn* result = rst->get_conn();
+
+		if (result == nullptr)
+		{
+			result = new Conn();
+			result->set_source(rst);
+			rst->set_conn(result);
+			s_root.add_conn(result);
+		}
+
+		return result;
+	}
+
+	void connect(Port* src, Conn* sink)
+	{
+		assert(src->get_conn() == nullptr);
+		assert(sink->get_source() == nullptr);
+		src->set_conn(sink);
+		sink->set_source(src);
+	}
+
+	void connect(Conn* src, Port* sink)
+	{
+		src->remove_sink(sink);
+		src->add_sink(sink);
+		assert(sink->get_conn() == nullptr);
+		sink->set_conn(src);
+	}
+
 	void init_netlist()
 	{
 		// Get system SPEC
@@ -308,8 +340,11 @@ namespace
 
 			// Connect clock
 			Conn* clk_conn = inst_outport->get_clock()->get_conn();
-			clk_conn->add_sink(split_node->get_clock_port());
-			split_node->get_clock_port()->set_conn(clk_conn);
+			connect(clk_conn, split_node->get_clock_port());
+
+			// Connect reset
+			Conn* reset_conn = get_system_reset_conn();
+			connect(reset_conn, split_node->get_reset_port());
 
 			// Configure outputs and add them to the structure needed for the Split creation stage
 			int outport_idx = 0;
@@ -371,8 +406,11 @@ namespace
 			
 			// Connect clock
 			Conn* clk_conn = inst_inport->get_clock()->get_conn();
-			clk_conn->add_sink(merge_node->get_clock_port());
-			merge_node->get_clock_port()->set_conn(clk_conn);
+			connect(clk_conn, merge_node->get_clock_port());
+			
+			// Connect reset
+			Conn* reset_conn = get_system_reset_conn();
+			connect(reset_conn, merge_node->get_reset_port());
 
 			// Connect inports
 			int inport_idx = 0;
@@ -394,6 +432,26 @@ namespace
 			}
 		} // next inst_inport
 	}
+
+	void post_process()
+	{
+		// Remove dangling ports from system node
+		std::forward_list<Port*> ports_to_delete;
+		for (auto& i : s_root.ports())
+		{
+			Port* p = i.second;
+			if (p->get_conn() == nullptr)
+			{
+				ports_to_delete.push_front(p);				
+			}
+		}
+
+		for (Port* p : ports_to_delete)
+		{
+			s_root.remove_port(p);
+			delete p;
+		}
+	}
 }
 
 SystemNode* ct::get_root_node()
@@ -406,5 +464,5 @@ void ct::go()
 	Spec::validate();
 	init_netlist();
 	create_network();
-
+	post_process();
 }

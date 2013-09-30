@@ -203,4 +203,26 @@ void System::validate()
 			}
 		}
 	}
+
+	// Create reset export if there are none
+	bool has_reset = false;
+	for (auto& i : m_objects)
+	{
+		Export* obj = (Export*)i.second;
+
+		if (obj->get_type() != SysObject::EXPORT)
+			continue;
+
+		if (obj->get_iface_type() == Interface::RESET_SINK)
+		{
+			has_reset = true;
+			break;
+		}
+	}
+
+	if (!has_reset)
+	{
+		Export* ex = new Export("reset", Interface::RESET_SINK);
+		add_object(ex);
+	}
 }

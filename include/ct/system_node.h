@@ -35,6 +35,8 @@ namespace P2P
 		void connect_ports(DataPort* src, DataPort* dest);
 		void disconnect_ports(DataPort* src, DataPort* dest);
 
+		ClockResetPort* get_a_reset_port();
+
 		void dump_graph();
 
 	protected:
