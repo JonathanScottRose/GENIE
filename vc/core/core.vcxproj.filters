@@ -12,14 +12,11 @@
     <ClCompile Include="..\..\src\sys_spec.cpp" />
     <ClCompile Include="..\..\src\comp_spec.cpp" />
     <ClCompile Include="..\..\src\ct.cpp" />
-    <ClCompile Include="..\..\src\merge_node.cpp">
-      <Filter>Public</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\split_node.cpp">
-      <Filter>Public</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\system_node.cpp" />
     <ClCompile Include="..\..\src\expressions.cpp" />
+    <ClCompile Include="..\..\src\merge_node.cpp" />
+    <ClCompile Include="..\..\src\split_node.cpp" />
+    <ClCompile Include="..\..\src\flow_conv_node.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ct\p2p.h">
@@ -56,6 +53,9 @@
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\ct\expressions.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\flow_conv_node.h">
       <Filter>Public</Filter>
     </ClInclude>
   </ItemGroup>

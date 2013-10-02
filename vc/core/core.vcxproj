@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\comp_spec.cpp" />
     <ClCompile Include="..\..\src\expressions.cpp" />
+    <ClCompile Include="..\..\src\flow_conv_node.cpp" />
     <ClCompile Include="..\..\src\instance_node.cpp" />
     <ClCompile Include="..\..\src\ct.cpp" />
     <ClCompile Include="..\..\src\merge_node.cpp" />
@@ -27,6 +28,7 @@
     <ClInclude Include="..\..\include\ct\comp_spec.h" />
     <ClInclude Include="..\..\include\ct\ct.h" />
     <ClInclude Include="..\..\include\ct\expressions.h" />
+    <ClInclude Include="..\..\include\ct\flow_conv_node.h" />
     <ClInclude Include="..\..\include\ct\instance_node.h" />
     <ClInclude Include="..\..\include\ct\merge_node.h" />
     <ClInclude Include="..\..\include\ct\p2p.h" />

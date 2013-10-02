@@ -105,5 +105,13 @@ namespace ct
 		{
 			return str_tolower(str.c_str());
 		}
+
+		// Log base 2
+		static int log2(int val)
+		{
+			int result = 0;
+			while (val >>= 1) result++;
+			return result;
+		}
 	}
 }

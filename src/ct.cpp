@@ -219,7 +219,7 @@ namespace
 				{
 					flow = new Flow();
 					flow->set_id(flow_id++);
-					flow->set_src(src_data_port);
+					flow->set_src(src_data_port, src_target);
 					src_data_port->add_flow(flow);
 					s_root.add_flow(flow);
 				}
@@ -237,8 +237,8 @@ namespace
 					{
 						flow = new Flow();
 						flow->set_id(flow_id++);
-						flow->set_src(src_data_port);
-						flow->set_sink(dest_data_port);
+						flow->set_src(src_data_port, src_target);
+						flow->set_sink(dest_data_port, dest_target);
 						s_root.add_flow(flow);
 
 						src_data_port->add_flow(flow);
@@ -246,7 +246,7 @@ namespace
 					}
 					else
 					{
-						flow->add_sink(dest_data_port);
+						flow->add_sink(dest_data_port, dest_target);
 						dest_data_port->add_flow(flow);
 					}
 				}
@@ -287,9 +287,9 @@ namespace
 		for (auto& it : s_root.flows())
 		{
 			Flow* f = it.second;
-			outports_to_visit.insert(f->get_src());
-			for (DataPort* sink : f->sinks())
-				inports_to_visit.insert(sink);
+			outports_to_visit.insert(f->get_src()->port);
+			for (FlowTarget* sink : f->sinks())
+				inports_to_visit.insert(sink->port);
 		}
 
 		// Visit each outport and construct a Split node if there is more than one unique destination
@@ -307,9 +307,9 @@ namespace
 
 			for (Flow* flow : inst_outport->flows())
 			{
-				for (DataPort* phys_dest : flow->sinks())
+				for (FlowTarget* phys_dest : flow->sinks())
 				{
-					phys_dest_map[phys_dest].push_front(flow);
+					phys_dest_map[phys_dest->port].push_front(flow);
 				}
 			}
 

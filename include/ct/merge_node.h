@@ -7,7 +7,7 @@ namespace ct
 {
 namespace P2P
 {
-	class MergeNode : public P2P::Node
+	class MergeNode : public Node
 	{
 	public:
 		MergeNode(const std::string& name, const Protocol& proto, int n_inputs);

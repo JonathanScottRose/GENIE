@@ -45,6 +45,8 @@ namespace P2P
 		void add_field(Field* f);
 		Field* get_field(const std::string& name) const;
 		bool has_field(const std::string& name);
+		void remove_field(Field* f);
+		void delete_field(const std::string& name);
 
 	protected:
 		Fields m_fields;
@@ -60,7 +62,8 @@ namespace P2P
 			SYSTEM,
 			INSTANCE,
 			SPLIT,
-			MERGE
+			MERGE,
+			FLOW_CONV
 		};
 
 		Node(Type type);
@@ -132,7 +135,7 @@ namespace P2P
 	class DataPort : public Port
 	{
 	public:
-		typedef std::vector<Flow*> FlowVec;
+		typedef std::vector<Flow*> Flows;
 
 		DataPort(Node* node, Dir dir);
 		~DataPort();
@@ -140,16 +143,16 @@ namespace P2P
 		PROP_GET_SET(clock, ClockResetPort*, m_clock);
 		
 
-		const FlowVec& flows() { return m_flows; }
+		const Flows& flows() { return m_flows; }
 		void add_flow(Flow* f);
 		void remove_flow(Flow* f);
 		bool has_flow(Flow* f);
 		void clear_flows();
-		void add_flows(const FlowVec& f);
+		void add_flows(const Flows& f);
 
 	protected:
 		ClockResetPort* m_clock;
-		FlowVec m_flows;
+		Flows m_flows;
 	};
 
 	class Conn
@@ -174,24 +177,39 @@ namespace P2P
 		Sinks m_sinks;
 	};
 
+	class FlowTarget
+	{
+	public:
+		FlowTarget();
+		FlowTarget(DataPort*, const Spec::LinkTarget&);
+		Spec::Linkpoint* get_linkpoint() const;
 
+		DataPort* port;
+		Spec::LinkTarget lt;
+	};
+	
 	class Flow
 	{
 	public:
-		typedef std::forward_list<DataPort*> Sinks;
+		typedef std::forward_list<FlowTarget*> Sinks;
+
+		Flow();
+		~Flow();
 
 		PROP_GET_SET(id, int, m_id);
-		PROP_GET_SET(src, DataPort*, m_src);
 		
-		DataPort* get_sink();
-		void set_sink(DataPort* sink);
+		void set_src(DataPort* port, const Spec::LinkTarget& lt);
+		FlowTarget* get_src();
+		
+		FlowTarget* get_sink();
+		void set_sink(DataPort* port, const Spec::LinkTarget& lt);
 		const Sinks& sinks() { return m_sinks; }
-		void add_sink(DataPort* sink);
-		void remove_sink(DataPort* sink);
-		bool has_sink(DataPort* sink);
+		void add_sink(DataPort* sink, const Spec::LinkTarget& lt);
+		void remove_sink(FlowTarget* ft);
+		bool has_sink(DataPort* port);
 
 	protected:
-		DataPort* m_src;
+		FlowTarget* m_src;
 		Sinks m_sinks;
 		int m_id;
 	};

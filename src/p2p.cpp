@@ -74,6 +74,29 @@ bool Protocol::has_field(const std::string& name)
 	return get_field(name) != nullptr;
 }
 
+void Protocol::remove_field(Field* f)
+{
+	auto it = std::find(m_fields.begin(), m_fields.end(), f);
+	if (it != m_fields.end())
+	{
+		m_fields.erase(it);
+	}
+}
+
+void Protocol::delete_field(const std::string& name)
+{
+	auto it = std::find_if(m_fields.begin(), m_fields.end(), [&](Field* f)
+	{
+		return f->name == name;
+	});
+
+	if (it != m_fields.end())
+	{
+		delete *it;
+		m_fields.erase(it);
+	}
+}
+
 //
 // Field
 //
@@ -189,7 +212,7 @@ void DataPort::add_flow(Flow* flow)
 }
 
 
-void DataPort::add_flows(const FlowVec& f)
+void DataPort::add_flows(const Flows& f)
 {
 	m_flows.insert(m_flows.end(), f.begin(), f.end());
 }
@@ -231,31 +254,76 @@ void Conn::remove_sink(Port* sink)
 }
 
 //
+// FlowTarget
+//
+
+FlowTarget::FlowTarget()
+	: port(nullptr)
+{
+}
+
+FlowTarget::FlowTarget(DataPort* _port, const Spec::LinkTarget& _lt)
+	: port(_port), lt(_lt)
+{
+}
+
+Spec::Linkpoint* FlowTarget::get_linkpoint() const
+{
+	return Spec::get_linkpoint(lt);
+}
+
+//
 // Flow
 //
 
-DataPort* Flow::get_sink()
+Flow::Flow()
+{
+	m_src = new FlowTarget();
+}
+
+Flow::~Flow()
+{
+	delete m_src;
+	Util::delete_all(m_sinks);
+}
+
+FlowTarget* Flow::get_sink()
 {
 	return m_sinks.front();
 }
 
-void Flow::set_sink(DataPort* sink)
+void Flow::set_sink(DataPort* port, const Spec::LinkTarget& lt)
 {
 	m_sinks.clear();
-	m_sinks.push_front(sink);
+	m_sinks.push_front(new FlowTarget(port, lt));
 }
 
-void Flow::add_sink(DataPort* sink)
+void Flow::add_sink(DataPort* port, const Spec::LinkTarget& lt)
 {
-	m_sinks.push_front(sink);
+	m_sinks.push_front(new FlowTarget(port, lt));
 }
 
-void Flow::remove_sink(DataPort* sink)
+void Flow::remove_sink(FlowTarget* sink)
 {
 	m_sinks.remove(sink);
 }
 
-bool Flow::has_sink(DataPort* sink)
+bool Flow::has_sink(DataPort* port)
 {
-	return std::find(m_sinks.begin(), m_sinks.end(), sink) != m_sinks.end();
+	return std::find_if(m_sinks.begin(), m_sinks.end(), [=] (FlowTarget* t)
+	{
+		return t->port == port;
+	}) != m_sinks.end();
 }
+
+void Flow::set_src(DataPort* port, const Spec::LinkTarget& lt)
+{
+	m_src->port = port;
+	m_src->lt = lt;
+}
+
+FlowTarget* Flow::get_src()
+{
+	return m_src;
+}
+
