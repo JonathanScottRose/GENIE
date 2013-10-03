@@ -58,7 +58,7 @@ namespace
 			Spec::Component* comp_def = Spec::get_component_for_instance(node->get_instance()->get_name());
 
 			Vlog::Module* result = new Vlog::Module();
-			result->set_name(comp_def->get_name());
+			result->set_name(get_module_name(generic_node));
 		
 			// Convert parameters
 			Spec::Instance* inst_def = node->get_instance();
@@ -101,7 +101,8 @@ namespace
 			}
 		}
 
-		void get_port_name(P2P::Port* port, P2P::Field* field, ImplVerilog::GPNInfo* result)
+		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, 
+			ImplVerilog::GPNInfo* result)
 		{
 			Spec::Interface* iface = port->get_iface_def();
 			Spec::Signal* sig = iface->get_signal(field->name);

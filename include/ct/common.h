@@ -110,7 +110,11 @@ namespace ct
 		static int log2(int val)
 		{
 			int result = 0;
-			while (val >>= 1) result++;
+			while (val)
+			{
+				val >>= 1;
+				result++;
+			}
 			return result;
 		}
 	}

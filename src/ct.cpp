@@ -7,6 +7,7 @@
 #include "system_node.h"
 #include "merge_node.h"
 #include "split_node.h"
+#include "flow_conv_node.h"
 
 using namespace ct;
 using namespace ct::P2P;
@@ -284,12 +285,84 @@ namespace
 		// by flows (ignore exported signals, internal connections only)
 		std::unordered_set<DataPort*> outports_to_visit;
 		std::unordered_set<DataPort*> inports_to_visit;
+		std::list<DataPort*> tmp;
+
 		for (auto& it : s_root.flows())
 		{
 			Flow* f = it.second;
 			outports_to_visit.insert(f->get_src()->port);
 			for (FlowTarget* sink : f->sinks())
 				inports_to_visit.insert(sink->port);
+		}
+
+		// Create flow conversion nodes at outports which have a lp_id field
+		tmp.assign(outports_to_visit.begin(), outports_to_visit.end());
+		for (DataPort* src_port : tmp)
+		{
+			const Protocol& src_proto = src_port->get_proto();
+			if (!src_proto.has_field("lp_id"))
+				continue;
+
+			Node* src_node = src_port->get_parent();
+
+			FlowConvNode* fc_node = new FlowConvNode(
+				src_node->get_name() + "_" + src_port->get_name() + "_conv",
+				true,
+				src_proto,
+				src_port->flows(),
+				src_port
+			);
+			s_root.add_node(fc_node);
+
+			// Connect clock
+			Conn* clk_conn = src_port->get_clock()->get_conn();
+			connect(clk_conn, fc_node->get_clock_port());
+
+			// Connect reset
+			Conn* reset_conn = get_system_reset_conn();
+			connect(reset_conn, fc_node->get_reset_port());
+
+			// Connect input
+			s_root.connect_ports(src_port, fc_node->get_inport());
+
+			// Put output on to_visit list
+			outports_to_visit.erase(src_port);
+			outports_to_visit.insert(fc_node->get_outport());
+		}
+
+		// Do the same thing with inports
+		tmp.assign(inports_to_visit.begin(), inports_to_visit.end());
+		for (DataPort* dest_port : tmp)
+		{
+			const Protocol& dest_proto = dest_port->get_proto();
+			if (!dest_proto.has_field("lp_id"))
+				continue;
+			
+			Node* dest_node = dest_port->get_parent();
+
+			FlowConvNode* fc_node = new FlowConvNode(
+				dest_node->get_name() + "_" + dest_port->get_name() + "_conv",
+				false,
+				dest_proto,
+				dest_port->flows(),
+				dest_port
+			);
+			s_root.add_node(fc_node);
+
+			// Connect clock
+			Conn* clk_conn = dest_port->get_clock()->get_conn();
+			connect(clk_conn, fc_node->get_clock_port());
+
+			// Connect reset
+			Conn* reset_conn = get_system_reset_conn();
+			connect(reset_conn, fc_node->get_reset_port());
+
+			// Connect output
+			s_root.connect_ports(fc_node->get_outport(), dest_port);
+
+			// Put input on to_visit list
+			inports_to_visit.erase(dest_port);
+			inports_to_visit.insert(fc_node->get_inport());
 		}
 
 		// Visit each outport and construct a Split node if there is more than one unique destination
@@ -356,7 +429,7 @@ namespace
 				// Register all flows going through this output, and update post-split map structure
 				for (Flow* f : i.second)
 				{
-					split_node->register_flow(f, split_output);
+					split_node->register_flow(f, outport_idx);
 					post_split_mapping[f] = split_output;
 				}
 				
@@ -371,16 +444,14 @@ namespace
 		for (DataPort* inst_inport : inports_to_visit)
 		{
 			// Enumerate all physical ports trying to compete for this port, and which flows
-			// each port provices. Use the output
+			// each port provides. Use the output
 			// of the last stage.
 			std::unordered_map<DataPort*, std::forward_list<Flow*>> phys_src_map;
 
-			for (auto& i : post_split_mapping)
+			for (Flow* f : inst_inport->flows())
 			{
-				Flow* f = i.first;
-				DataPort* src = i.second;
-
-				phys_src_map[src].push_front(f);
+				DataPort* outport = post_split_mapping[f];
+				phys_src_map[outport].push_front(f);
 			}
 
 			// If there's only one physical source, connect it directly to the target instance node

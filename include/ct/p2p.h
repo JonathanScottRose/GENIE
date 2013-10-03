@@ -44,7 +44,7 @@ namespace P2P
 
 		void add_field(Field* f);
 		Field* get_field(const std::string& name) const;
-		bool has_field(const std::string& name);
+		bool has_field(const std::string& name) const;
 		void remove_field(Field* f);
 		void delete_field(const std::string& name);
 
@@ -202,6 +202,7 @@ namespace P2P
 		FlowTarget* get_src();
 		
 		FlowTarget* get_sink();
+		FlowTarget* get_sink(DataPort* port);
 		void set_sink(DataPort* port, const Spec::LinkTarget& lt);
 		const Sinks& sinks() { return m_sinks; }
 		void add_sink(DataPort* sink, const Spec::LinkTarget& lt);

@@ -12,7 +12,7 @@ module ct_merge #
 (
 	parameter RADIX = 1,
 	parameter WIDTH = 1,
-	parameter EOP = 0
+	parameter EOP_LOC = 0
 )
 (
 	input clk,
@@ -165,7 +165,7 @@ generate
 	else begin : wires*/
 		assign o_data = granted_data;
 		assign o_valid = granted_valid;
-		assign granted_eop = granted_data[EOP];
+		assign granted_eop = granted_data[EOP_LOC];
 		assign granted_ready = i_ready;/*
 	end
 endgenerate*/

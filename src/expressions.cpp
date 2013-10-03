@@ -173,6 +173,12 @@ Expression::Expression(int val)
 	*this = val;
 }
 
+Expression::Expression(const char* str)
+	: m_root(nullptr)
+{
+	*this = std::string(str);
+}
+
 Expression::~Expression()
 {
 	delete m_root;

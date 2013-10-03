@@ -42,11 +42,11 @@ SplitNode::~SplitNode()
 {
 }
 
-void SplitNode::register_flow(Flow* flow, DataPort* port)
+void SplitNode::register_flow(Flow* flow, int outport_idx)
 {
 	get_inport()->add_flow(flow);
-	port->add_flow(flow);
-	m_route_map[flow->get_id()].push_back(port);
+	get_outport(outport_idx)->add_flow(flow);
+	m_route_map[flow->get_id()].push_back(outport_idx);
 }
 
 DataPort* SplitNode::get_inport()
@@ -69,38 +69,28 @@ ClockResetPort* SplitNode::get_reset_port()
 	return (ClockResetPort*)get_port("reset");
 }
 
-
-/*
-void ATBcastNode::instantiate()
+int SplitNode::get_n_flows()
 {
-	ATManager* mgr = ATManager::inst();
-
-	// Instantiate broadcast module
-	ati_bcast* bcast = new ati_bcast(sc_gen_unique_name("ati_bcast"), m_proto, m_outports.size());
-	
-	// Connect clock
-	sc_clock* clk = mgr->get_clock(m_clock);
-	assert(clk);
-	bcast->i_clk(*clk);
-
-	// Attach inport to the module's ati_recv
-	ATNetInPort* inport = get_bcast_input();
-	assert(inport);
-
-	inport->set_impl(&bcast->i_in);
-
-	// Transfer route map
-	for (auto it : m_route_map)
-	{
-		int flow_id = it.first;
-		auto outports = it.second;
-
-		for (ATNetOutPort* outport : outports)
-		{
-			int out_num = std::stoi(outport->get_name());
-			bcast->register_output(flow_id, out_num);
-			outport->set_impl(&bcast->o_out(out_num));
-		}
-	}
+	return get_inport()->flows().size();
 }
-*/
+
+int SplitNode::get_flow_id_width()
+{
+	int result = 0;
+	for (Flow* f : get_inport()->flows())
+	{
+		result = std::max(result, f->get_id());
+	}
+	return Util::log2(result);
+}
+
+auto SplitNode::get_dests_for_flow(int flow_id) -> const DestVec&
+{
+	assert(m_route_map.count(flow_id) > 0);
+	return m_route_map[flow_id];
+}
+
+const DataPort::Flows& SplitNode::get_flows()
+{
+	return get_inport()->flows();
+}

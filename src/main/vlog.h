@@ -33,6 +33,7 @@ public:
 	};
 
 	Port(const std::string& m_name, Module* parent);
+	Port(const std::string& m_name, Module* parent, const Expression& width, Dir dir);
 	virtual ~Port();
 
 	PROP_GET_SET(name, const std::string&, m_name);
@@ -225,6 +226,8 @@ public:
 
 	const ParamBindings& param_bindings() { return m_param_bindings; }
 	ParamBinding* get_param_binding(const std::string& name);
+	int get_param_value(const std::string& name);
+	void set_param_value(const std::string& name, int val);
 
 	const NameResolver& get_param_resolver() { return m_resolv; }
 
@@ -255,5 +258,6 @@ public:
 	PROP_DICT(Modules, module, Module);
 };
 
+int parse_constant(const std::string&);
 
 }

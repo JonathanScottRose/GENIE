@@ -69,7 +69,7 @@ Field* Protocol::get_field(const std::string& name) const
 	return (it == m_fields.end()) ? nullptr : *it;
 }
 
-bool Protocol::has_field(const std::string& name)
+bool Protocol::has_field(const std::string& name) const
 {
 	return get_field(name) != nullptr;
 }
@@ -327,3 +327,14 @@ FlowTarget* Flow::get_src()
 	return m_src;
 }
 
+FlowTarget* Flow::get_sink(DataPort* port)
+{
+	for (auto& i : m_sinks)
+	{
+		if (i->port == port)
+			return i;
+	}
+
+	assert(false);
+	return nullptr;
+}

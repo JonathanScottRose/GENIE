@@ -89,6 +89,7 @@ public:
 	Expression();
 	Expression(const Expression&);
 	Expression(const std::string&);
+	Expression(const char*);
 	Expression(int);
 	~Expression();
 

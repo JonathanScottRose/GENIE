@@ -1,3 +1,4 @@
+#include <regex>
 #include "vlog.h"
 
 using namespace Vlog;
@@ -8,6 +9,11 @@ using namespace Vlog;
 
 Port::Port(const std::string& name, Module* parent)
 	: m_parent(parent), m_name(name)
+{
+}
+
+Port::Port(const std::string& name, Module* parent, const Expression& width, Dir dir)
+	: m_parent(parent), m_name(name), m_width(width), m_dir(dir)
 {
 }
 
@@ -114,8 +120,9 @@ PortBinding* PortState::bind(Net* net, int port_lo, int net_lo)
 
 	Port* port = get_port();
 
-	int width = get_width();
-	int port_hi = port_lo + width - 1;
+	int port_width = get_width();
+	int net_width = net->get_width();
+	int port_hi = port_lo + net_width - 1;
 
 	for (auto& i : bindings())
 	{
@@ -128,7 +135,7 @@ PortBinding* PortState::bind(Net* net, int port_lo, int net_lo)
 	result->set_net_lo(net_lo);
 	result->set_parent(this);
 	result->set_port_lo(port_lo);
-	result->set_width(width);
+	result->set_width(net_width);
 
 	m_bindings.push_front(result);
 	m_bindings.sort([] (PortBinding* a, PortBinding* b)
@@ -364,6 +371,16 @@ ParamBinding* Instance::get_param_binding(const std::string& name)
 	return m_param_bindings[name];
 }
 
+int Instance::get_param_value(const std::string& name)
+{
+	return get_param_binding(name)->get_value();
+}
+
+void Instance::set_param_value(const std::string& name, int val)
+{
+	get_param_binding(name)->set_value(val);
+}
+
 //
 // ModuleRegistry
 //
@@ -375,4 +392,30 @@ ModuleRegistry::ModuleRegistry()
 ModuleRegistry::~ModuleRegistry()
 {
 	ct::Util::delete_all_2(m_modules);
+}
+
+//
+// Globals
+//
+
+int Vlog::parse_constant(const std::string& val)
+{
+	int base = 10;
+
+	std::regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
+	std::smatch mr;
+
+	std::regex_match(val, mr, regex);
+	int bits = std::stoi(mr[1]);
+	char radix = mr[2].str().at(0);
+	switch (radix)
+	{
+	case 'd': base = 10; break;
+	case 'h': base = 16; break;
+	case 'o': base = 8; break;
+	case 'b': base = 2; break;
+	default: assert(false);
+	}
+	
+	return std::stoi(mr[3], 0, base);
 }

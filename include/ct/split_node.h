@@ -9,7 +9,7 @@ namespace P2P
 	class SplitNode : public Node
 	{
 	public:
-		typedef std::vector<DataPort*> DestVec;
+		typedef std::vector<int> DestVec;
 		typedef std::unordered_map<int, DestVec> RouteMap;
 
 		SplitNode(const std::string& name, const Protocol& proto, int n_outputs);
@@ -23,7 +23,11 @@ namespace P2P
 		ClockResetPort* get_clock_port();
 		ClockResetPort* get_reset_port();
 
-		void register_flow(Flow* flow, DataPort* port);
+		void register_flow(Flow* flow, int outport_idx);
+		int get_n_flows();
+		int get_flow_id_width();
+		const DestVec& get_dests_for_flow(int flow_id);
+		const DataPort::Flows& get_flows();
 	
 	protected:
 		Protocol m_proto;

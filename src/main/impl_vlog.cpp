@@ -167,11 +167,12 @@ namespace
 				// Bind source
 				if (!src_is_top)
 				{
+					Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
+
 					GPNInfo ci;
 					IModuleImpl* impl = s_module_impls[p2psrc_node->get_type()];
-					impl->get_port_name(p2psrc, f, &ci);
+					impl->get_port_name(p2psrc, f, src_inst, &ci);
 
-					Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
 					src_inst->bind_port(ci.port, net, ci.lo);
 				}
 
@@ -181,11 +182,15 @@ namespace
 					for (P2P::Port* p2psink : conn->get_sinks())
 					{
 						Node* p2psink_node = p2psink->get_parent();
+						Vlog::Instance* sink_inst = result->get_instance(p2psink_node->get_name());
+						
+						if (!p2psink->get_proto().has_field(f->name))
+							continue;
+
 						GPNInfo ci;
 						IModuleImpl* impl = s_module_impls[p2psink_node->get_type()];
-						impl->get_port_name(p2psink, f, &ci);
-
-						Vlog::Instance* sink_inst = result->get_instance(p2psink_node->get_name());
+						impl->get_port_name(p2psink, f, sink_inst, &ci);
+						
 						sink_inst->bind_port(ci.port, net, ci.lo);
 					}
 				}

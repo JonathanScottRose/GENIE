@@ -23,7 +23,7 @@ namespace ImplVerilog
 		virtual const std::string& get_module_name(ct::P2P::Node*) = 0;
 		virtual void parameterize(ct::P2P::Node*, Vlog::Instance*) = 0;
 		virtual Vlog::Module* implement(ct::P2P::Node*) = 0;
-		virtual void get_port_name(ct::P2P::Port*, ct::P2P::Field*, GPNInfo*) = 0;
+		virtual void get_port_name(ct::P2P::Port*, ct::P2P::Field*, Vlog::Instance*, GPNInfo*) = 0;
 	};
 
 	void go();

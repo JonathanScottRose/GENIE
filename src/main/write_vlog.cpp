@@ -119,7 +119,7 @@ namespace
 		{
 			bindstr = "{";
 
-			int cur_bit = group->get_port()->get_width() - 1;
+			int cur_bit = group->get_width() - 1;
 			for (auto it = group->bindings().begin(); it != group->bindings().end(); ++it)
 			{
 				PortBinding* binding = *it;
@@ -145,7 +145,7 @@ namespace
 				cur_bit--;
 			}
 
-			assert(cur_bit == 0);
+			assert(cur_bit == -1);
 
 			bindstr += "}";
 		}

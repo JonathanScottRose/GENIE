@@ -22,7 +22,7 @@ module ct_split #
 );
 
 // Extract flow_id from data stream
-wire flow_id = i_data[FLOW_LOC +: WF];
+wire [WF-1:0] flow_id = i_data[FLOW_LOC +: WF];
 
 // Calculate which outputs the incoming flow is trying to send data on.
 // There are NF flows known to this split node. The FLOWS parameter
