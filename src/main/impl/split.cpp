@@ -75,8 +75,8 @@ namespace
 			int enables_param = 0;
 			for (Flow* f : node->get_flows())
 			{
-				flows_param |= f->get_id();
 				flows_param <<= fid_width;
+				flows_param |= f->get_id();
 
 				int enable_val = 0;
 				for (auto& v : node->get_dests_for_flow(f->get_id()))
@@ -84,8 +84,8 @@ namespace
 					enable_val |= 1 << v;
 				}
 
-				enables_param |= enable_val;
 				enables_param <<= node->get_n_outputs();
+				enables_param |= enable_val;
 			}
 
 			vinst->set_param_value("ENABLES", enables_param);

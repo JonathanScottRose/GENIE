@@ -76,8 +76,8 @@ namespace
 
 			for (Flow* f : node->get_flows())
 			{
-				flows_param |= f->get_id();
 				flows_param <<= flow_width;
+				flows_param |= f->get_id();
 
 				FlowTarget* ft = node->is_to_flow() ? 
 					f->get_src() :
@@ -86,8 +86,8 @@ namespace
 				Spec::Linkpoint* lp = ft->get_linkpoint();
 				BuildSpec::LinkpointImpl* encoding = (BuildSpec::LinkpointImpl*) lp->get_encoding();
 
-				lpids_param |= Vlog::parse_constant(encoding->encoding);
 				lpids_param <<= lpid_width;
+				lpids_param |= Vlog::parse_constant(encoding->encoding);
 			}
 
 			if (!node->is_to_flow())
