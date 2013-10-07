@@ -101,10 +101,10 @@ public:
 	bool is_simple();
 
 	PortBinding* get_sole_binding();
-	PortBinding* bind(Net* net);
-	PortBinding* bind(Net* net, int lo);
-	PortBinding* bind(Net* net, int port_lo, int net_lo);
-	PortBinding* bind_const(int val, int val_width, int port_lo = 0);
+	void bind(Net* net);
+	void bind(Net* net, int lo);
+	void bind(Net* net, int port_lo, int net_lo);
+	void bind_const(int val, int val_width, int port_lo = 0);
 	
 protected:
 	PortBindings m_bindings;
@@ -225,10 +225,10 @@ public:
 	const PortStates& port_states() { return m_port_states; }
 	PortState* get_port_state(const std::string& name);
 	PortBinding* get_sole_binding(const std::string& port);
-	PortBinding* bind_port(const std::string& port, Net* net);
-	PortBinding* bind_port(const std::string& port, Net* net, int lo);
-	PortBinding* bind_port(const std::string& port, Net* net, int port_lo, int net_lo);
-	PortBinding* bind_const(const std::string& port, int val, int val_width, int port_lo = 0);
+	void bind_port(const std::string& port, Net* net);
+	void bind_port(const std::string& port, Net* net, int lo);
+	void bind_port(const std::string& port, Net* net, int port_lo, int net_lo);
+	void bind_const(const std::string& port, int val, int val_width, int port_lo = 0);
 
 	const ParamBindings& param_bindings() { return m_param_bindings; }
 	ParamBinding* get_param_binding(const std::string& name);

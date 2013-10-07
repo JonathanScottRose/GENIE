@@ -114,7 +114,7 @@ PortBinding* PortState::get_sole_binding()
 	return result;
 }
 
-PortBinding* PortState::bind(Net* net, int port_lo, int net_lo)
+void PortState::bind(Net* net, int port_lo, int net_lo)
 {
 	PortBinding* result = nullptr;
 
@@ -142,21 +142,19 @@ PortBinding* PortState::bind(Net* net, int port_lo, int net_lo)
 	{
 		return a->get_port_lo() > b->get_port_lo();
 	});
-
-	return result;
 }
 
-PortBinding* PortState::bind(Net* net, int lo)
+void PortState::bind(Net* net, int lo)
 {
-	return bind(net, lo, 0);
+	bind(net, lo, 0);
 }
 
-PortBinding* PortState::bind(Net* net)
+void PortState::bind(Net* net)
 {
-	return bind(net, 0);
+	bind(net, 0);
 }
 
-PortBinding* PortState::bind_const(int val, int val_width, int port_lo)
+void PortState::bind_const(int val, int val_width, int port_lo)
 {
 	// HACK HACK HACK
 	PortBinding* result = nullptr;
@@ -185,8 +183,6 @@ PortBinding* PortState::bind_const(int val, int val_width, int port_lo)
 	{
 		return a->get_port_lo() > b->get_port_lo();
 	});
-
-	return result;
 }
 
 //
@@ -382,20 +378,20 @@ PortState* Instance::get_port_state(const std::string& name)
 	return m_port_states[name];
 }
 
-PortBinding* Instance::bind_port(const std::string& pname, Net* net, int port_lo, int net_lo)
+void Instance::bind_port(const std::string& pname, Net* net, int port_lo, int net_lo)
 {
 	PortState* st = m_port_states[pname];
-	return st->bind(net, port_lo, net_lo);
+	st->bind(net, port_lo, net_lo);
 }
 
-PortBinding* Instance::bind_port(const std::string& port, Net* net, int lo)
+void Instance::bind_port(const std::string& port, Net* net, int lo)
 {
-	return bind_port(port, net, lo, 0);
+	bind_port(port, net, lo, 0);
 }
 
-PortBinding* Instance::bind_port(const std::string& port, Net* net)
+void Instance::bind_port(const std::string& port, Net* net)
 {
-	return bind_port(port, net, 0);
+	bind_port(port, net, 0);
 }
 
 ParamBinding* Instance::get_param_binding(const std::string& name)
@@ -413,10 +409,10 @@ void Instance::set_param_value(const std::string& name, int val)
 	get_param_binding(name)->set_value(val);
 }
 
-PortBinding* Instance::bind_const(const std::string& port, int val, int val_width, int port_lo)
+void Instance::bind_const(const std::string& port, int val, int val_width, int port_lo)
 {
 	PortState* st = m_port_states[port];
-	return st->bind_const(val, val_width, port_lo);
+	st->bind_const(val, val_width, port_lo);
 }
 
 //

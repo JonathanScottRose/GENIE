@@ -5,7 +5,6 @@ VLOG: iimpl has redundant get_module_name() thing, but also sets name of vlogmod
 VLOG: impl Port->Port mapping is a nightmare. make it data-driven somehow. same for parameters.
 VLOG: give opaque info to vlog instances, vlog ports, vlog modules <<-- or make vlog module subclassed!
 VLOG: partial binding of net->port and partial port->net please
-VLOG: do the port-binding functions really need to return a PortBinding* ?
 
 P2P: FIX CONST VALUES: it'a state of a field of a specific port/instance. is this right?
 VLOG: FIX CONST VALUES: make consts a new kind of net/portbindablethingy
