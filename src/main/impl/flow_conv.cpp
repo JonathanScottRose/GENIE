@@ -84,7 +84,7 @@ namespace
 					f->get_sink(node->get_user_port());
 				
 				Spec::Linkpoint* lp = ft->get_linkpoint();
-				BuildSpec::LinkpointImpl* encoding = (BuildSpec::LinkpointImpl*) lp->get_encoding();
+				auto encoding = (BuildSpec::LinkpointImpl*) lp->get_impl();
 
 				lpids_param <<= lpid_width;
 				lpids_param |= Vlog::parse_constant(encoding->encoding);

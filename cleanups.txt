@@ -1,4 +1,3 @@
-P2P: generic Port still has pointer to Spec::Interface. kill it.
 P2P: add dedicated export object to system node (needed for proper hierarchy?)
 P2P: protocol encapsulation
 P2P: node creation methodology:  1) construct and hook up,   2) configure()

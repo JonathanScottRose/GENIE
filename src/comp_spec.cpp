@@ -8,7 +8,7 @@ using namespace ct::Spec;
 //
 
 Signal::Signal(Type type, const Expression& width)
-	: m_width(width), m_type(type), m_impl(nullptr)
+	: m_width(width), m_type(type)
 {
 	if (type == CLOCK || type == RESET || type == VALID || type == READY ||
 		type == SOP || type == EOP)
@@ -19,7 +19,6 @@ Signal::Signal(Type type, const Expression& width)
 
 Signal::~Signal()
 {
-	if (m_impl) delete m_impl;
 }
 
 Signal::Type Signal::type_from_string(const std::string& str)
@@ -78,13 +77,12 @@ std::string Signal::get_field_name() const
 //
 
 Linkpoint::Linkpoint(const std::string& name, Type type, DataInterface* iface)
-	: m_name(name), m_type(type), m_encoding(nullptr), m_iface(iface)
+	: m_name(name), m_type(type), m_iface(iface)
 {
 }
 
 Linkpoint::~Linkpoint()
 {
-	if (m_encoding) delete m_encoding;
 }
 
 Linkpoint::Type Linkpoint::type_from_string(const std::string& str)
@@ -231,14 +229,13 @@ DataInterface::~DataInterface()
 //
 
 Component::Component(const std::string& name)
-	: m_name(name), m_impl(nullptr)
+	: m_name(name)
 {
 }
 
 Component::~Component()
 {
 	Util::delete_all_2(m_interfaces);
-	if (m_impl) delete m_impl;
 }
 
 void Component::add_interface(Interface* iface)

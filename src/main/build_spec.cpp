@@ -284,7 +284,7 @@ namespace
 		limpl->encoding = elem.GetText();
 
 		Linkpoint* lp = new Linkpoint(attrs["name"], type, (DataInterface*)s_cur_interface);
-		lp->set_encoding(limpl);
+		lp->set_impl(limpl);
 
 		s_cur_interface->add_linkpoint(lp);
 	}

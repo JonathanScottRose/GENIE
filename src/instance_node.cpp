@@ -78,7 +78,11 @@ InstanceNode::InstanceNode(Spec::Instance* def)
 		}
 
 		port->set_name(ifacedef->get_name());
-		port->set_iface_def(ifacedef);
+		
+		PortAspect* asp = new PortAspect;
+		asp->iface_def = ifacedef;
+		port->set_impl("iface_def", asp);
+
 		add_port(port);
 	}
 }

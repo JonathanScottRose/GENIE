@@ -41,16 +41,7 @@
 	public:
 	
 namespace ct
-{
-	// An abstract class with nothing but a virtual destructor. Used for
-	// hiding implementation-specific things.
-	class OpaqueDeletable
-	{
-	public:
-		virtual ~OpaqueDeletable() {}
-	};
-
-	
+{	
 	namespace Util
 	{
 		static bool fexists(const std::string& filename)
@@ -118,4 +109,48 @@ namespace ct
 			return result;
 		}
 	}
+
+	// An abstract class with nothing but a virtual destructor. Used for
+	// hiding implementation-specific things.
+	class ImplAspect
+	{
+	public:
+		virtual ~ImplAspect() {}
+	};
+
+	// Allows objects to have many, named, implementation-specific thingies inside
+	
+
+	class HasImplAspect
+	{
+	public:
+		HasImplAspect() : m_impl(nullptr) {}
+		virtual ~HasImplAspect() { if (m_impl) delete m_impl; }
+		ImplAspect* get_impl() { return m_impl; }
+		void set_impl(ImplAspect* impl) { m_impl = impl; }
+	protected:
+		ImplAspect* m_impl;
+	};
+
+	class HasImplAspects
+	{
+	public:
+		typedef std::unordered_map<std::string, ImplAspect*> Aspects;
+		virtual ~HasImplAspects() { Util::delete_all_2(m_aspects); }
+		ImplAspect* get_impl(const std::string& aspect)
+		{
+			assert(m_aspects.count(aspect) > 0);
+			return m_aspects[aspect];
+		}
+		void set_impl(const std::string& aspect, ImplAspect* impl)
+		{
+			m_aspects[aspect] = impl;
+		}
+		void declare_impl(const std::string& aspect)
+		{
+			set_impl(aspect, nullptr);
+		}
+	protected:
+		Aspects m_aspects;
+	};
 }

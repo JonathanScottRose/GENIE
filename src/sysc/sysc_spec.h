@@ -11,18 +11,18 @@ namespace ct
 namespace SysC
 {
 	
-struct CompInfo : public OpaqueDeletable
+struct CompInfo : public ImplAspect
 {
 	InsterFunc inster;
 };
 
-struct LinkpointInfo : public OpaqueDeletable
+struct LinkpointInfo : public ImplAspect
 {
 	int encoding;
 };
 
 template<class T>
-struct SignalInfo : public OpaqueDeletable
+struct SignalInfo : public ImplAspect
 {
 	T binder;
 };

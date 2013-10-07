@@ -104,9 +104,10 @@ namespace
 		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, 
 			ImplVerilog::GPNInfo* result)
 		{
-			Spec::Interface* iface = port->get_iface_def();
+			auto port_impl = (P2P::InstanceNode::PortAspect*)port->get_impl("iface_def");
+			Spec::Interface* iface = port_impl->iface_def;
 			Spec::Signal* sig = iface->get_signal(field->name);
-			BuildSpec::SignalImpl* sig_impl = (BuildSpec::SignalImpl*)sig->get_impl();
+			auto sig_impl = (BuildSpec::SignalImpl*)sig->get_impl();
 			
 			result->port = sig_impl->signal_name;			
 			result->lo = 0;

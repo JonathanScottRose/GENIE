@@ -6,17 +6,17 @@ using namespace ct;
 
 namespace BuildSpec
 {
-	struct ComponentImpl : public OpaqueDeletable
+	struct ComponentImpl : public ImplAspect
 	{
 		std::string module_name;
 	};
 
-	struct SignalImpl : public OpaqueDeletable
+	struct SignalImpl : public ImplAspect
 	{
 		std::string signal_name;
 	};
 
-	struct LinkpointImpl : public OpaqueDeletable
+	struct LinkpointImpl : public ImplAspect
 	{
 		std::string encoding;
 	};

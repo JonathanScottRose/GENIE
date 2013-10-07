@@ -88,7 +88,7 @@ namespace P2P
 		Node* m_parent;
 	};
 
-	class Port
+	class Port : public HasImplAspects
 	{
 	public:
 		enum Type
@@ -112,7 +112,6 @@ namespace P2P
 		PROP_GET_SET(dir, Dir, m_dir);
 		PROP_GET_SET(parent, Node*, m_parent);
 		PROP_GET_SET(conn, Conn*, m_conn);
-		PROP_GET_SET(iface_def, Spec::Interface*, m_iface_def);
 		PROP_GET_SET(proto, const Protocol&, m_proto);
 
 		static Dir rev_dir(Dir dir);
@@ -123,7 +122,6 @@ namespace P2P
 		std::string m_name;
 		Node* m_parent;	
 		Conn* m_conn;
-		Spec::Interface* m_iface_def;
 		Protocol m_proto;
 	};
 

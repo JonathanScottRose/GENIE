@@ -17,7 +17,7 @@ class Linkpoint;
 class Component;
 class Signal;
 
-class Signal
+class Signal : public HasImplAspect
 {
 public:
 	enum Type
@@ -37,7 +37,6 @@ public:
 	Signal(Type type, const Expression& width);
 	~Signal();
 
-	PROP_GET_SET(impl, OpaqueDeletable*, m_impl);
 	PROP_GET_SET(width, const Expression&, m_width);
 	PROP_GET_SET(type, Type, m_type);
 	PROP_GET_SET(subtype, const std::string&, m_subtype);
@@ -48,12 +47,11 @@ public:
 
 protected:
 	Type m_type;
-	std::string m_subtype;
-	OpaqueDeletable* m_impl;
+	std::string m_subtype;	
 	Expression m_width;
 };
 
-class Linkpoint
+class Linkpoint : public HasImplAspect
 {
 public:
 	enum Type
@@ -66,7 +64,6 @@ public:
 	~Linkpoint();
 
 	PROP_GET_SET(name, const std::string&, m_name);
-	PROP_GET_SET(encoding, OpaqueDeletable*, m_encoding);
 	PROP_GET(iface, DataInterface*, m_iface);
 	PROP_GET(type, Type, m_type);
 
@@ -76,7 +73,6 @@ protected:
 	std::string m_name;
 	DataInterface* m_iface;
 	Type m_type;
-	OpaqueDeletable* m_encoding;
 };
 
 class Interface
@@ -158,7 +154,7 @@ public:
 	~Component();
 
 	PROP_GET_SET(name, const std::string&, m_name);
-	PROP_GET_SET(impl, OpaqueDeletable*, m_impl);
+	PROP_GET_SET(impl, ImplAspect*, m_impl);
 
 	const Interfaces& interfaces() { return m_interfaces; }
 	void add_interface(Interface* iface);
@@ -169,7 +165,7 @@ public:
 
 protected:
 	std::string m_name;
-	OpaqueDeletable* m_impl;
+	ImplAspect* m_impl;
 	Interfaces m_interfaces;
 };
 
