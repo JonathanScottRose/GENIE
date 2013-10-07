@@ -1,11 +1,11 @@
 module ct_field_conv #
 (
-	parameter WD,	// width of passthrough data (excluding the input and output fields!)
-	parameter WIF,	// width of input field
-	parameter WOF,	// width of output field
-	parameter N_ENTRIES,	// number of conversion table pairs
-	parameter [N_ENTRIES*WIF-1:0] IF,	// input field values
-	parameter [N_ENTRIES*WOF-1:0] OF	// corresponding output field values
+	parameter WD = 0,	// width of passthrough data (excluding the input and output fields!)
+	parameter WIF = 0,	// width of input field
+	parameter WOF = 0,	// width of output field
+	parameter N_ENTRIES = 0,	// number of conversion table pairs
+	parameter [N_ENTRIES*WIF-1:0] IF = 0,	// input field values
+	parameter [N_ENTRIES*WOF-1:0] OF = 0	// corresponding output field values
 )
 (
 	input clk,
@@ -26,7 +26,7 @@ module ct_field_conv #
 wire [WIF-1:0] in_field = i_field;
 reg [WOF-1:0] out_field;
 
-always @* begin
+always @* begin : mux
 	integer i;
 	reg match;
 	

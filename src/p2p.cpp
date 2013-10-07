@@ -17,15 +17,7 @@ Protocol::Protocol()
 
 Protocol::Protocol(const Protocol& o)
 {
-	for (auto& f : o.fields())
-	{
-		Field* nf = new Field;
-		nf->name = f->name;
-		nf->width = f->width;
-		nf->sense = f->sense;
-		
-		m_fields.push_front(nf);
-	}
+	*this = o;
 }
 
 Protocol& Protocol::operator= (const Protocol& o)
@@ -37,13 +29,10 @@ Protocol& Protocol::operator= (const Protocol& o)
 
 	for (auto& f : o.fields())
 	{
-		Field* nf = new Field;
-		nf->name = f->name;
-		nf->width = f->width;
-		nf->sense = f->sense;
-		
+		Field* nf = new Field(*f);
 		m_fields.push_front(nf);
 	}
+	m_fields.reverse();
 
 	return *this;
 }
@@ -106,7 +95,7 @@ Field::Field()
 }
 
 Field::Field(const std::string& name_, int width_, Sense sense_)
-	: name(name_), width(width_), sense(sense_)
+	: name(name_), width(width_), sense(sense_), is_const(false)
 {
 }
 

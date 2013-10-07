@@ -1,0 +1,15 @@
+<system name="the_sys">
+	<instance name="the_mult" comp="mult">
+		<defparam name="WIDTH" value="16"/>
+	</instance>
+	
+	<instance name="the_add" comp="add">
+		<defparam name="WIDTH" value="16"/>
+	</instance>
+
+	<export name="clk" type="clock_sink"/>
+	
+	<link src="clk" dest="the_mult.clk"/>
+	<link src="clk" dest="the_add.clk"/>
+	<link src="the_mult.output" dest="the_add.input_a"/>
+</system>

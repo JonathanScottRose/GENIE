@@ -1,0 +1,48 @@
+<component name="mult" hier="mult">
+	<interface name="clk" type="clock_sink">
+		<signal type="clock">clk</signal>
+	</interface>
+	
+	<interface name="input_a" type="recv" clock="clk">
+		<signal type="data" width="WIDTH">i_a</signal>
+		<signal type="valid">i_a_valid</signal>
+		<signal type="ready">o_a_ready</signal>
+	</interface>
+	
+	<interface name="input_b" type="recv" clock="clk">
+		<signal type="data" width="WIDTH">i_b</signal>
+		<signal type="valid">i_b_valid</signal>
+		<signal type="ready">o_b_ready</signal>
+	</interface>
+	
+	<interface name="output" type="send" clock="clk">
+		<signal type="data" width="WIDTH">o_result</signal>
+		<signal type="valid">o_result_valid</signal>
+		<signal type="ready">i_result_ready</signal>
+	</interface>
+</component>
+
+<component name="add" hier="add">
+	<interface name="clk" type="clock_sink">
+		<signal type="clock">clk</signal>
+	</interface>
+	
+	<interface name="input_a" type="recv" clock="clk">
+		<signal type="data" width="WIDTH">i_a</signal>
+		<signal type="valid">i_a_valid</signal>
+		<signal type="ready">o_a_ready</signal>
+	</interface>
+	
+	<interface name="input_b" type="recv" clock="clk">
+		<signal type="data" width="WIDTH">i_b</signal>
+		<signal type="valid">i_b_valid</signal>
+		<signal type="ready">o_b_ready</signal>
+	</interface>
+	
+	<interface name="output" type="send" clock="clk">
+		<signal type="data" width="WIDTH">o_result</signal>
+		<signal type="valid">o_result_valid</signal>
+		<signal type="ready">i_result_ready</signal>
+	</interface>
+</component>
+

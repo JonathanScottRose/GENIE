@@ -1,12 +1,12 @@
 module ct_split #
 (
-	parameter NO, // Number of outputs
-	parameter WO, // Width of data input/output
-	parameter NF, // Number of flows registered with this node
-	parameter WF, // Width of the flow_id signal
-	parameter [NF*WF-1:0] FLOWS, // Vector of flow_id for each flow
-	parameter [NF*NO-1:0] ENABLES, // Vector of targeted outputs for each flow
-	parameter FLOW_LOC // Bit location of flow_id within data stream
+	parameter NO = 0, // Number of outputs
+	parameter WO = 0, // Width of data input/output
+	parameter NF = 0, // Number of flows registered with this node
+	parameter WF = 0, // Width of the flow_id signal
+	parameter [NF*WF-1:0] FLOWS = 0, // Vector of flow_id for each flow
+	parameter [NF*NO-1:0] ENABLES = 0, // Vector of targeted outputs for each flow
+	parameter FLOW_LOC = 0 // Bit location of flow_id within data stream
 )
 (
 	input clk,
@@ -30,7 +30,7 @@ wire [WF-1:0] flow_id = i_data[FLOW_LOC +: WF];
 // contains a bit vector, for each flow, which says which combination
 // of NO outputs is targeted by that flow.
 reg [NO-1:0] enabled_outputs;
-always @* begin
+always @* begin : mux
 	integer i;
 	reg match;
 	
@@ -54,7 +54,7 @@ end
 // and are simply waiting for everyone else to be ready and get their copy
 // of that same data successfully transmitted.
 reg [NO-1:0] done_outputs;
-always @ (posedge clk or posedge reset) begin
+always @ (posedge clk or posedge reset) begin : forking
 	integer i;
 
 	if (reset) done_outputs = 0;
@@ -71,7 +71,7 @@ always @ (posedge clk or posedge reset) begin
 end
 
 // Assign all outputs
-always @* begin
+always @* begin : assignment
 	integer i;
 	
 	// Initialize to 1 to perform a wide-AND

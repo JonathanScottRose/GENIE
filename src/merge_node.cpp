@@ -19,13 +19,14 @@ MergeNode::MergeNode(const std::string& name, const Protocol& proto, int n_input
 	add_port(cport);
 	
 	// Tweak protocol
-
+	if (!m_proto.has_field("eop"))
+		m_proto.add_field(new Field("eop", 1, Field::FWD));
 
 	// Create the arbiter output port
 	DataPort* port = new DataPort(this, Port::OUT);
 	port->set_name("out");
 	port->set_clock(cport);
-	port->set_proto(proto);
+	port->set_proto(m_proto);
 	add_port(port);
 
 	// Create inports
@@ -33,7 +34,7 @@ MergeNode::MergeNode(const std::string& name, const Protocol& proto, int n_input
 	{
 		port = new DataPort(this, Port::IN);
 		port->set_name("in" + std::to_string(i));
-		port->set_proto(proto);
+		port->set_proto(m_proto);
 		port->set_clock(cport);
 		add_port(port);
 	}
@@ -69,36 +70,4 @@ void MergeNode::register_flow(Flow* flow, DataPort* port)
 	get_outport()->add_flow(flow);
 }
 
-
-
-/*
-void ATArbNode::instantiate()
-{
-	ATManager* mgr = ATManager::inst();
-
-	int n_inputs = (int)m_inports.size();
-
-	// Instantiate arbiter module
-	ati_arb* arb = new ati_arb(m_name.c_str(), m_proto, m_proto, n_inputs);
-
-	// Connect clock
-	sc_clock* clk = mgr->get_clock(m_clock);
-	assert(clk);
-	arb->i_clk(*clk);
-
-	// Attach outport to the module's ati_send
-	ATNetOutPort* outport = get_arb_outport();
-	assert(outport);
-
-	outport->set_impl(&arb->o_out);
-
-	// Attach inports to the module's ati_recvs, assign addresses
-	int i = 0;
-	for (auto it : m_inports)
-	{
-		ATNetInPort* inport = it.second;
-		inport->set_impl(&arb->i_in(i++));
-	}
-}
-*/
 

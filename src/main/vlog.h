@@ -104,6 +104,7 @@ public:
 	PortBinding* bind(Net* net);
 	PortBinding* bind(Net* net, int lo);
 	PortBinding* bind(Net* net, int port_lo, int net_lo);
+	PortBinding* bind_const(int val, int val_width, int port_lo = 0);
 	
 protected:
 	PortBindings m_bindings;
@@ -122,6 +123,8 @@ public:
 	PROP_GET_SET(net_lo, int, m_net_lo);
 	PROP_GET_SET(width, int, m_width);
 	PROP_GET_SET(parent, PortState*, m_parent);
+	PROP_GET_SET(is_const, bool, m_is_const);
+	PROP_GET_SET(const_val, int, m_const_val);
 
 	bool sole_binding();
 	bool target_simple();
@@ -132,6 +135,8 @@ protected:
 	int m_port_lo;
 	int m_net_lo;
 	int m_width;
+	bool m_is_const;
+	int m_const_val;
 };
 
 class ParamBinding
@@ -223,6 +228,7 @@ public:
 	PortBinding* bind_port(const std::string& port, Net* net);
 	PortBinding* bind_port(const std::string& port, Net* net, int lo);
 	PortBinding* bind_port(const std::string& port, Net* net, int port_lo, int net_lo);
+	PortBinding* bind_const(const std::string& port, int val, int val_width, int port_lo = 0);
 
 	const ParamBindings& param_bindings() { return m_param_bindings; }
 	ParamBinding* get_param_binding(const std::string& name);

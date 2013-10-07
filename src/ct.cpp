@@ -474,6 +474,7 @@ namespace
 
 			// Connect output
 			DataPort* merge_output = merge_node->get_outport();
+			s_root.connect_ports(merge_output, inst_inport);
 			
 			// Connect clock
 			Conn* clk_conn = inst_inport->get_clock()->get_conn();
@@ -521,6 +522,67 @@ namespace
 		{
 			s_root.remove_port(p);
 			delete p;
+		}
+
+		// Early version of protocol negotiation - set constant values for
+		// unconnected fields.
+		for (auto& i : s_root.conns())
+		{
+			Port* src = i->get_source();
+			Port* sink = i->get_sink(); // only for data connections - one sink
+
+			for (Field* f : sink->get_proto().fields())
+			{
+				if (f->sense != Field::FWD)
+					continue;
+
+				if (src->get_proto().has_field(f->name))
+					continue;
+
+				int value;
+				
+				if (f->name == "valid") value = 1;
+				else if (f->name == "sop") value = 1;
+				else if (f->name == "eop") value = 1;
+				else if (f->name == "flow_id")
+				{
+					DataPort* dsink = (DataPort*)sink;
+					assert(dsink->get_type() == Port::DATA);
+
+					auto& flows = dsink->flows();
+					assert(flows.size() == 1);
+
+					Flow* flow = flows.front();
+					value = flow->get_id();
+				}
+				else
+				{
+					throw std::exception(("Don't know how to default field: " + f->name).c_str());
+				}
+
+				f->is_const = true;
+				f->const_val = value;
+			}
+
+			for (Field* f : src->get_proto().fields())
+			{
+				if (f->sense != Field::REV)
+					continue;
+
+				if (sink->get_proto().has_field(f->name))
+					continue;
+
+				int value;
+
+				if (f->name == "ready") value = 1;
+				else
+				{
+					throw std::exception(("Don't know how to default field: " + f->name).c_str());
+				}
+
+				f->is_const = true;
+				f->const_val = value;
+			}
 		}
 	}
 }

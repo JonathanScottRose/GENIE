@@ -89,10 +89,24 @@ Defines a signal role and binding within an interface. Todo : matrix of allowabl
 
 \subsection{\texttt{<linkpoint>}}
 
-TODO.
+Defines a linkpoint for an interface, which allows the interface to dynamically target different destinations when sending data, or distinguish between different sources when receiving data.
+
+The user logic selects a linkpoint via a \texttt{lp\_id} signal present on that interface. The value of the signal corresponding to a linkpoint is part of the linkpoint definition.
+
+The exact remote source/destination associated with the linkpoint is defined by what the linkpoint is actually connected to according to the system definition. In the system, links are defined between linkpoints, which are virtual sources/destinations associated with their underlying physical interfaces.
 
 \begin{itemize}
-\item{Parent tag: \texttt{interface}}
+	\item{Parameters:}
+	\begin{itemize}
+		\item{name : unique name of the linkpoint within the interface}
+		\item{type}
+		\begin{itemize}
+			\item{broadcast : when this linkpoint is targeted, all links attached to it are targeted simultaneously}
+			\item{unicast : not implemented yet.}
+		\end{itemize}
+	\end{itemize}
+	\item{Parent tag: \texttt{interface}}
+	\item{Contents: The numeric Verilog encoding for the \textit{lp\_id} signal value for this linkpoint}
 \end{itemize}
 
 \section{System Specification}
@@ -124,7 +138,7 @@ Instantiates a component.
 \item{Parent tag: \texttt{system}}
 \end{itemize}
 
-\subsection{\texttt{<param>}}
+\subsection{\texttt{<defparam>}}
 
 Sets a specific parameter value for the component that an instance instantiates.
 

@@ -132,13 +132,25 @@ namespace
 			bool internal = !src_is_top && !sink_is_top;
 			assert(!src_is_top || !sink_is_top);		
 
-			const Protocol& proto = ((DataPort*)p2psrc)->get_proto();
+			const Protocol& src_proto = ((DataPort*)p2psrc)->get_proto();
 
-			bool single_field = proto.fields().size() == 1;
+			bool single_field = src_proto.fields().size() == 1;
 
-			for (Field* f : proto.fields())
+			for (Field* f : src_proto.fields())
 			{
 				Vlog::Net* net;
+
+				if (f->is_const)
+				{
+					Vlog::Instance* src_inst = result->get_instance(p2psrc_node->get_name());
+
+					GPNInfo ci;
+					IModuleImpl* impl = s_module_impls[p2psrc_node->get_type()];
+					impl->get_port_name(p2psrc, f, src_inst, &ci);
+
+					src_inst->bind_const(ci.port, f->const_val, f->width, ci.lo);
+					continue;
+				}
 
 				// Create/get net
 				if (src_is_top)
@@ -193,6 +205,28 @@ namespace
 						
 						sink_inst->bind_port(ci.port, net, ci.lo);
 					}
+				}
+			}
+
+			for (P2P::Port* p2psink : conn->get_sinks())
+			{
+				const Protocol& sink_proto = p2psink->get_proto();
+				for (Field* f : sink_proto.fields())
+				{
+					if (src_proto.has_field(f->name))
+						continue;
+
+					if (!f->is_const)
+						continue;
+
+					Node* p2psink_node = p2psink->get_parent();
+					Vlog::Instance* sink_inst = result->get_instance(p2psink_node->get_name());
+
+					GPNInfo ci;
+					IModuleImpl* impl = s_module_impls[p2psink_node->get_type()];
+					impl->get_port_name(p2psink, f, sink_inst, &ci);
+						
+					sink_inst->bind_const(ci.port, f->const_val, f->width, ci.lo);
 				}
 			}
 		}

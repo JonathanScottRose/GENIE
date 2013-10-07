@@ -156,12 +156,45 @@ PortBinding* PortState::bind(Net* net)
 	return bind(net, 0);
 }
 
+PortBinding* PortState::bind_const(int val, int val_width, int port_lo)
+{
+	// HACK HACK HACK
+	PortBinding* result = nullptr;
+
+	Port* port = get_port();
+
+	int port_width = get_width();
+	int port_hi = port_lo + val_width - 1;
+
+	for (auto& i : bindings())
+	{
+		assert(i->get_port_lo() > port_hi ||
+			(i->get_port_lo() + i->get_width() - 1 < port_lo));
+	}
+
+	result = new PortBinding();
+	result->set_net(nullptr);
+	result->set_is_const(true);
+	result->set_const_val(val);
+	result->set_parent(this);
+	result->set_port_lo(port_lo);
+	result->set_width(val_width);
+
+	m_bindings.push_front(result);
+	m_bindings.sort([] (PortBinding* a, PortBinding* b)
+	{
+		return a->get_port_lo() > b->get_port_lo();
+	});
+
+	return result;
+}
+
 //
 // PortBinding
 //
 
 PortBinding::PortBinding()
-	: m_net(nullptr), m_parent(nullptr)
+	: m_net(nullptr), m_parent(nullptr), m_is_const(false)
 {
 }
 
@@ -180,7 +213,8 @@ bool PortBinding::sole_binding()
 
 bool PortBinding::target_simple()
 {
-	return m_net->get_width() == m_width;
+	if (m_is_const) return true;
+	else return m_net->get_width() == m_width;
 }
 
 //
@@ -350,8 +384,6 @@ PortState* Instance::get_port_state(const std::string& name)
 
 PortBinding* Instance::bind_port(const std::string& pname, Net* net, int port_lo, int net_lo)
 {
-	PortBinding* result = nullptr;
-
 	PortState* st = m_port_states[pname];
 	return st->bind(net, port_lo, net_lo);
 }
@@ -379,6 +411,12 @@ int Instance::get_param_value(const std::string& name)
 void Instance::set_param_value(const std::string& name, int val)
 {
 	get_param_binding(name)->set_value(val);
+}
+
+PortBinding* Instance::bind_const(const std::string& port, int val, int val_width, int port_lo)
+{
+	PortState* st = m_port_states[port];
+	return st->bind_const(val, val_width, port_lo);
 }
 
 //

@@ -109,29 +109,37 @@ namespace
 		{
 			// leave as "" , unconnected
 		}
-		else if (group->is_simple())
+		else 
 		{
-			PortBinding* binding = group->get_sole_binding();
-			assert(binding->target_simple()); // lazy
-			bindstr = binding->get_net()->get_name();
-		}
-		else
-		{
-			bindstr = "{";
+			// Multiple bindings? Curly brackets
+			if (!group->is_simple())
+			{
+				bindstr = "{";
+			}
 
 			int cur_bit = group->get_width() - 1;
 			for (auto it = group->bindings().begin(); it != group->bindings().end(); ++it)
 			{
 				PortBinding* binding = *it;
-				Net* net = binding->get_net();
-
-				bindstr += net->get_name();
+				
+				if (binding->get_is_const())
+				{
+					bindstr += std::to_string(binding->get_width());
+					bindstr += "'d";
+					bindstr += std::to_string(binding->get_const_val());
+				}
+				else
+				{
+					Net* net = binding->get_net();
+					bindstr += net->get_name();
+				}
+				
 				if (!binding->target_simple())
 				{
 					bindstr += "[";
-					bindstr += binding->get_net_lo() + binding->get_width() - 1;
+					bindstr += std::to_string(binding->get_net_lo() + binding->get_width() - 1);
 					bindstr += ":";
-					bindstr += binding->get_net_lo();
+					bindstr += std::to_string(binding->get_net_lo());
 					bindstr += "]";
 				}
 
@@ -147,7 +155,11 @@ namespace
 
 			assert(cur_bit == -1);
 
-			bindstr += "}";
+			// Multiple bindings? End curly brackets
+			if (! group->is_simple())
+			{
+				bindstr += "}";
+			}
 		}
 		
 		write_line("." + portname + "(" + bindstr + ")", true, false);	

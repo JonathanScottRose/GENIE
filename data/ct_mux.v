@@ -2,10 +2,10 @@
 
 module ct_mux #
 (
-	parameter lpm_widths,
-	parameter lpm_size,
-	parameter lpm_pipeline,
-	parameter lpm_width
+	parameter lpm_widths = 0,
+	parameter lpm_size = 0,
+	parameter lpm_pipeline = 0,
+	parameter lpm_width = 0
 )
 (
 	input [(lpm_width*lpm_size)-1:0] data,
@@ -16,7 +16,7 @@ module ct_mux #
 reg [lpm_width-1:0] tmp;
 reg match;
 
-always @* begin
+always @* begin : mux
 	integer i;
 	tmp = 0;
 	

@@ -28,6 +28,8 @@ namespace P2P
 		std::string name;
 		int width;
 		Sense sense;
+		bool is_const;
+		int const_val;
 	};
 
 	class Protocol
