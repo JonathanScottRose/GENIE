@@ -355,6 +355,7 @@ void BuildSpec::go()
 			undef_comps.push_front(compname);
 	}
 
+	std::forward_list<std::string> missing_comps;
 	for (auto& path : Globals::inst()->component_path)
 	{
 		for (auto& comp : undef_comps)
@@ -364,13 +365,13 @@ void BuildSpec::go()
 				continue;
 
 			process_file(fullpath);
-			undef_comps.remove(comp);
+			missing_comps.push_front(comp);
 		}
 	}
 
-	if (!undef_comps.empty())
+	if (!missing_comps.empty())
 	{
-		for (auto& comp : undef_comps)
+		for (auto& comp : missing_comps)
 		{
 			IO::msg_error("Missing component definition for: " + comp);
 		}
