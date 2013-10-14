@@ -17,7 +17,7 @@ namespace
 		args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
 		
 		if (!(args >> GetOpt::GlobalOption(Globals::inst()->input_files)))
-			throw std::exception("Must specify input .xml files");
+			throw Exception("Must specify input .xml files");
 	}
 
 }

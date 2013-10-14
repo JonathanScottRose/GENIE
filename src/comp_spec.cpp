@@ -35,7 +35,7 @@ Signal::Type Signal::type_from_string(const std::string& str)
 	else if (str2 == "eop") return EOP;
 	else if (str2 == "lp_id") return LP_ID;
 	else if (str2 == "link_id") return LINK_ID;
-	else throw std::exception(("Unknown signal type " + str).c_str());
+	else throw Exception("Unknown signal type " + str);
 
 	return CLOCK;
 }
@@ -90,7 +90,7 @@ Linkpoint::Type Linkpoint::type_from_string(const std::string& str)
 	std::string str2 = Util::str_tolower(str);
 	if (str2 == "unicast") return UNICAST;
 	else if (str2 == "broadcast") return BROADCAST;
-	else throw std::exception(("Unknown linkpoint type " + str).c_str());
+	else throw Exception("Unknown linkpoint type " + str);
 
 	return UNICAST;
 }
@@ -164,7 +164,7 @@ Interface::Type Interface::type_from_string(const std::string& str)
 	else if (str2 == "reset_sink") return Type::RESET_SINK;
 	else if (str2 == "send") return Type::SEND;
 	else if (str2 == "recv") return Type::RECV;
-	else throw std::exception(("Unknown interface type: " + str).c_str());
+	else throw Exception("Unknown interface type: " + str);
 	
 	return Type::CLOCK_SRC;
 }

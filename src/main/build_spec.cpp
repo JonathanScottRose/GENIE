@@ -62,7 +62,7 @@ namespace
 				}
 			}
 
-			if (!valid) throw std::exception(("Invalid attribute: " + input_name).c_str());
+			if (!valid) throw Exception("Invalid attribute: " + input_name);
 			
 			input = input->Next();
 		}
@@ -71,7 +71,7 @@ namespace
 		for (auto& i : req_attribs)
 		{
 			if (i.mandatory && result.count(i.name) == 0)
-				throw std::exception(("Missing attribute: " + i.name).c_str());
+				throw Exception("Missing attribute: " + i.name);
 		}
 
 		return result;
@@ -84,14 +84,14 @@ namespace
 			std::string msg = prefix + " - ";
 			if (s_xml_doc.GetErrorStr1()) msg.append(s_xml_doc.GetErrorStr1());
 			if (s_xml_doc.GetErrorStr2()) msg.append(s_xml_doc.GetErrorStr2());
-			throw std::exception(msg.c_str());
+			throw Exception(msg);
 		}
 	}
 
 	void visit_component(const XMLAttribute* attr)
 	{
 		if (s_cur_component != nullptr)
-			throw std::exception("Unexpected <component>");
+			throw Exception("Unexpected <component>");
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
@@ -112,7 +112,7 @@ namespace
 		using namespace ct::Spec;
 
 		if (s_cur_instance == nullptr)
-			throw std::exception("Unexpected <defparam>");
+			throw Exception("Unexpected <defparam>");
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
@@ -127,7 +127,7 @@ namespace
 		using namespace ct::Spec;
 
 		if (s_cur_component == nullptr)
-			throw std::exception("Unexpected <interface>");
+			throw Exception("Unexpected <interface>");
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
@@ -145,7 +145,7 @@ namespace
 			s_cur_interface->get_type() == Interface::RECV)
 		{
 			if (attrs.count("clock") == 0)
-				throw std::exception("Missing clock for interface");
+				throw Exception("Missing clock for interface");
 
 			DataInterface* dif = (DataInterface*)s_cur_interface;
 			dif->set_clock(attrs["clock"]);
@@ -159,7 +159,7 @@ namespace
 		using namespace ct::Spec;
 
 		if (s_cur_component == nullptr || s_cur_interface == nullptr)
-			throw std::exception("Unexpected <signal>");
+			throw Exception("Unexpected <signal>");
 
 		RequiredAttribs req;
 		req.emplace_back("type", true);
@@ -174,17 +174,17 @@ namespace
 			stype == Signal::LINK_ID || stype == Signal::LP_ID)
 		{
 			if (attrs.count("width") == 0)
-				throw std::exception("Missing signal width");
+				throw Exception("Missing signal width");
 
 			swidth = attrs["width"];
 		}
 
 		if (stype != Signal::DATA && stype != Signal::HEADER &&
 			attrs.count("usertype") > 0)
-			throw std::exception("Unexpected usertype for non-data signal");
+			throw Exception("Unexpected usertype for non-data signal");
 
 		if (std::string(elem.GetText()).empty())
-			throw std::exception("Missing HDL signal name in signal definition");
+			throw Exception("Missing HDL signal name in signal definition");
 
 		SignalImpl* simpl = new SignalImpl;
 		simpl->signal_name = elem.GetText();
@@ -200,7 +200,7 @@ namespace
 		using namespace ct::Spec;
 
 		if (s_cur_system == nullptr)
-			throw std::exception("<instance> tag found outside of <system> tag");
+			throw Exception("<instance> tag found outside of <system> tag");
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
@@ -216,7 +216,7 @@ namespace
 		using namespace ct::Spec;
 
 		if (s_cur_system == nullptr)
-			throw std::exception("<link> tag found outside of <system> tag");
+			throw Exception("<link> tag found outside of <system> tag");
 
 		RequiredAttribs req;
 		req.emplace_back("src", false);
@@ -226,7 +226,7 @@ namespace
 		const std::string& src = attrs["src"];
 		const std::string& dest = attrs["dest"];
 		if (src.empty() && dest.empty())
-			throw std::exception("Link must specify at least src or dest");
+			throw Exception("Link must specify at least src or dest");
 
 		Link* link = new Link(src, dest);
 		Spec::get_system()->add_link(link);
@@ -237,7 +237,7 @@ namespace
 		using namespace ct::Spec;
 
 		if (s_cur_system == nullptr)
-			throw std::exception("<export> tag found outside of <system> tag");
+			throw Exception("<export> tag found outside of <system> tag");
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
@@ -256,7 +256,7 @@ namespace
 		using namespace ct::Spec;
 
 		if (s_cur_system != nullptr)
-			throw std::exception("<system> tag found nested inside <system> tag");
+			throw Exception("<system> tag found nested inside <system> tag");
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
@@ -271,7 +271,7 @@ namespace
 		using namespace ct::Spec;
 
 		if (s_cur_component == nullptr || s_cur_interface == nullptr)
-			throw std::exception("Unexpected <linkpoint>");
+			throw Exception("Unexpected <linkpoint>");
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
@@ -306,7 +306,7 @@ namespace
 			else if (e_name == "system") visit_system(attr);
 			else if (e_name == "defparam") visit_defparam(attr);
 			else if (e_name == "linkpoint") visit_linkpoint(elem, attr);
-			else throw std::exception(("Unknown element: " + e_name).c_str());
+			else throw Exception(("Unknown element: " + e_name).c_str());
 
 			return true;
 		}
@@ -375,6 +375,6 @@ void BuildSpec::go()
 		{
 			IO::msg_error("Missing component definition for: " + comp);
 		}
-		throw std::exception("System instantiates undefined components");
+		throw Exception("System instantiates undefined components");
 	}
 }

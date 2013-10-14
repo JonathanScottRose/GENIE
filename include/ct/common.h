@@ -119,8 +119,6 @@ namespace ct
 	};
 
 	// Allows objects to have many, named, implementation-specific thingies inside
-	
-
 	class HasImplAspect
 	{
 	public:
@@ -152,5 +150,15 @@ namespace ct
 		}
 	protected:
 		Aspects m_aspects;
+	};
+
+	// ConnecTool exception base class
+	class Exception : public std::exception
+	{
+	public:
+		Exception(const char* what)
+			: std::exception(what) { }
+		Exception(const std::string& what)
+			: std::exception(what.c_str()) { }
 	};
 }

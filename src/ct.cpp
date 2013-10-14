@@ -557,7 +557,7 @@ namespace
 				}
 				else
 				{
-					throw std::exception(("Don't know how to default field: " + f->name).c_str());
+					throw Exception("Don't know how to default field: " + f->name);
 				}
 
 				f->is_const = true;
@@ -577,7 +577,7 @@ namespace
 				if (f->name == "ready") value = 1;
 				else
 				{
-					throw std::exception(("Don't know how to default field: " + f->name).c_str());
+					throw Exception("Don't know how to default field: " + f->name);
 				}
 
 				f->is_const = true;
