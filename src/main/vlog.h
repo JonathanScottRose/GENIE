@@ -115,27 +115,52 @@ protected:
 class PortBinding
 {
 public:
-	PortBinding();
-	~PortBinding();
+	enum Type
+	{
+		NET,
+		CONST
+	};
 
-	PROP_GET_SET(net, Net*, m_net);
+	PortBinding(Type type);
+	virtual ~PortBinding();
+
 	PROP_GET_SET(port_lo, int, m_port_lo);
-	PROP_GET_SET(net_lo, int, m_net_lo);
 	PROP_GET_SET(width, int, m_width);
 	PROP_GET_SET(parent, PortState*, m_parent);
-	PROP_GET_SET(is_const, bool, m_is_const);
-	PROP_GET_SET(const_val, int, m_const_val);
+	PROP_GET(type, Type, m_type);
 
 	bool sole_binding();
+
+protected:
+	PortState* m_parent;
+	Type m_type;
+	int m_port_lo;
+	int m_width;
+};
+
+class NetPortBinding : public PortBinding
+{
+public:
+	NetPortBinding();
+
+	PROP_GET_SET(net, Net*, m_net);
+	PROP_GET_SET(net_lo, int, m_net_lo);
+
 	bool target_simple();
 
 protected:
 	Net* m_net;
-	PortState* m_parent;
-	int m_port_lo;
 	int m_net_lo;
-	int m_width;
-	bool m_is_const;
+};
+
+class ConstPortBinding : public PortBinding
+{
+public:
+	ConstPortBinding();
+
+	PROP_GET_SET(const_val, int, m_const_val);
+
+protected:
 	int m_const_val;
 };
 

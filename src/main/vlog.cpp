@@ -116,7 +116,7 @@ PortBinding* PortState::get_sole_binding()
 
 void PortState::bind(Net* net, int port_lo, int net_lo)
 {
-	PortBinding* result = nullptr;
+	NetPortBinding* result = nullptr;
 
 	Port* port = get_port();
 
@@ -130,7 +130,7 @@ void PortState::bind(Net* net, int port_lo, int net_lo)
 			(i->get_port_lo() + i->get_width() - 1 < port_lo));
 	}
 
-	result = new PortBinding();
+	result = new NetPortBinding();
 	result->set_net(net);
 	result->set_net_lo(net_lo);
 	result->set_parent(this);
@@ -157,7 +157,7 @@ void PortState::bind(Net* net)
 void PortState::bind_const(int val, int val_width, int port_lo)
 {
 	// HACK HACK HACK
-	PortBinding* result = nullptr;
+	ConstPortBinding* result = nullptr;
 
 	Port* port = get_port();
 
@@ -170,9 +170,7 @@ void PortState::bind_const(int val, int val_width, int port_lo)
 			(i->get_port_lo() + i->get_width() - 1 < port_lo));
 	}
 
-	result = new PortBinding();
-	result->set_net(nullptr);
-	result->set_is_const(true);
+	result = new ConstPortBinding();
 	result->set_const_val(val);
 	result->set_parent(this);
 	result->set_port_lo(port_lo);
@@ -189,8 +187,8 @@ void PortState::bind_const(int val, int val_width, int port_lo)
 // PortBinding
 //
 
-PortBinding::PortBinding()
-	: m_net(nullptr), m_parent(nullptr), m_is_const(false)
+PortBinding::PortBinding(Type type)
+	: m_parent(nullptr), m_type(type)
 {
 }
 
@@ -207,10 +205,27 @@ bool PortBinding::sole_binding()
 	return result;
 }
 
-bool PortBinding::target_simple()
+//
+// NetPortBinding
+//
+
+NetPortBinding::NetPortBinding()
+	: PortBinding(NET)
 {
-	if (m_is_const) return true;
-	else return m_net->get_width() == m_width;
+}
+
+bool NetPortBinding::target_simple()
+{
+	return m_net->get_width() == m_width;
+}
+
+//
+// ConstPortBinding
+//
+
+ConstPortBinding::ConstPortBinding()
+	: PortBinding(CONST)
+{
 }
 
 //

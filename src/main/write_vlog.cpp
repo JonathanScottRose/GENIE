@@ -78,9 +78,7 @@ namespace
 		for (auto& i : mod->ports())
 		{
 			write_port(i.second);
-
-			portno--;
-			if (portno > 0) write_line(",", false, true);
+			if (--portno > 0) write_line(",", false, true);
 		}
 
 		write_line("", false, true);
@@ -122,25 +120,28 @@ namespace
 			{
 				PortBinding* binding = *it;
 				
-				if (binding->get_is_const())
+				if (binding->get_type() == PortBinding::CONST)
 				{
-					bindstr += std::to_string(binding->get_width());
+					auto const_binding = (ConstPortBinding*)binding;
+					bindstr += std::to_string(const_binding->get_width());
 					bindstr += "'d";
-					bindstr += std::to_string(binding->get_const_val());
+					bindstr += std::to_string(const_binding->get_const_val());
 				}
 				else
 				{
-					Net* net = binding->get_net();
+					auto net_binding = (NetPortBinding*)binding;
+
+					Net* net = net_binding->get_net();
 					bindstr += net->get_name();
-				}
 				
-				if (!binding->target_simple())
-				{
-					bindstr += "[";
-					bindstr += std::to_string(binding->get_net_lo() + binding->get_width() - 1);
-					bindstr += ":";
-					bindstr += std::to_string(binding->get_net_lo());
-					bindstr += "]";
+					if (!net_binding->target_simple())
+					{
+						bindstr += "[";
+						bindstr += std::to_string(net_binding->get_net_lo() + net_binding->get_width() - 1);
+						bindstr += ":";
+						bindstr += std::to_string(net_binding->get_net_lo());
+						bindstr += "]";
+					}
 				}
 
 				auto it2(it);
