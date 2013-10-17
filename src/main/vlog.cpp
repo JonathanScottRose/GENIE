@@ -137,8 +137,8 @@ void PortState::bind(Net* net, int port_lo, int net_lo)
 	result->set_port_lo(port_lo);
 	result->set_width(net_width);
 
-	m_bindings.push_front(result);
-	m_bindings.sort([] (PortBinding* a, PortBinding* b)
+	m_bindings.push_back(result);
+	std::sort(m_bindings.begin(), m_bindings.end(), [] (PortBinding* a, PortBinding* b)
 	{
 		return a->get_port_lo() > b->get_port_lo();
 	});
@@ -176,8 +176,8 @@ void PortState::bind_const(int val, int val_width, int port_lo)
 	result->set_port_lo(port_lo);
 	result->set_width(val_width);
 
-	m_bindings.push_front(result);
-	m_bindings.sort([] (PortBinding* a, PortBinding* b)
+	m_bindings.push_back(result);
+	std::sort(m_bindings.begin(), m_bindings.end(), [] (PortBinding* a, PortBinding* b)
 	{
 		return a->get_port_lo() > b->get_port_lo();
 	});

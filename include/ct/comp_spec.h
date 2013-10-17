@@ -31,7 +31,15 @@ public:
 		SOP,
 		EOP,
 		LP_ID,
-		LINK_ID
+		LINK_ID,
+		CONDUIT_IN,
+		CONDUIT_OUT
+	};
+
+	enum Sense
+	{
+		FWD,
+		REV
 	};
 	
 	Signal(Type type, const Expression& width);
@@ -40,6 +48,7 @@ public:
 	PROP_GET_SET(width, const Expression&, m_width);
 	PROP_GET_SET(type, Type, m_type);
 	PROP_GET_SET(subtype, const std::string&, m_subtype);
+	PROP_GET(sense, Sense, m_sense);
 
 	std::string get_field_name() const;
 
@@ -47,6 +56,7 @@ public:
 
 protected:
 	Type m_type;
+	Sense m_sense;
 	std::string m_subtype;	
 	Expression m_width;
 };
@@ -88,11 +98,12 @@ public:
 		RESET_SRC,
 		RESET_SINK,
 		SEND,
-		RECV
+		RECV,
+		CONDUIT
 	};
 
 	Interface(const std::string& name, Type type);
-	~Interface();
+	virtual ~Interface();
 
 	PROP_GET_SET(name, const std::string&, m_name);
 	PROP_GET_SET(type, Type, m_type);
@@ -125,6 +136,13 @@ public:
 	~ClockResetInterface();
 };
 
+class ConduitInterface : public Interface
+{
+public:
+	ConduitInterface(const std::string& name);
+	~ConduitInterface();
+};
+
 class DataInterface : public Interface
 {
 public:
@@ -135,16 +153,11 @@ public:
 
 	PROP_GET_SET(clock, const std::string&, m_clock);
 
-	const Linkpoints& linkpoints() { return m_linkpoints; }
-	void add_linkpoint(Linkpoint* lp);
-	Linkpoint* get_linkpoint(const std::string& name);
-
 protected:
-	Linkpoints m_linkpoints;
 	std::string m_clock;
 };
 
-class Component
+class Component : public HasImplAspect
 {
 public:
 	typedef std::unordered_map<std::string, Interface*> Interfaces;
@@ -154,7 +167,6 @@ public:
 	~Component();
 
 	PROP_GET_SET(name, const std::string&, m_name);
-	PROP_GET_SET(impl, ImplAspect*, m_impl);
 
 	const Interfaces& interfaces() { return m_interfaces; }
 	void add_interface(Interface* iface);
@@ -165,7 +177,6 @@ public:
 
 protected:
 	std::string m_name;
-	ImplAspect* m_impl;
 	Interfaces m_interfaces;
 };
 

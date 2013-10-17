@@ -57,15 +57,12 @@ namespace
 
 	Vlog::Port::Dir conv_port_dir(P2P::Port::Dir dir, P2P::Field::Sense sense)
 	{
-		P2P::Port::Dir dir2 = sense == P2P::Field::FWD ? dir :
-			P2P::Port::rev_dir(dir);
+		bool is_out = sense == P2P::Field::FWD;
 
-		switch (dir2)
-		{
-		case P2P::Port::IN: return Vlog::Port::IN;
-		case P2P::Port::OUT: return Vlog::Port::OUT;
-		default: assert(false); return Vlog::Port::INOUT;
-		}
+		if (dir == P2P::Port::IN)
+			is_out = !is_out;
+
+		return is_out? Vlog::Port::OUT : Vlog::Port::IN;
 	}
 
 	

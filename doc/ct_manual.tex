@@ -46,18 +46,19 @@ Describes a component.
 Describes an interface within a component. There must be at least one clock\_sink interface.
 
 \begin{itemize}
-\item{Parameters}
-\begin{itemize}
-\item{name : name of the interface, unique within the component}
-\item{type}
-\begin{itemize}
-\item{clock\_source, clock\_sink : clock output and clock input. Each component must have at least one clock\_sink.}
-\item{reset\_source, reset\_sink : for reset signals. optional}
-\item{send, recv : for sending and receiving data}
-\end{itemize}
-\item{(clock) : name of associated clock interface, used only for send and recv interface types}
-\end{itemize}
-\item{Parent tag: \texttt{component}}
+	\item{Parameters}
+	\begin{itemize}
+		\item{name : name of the interface, unique within the component}
+		\item{type}
+		\begin{itemize}
+			\item{clock\_source, clock\_sink : clock output and clock input. Each component must have at least one clock\_sink.}
+			\item{reset\_source, reset\_sink : for reset signals. optional}
+			\item{send, recv : for sending and receiving data}
+			\item{conduit : for miscellaneous signals for immediate top-level export}
+		\end{itemize}
+		\item{(clock) : name of associated clock interface, used only for send and recv interface types}
+	\end{itemize}
+	\item{Parent tag: \texttt{component}}
 \end{itemize}
 
 \subsection{\texttt{<signal>}}
@@ -65,26 +66,28 @@ Describes an interface within a component. There must be at least one clock\_sin
 Defines a signal role and binding within an interface. Todo : matrix of allowable combinations of signal types within send/recv interfaces.
 
 \begin{itemize}
-\item{Parameters:}
-\begin{itemize}
-\item{type}
-\begin{itemize}
-\item{clock : clock signal, valid only in clock\_src and clock\_sink interfaces, which must contain exactly one of these.}
-\item{reset : reset signal, valid only in reset\_src and reset\_sink interfaces, which must contain exactly one of these.}
-\item{data : data to be transmitted/received. can have more than one per interface, distinguished by usertype field}
-\item{valid : high during cycles containing valid data}
-\item{ready : high when destination is ready to receive data. this is the only signal type to have opposite direction/sense} 
-\item{sop : start of packet. used to begin multi-cycle transmissions}
-\item{eop : end of packet. used to end multi-cycle transmissions}
-\item{lp\_id : linkpoint ID. selects linkpoint on send (or identifies linkpoint on recv) interfaces}
-\item{link\_id : link ID for distinguishing between multiple links on a unicast linkpoint}
-\item{header : like \textit{data}, but used for signals that only need to be valid during the first cycle of a multi-cycle transmission. can have multiple of these in an interface, distinguished by usertype field}
-\end{itemize}
-\item{(usertype) : optional, used with \textit{data} and \textit{header} signals to distinguish between user-defined data fields}
-\item{(width) : used with \textit{data}, \textit{header}, \textit{lp\_id}, and \textit{link\_id} types to define bit width of the signa. This is an expression consisting of integer constants, HDL parameter names, and the operators + - * /}
-\end{itemize}
-\item{Parent tag: \texttt{interface}}
-\item{Contents: HDL signal name}
+	\item{Parameters:}
+	\begin{itemize}
+		\item{type}
+		\begin{itemize}
+			\item{clock : clock signal, valid only in clock\_src and clock\_sink interfaces, which must contain exactly one of these.}
+			\item{reset : reset signal, valid only in reset\_src and reset\_sink interfaces, which must contain exactly one of these.}
+			\item{data : data to be transmitted/received. can have more than one per interface, distinguished by usertype field}
+			\item{valid : high during cycles containing valid data}
+			\item{ready : high when destination is ready to receive data. this is the only signal type to have opposite direction/sense} 
+			\item{sop : start of packet. used to begin multi-cycle transmissions}
+			\item{eop : end of packet. used to end multi-cycle transmissions}
+			\item{lp\_id : linkpoint ID. selects linkpoint on send (or identifies linkpoint on recv) interfaces}
+			\item{link\_id : link ID for distinguishing between multiple links on a unicast linkpoint}
+			\item{header : like \textit{data}, but used for signals that only need to be valid during the first cycle of a multi-cycle transmission. can have multiple of these in an interface, distinguished by usertype field}
+			\item{in : input signal, used for conduit interfaces only}
+			\item{out : output signal, used for conduit interfaces only}
+		\end{itemize}
+		\item{(usertype) : optional, used with \textit{data} and \textit{header} signals to distinguish between user-defined data fields. can also be used for signals in \textit{conduit} interfaces}
+		\item{(width) : used with \textit{data}, \textit{header}, \textit{lp\_id}, \textit{in}, \textit{out}, and \textit{link\_id} types to define bit width of the signal. This is an expression consisting of integer constants, HDL parameter names, and the operators + - * /}
+	\end{itemize}
+	\item{Parent tag: \texttt{interface}}
+	\item{Contents: HDL signal name}
 \end{itemize}
 
 \subsection{\texttt{<linkpoint>}}

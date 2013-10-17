@@ -1,3 +1,5 @@
+#include <unordered_set>
+
 #include "ct/spec.h"
 #include "ct/common.h"
 #include "tinyxml/tinyxml2.h"
@@ -167,21 +169,37 @@ namespace
 		req.emplace_back("usertype", false);
 		auto attrs = parse_attribs(req, attr);
 
+		Signal::Type stype = Signal::type_from_string(attrs["type"]);
+		
+		bool has_width = attrs.count("width") > 0;
+		bool needs_width = stype == Signal::DATA;
 		std::string swidth = "1";
 
-		Signal::Type stype = Signal::type_from_string(attrs["type"]);
-		if (stype == Signal::DATA || stype == Signal::HEADER ||
-			stype == Signal::LINK_ID || stype == Signal::LP_ID)
+		needs_width |= stype == Signal::HEADER;
+		needs_width |= stype == Signal::LINK_ID;
+		needs_width |= stype == Signal::LP_ID;
+		needs_width |= stype == Signal::CONDUIT_IN;
+		needs_width |= stype == Signal::CONDUIT_OUT;
+		
+		if (needs_width)
 		{
-			if (attrs.count("width") == 0)
+			if (!has_width)
 				throw Exception("Missing signal width");
 
 			swidth = attrs["width"];
 		}
+		else if (has_width)
+		{
+			throw Exception("Unexpected presence of signal width for signal type " + attrs["type"]);
+		}
 
-		if (stype != Signal::DATA && stype != Signal::HEADER &&
-			attrs.count("usertype") > 0)
-			throw Exception("Unexpected usertype for non-data signal");
+		bool has_usertype = attrs.count("usertype") > 0;
+		bool usertype_allowed = s_cur_interface->get_type() == Interface::CONDUIT;
+		usertype_allowed |= stype == Signal::DATA;
+		usertype_allowed |= stype == Signal::HEADER;
+
+		if (!usertype_allowed && has_usertype)
+			throw Exception("Unexpected usertype in signal definition");
 
 		if (std::string(elem.GetText()).empty())
 			throw Exception("Missing HDL signal name in signal definition");
@@ -191,6 +209,9 @@ namespace
 
 		Signal* sig = new Signal(stype, swidth);
 		sig->set_impl(simpl);
+
+		if (has_usertype)
+			sig->set_subtype(attrs["usertype"]);
 
 		s_cur_interface->add_signal(sig);
 	}
@@ -342,7 +363,7 @@ void BuildSpec::go()
 	}
 
 	// Find any undefined components and look for .xml files
-	std::forward_list<std::string> undef_comps;
+	std::unordered_set<std::string> undef_comps;
 	for (auto& obj : Spec::get_system()->objects())
 	{
 		Spec::Instance* inst = (Spec::Instance*)obj.second;
@@ -352,26 +373,30 @@ void BuildSpec::go()
 		auto compname = inst->get_component();
 		Spec::Component* comp = Spec::get_component(compname);
 		if (!comp)
-			undef_comps.push_front(compname);
+			undef_comps.insert(compname);
 	}
 
-	std::forward_list<std::string> missing_comps;
 	for (auto& path : Globals::inst()->component_path)
 	{
-		for (auto& comp : undef_comps)
+		for (auto& it = undef_comps.begin(); it != undef_comps.end(); )
 		{
-			std::string fullpath = path + comp + ".xml";
+			auto comp = *it;
+
+			std::string fullpath = path + "/" + comp + ".xml";
 			if (!Util::fexists(fullpath))
+			{
+				++it;
 				continue;
+			}
 
 			process_file(fullpath);
-			missing_comps.push_front(comp);
+			undef_comps.erase(it++);
 		}
 	}
 
-	if (!missing_comps.empty())
+	if (!undef_comps.empty())
 	{
-		for (auto& comp : missing_comps)
+		for (auto& comp : undef_comps)
 		{
 			IO::msg_error("Missing component definition for: " + comp);
 		}

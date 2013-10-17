@@ -9,3 +9,5 @@ VLOG: partial binding of net->port and partial port->net please
 P2P: FIX CONST VALUES: it'a state of a field of a specific port/instance. is this right?
 VLOG: FIX CONST VALUES: make consts a new kind of net/portbindablethingy
 VLOG: FIX CONST VALUES: impl_sys_node is hitler right now
+
+VLOG: parameterizing an instance should use encompassing SystemModule's Parameters as search namespace (const values only)

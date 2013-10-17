@@ -1,0 +1,41 @@
+<component name="work_unit" hier="work_unit">
+	<interface name="clk" type="clock_sink">
+		<signal type="clock">i_clk</signal>
+	</interface>
+	
+	<interface name="reset" type="reset_sink">
+		<signal type="reset">i_reset</signal>
+	</interface>
+	
+	<interface name="go" type="recv" clock="clk">
+		<signal type="valid">i_go</signal>
+		<signal type="data" usertype="nverts" width="12">i_nverts</signal>
+		<signal type="data" usertype="prob_no" width="9">i_prob_no</signal>
+		<signal type="data" usertype="maxsize" width="5">i_global_maxsize</signal>
+		<signal type="data" usertype="nocliques" width="1">i_nocliques</signal>
+	</interface>
+	
+	<interface name="done" type="send" clock="clk">
+		<signal type="valid">o_done</signal>
+		<signal type="ready">i_done_ack</signal>
+	</interface>
+	
+	<interface name="cliques" type="send" clock="clk">
+		<signal type="data" usertype="size" width="5">o_clq_size</signal>
+		<signal type="data" usertype="vertex" width="16">o_clq_v</signal>
+		<signal type="eop">o_clq_strobe</signal>
+		<signal type="valid">o_clq_valid</signal>
+		<signal type="ready">i_clq_accept</signal>
+	</interface>
+	
+	<interface name="rdreq" type="send" clock="clk">
+		<signal type="data" width="26">o_ddr_raddr</signal>
+		<signal type="valid">o_ddr_rdata_req</signal>
+		<signal type="ready">i_ddr_rdata_req_accepted</signal>
+	</interface>
+	
+	<interface name="rdresp" type="recv" clock="clk">
+		<signal type="data" width="128">i_ddr_rdata</signal>
+		<signal type="valid">i_ddr_rdata_valid</signal>
+	</interface>
+</component>

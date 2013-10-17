@@ -1,0 +1,66 @@
+<system name="mmm_hard">
+	<instance name="wrap" comp="ctrl_wrapper"/>
+	<instance name="fillmem" comp="fillmem"/>
+	<instance name="ddr" comp="ddr_iface"/>
+	<instance name="wu0" comp="work_unit"/>
+	<instance name="wu1" comp="work_unit"/>
+	<instance name="wu2" comp="work_unit"/>
+	<instance name="wu3" comp="work_unit"/>
+	
+	<export name="clk150" type="clock_sink"/>
+	<export name="clk300" type="clock_sink"/>
+	<export name="clk_ddr" type="clock_sink"/>
+	<export name="reset" type="reset_sink"/>
+	
+	<link src="clk150" dest="wrap.clk150"/>
+	<link src="clk300" dest="wrap.clk300"/>
+	<link src="reset" dest="wrap.reset"/>
+	
+	<link src="clk150" dest="fillmem.clk150"/>
+	<link src="clk300" dest="fillmem.clk300"/>
+	<link src="reset" dest="fillmem.reset"/>
+	
+	<link src="clk300" dest="ddr.clk300"/>
+	<link src="clk_ddr" dest="ddr.clkddr"/>
+	<link src="reset" dest="ddr.reset"/>
+	
+	<link src="clk300" dest="wu0.clk"/>
+	<link src="reset" dest="wu0.reset"/>
+	<link src="clk300" dest="wu1.clk"/>
+	<link src="reset" dest="wu1.reset"/>
+	<link src="clk300" dest="wu2.clk"/>
+	<link src="reset" dest="wu2.reset"/>
+	<link src="clk300" dest="wu3.clk"/>
+	<link src="reset" dest="wu3.reset"/>
+	
+	<link src="wrap.wu_go.wu0" dest="wu0.go"/>
+	<link src="wrap.wu_go.wu1" dest="wu1.go"/>
+	<link src="wrap.wu_go.wu2" dest="wu2.go"/>
+	<link src="wrap.wu_go.wu3" dest="wu3.go"/>
+	
+	<link src="wu0.done" dest="wrap.wu_done.wu0"/>
+	<link src="wu1.done" dest="wrap.wu_done.wu1"/>
+	<link src="wu2.done" dest="wrap.wu_done.wu2"/>
+	<link src="wu3.done" dest="wrap.wu_done.wu3"/>
+	
+	<link src="wu0.cliques" dest="wrap.cliques"/>
+	<link src="wu1.cliques" dest="wrap.cliques"/>
+	<link src="wu2.cliques" dest="wrap.cliques"/>
+	<link src="wu3.cliques" dest="wrap.cliques"/>
+	
+	<link src="wrap.fillmem_data" dest="fillmem.indata"/>
+	<link src="wrap.fillmem_ctrl" dest="fillmem.go"/>
+	<link src="fillmem.done" dest="wrap.fillmem_done"/>
+	
+	<link src="fillmem.wrreq" dest="ddr.wrreq"/>
+	
+	<link src="wu0.rdreq" dest="ddr.rdreq.wu0"/>
+	<link src="wu1.rdreq" dest="ddr.rdreq.wu1"/>
+	<link src="wu2.rdreq" dest="ddr.rdreq.wu2"/>
+	<link src="wu3.rdreq" dest="ddr.rdreq.wu3"/>
+	
+	<link src="ddr.rdresp.wu0" dest="wu0.rdresp"/>
+	<link src="ddr.rdresp.wu1" dest="wu1.rdresp"/>
+	<link src="ddr.rdresp.wu2" dest="wu2.rdresp"/>
+	<link src="ddr.rdresp.wu3" dest="wu3.rdresp"/>
+</system>

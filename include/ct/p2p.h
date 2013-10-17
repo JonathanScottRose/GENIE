@@ -95,17 +95,19 @@ namespace P2P
 		{		
 			CLOCK,
 			RESET,
-			DATA
+			DATA,
+			CONDUIT
 		};
 
 		enum Dir
 		{
 			IN,
-			OUT
+			OUT,
+			MIXED
 		};
 
 		Port(Type type, Dir dir, Node* node);
-		~Port();
+		virtual ~Port();
 
 		PROP_GET_SET(name, const std::string&, m_name);
 		PROP_GET_SET(type, Type, m_type);
@@ -130,6 +132,13 @@ namespace P2P
 	public:
 		ClockResetPort(Type type, Dir dir, Node* node);
 		~ClockResetPort();
+	};
+
+	class ConduitPort : public Port
+	{
+	public:
+		ConduitPort(Node* node);
+		~ConduitPort();
 	};
 
 	class DataPort : public Port

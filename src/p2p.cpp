@@ -150,6 +150,7 @@ Port::Dir Port::rev_dir(Dir dir)
 	{
 	case IN : return OUT;
 	case OUT: return IN;
+	case MIXED: return MIXED;
 	default: assert(false); return IN;
 	}
 }
@@ -173,6 +174,19 @@ ClockResetPort::ClockResetPort(Type type, Dir dir, Node* node)
 }
 
 ClockResetPort::~ClockResetPort()
+{
+}
+
+//
+// ConduitPort
+//
+
+ConduitPort::ConduitPort(Node* node)
+	: Port(CONDUIT, MIXED, node)
+{
+};
+
+ConduitPort::~ConduitPort()
 {
 }
 

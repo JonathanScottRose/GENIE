@@ -18,13 +18,16 @@ SplitNode::SplitNode(const std::string& name, const Protocol& proto, int n_outpu
 	add_port(cport);
 
 	// Protocol
-
+	if (!m_proto.has_field("valid"))
+		m_proto.add_field(new Field("valid", 1, Field::FWD));
+	if (!m_proto.has_field("ready"))
+		m_proto.add_field(new Field("ready", 1, Field::REV));
 
 	// Create inports
 	DataPort* port = new DataPort(this, Port::IN);
 	port->set_name("in");
 	port->set_clock(cport);
-	port->set_proto(proto);
+	port->set_proto(m_proto);
 	add_port(port);
 
 	// Create outports
@@ -33,7 +36,7 @@ SplitNode::SplitNode(const std::string& name, const Protocol& proto, int n_outpu
 		port = new DataPort(this, Port::OUT);
 		port->set_name("out" + std::to_string(i));
 		port->set_clock(cport);
-		port->set_proto(proto);
+		port->set_proto(m_proto);
 		add_port(port);
 	}
 }

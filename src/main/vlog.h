@@ -85,7 +85,7 @@ protected:
 class PortState
 {
 public:
-	typedef std::forward_list<PortBinding*> PortBindings;
+	typedef std::vector<PortBinding*> PortBindings;
 
 	PortState();
 	~PortState();

@@ -1,0 +1,81 @@
+<component name="ctrl_wrapper" hier="ctrl_wrapper">
+	<interface name="clk300" type="clock_sink">
+		<signal type="clock">i_clk300</signal>
+	</interface>
+	
+	<interface name="clk150" type="clock_sink">
+		<signal type="clock">i_clk150</signal>
+	</interface>
+	
+	<interface name="reset" type="reset_sink">
+		<signal type="reset">i_reset</signal>
+	</interface>
+	
+	<interface name="usbin" type="recv" clock="clk150">
+		<signal type="data" width="32">i_indata</signal>
+		<signal type="valid">i_indata_have</signal>
+		<signal type="ready">o_indata_want</signal>
+	</interface>
+	
+	<interface name="usbout" type="send" clock="clk150">
+		<signal type="data" width="32">o_outdata</signal>
+		<signal type="valid">o_outdata_have</signal>
+		<signal type="ready">i_outdata_want</signal>
+	</interface>
+	
+	<interface name="dbgin" type="recv" clock="clk150">
+		<signal type="data" width="32">i_dbg_indata</signal>
+		<signal type="valid">i_dbg_indata_have</signal>
+		<signal type="ready">o_dbg_indata_want</signal>
+	</interface>
+	
+	<interface name="dbgout" type="send" clock="clk150">
+		<signal type="data" width="32">o_dbg_outdata</signal>
+	</interface>
+	
+	<interface name="cliques" type="recv" clock="clk150">
+		<signal type="data" usertype="size" width="5">i_clq_size</signal>
+		<signal type="data" usertype="vertex" width="16">i_clq_vertex</signal>
+		<signal type="valid">i_clq_valid</signal>
+		<signal type="sop">i_clq_strobe</signal>
+	</interface>
+	
+	<interface name="wu_go" type="send" clock="clk300">
+		<signal type="valid">o_wu_go</signal>
+		<signal type="lp_id" width="2">o_wu_which</signal>
+		<signal type="data" usertype="nverts" width="12">o_wu_nverts</signal>
+		<signal type="data" usertype="prob_no" width="9">o_wu_prob_no</signal>
+		<signal type="data" usertype="nocliques" width="1">o_wu_nocliques</signal>
+		<signal type="data" usertype="maxsize" width="5">o_wu_global_maxsize</signal>
+		<linkpoint name="wu0" type="broadcast">2'd0</linkpoint>
+		<linkpoint name="wu1" type="broadcast">2'd1</linkpoint>
+		<linkpoint name="wu2" type="broadcast">2'd2</linkpoint>
+		<linkpoint name="wu3" type="broadcast">2'd3</linkpoint>
+	</interface>
+	
+	<interface name="wu_done" type="recv" clock="clk300">
+		<signal type="valid">i_wu_done</signal>
+		<signal type="lp_id" width="2">i_wu_which</signal>
+		<linkpoint name="wu0" type="broadcast">2'd0</linkpoint>
+		<linkpoint name="wu1" type="broadcast">2'd1</linkpoint>
+		<linkpoint name="wu2" type="broadcast">2'd2</linkpoint>
+		<linkpoint name="wu3" type="broadcast">2'd3</linkpoint>
+	</interface>
+	
+	<interface name="fillmem_data" type="send" clock="clk150">
+		<signal type="data" width="32">o_fillmem_indata</signal>
+		<signal type="valid">o_fillmem_indata_have</signal>
+		<signal type="ready">i_fillmem_indata_want</signal>
+	</interface>
+	
+	<interface name="fillmem_ctrl" type="send" clock="clk150">
+		<signal type="valid">o_fillmem_go</signal>
+		<signal type="data" usertype="ignore_prob" width="1">o_fillmem_ignore_prob</signal>
+		<signal type="data" usertype="prob_no" width="9">o_fillmem_prob_no</signal>
+		<signal type="data" usertype="nverts" width="12">o_fillmem_nverts</signal>
+	</interface>
+	
+	<interface name="fillmem_done" type="recv" clock="clk150">
+		<signal type="valid">i_fillmem_done</signal>
+	</interface>
+</component>

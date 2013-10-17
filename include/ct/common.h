@@ -47,7 +47,7 @@ namespace ct
 		static bool fexists(const std::string& filename)
 		{
 			std::ifstream ifile(filename);
-			return ifile.bad();
+			return !ifile.bad();
 		}
 
 		// Functions to destroy the objects in a container of pointers. First one

@@ -18,12 +18,13 @@ LinkTarget::LinkTarget(const std::string& path)
 {
 	std::stringstream strm(path);
 	std::getline(strm, m_inst, '.');
+
 	if (!std::getline(strm, m_iface, '.'))
 	{
-		m_iface = "";
-		m_lp = "";
+		m_iface = "iface";
 	}
-	else if (!std::getline(strm, m_lp, '.'))
+
+	if (!std::getline(strm, m_lp, '.'))
 	{
 		m_lp = "lp";
 	}
@@ -32,12 +33,8 @@ LinkTarget::LinkTarget(const std::string& path)
 std::string LinkTarget::get_path() const
 {
 	std::string result = m_inst;
-	if (!m_iface.empty())
-	{
-		result += '.' + m_iface;
-		if (!m_lp.empty()) result += '.' + m_lp;
-		else result += ".lp";
-	}	
+	result += m_iface.empty()? ".iface" : '.' + m_iface;
+	result += m_lp.empty()? ".lp" : '.' + m_lp;
 
 	return result;
 }
@@ -162,18 +159,29 @@ void System::validate()
 			tmp.set_iface(ifname);
 
 			bool is_out;
-			bool is_data = false;
+			bool is_data;
 
 			switch (iface->get_type())
 			{
+				case Interface::SEND:
 				case Interface::RECV:
 					is_data = true;
-				case Interface::CLOCK_SINK:
-				case Interface::RESET_SINK:
-					is_out = false;
 					break;
 				default:
+					is_data = false;
+					break;
+			}
+
+			switch (iface->get_type())
+			{
+				case Interface::SEND:
+				case Interface::CLOCK_SRC:
+				case Interface::RESET_SRC:
+				case Interface::CONDUIT:
 					is_out = true;
+					break;
+				default:
+					is_out = false;
 					break;
 			}
 

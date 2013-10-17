@@ -4,16 +4,9 @@ using namespace ct;
 using namespace ct::P2P;
 
 
-DataPort* InstanceNode::create_data_port(Port::Dir dir, Spec::DataInterface* iface, Spec::Instance* inst)
+void InstanceNode::convert_fields(Port* port, Spec::Interface* iface, Spec::Instance* inst)
 {
-	DataPort* result = new DataPort(this, dir);
-
-	// Assign clock
-	ClockResetPort* clockport = (ClockResetPort*)this->get_port(iface->get_clock());
-	assert(clockport);
-	result->set_clock(clockport);
-
-	// Create data port protocol
+	// Create port protocol
 	Protocol proto;
 
 	// Add fields
@@ -25,16 +18,28 @@ DataPort* InstanceNode::create_data_port(Port::Dir dir, Spec::DataInterface* ifa
 		});
 
 		std::string field_name = i->get_field_name();
-		Field::Sense field_sense = field_name == "ready" ? Field::Sense::REV :
-			Field::Sense::FWD;
+		Field::Sense field_sense = i->get_sense() == Spec::Signal::FWD? Field::FWD : Field::REV;
 
 		Field* f = new Field(field_name, width, field_sense);
 		proto.add_field(f);
 	}
 
-	result->set_proto(proto);
+	port->set_proto(proto);
+}
 
-	return result;
+void InstanceNode::set_clock(Port* port, Spec::Interface* iface)
+{
+	DataPort* dport = (DataPort*) port;
+	Spec::DataInterface* diface = (Spec::DataInterface*) iface;
+
+	assert(dport->get_type() == Port::DATA);
+	assert(diface->get_type() == Spec::Interface::SEND ||
+		diface->get_type() == Spec::Interface::RECV);
+
+	// Assign clock
+	ClockResetPort* clockport = (ClockResetPort*)this->get_port(diface->get_clock());
+	assert(clockport);
+	dport->set_clock(clockport);
 }
 
 InstanceNode::InstanceNode(Spec::Instance* def)
@@ -53,6 +58,7 @@ InstanceNode::InstanceNode(Spec::Instance* def)
 	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::CLOCK_SINK));
 	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::RESET_SRC));
 	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::RESET_SINK));
+	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::CONDUIT));
 
 	for (Spec::Interface* ifacedef : ifaces)
 	{
@@ -71,7 +77,13 @@ InstanceNode::InstanceNode(Spec::Instance* def)
 			break;
 		case Spec::Interface::RECV: pdir = Port::IN;
 		case Spec::Interface::SEND:
-			port = create_data_port(pdir, (Spec::DataInterface*)ifacedef, def);
+			port = new DataPort(this, pdir);
+			convert_fields(port, ifacedef, def);
+			set_clock(port, ifacedef);
+			break;
+		case Spec::Interface::CONDUIT:
+			port = new ConduitPort(this);
+			convert_fields(port, ifacedef, def);
 			break;
 		default:
 			assert(false);

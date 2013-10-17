@@ -15,6 +15,14 @@ Signal::Signal(Type type, const Expression& width)
 	{
 		assert(width.get_const_value() == 1);
 	}
+
+	switch (m_type)
+	{
+	case READY: m_sense = REV; break;
+	case CONDUIT_IN: m_sense = REV; break;
+	case CONDUIT_OUT: m_sense = FWD; break;
+	default: m_sense = FWD; break;
+	}
 }
 
 Signal::~Signal()
@@ -35,6 +43,8 @@ Signal::Type Signal::type_from_string(const std::string& str)
 	else if (str2 == "eop") return EOP;
 	else if (str2 == "lp_id") return LP_ID;
 	else if (str2 == "link_id") return LINK_ID;
+	else if (str2 == "in") return CONDUIT_IN;
+	else if (str2 == "out") return CONDUIT_OUT;
 	else throw Exception("Unknown signal type " + str);
 
 	return CLOCK;
@@ -66,6 +76,12 @@ std::string Signal::get_field_name() const
 	case LP_ID: return "lp_id";
 	case VALID: return "valid";
 	case READY: return "ready";
+	case CONDUIT_IN:
+	case CONDUIT_OUT:
+		{
+			assert (!get_subtype().empty());
+			return get_subtype();
+		}
 	default: assert (false);
 	}
 
@@ -164,6 +180,7 @@ Interface::Type Interface::type_from_string(const std::string& str)
 	else if (str2 == "reset_sink") return Type::RESET_SINK;
 	else if (str2 == "send") return Type::SEND;
 	else if (str2 == "recv") return Type::RECV;
+	else if (str2 == "conduit") return Type::CONDUIT;
 	else throw Exception("Unknown interface type: " + str);
 	
 	return Type::CLOCK_SRC;
@@ -173,6 +190,8 @@ Interface* Interface::factory(const std::string& name, Type type)
 {
 	switch(type)
 	{
+	case CONDUIT:
+		return new ConduitInterface(name);
 	case SEND:
 	case RECV:
 		return new DataInterface(name, type);
@@ -211,6 +230,19 @@ ClockResetInterface::~ClockResetInterface()
 }
 
 //
+// ConduitInterface
+//
+
+ConduitInterface::ConduitInterface(const std::string& name)
+	: Interface(name, CONDUIT)
+{
+}
+
+ConduitInterface::~ConduitInterface()
+{
+}
+
+//
 // DataInterface
 //
 
@@ -221,7 +253,6 @@ DataInterface::DataInterface(const std::string& name, Type type)
 
 DataInterface::~DataInterface()
 {
-	Util::delete_all_2(m_linkpoints);
 }
 
 //
@@ -266,14 +297,10 @@ void Component::validate()
 	{
 		Interface* iface = i.second;
 
-		if (iface->get_type() == Interface::SEND ||
-			iface->get_type() == Interface::RECV)
+		if (iface->linkpoints().empty())
 		{
-			if (iface->linkpoints().empty())
-			{
-				Linkpoint* lp = new Linkpoint("lp", Spec::Linkpoint::UNICAST, (DataInterface*)iface);
-				iface->add_linkpoint(lp);
-			}
+			Linkpoint* lp = new Linkpoint("lp", Spec::Linkpoint::BROADCAST, (DataInterface*)iface);
+			iface->add_linkpoint(lp);
 		}
 	}
 }

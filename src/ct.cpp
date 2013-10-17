@@ -42,6 +42,9 @@ namespace
 		case Spec::Interface::RECV:
 			port = new DataPort(&s_root, Port::OUT);
 			break;
+		case Spec::Interface::CONDUIT:
+			port = new ConduitPort(&s_root);
+			break;
 		default:
 			assert(false);
 		}
@@ -202,7 +205,7 @@ namespace
 					}
 
 					assert(dest_port->get_type() == src_port->get_type());
-					assert(dest_port->get_dir() != src_port->get_dir());
+					assert(dest_port->get_dir() == Port::rev_dir(src_port->get_dir()));
 
 					conn->add_sink(dest_port);
 					dest_port->set_conn(conn);
@@ -254,28 +257,36 @@ namespace
 			}
 		} // finish iterating over bins/sources
 
-		// 4: Fixup clocks/protocols of exported data interfaces
+		// 4: Fixup clocks/protocols of exported data/conduit interfaces
 		for (auto& i : s_root.ports())
 		{
-			DataPort* exp_port = (DataPort*)i.second;
+			Port* exp_port = (DataPort*)i.second;
+			if (exp_port->get_type() != Port::DATA &&
+				exp_port->get_type() != Port::CONDUIT)
+				continue;
+
+			Port* other_port;
+			if (exp_port->get_dir() == Port::OUT)
+				other_port = exp_port->get_conn()->get_sink();
+			else
+				other_port = exp_port->get_conn()->get_source();
+			
+			exp_port->set_proto(other_port->get_proto());
+
+			// Clock fixup only for data ports
 			if (exp_port->get_type() != Port::DATA)
 				continue;
 
-			DataPort* node_data_port;
-			if (exp_port->get_dir() == Port::OUT)
-				node_data_port = (DataPort*)exp_port->get_conn()->get_sink();
-			else
-				node_data_port = (DataPort*)exp_port->get_conn()->get_source();
-			
-			assert(node_data_port->get_type() == Port::DATA);
+			DataPort* exp_data_port = (DataPort*)exp_port;
+			DataPort* other_data_port = (DataPort*)other_port;
 
-			ClockResetPort* node_clock_port = node_data_port->get_clock();
+			ClockResetPort* node_clock_port = other_data_port->get_clock();
 			assert(node_clock_port->get_dir() == Port::IN); // only handle this case for now
 
 			ClockResetPort* src_clock_port = (ClockResetPort*)node_clock_port->get_conn()->get_source();
 
-			exp_port->set_clock(src_clock_port);
-			exp_port->set_proto(node_data_port->get_proto());
+			exp_data_port->set_clock(src_clock_port);
+			
 		}
 	}
 

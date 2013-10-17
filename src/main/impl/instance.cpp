@@ -8,36 +8,22 @@ using namespace ct;
 
 namespace
 {
-	Vlog::Port::Dir conv_port_dir(Spec::Interface::Type itype, Spec::Signal::Type stype)
+	Vlog::Port::Dir conv_port_dir(Spec::Interface::Type itype, Spec::Signal::Sense ssense)
 	{
 		using namespace ct::Spec;
 
-		Vlog::Port::Dir in, out;
-		if (stype != Spec::Signal::READY)
-		{
-			in = Vlog::Port::IN;
-			out = Vlog::Port::OUT;
-		}
-		else
-		{
-			in = Vlog::Port::OUT;
-			out = Vlog::Port::IN;
-		}
+		bool is_out = ssense == Signal::FWD;		
 
 		switch (itype)
 		{
 		case Interface::CLOCK_SINK:
 		case Interface::RESET_SINK:
 		case Interface::RECV:
-			return in;
-		case Interface::CLOCK_SRC:
-		case Interface::RESET_SRC:
-		case Interface::SEND:
-			return out;
-		default:
-			assert(false);
-			return out;
+			is_out = !is_out;
+			break;
 		}
+
+		return is_out? Vlog::Port::OUT : Vlog::Port::IN;
 	}
 
 	class : public ImplVerilog::IModuleImpl
@@ -80,7 +66,7 @@ namespace
 					BuildSpec::SignalImpl* impl = (BuildSpec::SignalImpl*)sig->get_impl();
 
 					Vlog::Port* port = new Vlog::Port(impl->signal_name, result);
-					port->set_dir(conv_port_dir(iface->get_type(), sig->get_type()));
+					port->set_dir(conv_port_dir(iface->get_type(), sig->get_sense()));
 					port->width() = sig->get_width();
 					result->add_port(port);
 				}

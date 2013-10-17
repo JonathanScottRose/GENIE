@@ -21,6 +21,10 @@ MergeNode::MergeNode(const std::string& name, const Protocol& proto, int n_input
 	// Tweak protocol
 	if (!m_proto.has_field("eop"))
 		m_proto.add_field(new Field("eop", 1, Field::FWD));
+	if (!m_proto.has_field("valid"))
+		m_proto.add_field(new Field("valid", 1, Field::FWD));
+	if (!m_proto.has_field("ready"))
+		m_proto.add_field(new Field("ready", 1, Field::REV));
 
 	// Create the arbiter output port
 	DataPort* port = new DataPort(this, Port::OUT);
