@@ -20,15 +20,15 @@ namespace
 			Vlog::Module* result = new Vlog::Module();
 			result->set_name(get_module_name(generic_node));
 
-			result->add_param(new Vlog::Parameter("RADIX", result));
+			result->add_param(new Vlog::Parameter("NI", result));
 			result->add_param(new Vlog::Parameter("WIDTH", result));
 			result->add_param(new Vlog::Parameter("EOP_LOC", result));
 
 			result->add_port(new Vlog::Port("clk", result, 1, Vlog::Port::IN));
 			result->add_port(new Vlog::Port("reset", result, 1, Vlog::Port::IN));
-			result->add_port(new Vlog::Port("i_data", result, "RADIX*WIDTH", Vlog::Port::IN));
-			result->add_port(new Vlog::Port("i_valid", result, "RADIX", Vlog::Port::IN));
-			result->add_port(new Vlog::Port("o_ready", result, "RADIX", Vlog::Port::OUT));
+			result->add_port(new Vlog::Port("i_data", result, "NI*WIDTH", Vlog::Port::IN));
+			result->add_port(new Vlog::Port("i_valid", result, "NI", Vlog::Port::IN));
+			result->add_port(new Vlog::Port("o_ready", result, "NI", Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("o_valid", result, 1, Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("o_data", result, "WIDTH", Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("i_ready", result, 1, Vlog::Port::IN));
@@ -57,7 +57,7 @@ namespace
 				}
 			}
 			
-			vinst->set_param_value("RADIX", node->get_n_inputs());
+			vinst->set_param_value("NI", node->get_n_inputs());
 			vinst->set_param_value("WIDTH", data_width);
 		}
 

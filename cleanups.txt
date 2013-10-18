@@ -1,6 +1,7 @@
 P2P: add dedicated export object to system node (needed for proper hierarchy?)
 P2P: protocol encapsulation
 P2P: node creation methodology:  1) construct and hook up,   2) configure()
+P2P: use this ^^ for split node ASAP
 VLOG: iimpl has redundant get_module_name() thing, but also sets name of vlogmodule in implement()
 VLOG: impl Port->Port mapping is a nightmare. make it data-driven somehow. same for parameters.
 VLOG: give opaque info to vlog instances, vlog ports, vlog modules <<-- or make vlog module subclassed!

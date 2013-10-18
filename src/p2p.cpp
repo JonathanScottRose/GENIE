@@ -220,6 +220,11 @@ void DataPort::add_flows(const Flows& f)
 	m_flows.insert(m_flows.end(), f.begin(), f.end());
 }
 
+bool DataPort::has_flow(Flow* flow)
+{
+	return std::find(m_flows.begin(), m_flows.end(), flow) != m_flows.end();
+}
+
 //
 // Connection
 //

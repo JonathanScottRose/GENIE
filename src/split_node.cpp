@@ -22,6 +22,8 @@ SplitNode::SplitNode(const std::string& name, const Protocol& proto, int n_outpu
 		m_proto.add_field(new Field("valid", 1, Field::FWD));
 	if (!m_proto.has_field("ready"))
 		m_proto.add_field(new Field("ready", 1, Field::REV));
+	if (!m_proto.has_field("flow_id"))
+		m_proto.add_field(new Field("flow_id", 0, Field::FWD));
 
 	// Create inports
 	DataPort* port = new DataPort(this, Port::IN);
@@ -47,9 +49,19 @@ SplitNode::~SplitNode()
 
 void SplitNode::register_flow(Flow* flow, int outport_idx)
 {
-	get_inport()->add_flow(flow);
+	if (!get_inport()->has_flow(flow))
+		get_inport()->add_flow(flow);
+
 	get_outport(outport_idx)->add_flow(flow);
 	m_route_map[flow->get_id()].push_back(outport_idx);
+
+	int w = get_flow_id_width();
+	m_proto.get_field("flow_id")->width = w;
+	get_inport()->get_proto().get_field("flow_id")->width = w;
+	for (int i = 0; i < m_n_outputs; i++)
+	{
+		get_outport(i)->get_proto().get_field("flow_id")->width = w;
+	}
 }
 
 DataPort* SplitNode::get_inport()
@@ -84,7 +96,9 @@ int SplitNode::get_flow_id_width()
 	{
 		result = std::max(result, f->get_id());
 	}
-	return Util::log2(result);
+	result = Util::log2(result);
+	result = std::max(result, 1);
+	return result;
 }
 
 auto SplitNode::get_dests_for_flow(int flow_id) -> const DestVec&

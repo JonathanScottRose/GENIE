@@ -296,6 +296,7 @@ namespace
 		// by flows (ignore exported signals, internal connections only)
 		std::unordered_set<DataPort*> outports_to_visit;
 		std::unordered_set<DataPort*> inports_to_visit;
+		std::unordered_map<DataPort*, DataPort*> inport_to_feeder;
 		std::list<DataPort*> tmp;
 
 		for (auto& it : s_root.flows())
@@ -303,7 +304,10 @@ namespace
 			Flow* f = it.second;
 			outports_to_visit.insert(f->get_src()->port);
 			for (FlowTarget* sink : f->sinks())
+			{
+				inport_to_feeder[sink->port] = sink->port;
 				inports_to_visit.insert(sink->port);
+			}
 		}
 
 		// Create flow conversion nodes at outports which have a lp_id field
@@ -374,13 +378,13 @@ namespace
 			// Put input on to_visit list
 			inports_to_visit.erase(dest_port);
 			inports_to_visit.insert(fc_node->get_inport());
+			inport_to_feeder[dest_port] = fc_node->get_inport();
 		}
 
 		// Visit each outport and construct a Split node if there is more than one unique destination
 		// port referenced by all the flows associated with the outport.
-		// When done, populate a map that says, for each flow, which outport carries the physical
-		// incarnation of that flow.
-		std::unordered_map<Flow*, DataPort*> post_split_mapping;
+		// When done, populate a map that says, for each destination port, which ports want to feed it.
+		std::unordered_map<DataPort*, std::vector<DataPort*>> post_split_mapping;
 		int unique_name_cnt = 0;
 
 		for (DataPort* inst_outport : outports_to_visit)
@@ -402,11 +406,8 @@ namespace
 			auto n_phys_dest = phys_dest_map.size();
 			if (n_phys_dest == 1)
 			{
-				for (auto& i : inst_outport->flows())
-				{
-					post_split_mapping[i] = inst_outport;
-				}
-
+				DataPort* phys_dest = phys_dest_map.begin()->first;
+				post_split_mapping[inport_to_feeder[phys_dest]].push_back(inst_outport);
 				continue; // next inst_outport
 			}
 
@@ -437,11 +438,13 @@ namespace
 				DataPort* phys_dest = i.first;
 				DataPort* split_output = split_node->get_outport(outport_idx);
 
-				// Register all flows going through this output, and update post-split map structure
+				// Update the post-split structure
+				post_split_mapping[inport_to_feeder[phys_dest]].push_back(split_output);
+
+				// Register all flows going through this output
 				for (Flow* f : i.second)
 				{
 					split_node->register_flow(f, outport_idx);
-					post_split_mapping[f] = split_output;
 				}
 				
 				outport_idx++;
@@ -454,23 +457,14 @@ namespace
 
 		for (DataPort* inst_inport : inports_to_visit)
 		{
-			// Enumerate all physical ports trying to compete for this port, and which flows
-			// each port provides. Use the output
-			// of the last stage.
-			std::unordered_map<DataPort*, std::forward_list<Flow*>> phys_src_map;
-
-			for (Flow* f : inst_inport->flows())
-			{
-				DataPort* outport = post_split_mapping[f];
-				phys_src_map[outport].push_front(f);
-			}
+			auto& phys_sources = post_split_mapping[inst_inport];
 
 			// If there's only one physical source, connect it directly to the target instance node
 			// without instantiating any Split nodes
-			auto n_phys_src = phys_src_map.size();
+			auto n_phys_src = phys_sources.size();
 			if (n_phys_src == 1)
 			{
-				DataPort* src = (phys_src_map.begin())->first;
+				DataPort* src = phys_sources.front();
 				s_root.connect_ports(src, inst_inport);
 				continue; // next inst_inport
 			}
@@ -497,16 +491,15 @@ namespace
 
 			// Connect inports
 			int inport_idx = 0;
-			for (auto& i : phys_src_map)
+			for (DataPort* phys_src : phys_sources)
 			{
-				DataPort* phys_src = i.first;
 				DataPort* merge_input = merge_node->get_inport(inport_idx);
 
 				// Connect port
 				s_root.connect_ports(phys_src, merge_input);
 
 				// Register flows with merge node
-				for (Flow* f : i.second)
+				for (Flow* f : phys_src->flows())
 				{
 					merge_node->register_flow(f, merge_input);
 				}
