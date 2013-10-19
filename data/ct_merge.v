@@ -116,44 +116,23 @@ localparam NIBITS = CLogB2(NI-1);
 
 // Current input
 reg [NIBITS-1:0] cur_input;
+wire [NIBITS-1:0] next_input;
 wire cur_input_load;
 
 // Staging registers
-reg [NI*WIDTH-1:0] staging_datas;
-reg [NI-1:0] staging_valids;
+reg [NI*WIDTH-1:0] staging_datas, staging_datas_din;
+reg [NI-1:0] staging_valids, staging_valids_din;
 
-// Next inputs: 1 is from inputs, 2 is from staging registers
-localparam FROM_INPUT = 1'b0, FROM_STAGING = 1'b1;
-wire [NIBITS-1:0] next_input_1, next_input_2;
-wire next_input_sel;
-
-// Counts how many of the staging registers contain live inputs
-reg [NIBITS:0] staging_count;
-wire staging_count_calc;
-wire staging_count_dec;
-wire staging_count_thresh = (|staging_count[NIBITS:1]); // 2 or more live
-
-// Next input calculators
+// Next input calculator
 next_input_calc #
 (
 	.NI(NI),
 	.NIBITS(NIBITS)
-) calc_in
+) calc
 (
-	.i_valid(i_valid),
+	.i_valid(staging_valids_din),
 	.i_cur_input(cur_input),
-	.o_next_input(next_input_1)
-);
-
-next_input_calc #
-(
-	.NI(NI),
-	.NIBITS(NIBITS)
-) calc_staging
-(
-	.i_valid(staging_valids),
-	.i_cur_input(cur_input),
-	.o_next_input(next_input_2)
+	.o_next_input(next_input)
 );
 
 // Output muxes
@@ -186,48 +165,35 @@ ct_mux #
 always @ (posedge clk or posedge reset) begin
 	if (reset) begin
 		cur_input <= 'd0;
-		staging_count <= 'd0;
+		staging_valids <= 'd0;
 	end
-	else begin : dp
-		integer i;
+	else begin
+		if (cur_input_load) cur_input <= next_input;
 		
-		if (cur_input_load) begin
-			cur_input <= next_input_sel==FROM_INPUT ? next_input_1 : next_input_2;
-		end
-		
-		for (i = 0; i < NI; i = i + 1) begin
-			if (o_ready[i]) begin
-				staging_datas[i*WIDTH +: WIDTH] <= i_data[i*WIDTH +: WIDTH];
-				staging_valids[i] <= i_valid[i];
-			end
-		end
-		
-		if (staging_count_calc) begin
-			staging_count = 'd0;
-			for (i = 0; i < NI; i = i + 1) begin
-				if (i_valid[i]) staging_count = staging_count + 1;
-			end
-		end
-		else if (staging_count_dec) begin
-			staging_count <= staging_count - 1;
-		end
+		staging_valids <= staging_valids_din;
+		staging_datas <= staging_datas_din;
 	end
 end
 
+always @* begin : dp_comb
+	integer i;
+	for (i = 0; i < NI; i = i + 1) begin
+		// Staging register can be filled from external input (instead of recirculated) if:
+		// - it's empty (not valid), or
+		// - it's the currently granted input and the output is ready to accept it
+		o_ready[i] = !staging_valids[i] || (cur_input == i[NIBITS-1:0] && i_ready);
+		
+		// Select input from outside, or busywait recirculation
+		staging_valids_din[i] = o_ready[i]? i_valid[i] : staging_valids[i];
+		staging_datas_din[WIDTH*i+:WIDTH] = o_ready[i]? 
+			i_data[WIDTH*i+:WIDTH] :
+			staging_datas[WIDTH*i+:WIDTH];
+	end
+end
 
 wire pipe_enable = !(o_valid && !i_ready);
 wire o_eop = o_data[EOP_LOC];
 assign cur_input_load = pipe_enable && !(o_valid && i_ready && !o_eop);
-assign next_input_sel = staging_count_thresh? FROM_STAGING : FROM_INPUT;
-assign staging_count_calc = !staging_count_thresh && cur_input_load;
-assign staging_count_dec = staging_count_thresh && cur_input_load;
-
-always @* begin : readies
-	integer i;
-	for (i = 0; i < NI; i = i + 1) begin
-		o_ready[i] = pipe_enable && (!staging_count_thresh || cur_input == i[NIBITS-1:0]);
-	end
-end
 
 endmodule
 
