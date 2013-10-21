@@ -156,25 +156,25 @@ Expression::Expression()
 }
 
 Expression::Expression(const Expression& other)
-	: m_root(nullptr)
+	: Expression()
 {
 	*this = other;
 }
 
 Expression::Expression(const std::string& str)
-	: m_root(nullptr)
+	: Expression()
 {
 	*this = str;
 }
 
 Expression::Expression(int val)
-	: m_root(nullptr)
+	: Expression()
 {
 	*this = val;
 }
 
 Expression::Expression(const char* str)
-	: m_root(nullptr)
+	: Expression()
 {
 	*this = std::string(str);
 }
