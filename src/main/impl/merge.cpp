@@ -99,7 +99,9 @@ namespace
 			}
 			else
 			{
-				int port_idx = std::stoi(port->get_name().substr(2));
+				auto parent = (P2P::MergeNode*) port->get_parent();
+				int port_idx = parent->get_inport_idx(port);
+
 				if (field->name == "valid")
 				{
 					result->port = "i_valid";

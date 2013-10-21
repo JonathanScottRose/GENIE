@@ -130,7 +130,9 @@ namespace
 			}
 			else
 			{
-				int port_idx = std::stoi(port->get_name().substr(3));
+				auto parent = (P2P::SplitNode*)port->get_parent();
+				int port_idx = parent->get_idx_for_outport(port);
+
 				if (field->name == "valid")
 				{
 					result->port = "o_valid";

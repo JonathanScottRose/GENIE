@@ -449,6 +449,9 @@ namespace
 				
 				outport_idx++;
 			}
+
+			// After everything registered, let the split node figure some things out about itself
+			split_node->configure();
 		} // next outport to visit
 
 		// Splits are done. Now time to create Merge nodes. Visit every inport and create a Merge

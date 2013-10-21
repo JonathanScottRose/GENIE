@@ -22,6 +22,7 @@ namespace P2P
 		ClockResetPort* get_reset_port();
 
 		void register_flow(Flow* flow, DataPort* port);
+		int get_inport_idx(Port* port);
 
 	protected:
 		int m_n_inputs;

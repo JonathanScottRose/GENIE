@@ -23,11 +23,14 @@ namespace P2P
 		ClockResetPort* get_clock_port();
 		ClockResetPort* get_reset_port();
 
+		void configure();
+
 		void register_flow(Flow* flow, int outport_idx);
 		int get_n_flows();
 		int get_flow_id_width();
 		const DestVec& get_dests_for_flow(int flow_id);
 		const DataPort::Flows& get_flows();
+		int get_idx_for_outport(Port* port);
 	
 	protected:
 		Protocol m_proto;

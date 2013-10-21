@@ -1,7 +1,17 @@
 #include "merge_node.h"
 
+using namespace ct;
 using namespace ct::P2P;
 
+namespace
+{
+	// P2P::Port impl-aspect for merge node inports: holds integer index of inport
+	struct PortIdx : public ImplAspect
+	{
+		int idx;
+		PortIdx(int i) : idx(i) {}
+	};
+}
 
 MergeNode::MergeNode(const std::string& name, const Protocol& proto, int n_inputs)
 	: P2P::Node(MERGE), m_proto(proto), m_n_inputs(n_inputs)
@@ -40,6 +50,7 @@ MergeNode::MergeNode(const std::string& name, const Protocol& proto, int n_input
 		port->set_name("in" + std::to_string(i));
 		port->set_proto(m_proto);
 		port->set_clock(cport);
+		port->set_impl("idx", new PortIdx(i));
 		add_port(port);
 	}
 }
@@ -74,4 +85,10 @@ void MergeNode::register_flow(Flow* flow, DataPort* port)
 	get_outport()->add_flow(flow);
 }
 
+int MergeNode::get_inport_idx(Port* port)
+{
+	auto impl = (PortIdx*)port->get_impl("idx");
+	assert(impl);
+	return impl->idx;
+}
 
