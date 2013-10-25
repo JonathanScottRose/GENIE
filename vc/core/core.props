@@ -4,8 +4,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <OutDir>$(SolutionDir)../lib$(PlatformArchitecture)/</OutDir>
-    <TargetName>
-    </TargetName>
+    <TargetName>ct_$(Configuration)</TargetName>
     <IntDir>$(ProjectDir)$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>

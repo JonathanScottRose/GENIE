@@ -13,6 +13,7 @@
     </ClCompile>
     <Link>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <AdditionalDependencies>$(SolutionDir)../lib$(PlatformArchitecture)/ct_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />
