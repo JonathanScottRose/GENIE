@@ -2,6 +2,7 @@
 #include "p2p.h"
 #include "common.h"
 #include "spec.h"
+#include "export_node.h"
 
 using namespace ct;
 using namespace P2P;
@@ -346,3 +347,115 @@ FlowTarget* Flow::get_sink(DataPort* port)
 	assert(false);
 	return nullptr;
 }
+
+//
+// System
+//
+
+System::System(const std::string& name)
+: m_name(name)
+{
+}
+
+System::~System()
+{
+	Util::delete_all(m_conns);
+	Util::delete_all_2(m_flows);
+}
+
+void System::add_flow(Flow* flow)
+{
+	m_flows[flow->get_id()] = flow;
+}
+
+void System::connect_ports(DataPort* src, DataPort* dest)
+{
+	Conn* conn = new Conn(src, dest);
+	src->set_conn(conn);
+	dest->set_conn(conn);
+	add_conn(conn);
+}
+
+void System::disconnect_ports(DataPort* src, DataPort* dest)
+{
+	Conn* conn = src->get_conn();
+	assert(conn == dest->get_conn());
+
+	src->set_conn(nullptr);
+	dest->set_conn(nullptr);
+
+	remove_conn(conn);
+}
+
+void System::remove_conn(Conn* conn)
+{
+	m_conns.erase(std::find(m_conns.begin(), m_conns.end(), conn));
+	delete conn;
+}
+
+void System::dump_graph()
+{
+	std::ofstream out("graph.dot");
+
+	out << "digraph netlist {" << std::endl;
+
+	for (auto& conn : m_conns)
+	{
+		Node* src_node = conn->get_source()->get_parent();
+		Node* dest_node = conn->get_sink()->get_parent();
+
+		DataPort* src = (DataPort*)conn->get_source();
+		if (src->get_type() != Port::DATA)
+			continue;
+
+		std::string label;
+		for (Flow* flow : src->flows())
+		{
+			label += ' ' + std::to_string(flow->get_id());
+		}
+
+		out << src_node->get_name() << " -> " << dest_node->get_name()
+			<< " [label=\"" << label << "\"];" << std::endl;
+	}
+
+	out << "}" << std::endl;
+}
+
+void System::add_conn(Conn* conn)
+{
+	m_conns.push_back(conn);
+}
+
+ClockResetPort* System::get_a_reset_port()
+{
+	ExportNode* exp = get_export_node();
+
+	for (auto& port : exp->ports())
+	{
+		ClockResetPort* p = (ClockResetPort*)port.second;
+		if (p->get_type() == Port::RESET &&
+			p->get_dir() == Port::OUT)
+		{
+			return p;
+		}
+	}
+
+	assert(false);
+	return nullptr;
+}
+
+ExportNode* System::get_export_node()
+{
+	const std::string& exname = get_name();
+	ExportNode* result = (ExportNode*)get_node(exname);
+
+	if (!result)
+	{
+		result = new ExportNode(this);
+		add_node(result);
+	}
+
+	assert(result->get_type() == Node::EXPORT);
+	return result;
+}
+

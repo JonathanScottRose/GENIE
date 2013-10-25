@@ -36,7 +36,7 @@ namespace
 			return impl->module_name;
 		}
 
-		Vlog::Module* implement(ct::P2P::Node* generic_node)
+		Vlog::Module* implement(ct::P2P::Node* generic_node, const std::string& name)
 		{
 			P2P::InstanceNode* node = (P2P::InstanceNode*) generic_node;
 			assert(node->get_type() == P2P::Node::INSTANCE);
@@ -44,7 +44,7 @@ namespace
 			Spec::Component* comp_def = Spec::get_component_for_instance(node->get_instance()->get_name());
 
 			Vlog::Module* result = new Vlog::Module();
-			result->set_name(get_module_name(generic_node));
+			result->set_name(name);
 		
 			// Convert parameters
 			Spec::Instance* inst_def = node->get_instance();
@@ -87,8 +87,7 @@ namespace
 			}
 		}
 
-		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, 
-			ImplVerilog::GPNInfo* result)
+		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, GPNInfo* result)
 		{
 			auto port_impl = (P2P::InstanceNode::PortAspect*)port->get_impl("iface_def");
 			Spec::Interface* iface = port_impl->iface_def;

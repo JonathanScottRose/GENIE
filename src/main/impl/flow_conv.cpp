@@ -16,10 +16,10 @@ namespace
 			return nm;
 		}
 
-		Vlog::Module* implement(ct::P2P::Node* generic_node)
+		Vlog::Module* implement(ct::P2P::Node* generic_node, const std::string& name)
 		{
 			Vlog::Module* result = new Vlog::Module();
-			result->set_name(get_module_name(generic_node));
+			result->set_name(name);
 
 			result->add_param(new Vlog::Parameter("WD", result));
 			result->add_param(new Vlog::Parameter("WIF", result));
@@ -97,8 +97,7 @@ namespace
 			vinst->set_param_value("OF", flows_param);			
 		}
 
-		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst,
-			ImplVerilog::GPNInfo* result)
+		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, GPNInfo* result)
 		{
 			using namespace P2P;
 

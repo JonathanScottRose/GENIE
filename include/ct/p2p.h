@@ -12,6 +12,7 @@ namespace P2P
 	class Flow;
 	class Conn;
 	class Protocol;
+	class System;
 	struct Field;
 
 	struct Field
@@ -54,18 +55,18 @@ namespace P2P
 		Fields m_fields;
 	};
 
-	class Node
+	class Node : public HasImplAspects
 	{
 	public:
 		typedef std::unordered_map<std::string, Port*> PortMap;
 
 		enum Type
 		{
-			SYSTEM,
 			INSTANCE,
 			SPLIT,
 			MERGE,
-			FLOW_CONV
+			FLOW_CONV,
+			EXPORT
 		};
 
 		Node(Type type);
@@ -222,6 +223,42 @@ namespace P2P
 		FlowTarget* m_src;
 		Sinks m_sinks;
 		int m_id;
+	};
+
+	class System
+	{
+	public:
+		typedef std::vector<Conn*> ConnVec;
+		typedef std::unordered_map<int, Flow*> Flows;
+
+		System(const std::string& name);
+		~System();
+
+		PROP_GET_SET(spec, Spec::System*, m_sys_spec);
+		PROP_GET(name, const std::string&, m_name);
+		PROP_DICT(Nodes, node, Node);
+
+		const ConnVec& conns() { return m_conns; }
+		void add_conn(Conn* conn);
+		void remove_conn(Conn* conn);
+
+		const Flows& flows() { return m_flows; }
+		Flow* get_flow(int id) { return m_flows[id]; }
+		void add_flow(Flow* flow);
+
+		void connect_ports(DataPort* src, DataPort* dest);
+		void disconnect_ports(DataPort* src, DataPort* dest);
+
+		class ExportNode* get_export_node();
+		ClockResetPort* get_a_reset_port();
+
+		void dump_graph();
+
+	protected:
+		std::string m_name;
+		Spec::System* m_sys_spec;
+		Flows m_flows;
+		ConnVec m_conns;
 	};
 }
 }

@@ -75,6 +75,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\main\build_spec.cpp" />
     <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
+    <ClCompile Include="..\..\src\main\impl\export.cpp" />
     <ClCompile Include="..\..\src\main\impl\flow_conv.cpp" />
     <ClCompile Include="..\..\src\main\impl\instance.cpp" />
     <ClCompile Include="..\..\src\main\impl\merge.cpp" />

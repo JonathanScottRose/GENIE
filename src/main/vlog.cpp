@@ -36,6 +36,19 @@ int Port::get_width()
 	return m_width.get_const_value();
 }
 
+Port::Dir Port::rev_dir(Port::Dir in)
+{
+	switch (in)
+	{
+		case IN: return OUT;
+		case OUT: return IN;
+		case INOUT: return INOUT;
+	}
+
+	assert(false);
+	return INOUT;
+}
+
 //
 // Parameter
 //
@@ -160,6 +173,7 @@ void PortState::bind_const(int val, int val_width, int port_lo)
 	ConstPortBinding* result = nullptr;
 
 	Port* port = get_port();
+	assert(port->get_dir() != Port::OUT);
 
 	int port_width = get_width();
 	int port_hi = port_lo + val_width - 1;
@@ -274,8 +288,8 @@ Net::~Net()
 // WireNet
 //
 
-WireNet::WireNet()
-	: Net(Net::WIRE), m_width(0)
+WireNet::WireNet(const std::string& name, int width)
+	: Net(Net::WIRE), m_width(width), m_name(name)
 {
 }
 

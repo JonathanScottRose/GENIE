@@ -1,9 +1,9 @@
 #pragma once
 
-#include "system_node.h"
-
 namespace ct
 {
+	namespace P2P { class System; }
+
 	void go();
-	P2P::SystemNode* get_root_node();
+	class P2P::System* get_system();
 }

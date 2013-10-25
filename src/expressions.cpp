@@ -1,8 +1,10 @@
 #include <regex>
 #include "expressions.h"
+#include "expressions_nodes.h"
 
 using namespace ct;
 using namespace ct::Expressions;
+using namespace ct::Expressions::Nodes;
 
 //
 // Node
@@ -17,12 +19,12 @@ Node::~Node()
 //
 
 OpNode::OpNode()
-	: m_op(0), m_lhs(nullptr), m_rhs(nullptr)
+: m_op(0), m_lhs(nullptr), m_rhs(nullptr)
 {
 }
 
 OpNode::OpNode(char op)
-	: m_op(op), m_lhs(nullptr), m_rhs(nullptr)
+: m_op(op), m_lhs(nullptr), m_rhs(nullptr)
 {
 }
 
@@ -46,10 +48,10 @@ int OpNode::get_value(const NameResolver& r)
 
 	switch (m_op)
 	{
-	case '+' : return lhs + rhs;
-	case '-' : return lhs - rhs;
-	case '*' : return lhs * rhs;
-	case '/' : return lhs / rhs;
+		case '+': return lhs + rhs;
+		case '-': return lhs - rhs;
+		case '*': return lhs * rhs;
+		case '/': return lhs / rhs;
 	}
 
 	assert(false);
@@ -93,7 +95,7 @@ ConstNode::ConstNode()
 }
 
 ConstNode::ConstNode(int val)
-	: m_value(val)
+: m_value(val)
 {
 }
 
@@ -126,7 +128,7 @@ NameNode::NameNode()
 }
 
 NameNode::NameNode(const std::string& name)
-	: m_ref(name)
+: m_ref(name)
 {
 }
 
@@ -145,6 +147,7 @@ std::string NameNode::to_string() const
 {
 	return m_ref;
 }
+	
 
 //
 // Expression
