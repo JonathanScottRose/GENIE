@@ -98,70 +98,70 @@ namespace
 		}
 	}
 
-	void write_port_bindings(PortState* group)
+	void write_port_bindings(PortState* ps)
 	{
-		const std::string& portname = group->get_name();
+		const std::string& portname = ps->get_name();
 		std::string bindstr = "";
 
-		if (group->is_empty())
-		{
-			// leave as "" , unconnected
-		}
-		else 
+		if (!ps->is_empty())
 		{
 			// Multiple bindings? Curly brackets
-			if (!group->is_simple())
+			if (ps->has_multiple_bindings())
 			{
 				bindstr = "{";
 			}
 
-			int cur_bit = group->get_width() - 1;
-			for (auto it = group->bindings().begin(); it != group->bindings().end(); ++it)
+			// Sort bindings in most to least significant bit order
+			auto sorted_bindings = ps->bindings();
+			std::sort(sorted_bindings.begin(), sorted_bindings.end(), [](PortBinding* l, PortBinding* r)
 			{
-				PortBinding* binding = *it;
-				
-				if (binding->get_type() == PortBinding::CONST)
+				return l->get_port_lo() > r->get_port_lo();
+			});
+
+			int cur_bit = ps->get_width();
+			for (PortBinding* binding : sorted_bindings)
+			{
+				Bindable* targ = binding->get_target();
+
+				if (targ->get_type() == Bindable::CONST)
 				{
-					auto const_binding = (ConstPortBinding*)binding;
-					bindstr += std::to_string(const_binding->get_width());
+					auto cv = (ConstValue*)targ;
+					bindstr += std::to_string(cv->get_width());
 					bindstr += "'d";
-					bindstr += std::to_string(const_binding->get_const_val());
+					bindstr += std::to_string(cv->get_value());
 				}
 				else
 				{
-					auto net_binding = (NetPortBinding*)binding;
+					assert(targ->get_type() == Bindable::NET);
+					auto net = (Net*)targ;
 
-					Net* net = net_binding->get_net();
 					bindstr += net->get_name();
-				
-					if (!net_binding->target_simple())
+					if (!binding->is_full_target_binding())
 					{
 						bindstr += "[";
-						bindstr += std::to_string(net_binding->get_net_lo() + net_binding->get_width() - 1);
+						bindstr += std::to_string(binding->get_target_lo() + binding->get_width() - 1);
 						bindstr += ":";
-						bindstr += std::to_string(net_binding->get_net_lo());
+						bindstr += std::to_string(binding->get_target_lo());
 						bindstr += "]";
 					}
 				}
 
-				auto it2(it);
-				bool last = (++it2 == group->bindings().end());
-				if (!last) bindstr += ",";
+				// If this isn't the last binding, then add a comma before moving on to the next
+				cur_bit -= binding->get_width();
+				if (cur_bit > 0) bindstr += ",";
 
-				assert(cur_bit == binding->get_port_lo() + binding->get_width() - 1);
-				cur_bit -= binding->get_width() - 1;
+				// Make sure the order of bindings is descending and there are no unbound gaps in the port
 				assert(cur_bit == binding->get_port_lo());
-				cur_bit--;
 			}
 
-			assert(cur_bit == -1);
+			assert(cur_bit == 0);
 
 			// Multiple bindings? End curly brackets
-			if (! group->is_simple())
+			if (ps->has_multiple_bindings())
 			{
 				bindstr += "}";
 			}
-		}
+		} // non-empty
 		
 		write_line("." + portname + "(" + bindstr + ")", true, false);	
 	}

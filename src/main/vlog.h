@@ -14,6 +14,8 @@ namespace Vlog
 	class PortBinding;
 	class PortState;
 	class ParamBinding;
+	class Bindable;
+	class ConstValue;
 	class Net;
 	class WireNet;
 	class ExportNet;
@@ -99,13 +101,10 @@ namespace Vlog
 
 		const PortBindings& bindings() { return m_bindings; }
 		bool is_empty();
-		bool is_simple();
+		bool has_multiple_bindings();
 
-		PortBinding* get_sole_binding();
-		void bind(Net* net);
-		void bind(Net* net, int lo);
-		void bind(Net* net, int port_lo, int net_lo);
-		void bind_const(int val, int val_width, int port_lo = 0);
+		void bind(Bindable*, int port_lo = 0, int target_lo = 0);
+		void bind(Bindable*, int width, int port_lo, int target_lo);
 	
 	protected:
 		PortBindings m_bindings;
@@ -113,7 +112,7 @@ namespace Vlog
 		Port* m_port;
 	};
 
-	class PortBinding
+	class Bindable
 	{
 	public:
 		enum Type
@@ -122,47 +121,38 @@ namespace Vlog
 			CONST
 		};
 
-		PortBinding(Type type);
+		Bindable(Type);
+		virtual ~Bindable() = 0;
+
+		PROP_GET(type, Type, m_type);
+		virtual int get_width() = 0;
+		// future: add string representation
+
+	protected:
+		Type m_type;
+	};
+
+	class PortBinding
+	{
+	public:
+		PortBinding(PortState* parent, Bindable* target = nullptr);
 		virtual ~PortBinding();
 
+		PROP_GET_SET(target, Bindable*, m_target);
 		PROP_GET_SET(port_lo, int, m_port_lo);
+		PROP_GET_SET(target_lo, int, m_target_lo);
 		PROP_GET_SET(width, int, m_width);
 		PROP_GET_SET(parent, PortState*, m_parent);
-		PROP_GET(type, Type, m_type);
 
-		bool sole_binding();
+		bool is_full_target_binding();	// does this binding bind to the target's full width?
+		bool is_full_port_binding();	// does this binding bind to the port's full width?
 
 	protected:
 		PortState* m_parent;
-		Type m_type;
+		Bindable* m_target;
 		int m_port_lo;
+		int m_target_lo;
 		int m_width;
-	};
-
-	class NetPortBinding : public PortBinding
-	{
-	public:
-		NetPortBinding();
-
-		PROP_GET_SET(net, Net*, m_net);
-		PROP_GET_SET(net_lo, int, m_net_lo);
-
-		bool target_simple();
-
-	protected:
-		Net* m_net;
-		int m_net_lo;
-	};
-
-	class ConstPortBinding : public PortBinding
-	{
-	public:
-		ConstPortBinding();
-
-		PROP_GET_SET(const_val, int, m_const_val);
-
-	protected:
-		int m_const_val;
 	};
 
 	class ParamBinding
@@ -185,7 +175,20 @@ namespace Vlog
 		Parameter* m_param;
 	};
 
-	class Net
+	class ConstValue : public Bindable
+	{
+	public:
+		ConstValue(int value, int width);
+		
+		PROP_GET_SET(value, int, m_value);
+		int get_width();
+
+	protected:
+		int m_width;
+		int m_value;
+	};
+
+	class Net : public Bindable
 	{
 	public:
 		enum Type
@@ -250,11 +253,9 @@ namespace Vlog
 	
 		const PortStates& port_states() { return m_port_states; }
 		PortState* get_port_state(const std::string& name);
-		PortBinding* get_sole_binding(const std::string& port);
-		void bind_port(const std::string& port, Net* net);
-		void bind_port(const std::string& port, Net* net, int lo);
-		void bind_port(const std::string& port, Net* net, int port_lo, int net_lo);
-		void bind_const(const std::string& port, int val, int val_width, int port_lo = 0);
+		
+		void bind_port(const std::string& portname, Bindable*, int port_lo = 0, int target_lo = 0);
+		void bind_port(const std::string& portname, Bindable*, int width, int port_lo, int target_lo);
 
 		const ParamBindings& param_bindings() { return m_param_bindings; }
 		ParamBinding* get_param_binding(const std::string& name);
@@ -275,6 +276,7 @@ namespace Vlog
 	{
 	public:
 		typedef std::vector<ContinuousAssignment*> ContAssigns;
+		typedef std::vector<ConstValue*> ConstValues;
 
 		SystemModule();
 		~SystemModule();
@@ -282,10 +284,11 @@ namespace Vlog
 		PROP_DICT(Instances, instance, Instance);
 		PROP_DICT(Nets, net, Net);
 		
-		ContAssigns& assigns() { return m_cont_assigns; }
+		void add_const(ConstValue* c);
 
 	protected:
 		ContAssigns m_cont_assigns;
+		ConstValues m_const_values;
 	};
 
 	class ModuleRegistry
@@ -300,14 +303,14 @@ namespace Vlog
 	class ContinuousAssignment
 	{
 	public:
-		ContinuousAssignment(Net* src, Net* sink);
+		ContinuousAssignment(Bindable* src, Net* sink);
 		~ContinuousAssignment();
 
-		PROP_GET_SET(src, Net*, m_src);
+		PROP_GET_SET(src, Bindable*, m_src);
 		PROP_GET_SET(sink, Net*, m_sink);
 
 	protected:
-		Net* m_src;
+		Bindable* m_src;
 		Net* m_sink;
 	};
 

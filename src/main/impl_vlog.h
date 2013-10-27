@@ -24,8 +24,7 @@ namespace ImplVerilog
 	public:
 		virtual void visit(INetlist*, P2P::Node*) = 0;
 		virtual Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*) = 0;
-		virtual void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, Vlog::Net*) = 0;
-		virtual void handle_const(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*) = 0;
+		virtual void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, Vlog::Bindable*) = 0;
 	};
 
 	// This is specifically for nodes representing module instances
@@ -41,8 +40,7 @@ namespace ImplVerilog
 
 		void visit(INetlist*, P2P::Node*);
 		Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*);
-		void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, Vlog::Net*);
-		void handle_const(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*);
+		void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, Vlog::Bindable*);
 
 	protected:
 		struct InstAspect : public ImplAspect { Vlog::Instance* inst; };

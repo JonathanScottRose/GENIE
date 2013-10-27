@@ -53,14 +53,8 @@ namespace
 
 		// No kind of binding is required
 		void accept_net(INetlist* netlist, P2P::Node* generic_node, P2P::Port* port, P2P::Field* field,
-			Vlog::Net* net)
+			Vlog::Bindable* net)
 		{
-		}
-		
-		// Not implemented yet - create a continuous assignment
-		void handle_const(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*)
-		{
-			assert(false);
 		}
 	} s_impl;
 

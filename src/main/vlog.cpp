@@ -1,6 +1,8 @@
 #include <regex>
+#include "ct/common.h"
 #include "vlog.h"
 
+using namespace ct;
 using namespace Vlog;
 
 //
@@ -101,12 +103,12 @@ int PortState::get_width()
 	return m_port->width().get_value(m_parent->get_param_resolver());
 }
 
-bool PortState::is_simple()
+bool PortState::has_multiple_bindings()
 {
 	bool result = is_empty();
 	if (!result)
 	{
-		result = m_bindings.front()->sole_binding();
+		result = !m_bindings.front()->is_full_port_binding();
 	}
 
 	return result;
@@ -117,92 +119,58 @@ bool PortState::is_empty()
 	return m_bindings.empty();
 }
 
-PortBinding* PortState::get_sole_binding()
+void PortState::bind(Bindable* target, int width, int port_lo, int targ_lo)
 {
-	if (is_empty())
-		return nullptr;
-
-	PortBinding* result = bindings().front();
-	assert(result->sole_binding());
-	return result;
-}
-
-void PortState::bind(Net* net, int port_lo, int net_lo)
-{
-	NetPortBinding* result = nullptr;
+	// Check if this binding will overlap with existing bindings
+	for (auto& b : m_bindings)
+	{
+		assert(port_lo + width <= b->get_port_lo() ||
+			port_lo >= b->get_port_lo() + b->get_width());
+	}
 
 	Port* port = get_port();
 
+	// Check to make sure the top bit of the binding exceeds neither that of the port
+	// nor the target
 	int port_width = get_width();
-	int net_width = net->get_width();
-	int port_hi = port_lo + net_width - 1;
+	int targ_width = target->get_width();
+	int port_hi = port_lo + width - 1;
+	int targ_hi = targ_lo + width - 1;
+	assert(port_hi < port_lo + port_width);
+	assert(targ_hi < targ_lo + targ_width);
 
-	for (auto& i : bindings())
-	{
-		assert(i->get_port_lo() > port_hi ||
-			(i->get_port_lo() + i->get_width() - 1 < port_lo));
-	}
+	// Create the binding and add it to our list of bindings
+	PortBinding* binding = new PortBinding(this, target);
+	binding->set_port_lo(port_lo);
+	binding->set_target_lo(targ_lo);
+	binding->set_width(width);
+	m_bindings.push_back(binding);
 
-	result = new NetPortBinding();
-	result->set_net(net);
-	result->set_net_lo(net_lo);
-	result->set_parent(this);
-	result->set_port_lo(port_lo);
-	result->set_width(net_width);
-
-	m_bindings.push_back(result);
+	/*
 	std::sort(m_bindings.begin(), m_bindings.end(), [] (PortBinding* a, PortBinding* b)
 	{
 		return a->get_port_lo() > b->get_port_lo();
-	});
+	});*/
 }
 
-void PortState::bind(Net* net, int lo)
+void PortState::bind(Bindable* target, int port_lo, int targ_lo)
 {
-	bind(net, lo, 0);
+	// This version of bind automatically calculates the maximum possible width that can be bound
+	int width = std::min(
+		target->get_width() - targ_lo,
+		this->get_width() - port_lo
+	);
+
+	bind(target, width, port_lo, targ_lo);
 }
 
-void PortState::bind(Net* net)
-{
-	bind(net, 0);
-}
-
-void PortState::bind_const(int val, int val_width, int port_lo)
-{
-	// HACK HACK HACK
-	ConstPortBinding* result = nullptr;
-
-	Port* port = get_port();
-	assert(port->get_dir() != Port::OUT);
-
-	int port_width = get_width();
-	int port_hi = port_lo + val_width - 1;
-
-	for (auto& i : bindings())
-	{
-		assert(i->get_port_lo() > port_hi ||
-			(i->get_port_lo() + i->get_width() - 1 < port_lo));
-	}
-
-	result = new ConstPortBinding();
-	result->set_const_val(val);
-	result->set_parent(this);
-	result->set_port_lo(port_lo);
-	result->set_width(val_width);
-
-	m_bindings.push_back(result);
-	std::sort(m_bindings.begin(), m_bindings.end(), [] (PortBinding* a, PortBinding* b)
-	{
-		return a->get_port_lo() > b->get_port_lo();
-	});
-}
 
 //
 // PortBinding
 //
 
-PortBinding::PortBinding(Type type)
-	: m_parent(nullptr), m_type(type)
+PortBinding::PortBinding(PortState* parent, Bindable* target)
+	: m_parent(parent), m_target(target)
 {
 }
 
@@ -210,7 +178,7 @@ PortBinding::~PortBinding()
 {
 }
 
-bool PortBinding::sole_binding()
+bool PortBinding::is_full_port_binding()
 {
 	bool result = 
 		(m_port_lo == 0) &&
@@ -219,27 +187,27 @@ bool PortBinding::sole_binding()
 	return result;
 }
 
-//
-// NetPortBinding
-//
-
-NetPortBinding::NetPortBinding()
-	: PortBinding(NET)
+bool PortBinding::is_full_target_binding()
 {
-}
+	bool result =
+		(m_target_lo == 0) &&
+		(m_width == m_target->get_width());
 
-bool NetPortBinding::target_simple()
-{
-	return m_net->get_width() == m_width;
+	return result;
 }
 
 //
-// ConstPortBinding
+// ConstValue
 //
 
-ConstPortBinding::ConstPortBinding()
-	: PortBinding(CONST)
+ConstValue::ConstValue(int value, int width)
+	: Bindable(CONST), m_value(value), m_width(width)
 {
+}
+
+int ConstValue::get_width()
+{
+	return m_width;
 }
 
 //
@@ -276,7 +244,7 @@ int ParamBinding::get_value()
 //
 
 Net::Net(Type type)
-	: m_type(type)
+	: Bindable(NET), m_type(type)
 {
 }
 
@@ -354,6 +322,13 @@ SystemModule::~SystemModule()
 {
 	ct::Util::delete_all_2(m_instances);
 	ct::Util::delete_all_2(m_nets);
+	ct::Util::delete_all(m_cont_assigns);
+	ct::Util::delete_all(m_const_values);
+}
+
+void SystemModule::add_const(ConstValue* c)
+{
+	m_const_values.push_back(c);
 }
 
 //
@@ -396,31 +371,23 @@ Instance::~Instance()
 	ct::Util::delete_all_2(m_param_bindings);
 }
 
-PortBinding* Instance::get_sole_binding(const std::string& port)
-{
-	PortState* grp = m_port_states[port];
-	return grp->get_sole_binding();
-}
-
 PortState* Instance::get_port_state(const std::string& name)
 {
 	return m_port_states[name];
 }
 
-void Instance::bind_port(const std::string& pname, Net* net, int port_lo, int net_lo)
+void Instance::bind_port(const std::string& portname, Bindable* targ, int port_lo, int targ_lo)
 {
-	PortState* st = m_port_states[pname];
-	st->bind(net, port_lo, net_lo);
+	PortState* ps = get_port_state(portname);
+	assert(ps);
+	ps->bind(targ, port_lo, targ_lo);
 }
 
-void Instance::bind_port(const std::string& port, Net* net, int lo)
+void Instance::bind_port(const std::string& portname, Bindable* targ, int width, int port_lo, int targ_lo)
 {
-	bind_port(port, net, lo, 0);
-}
-
-void Instance::bind_port(const std::string& port, Net* net)
-{
-	bind_port(port, net, 0);
+	PortState* ps = get_port_state(portname);
+	assert(ps);
+	ps->bind(targ, width, port_lo, targ_lo);
 }
 
 ParamBinding* Instance::get_param_binding(const std::string& name)
@@ -438,12 +405,6 @@ void Instance::set_param_value(const std::string& name, int val)
 	get_param_binding(name)->set_value(val);
 }
 
-void Instance::bind_const(const std::string& port, int val, int val_width, int port_lo)
-{
-	PortState* st = m_port_states[port];
-	st->bind_const(val, val_width, port_lo);
-}
-
 //
 // ModuleRegistry
 //
@@ -455,6 +416,32 @@ ModuleRegistry::ModuleRegistry()
 ModuleRegistry::~ModuleRegistry()
 {
 	ct::Util::delete_all_2(m_modules);
+}
+
+//
+// Bindable
+//
+
+Bindable::Bindable(Type type)
+	: m_type(type)
+{
+}
+
+Bindable::~Bindable()
+{
+}
+
+//
+// ContinuousAssignment
+//
+
+ContinuousAssignment::ContinuousAssignment(Bindable* src, Net* sink)
+: m_src(src), m_sink(sink)
+{
+}
+
+ContinuousAssignment::~ContinuousAssignment()
+{
 }
 
 //

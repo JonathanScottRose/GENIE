@@ -69,12 +69,9 @@ namespace
 			{
 				INodeImpl* src_impl = s_node_impls[p2psrc_node->get_type()];
 
-				// If const, handle it and don't try creating nets
+				// No constants - nets only
 				if (f->is_const)
-				{
-					src_impl->handle_const(&s_netlist_iface, p2psrc_node, p2psrc_port, f);
 					continue;
-				}
 
 				// Iterate over all sinks pass 1: See if anyone wants to produce a pre-made net
 				Vlog::Net* net = src_impl->produce_net(&s_netlist_iface, p2psrc_node, p2psrc_port, f);
@@ -86,7 +83,7 @@ namespace
 					net = sink_impl->produce_net(&s_netlist_iface, p2psink_node, p2psink_port, f);
 				}
 
-				// Create an auto-named net if none existing
+				// Create an auto-named net if none exists
 				if (!net)
 				{
 					std::string name = p2psrc_node->get_name() + "_" + 
@@ -103,25 +100,29 @@ namespace
 					if (p2psink_port->get_proto().has_field(f->name) &&
 						p2psink_port->get_proto().get_field(f->name)->is_const)
 						continue;
+
 					Node* p2psink_node = p2psink_port->get_parent();
 					INodeImpl* sink_impl = s_node_impls[p2psink_node->get_type()];
 					sink_impl->accept_net(&s_netlist_iface, p2psink_node, p2psink_port, f, net);
 				}
 			}
+		}
 
-			// Iterate over all sinks, pass 3: Handle constant connections at the sinks. This time,
-			// go through all fields at each sink port, not just the ones the source had.
-			for (P2P::Port* p2psink_port : conn->get_sinks())
+		// Create constant drivers
+		for (auto& i : sys->nodes())
+		{
+			P2P::Node* node = i.second;
+			for (auto& j : node->ports())
 			{
-				Node* p2psink_node = p2psink_port->get_parent();
-				const Protocol& sink_proto = p2psink_port->get_proto();
-				for (Field* f : sink_proto.fields())
+				P2P::Port* port = j.second;
+				for (Field* f : port->get_proto().fields())
 				{
-					if (!f->is_const)
-						continue;
+					if (!f->is_const) continue;
 
-					INodeImpl* sink_impl = s_node_impls[p2psink_node->get_type()];
-					sink_impl->handle_const(&s_netlist_iface, p2psink_node, p2psink_port, f);
+					auto c = new Vlog::ConstValue(f->const_val, f->width);
+					s_top.add_const(c);
+					INodeImpl* impl = s_node_impls[node->get_type()];
+					impl->accept_net(&s_netlist_iface, node, port, f, c);
 				}
 			}
 		}
@@ -209,7 +210,7 @@ Vlog::Net* IModuleImpl::produce_net(INetlist* netlist, P2P::Node* node, P2P::Por
 
 // Connection of nets to the ports of module-like nodes.
 void IModuleImpl::accept_net(INetlist* netlist, P2P::Node* node, P2P::Port* port, P2P::Field* field, 
-	Vlog::Net* net)
+	Vlog::Bindable* net)
 {
 	// Get the HDL instance corresponding to the node 
 	Vlog::Instance* inst = this->get_inst_for_node(node);
@@ -222,15 +223,6 @@ void IModuleImpl::accept_net(INetlist* netlist, P2P::Node* node, P2P::Port* port
 	GPNInfo ci;
 	this->get_port_name(port, field, inst, &ci);
 	inst->bind_port(ci.port, net, ci.lo);
-}
-
-void IModuleImpl::handle_const(INetlist* netlist, P2P::Node* node, P2P::Port* port, P2P::Field* field)
-{
-	Vlog::Instance* inst = this->get_inst_for_node(node);
-
-	GPNInfo ci;
-	this->get_port_name(port, field, inst, &ci);
-	inst->bind_const(ci.port, field->const_val, field->width, ci.lo);
 }
 
 // Get/set P2P::Node<-->Vlog::Instance association
