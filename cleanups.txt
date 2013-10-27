@@ -5,4 +5,3 @@ VLOG: impl Port->Port mapping is a nightmare. make it data-driven somehow. same 
 P2P: FIX CONST VALUES: it'a state of a field of a specific port/instance. is this right?
 
 VLOG: parameterizing an instance should use encompassing SystemModule's Parameters as search namespace (const values only)
-VLOG: const values: who owns them?

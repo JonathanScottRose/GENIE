@@ -120,7 +120,6 @@ namespace
 					if (!f->is_const) continue;
 
 					auto c = new Vlog::ConstValue(f->const_val, f->width);
-					s_top.add_const(c);
 					INodeImpl* impl = s_node_impls[node->get_type()];
 					impl->accept_net(&s_netlist_iface, node, port, f, c);
 				}

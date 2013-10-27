@@ -123,6 +123,7 @@ namespace Vlog
 
 		Bindable(Type);
 		virtual ~Bindable() = 0;
+		virtual void dispose() = 0;
 
 		PROP_GET(type, Type, m_type);
 		virtual int get_width() = 0;
@@ -179,6 +180,7 @@ namespace Vlog
 	{
 	public:
 		ConstValue(int value, int width);
+		void dispose();
 		
 		PROP_GET_SET(value, int, m_value);
 		int get_width();
@@ -199,6 +201,7 @@ namespace Vlog
 
 		Net(Type type);
 		virtual ~Net();
+		void dispose();
 
 		PROP_GET_SET(type, Type, m_type);
 		virtual const std::string& get_name() = 0;
@@ -276,19 +279,15 @@ namespace Vlog
 	{
 	public:
 		typedef std::vector<ContinuousAssignment*> ContAssigns;
-		typedef std::vector<ConstValue*> ConstValues;
 
 		SystemModule();
 		~SystemModule();
 
 		PROP_DICT(Instances, instance, Instance);
 		PROP_DICT(Nets, net, Net);
-		
-		void add_const(ConstValue* c);
 
 	protected:
 		ContAssigns m_cont_assigns;
-		ConstValues m_const_values;
 	};
 
 	class ModuleRegistry

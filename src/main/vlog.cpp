@@ -176,6 +176,10 @@ PortBinding::PortBinding(PortState* parent, Bindable* target)
 
 PortBinding::~PortBinding()
 {
+	// Some targets like nets are owned by the netlist and will be cleaned up when the netlist dies,
+	// but some like constant value drivers are not kept track by the netlist and are effectively owned
+	// by the bindings. This handles destruction in a polymorphic way.
+	if (m_target) m_target->dispose();
 }
 
 bool PortBinding::is_full_port_binding()
@@ -208,6 +212,13 @@ ConstValue::ConstValue(int value, int width)
 int ConstValue::get_width()
 {
 	return m_width;
+}
+
+void ConstValue::dispose()
+{
+	// consts are bound to only one thing, so that thing effectively owns the memory
+	// for the const and the const should die when it gets its single call to dispose()
+	delete this;
 }
 
 //
@@ -250,6 +261,11 @@ Net::Net(Type type)
 
 Net::~Net()
 {
+}
+
+void Net::dispose()
+{
+	// do nothing, since nets are owned and deleted by the SystemModule netlist
 }
 
 //
@@ -323,13 +339,8 @@ SystemModule::~SystemModule()
 	ct::Util::delete_all_2(m_instances);
 	ct::Util::delete_all_2(m_nets);
 	ct::Util::delete_all(m_cont_assigns);
-	ct::Util::delete_all(m_const_values);
 }
 
-void SystemModule::add_const(ConstValue* c)
-{
-	m_const_values.push_back(c);
-}
 
 //
 // Instance
