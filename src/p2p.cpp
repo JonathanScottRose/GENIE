@@ -479,3 +479,15 @@ bool System::has_node(const std::string& name)
 {
 	return m_nodes.count(name) > 0;
 }
+
+int System::get_global_flow_id_width()
+{
+	int result = 0;
+	for (auto& i: m_flows)
+	{
+		result = std::max(result, i.first);
+	}
+	result = Util::log2(result);
+	result = std::max(result, 1);	// handle corner case: one flow with id 0
+	return result;
+}

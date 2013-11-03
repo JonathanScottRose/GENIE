@@ -9,7 +9,7 @@ namespace P2P
 	class FlowConvNode : public Node
 	{
 	public:
-		FlowConvNode(const std::string& name, bool to_flow, const Protocol& user_proto,
+		FlowConvNode(System* parent, const std::string& name, bool to_flow, const Protocol& user_proto,
 			const DataPort::Flows& flows, DataPort* user_port);
 		~FlowConvNode();
 

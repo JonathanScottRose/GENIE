@@ -250,6 +250,7 @@ namespace P2P
 		const Flows& flows() { return m_flows; }
 		Flow* get_flow(int id) { return m_flows[id]; }
 		void add_flow(Flow* flow);
+		int get_global_flow_id_width();
 
 		void connect_ports(DataPort* src, DataPort* dest);
 		void disconnect_ports(DataPort* src, DataPort* dest);

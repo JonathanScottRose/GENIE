@@ -2,8 +2,8 @@
 
 using namespace ct::P2P;
 
-FlowConvNode::FlowConvNode(const std::string& name, bool to_flow, const Protocol& user_proto,
-						   const DataPort::Flows& flows, DataPort* user_port)
+FlowConvNode::FlowConvNode(System* parent, const std::string& name, bool to_flow, 
+	const Protocol& user_proto, const DataPort::Flows& flows, DataPort* user_port)
 	: P2P::Node(FLOW_CONV), m_to_flow(to_flow), m_user_port(user_port)
 {
 	set_name(name);
@@ -39,12 +39,7 @@ FlowConvNode::FlowConvNode(const std::string& name, bool to_flow, const Protocol
 	user_facing_port->set_proto(user_proto);
 
 	// Calculate flow_id width
-	int flow_width = 0;
-	for (Flow* f : flows)
-	{
-		flow_width = std::max(flow_width, f->get_id());
-	}
-	flow_width = Util::log2(flow_width);
+	int flow_width = parent->get_global_flow_id_width();
 
 	// Configure system port
 	Protocol sys_proto = user_proto;

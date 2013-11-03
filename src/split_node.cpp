@@ -37,7 +37,7 @@ SplitNode::SplitNode(const std::string& name, const Protocol& proto, int n_outpu
 	if (!m_proto.has_field("ready"))
 		m_proto.add_field(new Field("ready", 1, Field::REV));
 	if (!m_proto.has_field("flow_id"))
-		m_proto.add_field(new Field("flow_id", 1, Field::FWD));
+		m_proto.add_field(new Field("flow_id", 1, Field::FWD)); // configured later to correct width
 
 	// Create inports
 	DataPort* port = new DataPort(this, Port::IN);
@@ -123,14 +123,8 @@ int SplitNode::get_idx_for_outport(Port* port)
 
 int SplitNode::get_flow_id_width()
 {
-	int result = 0;
-	for (Flow* f : get_inport()->flows())
-	{
-		result = std::max(result, f->get_id());
-	}
-	result = Util::log2(result);
-	result = std::max(result, 1);	// handle corner case: one flow with id 0
-	return result;
+	// FIXME: make more efficient to reduce width
+	return m_parent->get_global_flow_id_width();
 }
 
 auto SplitNode::get_dests_for_flow(int flow_id) -> const DestVec&

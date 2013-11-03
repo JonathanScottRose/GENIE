@@ -298,6 +298,7 @@ namespace
 			Node* src_node = src_port->get_parent();
 
 			FlowConvNode* fc_node = new FlowConvNode(
+				s_sys,
 				src_node->get_name() + "_" + src_port->get_name() + "_conv",
 				true,
 				src_proto,
@@ -333,6 +334,7 @@ namespace
 			Node* dest_node = dest_port->get_parent();
 
 			FlowConvNode* fc_node = new FlowConvNode(
+				s_sys,
 				dest_node->get_name() + "_" + dest_port->get_name() + "_conv",
 				false,
 				dest_proto,
