@@ -39,7 +39,7 @@ always @* begin : mux
 	// Use this to mux the correct vector-of-enabled-outputs for this flow.
 	enabled_outputs = 0;
 	
-	for (i = 0; i < NO; i = i + 1) begin
+	for (i = 0; i < NF; i = i + 1) begin
 		match = FLOWS[WF*i +: WF] == flow_id;
 		enabled_outputs = enabled_outputs | (ENABLES[NO*i +: NO] & {NO{match}});
 	end
