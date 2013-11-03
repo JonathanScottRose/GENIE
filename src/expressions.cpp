@@ -250,7 +250,7 @@ Node* Expression::build_root(const std::string& str)
 {
 	std::string s = str;
 	std::smatch mr;
-	std::regex regex("\\s*(\\d+)|([+-/*])|([[:alpha:]]+)");
+	std::regex regex("\\s*(\\d+)|([+-/*])|([[:alnum:]_]+)");
 
 	Node* node = nullptr;
 	Node* last = nullptr;
