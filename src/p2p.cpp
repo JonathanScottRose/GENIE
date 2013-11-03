@@ -459,3 +459,23 @@ ExportNode* System::get_export_node()
 	return result;
 }
 
+Node* System::get_node(const std::string& name)
+{
+	if (!has_node(name))
+		return nullptr;
+
+	return m_nodes[name];
+}
+
+void System::add_node(Node* node)
+{
+	assert(!has_node(node->get_name()));
+	assert(node->get_parent() == nullptr);
+	m_nodes[node->get_name()] = node;
+	node->set_parent(this);
+}
+
+bool System::has_node(const std::string& name)
+{
+	return m_nodes.count(name) > 0;
+}

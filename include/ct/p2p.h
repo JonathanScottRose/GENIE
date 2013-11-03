@@ -74,7 +74,7 @@ namespace P2P
 
 		PROP_GET_SET(name, const std::string&, m_name);
 		PROP_GET_SET(type, Type, m_type);
-		PROP_GET_SET(parent, Node*, m_parent);
+		PROP_GET_SET(parent, System*, m_parent);
 
 		const PortMap& ports() { return m_ports; }
 		Port* get_port(const std::string& name) { return m_ports[name]; }
@@ -86,7 +86,7 @@ namespace P2P
 		Type m_type;
 		std::string m_name;
 		PortMap m_ports;
-		Node* m_parent;
+		System* m_parent;
 	};
 
 	class Port : public HasImplAspects
@@ -230,13 +230,18 @@ namespace P2P
 	public:
 		typedef std::vector<Conn*> ConnVec;
 		typedef std::unordered_map<int, Flow*> Flows;
+		typedef std::unordered_map<std::string, Node*> Nodes;
 
 		System(const std::string& name);
 		~System();
 
 		PROP_GET_SET(spec, Spec::System*, m_sys_spec);
 		PROP_GET(name, const std::string&, m_name);
-		PROP_DICT(Nodes, node, Node);
+		
+		const Nodes& nodes() { return m_nodes; }
+		Node* get_node(const std::string& name);
+		void add_node(Node* node);
+		bool has_node(const std::string& name);
 
 		const ConnVec& conns() { return m_conns; }
 		void add_conn(Conn* conn);
@@ -259,6 +264,7 @@ namespace P2P
 		Spec::System* m_sys_spec;
 		Flows m_flows;
 		ConnVec m_conns;
+		Nodes m_nodes;
 	};
 }
 }
