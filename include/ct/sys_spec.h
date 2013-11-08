@@ -77,13 +77,15 @@ public:
 		EXPORT
 	};
 
-	SysObject(const std::string& name, Type type);
+	SysObject(const std::string& name, Type type, System* parent);
 	virtual ~SysObject();
 
 	PROP_GET_SET(name, const std::string&, m_name);
 	PROP_GET_SET(type, Type, m_type);
+	PROP_GET_SET(parent, System*, m_parent);
 
 protected:
+	System* m_parent;
 	std::string m_name;
 	Type m_type;
 };
@@ -94,7 +96,7 @@ class Instance : public SysObject
 public:
 	typedef std::unordered_map<std::string, Expression> ParamBindings;
 
-	Instance(const std::string& name, const std::string& component);
+	Instance(const std::string& name, const std::string& component, System* parent);
 	~Instance();
 
 	PROP_GET_SET(component, const std::string&, m_component);
@@ -112,7 +114,7 @@ protected:
 class Export : public SysObject
 {
 public:
-	Export(const std::string& name, Interface::Type type);
+	Export(const std::string& name, Interface::Type type, System* parent);
 
 	PROP_GET_SET(iface_type, Interface::Type, m_iface_type);
 
@@ -140,6 +142,9 @@ public:
 	SysObject* get_object(const std::string& name);
 
 	void validate();
+
+	Component* get_component_for_instance(const std::string& name);
+	Linkpoint* get_linkpoint(const LinkTarget& path);
 
 protected:
 	std::string m_name;

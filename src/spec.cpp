@@ -7,15 +7,15 @@ using namespace Spec;
 
 namespace
 {
-	typedef std::unordered_map<std::string, Component*> Components;
 	Components s_components;
-	System s_system;
+	Systems s_systems;
 
 	Util::InitShutdown s_ctor_dtor([]
 	{
 	}, []
 	{
 		Util::delete_all_2(s_components);
+		Util::delete_all_2(s_systems);
 	});
 }
 
@@ -33,33 +33,21 @@ Component* Spec::get_component(const std::string& name)
 		return nullptr;
 }
 
-System* Spec::get_system()
+const Systems& Spec::systems()
 {
-	return &s_system;
+	return s_systems;
 }
 
-ComponentList Spec::get_all_components()
+void Spec::define_system(System* sys)
 {
-	ComponentList result;
-	for (auto& i : s_components)
-		result.push_front(i.second);
-
-	return result;
+	assert(s_systems.count(sys->get_name()) == 0);
+	s_systems[sys->get_name()] = sys;
 }
 
-Component* Spec::get_component_for_instance(const std::string& name)
+System* Spec::get_system(const std::string& name)
 {
-	Instance* inst = (Instance*)get_system()->get_object(name);
-	assert(inst->get_type() == SysObject::INSTANCE);
-
-	return get_component(inst->get_component());
-}
-
-Linkpoint* Spec::get_linkpoint(const LinkTarget& path)
-{
-	Component* comp = get_component_for_instance(path.get_inst());
-	Interface* iface = comp->get_interface(path.get_iface());
-	return iface->get_linkpoint(path.get_lp());
+	if (s_systems.count(name) == 0) return nullptr;
+	else return s_systems[name];
 }
 
 void Spec::validate()
@@ -70,6 +58,9 @@ void Spec::validate()
 		i.second->validate();			
 	}
 
-	// Validate system
-	s_system.validate();
+	// Validate systems
+	for (auto& i : s_systems)
+	{
+		i.second->validate();
+	}
 }

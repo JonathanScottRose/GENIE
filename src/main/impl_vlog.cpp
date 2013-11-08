@@ -20,7 +20,8 @@ namespace
 	typedef std::unordered_map<P2P::Node::Type, INodeImpl*> INodeImpls;
 
 	// Private
-	Vlog::SystemModule s_top;
+	Vlog::SystemModule* s_cur_top;
+	bool s_initialized = false;
 	Vlog::ModuleRegistry s_mod_reg;
 	INodeImpls s_node_impls;
 
@@ -37,14 +38,14 @@ namespace
 
 		Vlog::SystemModule* get_system_module()
 		{
-			return &s_top;
+			return s_cur_top;
 		}
 	} s_netlist_iface;
 
 	// Function bodies
 	void impl_system(P2P::System* sys)
 	{
-		s_top.set_name(sys->get_name());
+		s_cur_top->set_name(sys->get_name());
 
 		// Visit each child node and implement it
 		for (auto& i : sys->nodes())
@@ -89,7 +90,7 @@ namespace
 					std::string name = p2psrc_node->get_name() + "_" + 
 						ImplVerilog::name_for_p2p_port(p2psrc_port, f);
 					net = new Vlog::WireNet(name, f->width);
-					s_top.add_net(net);
+					s_cur_top->add_net(net);
 				}
 
 				// Iterate over all sinks pass 2: Connect the net to the sinks and the source
@@ -128,19 +129,24 @@ namespace
 	}
 }
 
-void ImplVerilog::go()
+
+Vlog::SystemModule* ImplVerilog::build_top_module(P2P::System* sys)
 {
-	// Register all node implementations
-	ImplVerilog::BuiltinRegHost::execute_inits();
+	if (!s_initialized)
+	{
+		s_initialized = true;
+
+		// Register all node implementations
+		ImplVerilog::BuiltinRegHost::execute_inits();
+	}
 
 	// Implement system module
-	impl_system(ct::get_system());
+	s_cur_top = new Vlog::SystemModule();
+	impl_system(sys);
+
+	return s_cur_top;
 }
 
-Vlog::Module* ImplVerilog::get_top_module()
-{
-	return &s_top;
-}
 
 void ImplVerilog::register_impl(P2P::Node::Type type, INodeImpl* impl)
 {

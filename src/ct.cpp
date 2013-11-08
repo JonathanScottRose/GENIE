@@ -14,14 +14,12 @@ using namespace ct::P2P;
 
 namespace
 {
-	System* s_sys = nullptr;
-
 	// Creates port for the system node, doesn't quite yet set all the properties yet like clock
 	// and protocol.
-	void create_top_level_port(Spec::Export* exp_def)
+	void create_top_level_port(System* sys, Spec::Export* exp_def)
 	{
 		Port* port;
-		ExportNode* exp = s_sys->get_export_node();
+		ExportNode* exp = sys->get_export_node();
 
 		switch (exp_def->get_iface_type())
 		{
@@ -54,9 +52,9 @@ namespace
 		exp->add_port(port);
 	}
 
-	Conn* get_system_reset_conn()
+	Conn* get_system_reset_conn(System* sys)
 	{
-		ClockResetPort* rst = s_sys->get_a_reset_port();
+		ClockResetPort* rst = sys->get_a_reset_port();
 		Conn* result = rst->get_conn();
 
 		if (result == nullptr)
@@ -64,7 +62,7 @@ namespace
 			result = new Conn();
 			result->set_source(rst);
 			rst->set_conn(result);
-			s_sys->add_conn(result);
+			sys->add_conn(result);
 		}
 
 		return result;
@@ -86,14 +84,11 @@ namespace
 		sink->set_conn(src);
 	}
 
-	void init_netlist()
+	P2P::System* init_netlist(Spec::System* sys_spec)
 	{
-		// Get system SPEC
-		Spec::System* sys_spec = Spec::get_system();
-
 		// Create P2P system
-		s_sys = new System(sys_spec->get_name());
-		s_sys->set_spec(sys_spec);
+		System* sys = new System(sys_spec->get_name());
+		sys->set_spec(sys_spec);
 
 		// 1: Create instance nodes first
 		for (auto& i : sys_spec->objects())
@@ -105,7 +100,7 @@ namespace
 				case Spec::SysObject::INSTANCE:
 				{
 					InstanceNode* node = new InstanceNode((Spec::Instance*)obj);
-					s_sys->add_node(node);
+					sys->add_node(node);
 				}
 				break;
 
@@ -122,7 +117,7 @@ namespace
 			switch (obj->get_type())
 			{
 				case Spec::SysObject::EXPORT:
-					create_top_level_port((Spec::Export*)obj);
+					create_top_level_port(sys, (Spec::Export*)obj);
 					break;
 
 				default: break;
@@ -158,7 +153,7 @@ namespace
 			bool dest_is_export = sys_spec->get_object(bin.front()->get_dest().get_inst())->get_type() ==
 				Spec::SysObject::EXPORT;
 
-			Node* src_node = src_is_export ? s_sys->get_export_node() : s_sys->get_node(objname);
+			Node* src_node = src_is_export ? sys->get_export_node() : sys->get_node(objname);
 			Port* src_port = src_is_export ? src_node->get_port(objname) : src_node->get_port(ifname);
 		
 			// Clock, reset, or any kind of export - create direct connection immediately
@@ -170,14 +165,14 @@ namespace
 				Conn* conn = new Conn();
 				conn->set_source(src_port);
 				src_port->set_conn(conn);
-				s_sys->add_conn(conn);
+				sys->add_conn(conn);
 
 				for (auto& link : bin)
 				{
 					const Spec::LinkTarget& dest_target = link->get_dest();
 					
-					Node* dest_node = dest_is_export ? s_sys->get_export_node() :
-						s_sys->get_node(dest_target.get_inst());
+					Node* dest_node = dest_is_export ? sys->get_export_node() :
+						sys->get_node(dest_target.get_inst());
 					Port* dest_port = dest_is_export ? dest_node->get_port(dest_target.get_inst()) :
 						dest_node->get_port(dest_target.get_iface());
 
@@ -190,7 +185,7 @@ namespace
 			}
 			else // internal data connection
 			{
-				Spec::Linkpoint* src_lp = Spec::get_linkpoint(src_target);
+				Spec::Linkpoint* src_lp = sys_spec->get_linkpoint(src_target);
 				bool is_broadcast = src_lp->get_type() == Spec::Linkpoint::BROADCAST;
 				DataPort* src_data_port = (DataPort*)src_port;
 
@@ -202,7 +197,7 @@ namespace
 					flow->set_id(flow_id++);
 					flow->set_src(src_data_port, src_target);
 					src_data_port->add_flow(flow);
-					s_sys->add_flow(flow);
+					sys->add_flow(flow);
 				}
 
 				// For each link, either create a new flow (non-broadcast) or add to one big
@@ -210,8 +205,8 @@ namespace
 				for (auto& link : bin)
 				{
 					const Spec::LinkTarget& dest_target = link->get_dest();
-					Spec::Linkpoint* dest_lp = Spec::get_linkpoint(dest_target);
-					Node* dest_node = s_sys->get_node(dest_target.get_inst());
+					Spec::Linkpoint* dest_lp = sys_spec->get_linkpoint(dest_target);
+					Node* dest_node = sys->get_node(dest_target.get_inst());
 					DataPort* dest_data_port = (DataPort*)dest_node->get_port(dest_target.get_iface());
 
 					if (!is_broadcast)
@@ -220,7 +215,7 @@ namespace
 						flow->set_id(flow_id++);
 						flow->set_src(src_data_port, src_target);
 						flow->set_sink(dest_data_port, dest_target);
-						s_sys->add_flow(flow);
+						sys->add_flow(flow);
 
 						src_data_port->add_flow(flow);
 						dest_data_port->add_flow(flow);
@@ -235,7 +230,7 @@ namespace
 		} // finish iterating over bins/sources
 
 		// 4: Fixup clocks/protocols of exported data/conduit interfaces
-		for (auto& i : s_sys->get_export_node()->ports())
+		for (auto& i : sys->get_export_node()->ports())
 		{
 			Port* exp_port = (DataPort*)i.second;
 			if (exp_port->get_type() != Port::DATA &&
@@ -263,11 +258,12 @@ namespace
 			ClockResetPort* src_clock_port = (ClockResetPort*)node_clock_port->get_conn()->get_source();
 
 			exp_data_port->set_clock(src_clock_port);
-			
 		}
+
+		return sys;
 	}
 
-	void create_network()
+	void create_network(System* sys)
 	{
 		// Collect all the inports and outports of all the instance nodes that are referened
 		// by flows (ignore exported signals, internal connections only)
@@ -276,7 +272,7 @@ namespace
 		std::unordered_map<DataPort*, DataPort*> inport_to_feeder;
 		std::list<DataPort*> tmp;
 
-		for (auto& it : s_sys->flows())
+		for (auto& it : sys->flows())
 		{
 			Flow* f = it.second;
 			outports_to_visit.insert(f->get_src()->port);
@@ -298,25 +294,25 @@ namespace
 			Node* src_node = src_port->get_parent();
 
 			FlowConvNode* fc_node = new FlowConvNode(
-				s_sys,
+				sys,
 				src_node->get_name() + "_" + src_port->get_name() + "_conv",
 				true,
 				src_proto,
 				src_port->flows(),
 				src_port
 			);
-			s_sys->add_node(fc_node);
+			sys->add_node(fc_node);
 
 			// Connect clock
 			Conn* clk_conn = src_port->get_clock()->get_conn();
 			connect(clk_conn, fc_node->get_clock_port());
 
 			// Connect reset
-			Conn* reset_conn = get_system_reset_conn();
+			Conn* reset_conn = get_system_reset_conn(sys);
 			connect(reset_conn, fc_node->get_reset_port());
 
 			// Connect input
-			s_sys->connect_ports(src_port, fc_node->get_inport());
+			sys->connect_ports(src_port, fc_node->get_inport());
 
 			// Put output on to_visit list
 			outports_to_visit.erase(src_port);
@@ -334,25 +330,25 @@ namespace
 			Node* dest_node = dest_port->get_parent();
 
 			FlowConvNode* fc_node = new FlowConvNode(
-				s_sys,
+				sys,
 				dest_node->get_name() + "_" + dest_port->get_name() + "_conv",
 				false,
 				dest_proto,
 				dest_port->flows(),
 				dest_port
 			);
-			s_sys->add_node(fc_node);
+			sys->add_node(fc_node);
 
 			// Connect clock
 			Conn* clk_conn = dest_port->get_clock()->get_conn();
 			connect(clk_conn, fc_node->get_clock_port());
 
 			// Connect reset
-			Conn* reset_conn = get_system_reset_conn();
+			Conn* reset_conn = get_system_reset_conn(sys);
 			connect(reset_conn, fc_node->get_reset_port());
 
 			// Connect output
-			s_sys->connect_ports(fc_node->get_outport(), dest_port);
+			sys->connect_ports(fc_node->get_outport(), dest_port);
 
 			// Put input on to_visit list
 			inports_to_visit.erase(dest_port);
@@ -397,17 +393,17 @@ namespace
 				n_phys_dest
 			);
 
-			s_sys->add_node(split_node);
+			sys->add_node(split_node);
 
 			// Connect input
-			s_sys->connect_ports(inst_outport, split_node->get_inport());
+			sys->connect_ports(inst_outport, split_node->get_inport());
 
 			// Connect clock
 			Conn* clk_conn = inst_outport->get_clock()->get_conn();
 			connect(clk_conn, split_node->get_clock_port());
 
 			// Connect reset
-			Conn* reset_conn = get_system_reset_conn();
+			Conn* reset_conn = get_system_reset_conn(sys);
 			connect(reset_conn, split_node->get_reset_port());
 
 			// Configure outputs and add them to the structure needed for the Split creation stage
@@ -447,7 +443,7 @@ namespace
 			if (n_phys_src == 1)
 			{
 				DataPort* src = phys_sources.front();
-				s_sys->connect_ports(src, inst_inport);
+				sys->connect_ports(src, inst_inport);
 				continue; // next inst_inport
 			}
 
@@ -457,18 +453,18 @@ namespace
 				inst_inport->get_proto(),
 				n_phys_src);
 
-			s_sys->add_node(merge_node);
+			sys->add_node(merge_node);
 
 			// Connect output
 			DataPort* merge_output = merge_node->get_outport();
-			s_sys->connect_ports(merge_output, inst_inport);
+			sys->connect_ports(merge_output, inst_inport);
 			
 			// Connect clock
 			Conn* clk_conn = inst_inport->get_clock()->get_conn();
 			connect(clk_conn, merge_node->get_clock_port());
 			
 			// Connect reset
-			Conn* reset_conn = get_system_reset_conn();
+			Conn* reset_conn = get_system_reset_conn(sys);
 			connect(reset_conn, merge_node->get_reset_port());
 
 			// Connect inports
@@ -478,7 +474,7 @@ namespace
 				DataPort* merge_input = merge_node->get_inport(inport_idx);
 
 				// Connect port
-				s_sys->connect_ports(phys_src, merge_input);
+				sys->connect_ports(phys_src, merge_input);
 
 				// Register flows with merge node
 				for (Flow* f : phys_src->flows())
@@ -491,9 +487,9 @@ namespace
 		} // next inst_inport
 	}
 
-	void post_process()
+	void post_process(System* sys)
 	{
-		ExportNode* exp = s_sys->get_export_node();
+		ExportNode* exp = sys->get_export_node();
 
 		// Remove dangling ports from system
 		std::forward_list<Port*> ports_to_delete;
@@ -514,7 +510,7 @@ namespace
 
 		// Early version of protocol negotiation - set constant values for
 		// unconnected fields.
-		for (auto& i : s_sys->conns())
+		for (auto& i : sys->conns())
 		{
 			Port* src = i->get_source();
 			Port* sink = i->get_sink(); // only for data connections - one sink
@@ -575,15 +571,10 @@ namespace
 	}
 }
 
-System* ct::get_system()
+P2P::System* ct::build_system(Spec::System* system)
 {
-	return s_sys;
-}
-
-void ct::go()
-{
-	Spec::validate();
-	init_netlist();
-	create_network();
-	post_process();
+	P2P::System* result = init_netlist(system);
+	create_network(result);
+	post_process(result);
+	return result;
 }

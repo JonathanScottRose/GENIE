@@ -252,9 +252,8 @@ namespace
 	}
 }
 
-void WriteVerilog::go()
+void WriteVerilog::go(Vlog::SystemModule* top)
 {
-	SystemModule* top = (SystemModule*)ImplVerilog::get_top_module();
 	std::string filename = top->get_name() + ".v";
 
 	s_file.open(filename);

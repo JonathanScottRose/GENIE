@@ -31,7 +31,7 @@ namespace
 		const std::string& get_module_name(ct::P2P::Node* node)
 		{
 			P2P::InstanceNode* snode = (P2P::InstanceNode*) node;
-			Spec::Component* comp_def = Spec::get_component_for_instance(snode->get_instance()->get_name());
+			Spec::Component* comp_def = Spec::get_component(snode->get_instance()->get_component());
 			BuildSpec::ComponentImpl* impl = (BuildSpec::ComponentImpl*) comp_def->get_impl();
 			return impl->module_name;
 		}
@@ -41,7 +41,7 @@ namespace
 			P2P::InstanceNode* node = (P2P::InstanceNode*) generic_node;
 			assert(node->get_type() == P2P::Node::INSTANCE);
 
-			Spec::Component* comp_def = Spec::get_component_for_instance(node->get_instance()->get_name());
+			Spec::Component* comp_def = Spec::get_component(node->get_instance()->get_component());
 
 			Vlog::Module* result = new Vlog::Module();
 			result->set_name(name);

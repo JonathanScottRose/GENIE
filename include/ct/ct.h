@@ -3,7 +3,7 @@
 namespace ct
 {
 	namespace P2P { class System; }
+	namespace Spec { class System; }
 
-	void go();
-	class P2P::System* get_system();
+	P2P::System* build_system(Spec::System* system);
 }

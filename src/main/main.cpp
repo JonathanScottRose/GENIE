@@ -30,9 +30,17 @@ int main(int argc, char** argv)
 	{
 		parse_args(argc, argv);
 		BuildSpec::go();
-		ct::go();
-		ImplVerilog::go();
-		WriteVerilog::go();
+
+		for (auto& i : Spec::systems())
+		{
+			Spec::System* spec_sys = i.second;
+			P2P::System* p2p_sys = ct::build_system(spec_sys);
+			Vlog::SystemModule* sys_mod = ImplVerilog::build_top_module(p2p_sys);
+			WriteVerilog::go(sys_mod);
+			
+			delete sys_mod;
+			delete p2p_sys;
+		}
 	}
 	catch (std::exception& e)
 	{

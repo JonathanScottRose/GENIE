@@ -57,8 +57,8 @@ Link::~Link()
 // SysObject
 //
 
-SysObject::SysObject(const std::string& name, Type type)
-	: m_name(name), m_type(type)
+SysObject::SysObject(const std::string& name, Type type, System* parent)
+	: m_name(name), m_type(type), m_parent(parent)
 {
 }
 
@@ -70,8 +70,8 @@ SysObject::~SysObject()
 // Instance
 //
 
-Instance::Instance(const std::string& name, const std::string& component)
-	: SysObject(name, INSTANCE), m_component(component)
+Instance::Instance(const std::string& name, const std::string& component, System* parent)
+	: SysObject(name, INSTANCE, parent), m_component(component)
 {
 }
 
@@ -93,8 +93,8 @@ void Instance::set_param_binding(const std::string& name, const Expression& expr
 // Export
 //
 
-Export::Export(const std::string& name, Interface::Type iface_type)
-	: SysObject(name, EXPORT), m_iface_type(iface_type)
+Export::Export(const std::string& name, Interface::Type iface_type, System* parent)
+	: SysObject(name, EXPORT, parent), m_iface_type(iface_type)
 {
 }
 
@@ -128,6 +128,21 @@ SysObject* System::get_object(const std::string& name)
 	return m_objects[name];
 }
 
+Component* System::get_component_for_instance(const std::string& name)
+{
+	auto inst = (Instance*)get_object(name);
+	assert(inst != nullptr);
+	assert(inst->get_type() == SysObject::INSTANCE);
+	return Spec::get_component(inst->get_component());	
+}
+
+Linkpoint* System::get_linkpoint(const LinkTarget& path)
+{	
+	Component* comp = get_component_for_instance(path.get_inst());
+	Interface* iface = comp->get_interface(path.get_iface());
+	return iface->get_linkpoint(path.get_lp());
+}
+
 void System::validate()
 {
 	// Auto-export unexported interfaces
@@ -149,7 +164,7 @@ void System::validate()
 		LinkTarget tmp;
 		tmp.set_inst(instname);
 
-		Component* comp = Spec::get_component_for_instance(instname);
+		Component* comp = get_component_for_instance(instname);
 
 		for (auto& j : comp->interfaces())
 		{
@@ -198,7 +213,7 @@ void System::validate()
 					assert(! (is_data && iface->linkpoints().size() > 1) );
 
 					std::string exname = instname + '_' + ifname;
-					Export* ex = new Export(exname, iface->get_type());
+					Export* ex = new Export(exname, iface->get_type(), this);
 					add_object(ex);
 
 					LinkTarget ex_target(exname);
@@ -230,7 +245,7 @@ void System::validate()
 
 	if (!has_reset)
 	{
-		Export* ex = new Export("reset", Interface::RESET_SINK);
+		Export* ex = new Export("reset", Interface::RESET_SINK, this);
 		add_object(ex);
 	}
 }

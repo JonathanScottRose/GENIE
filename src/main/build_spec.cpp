@@ -228,8 +228,8 @@ namespace
 		req.emplace_back("comp", true);
 		auto attrs = parse_attribs(req, attr);
 
-		s_cur_instance = new Instance(attrs["name"], attrs["comp"]);
-		Spec::get_system()->add_object(s_cur_instance);
+		s_cur_instance = new Instance(attrs["name"], attrs["comp"], s_cur_system);
+		s_cur_system->add_object(s_cur_instance);
 	}
 
 	void visit_link(const XMLAttribute* attr)
@@ -250,7 +250,7 @@ namespace
 			throw Exception("Link must specify at least src or dest");
 
 		Link* link = new Link(src, dest);
-		Spec::get_system()->add_link(link);
+		s_cur_system->add_link(link);
 	}
 
 	void visit_export(const XMLAttribute* attr)
@@ -268,8 +268,8 @@ namespace
 		const std::string& name = attrs["name"];
 		Interface::Type iftype = Interface::type_from_string(attrs["type"]);
 
-		Export* ex = new Export(name, iftype);
-		Spec::get_system()->add_object(ex);
+		Export* ex = new Export(name, iftype, s_cur_system);
+		s_cur_system->add_object(ex);
 	}
 
 	void visit_system(const XMLAttribute* attr)
@@ -283,8 +283,9 @@ namespace
 		req.emplace_back("name", true);
 		auto attrs = parse_attribs(req, attr);
 
-		s_cur_system = Spec::get_system();
+		s_cur_system = new System();
 		s_cur_system->set_name(attrs["name"]);
+		Spec::define_system(s_cur_system);
 	}
 
 	void visit_linkpoint(const XMLElement& elem, const XMLAttribute* attr)
@@ -364,33 +365,49 @@ void BuildSpec::go()
 
 	// Find any undefined components and look for .xml files
 	std::unordered_set<std::string> undef_comps;
-	for (auto& obj : Spec::get_system()->objects())
+	bool check_systems = true;
+	while (check_systems)
 	{
-		Spec::Instance* inst = (Spec::Instance*)obj.second;
-		if (inst->get_type() != Spec::SysObject::INSTANCE)
-			continue;
-
-		auto compname = inst->get_component();
-		Spec::Component* comp = Spec::get_component(compname);
-		if (!comp)
-			undef_comps.insert(compname);
-	}
-
-	for (auto& path : Globals::inst()->component_path)
-	{
-		for (auto& it = undef_comps.begin(); it != undef_comps.end(); )
+		for (auto& i : Spec::systems())
 		{
-			auto comp = *it;
-
-			std::string fullpath = path + "/" + comp + ".xml";
-			if (!Util::fexists(fullpath))
+			Spec::System* sys = i.second;
+			for (auto& obj : sys->objects())
 			{
-				++it;
-				continue;
-			}
+				Spec::Instance* inst = (Spec::Instance*)obj.second;
+				if (inst->get_type() != Spec::SysObject::INSTANCE)
+					continue;
 
-			process_file(fullpath);
-			undef_comps.erase(it++);
+				auto compname = inst->get_component();
+				Spec::Component* comp = Spec::get_component(compname);
+				if (!comp)
+					undef_comps.insert(compname);
+			}
+		}
+
+		// Done looking for unspecified components
+		check_systems = false;
+
+		for (auto& path : Globals::inst()->component_path)
+		{
+			for (auto& it = undef_comps.begin(); it != undef_comps.end(); )
+			{
+				auto comp = *it;
+
+				// See if an .xml file with the component name exists in our path
+				std::string fullpath = path + "/" + comp + ".xml";
+				if (!Util::fexists(fullpath))
+				{
+					++it;
+					continue;
+				}
+
+				// If it does, process it, and just to be safe, because there could be new
+				// systems defined in it (and therefore more missing-components), force a recheck
+				// from the top of the while loop
+				process_file(fullpath);
+				undef_comps.erase(it++);
+				check_systems = true;
+			}
 		}
 	}
 
@@ -402,4 +419,6 @@ void BuildSpec::go()
 		}
 		throw Exception("System instantiates undefined components");
 	}
+
+	Spec::validate();
 }

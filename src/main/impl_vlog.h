@@ -53,8 +53,8 @@ namespace ImplVerilog
 		virtual void get_port_name(P2P::Port*, P2P::Field*, Vlog::Instance*, GPNInfo*) = 0;
 	};
 
-	void go();
-	Vlog::Module* get_top_module();
+	void init();
+	Vlog::SystemModule* build_top_module(P2P::System* sys);
 	void register_impl(P2P::Node::Type type, INodeImpl* entry);
 
 	// Utility

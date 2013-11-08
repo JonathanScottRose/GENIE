@@ -3,6 +3,7 @@
 #include "common.h"
 #include "spec.h"
 #include "export_node.h"
+#include "instance_node.h" // bad
 
 using namespace ct;
 using namespace P2P;
@@ -278,7 +279,11 @@ FlowTarget::FlowTarget(DataPort* _port, const Spec::LinkTarget& _lt)
 
 Spec::Linkpoint* FlowTarget::get_linkpoint() const
 {
-	return Spec::get_linkpoint(lt);
+	auto inst_node = (InstanceNode*) port->get_parent();
+	assert (inst_node->get_type() == Node::INSTANCE);
+	Spec::Instance* inst_def = inst_node->get_instance();
+	Spec::System* sys_spec = inst_def->get_parent();
+	return sys_spec->get_linkpoint(lt);
 }
 
 //
