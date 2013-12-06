@@ -2,8 +2,7 @@
 
 namespace ct
 {
-	namespace P2P { class System; }
+	namespace Core { class Registry; }
 
-	void go();
-	class P2P::System* get_system();
+	Core::Registry* get_registry();
 }

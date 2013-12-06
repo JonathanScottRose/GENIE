@@ -19,33 +19,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\comp_spec.cpp" />
-    <ClCompile Include="..\..\src\export_node.cpp" />
-    <ClCompile Include="..\..\src\expressions.cpp" />
-    <ClCompile Include="..\..\src\flow_conv_node.cpp" />
-    <ClCompile Include="..\..\src\instance_node.cpp" />
-    <ClCompile Include="..\..\src\ct.cpp" />
-    <ClCompile Include="..\..\src\merge_node.cpp" />
-    <ClCompile Include="..\..\src\p2p.cpp" />
-    <ClCompile Include="..\..\src\spec.cpp" />
-    <ClCompile Include="..\..\src\split_node.cpp" />
-    <ClCompile Include="..\..\src\sys_spec.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\..\include\ct\common.h" />
-    <ClInclude Include="..\..\include\ct\comp_spec.h" />
+    <ClInclude Include="..\..\include\ct\core.h" />
     <ClInclude Include="..\..\include\ct\ct.h" />
     <ClInclude Include="..\..\include\ct\export_node.h" />
     <ClInclude Include="..\..\include\ct\expressions.h" />
-    <ClInclude Include="..\..\include\ct\flow_conv_node.h" />
-    <ClInclude Include="..\..\include\ct\instance_node.h" />
-    <ClInclude Include="..\..\include\ct\merge_node.h" />
-    <ClInclude Include="..\..\include\ct\p2p.h" />
-    <ClInclude Include="..\..\include\ct\spec.h" />
-    <ClInclude Include="..\..\include\ct\split_node.h" />
-    <ClInclude Include="..\..\include\ct\static_init.h" />
-    <ClInclude Include="..\..\include\ct\sys_spec.h" />
-    <ClInclude Include="..\..\src\expressions_nodes.h" />
+    <ClInclude Include="..\..\include\ct\system_node.h" />
+    <ClInclude Include="..\..\src\core\expressions_nodes.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\core\core.cpp" />
+    <ClCompile Include="..\..\src\core\ct.cpp" />
+    <ClCompile Include="..\..\src\core\export_node.cpp" />
+    <ClCompile Include="..\..\src\core\expressions.cpp" />
+    <ClCompile Include="..\..\src\core\system_node.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4133A8C2-E422-411C-B3DF-584094E8EFDA}</ProjectGuid>

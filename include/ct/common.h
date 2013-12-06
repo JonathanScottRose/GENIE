@@ -1,13 +1,11 @@
 #pragma once
 
 #include <cassert>
-#include <algorithm>
 #include <functional>
 #include <string>
 #include <unordered_map>
-#include <forward_list>
-#include <list>
 #include <fstream>
+#include <algorithm>
 
 #define PROP_GET(name,type,field) \
 	type get_##name () const { return field ; }
@@ -153,12 +151,12 @@ namespace ct
 	};
 
 	// ConnecTool exception base class
-	class Exception : public std::exception
+	class Exception : public std::runtime_error
 	{
 	public:
 		Exception(const char* what)
-			: std::exception(what) { }
+			: std::runtime_error(what) { }
 		Exception(const std::string& what)
-			: std::exception(what.c_str()) { }
+			: std::runtime_error(what.c_str()) { }
 	};
 }

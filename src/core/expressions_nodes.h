@@ -1,5 +1,6 @@
 #pragma once
 
+#include <forward_list>
 #include "expressions.h"
 
 namespace ct
