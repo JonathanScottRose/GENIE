@@ -9,11 +9,11 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)../include; $(SolutionDir)../src/main</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../include;$(SolutionDir)../src/lua;$(SolutionDir)../src/main</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
-      <AdditionalDependencies>$(SolutionDir)../lib$(PlatformArchitecture)/ct_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)../lib$(PlatformArchitecture)/ct_$(Configuration).lib;$(SolutionDir)../lib$(PlatformArchitecture)/lua_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />

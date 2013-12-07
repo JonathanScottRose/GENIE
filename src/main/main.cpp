@@ -1,7 +1,13 @@
 #include <iostream>
 #include "ct/common.h"
-#include "io.h"
 #include "getoptpp/getopt_pp.h"
+
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
+
+
+#include "io.h"
 #include "globals.h"
 
 using namespace ct;
@@ -29,6 +35,27 @@ int main(int argc, char** argv)
 	try
 	{
 		parse_args(argc, argv);
+
+		lua_State *L = luaL_newstate();
+		luaL_checkversion(L);
+		luaL_openlibs(L);
+
+		int s = luaL_loadfile(L, s_script.c_str());
+		if (s != 0)
+		{
+			std::string err = lua_tostring(L, -1);
+			lua_pop(L, 1);
+			throw Exception(err);
+		}
+		s = lua_pcall(L, 0, LUA_MULTRET, 0);
+		if (s != 0)
+		{
+			std::string err = lua_tostring(L, -1);
+			lua_pop(L, 1);
+			throw Exception(err);
+		}
+
+		lua_close(L);
 	}
 	catch (std::exception& e)
 	{

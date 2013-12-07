@@ -1,3 +1,5 @@
+LUA: add error and print handlers
+
 P2P: protocol encapsulation
 P2P: node creation methodology:  1) construct and hook up,   2) configure()
 VLOG: impl Port->Port mapping is a nightmare. make it data-driven somehow. same for parameters.
