@@ -8,6 +8,8 @@
 #include <forward_list>
 #include <list>
 #include <fstream>
+#include <type_traits>
+#include <memory>
 
 #define PROP_GET(name,type,field) \
 	type get_##name () const { return field ; }
@@ -58,7 +60,7 @@ namespace ct
 		{
 			for (auto& i : container)
 			{
-			delete i;
+				delete i;
 			}
 		}
 
@@ -68,6 +70,27 @@ namespace ct
 			for (auto& i : container)
 			{
 				delete i.second;
+			}
+		}
+
+		// Do deep copy on container
+		template<class T>
+		void copy_all(const T& src, T& dest)
+		{
+			for (auto i : src)
+			{
+				typedef std::remove_reference<decltype(*i)>::type obj_type;
+				dest.push_back(new obj_type(*i));
+			}
+		}
+
+		template<class T>
+		void copy_all_2(const T& src, T& dest)
+		{
+			for (auto i : src)
+			{
+				typedef std::remove_reference<decltype(*i.second)>::type obj_type;
+				dest[i.first] = new obj_type(*i.second);
 			}
 		}
 
@@ -123,11 +146,11 @@ namespace ct
 	{
 	public:
 		HasImplAspect() : m_impl(nullptr) {}
-		virtual ~HasImplAspect() { if (m_impl) delete m_impl; }
-		ImplAspect* get_impl() { return m_impl; }
-		void set_impl(ImplAspect* impl) { m_impl = impl; }
+		virtual ~HasImplAspect() { }
+		ImplAspect* get_impl() { return m_impl.get(); }
+		void set_impl(ImplAspect* impl) { m_impl = std::shared_ptr<ImplAspect>(impl); }
 	protected:
-		ImplAspect* m_impl;
+		std::shared_ptr<ImplAspect> m_impl;
 	};
 
 	class HasImplAspects

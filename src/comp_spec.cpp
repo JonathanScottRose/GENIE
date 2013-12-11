@@ -92,7 +92,7 @@ std::string Signal::get_field_name() const
 // Linkpoint
 //
 
-Linkpoint::Linkpoint(const std::string& name, Type type, DataInterface* iface)
+Linkpoint::Linkpoint(const std::string& name, Type type, Interface* iface)
 	: m_name(name), m_type(type), m_iface(iface)
 {
 }
@@ -115,9 +115,23 @@ Linkpoint::Type Linkpoint::type_from_string(const std::string& str)
 // Interface
 //
 
-Interface::Interface(const std::string& name, Type type)
-	: m_name(name), m_type(type)
+Interface::Interface(const std::string& name, Type type, Component* parent)
+	: m_name(name), m_type(type), m_parent(parent)
 {
+}
+
+Interface::Interface(const Interface& other)
+{
+	m_name = other.m_name;
+	m_type = other.m_type;
+	Util::copy_all(other.m_signals, m_signals);
+	Util::copy_all_2(other.m_linkpoints, m_linkpoints);
+
+	for (auto& i : m_linkpoints)
+	{
+		Linkpoint* lp = i.second;
+		lp->set_iface(this);
+	}
 }
 
 Interface::~Interface()
@@ -186,20 +200,20 @@ Interface::Type Interface::type_from_string(const std::string& str)
 	return Type::CLOCK_SRC;
 }
 
-Interface* Interface::factory(const std::string& name, Type type)
+Interface* Interface::factory(const std::string& name, Type type, Component* parent)
 {
 	switch(type)
 	{
 	case CONDUIT:
-		return new ConduitInterface(name);
+		return new ConduitInterface(name, parent);
 	case SEND:
 	case RECV:
-		return new DataInterface(name, type);
+		return new DataInterface(name, type, parent);
 	case CLOCK_SRC:
 	case CLOCK_SINK:
 	case RESET_SRC:
 	case RESET_SINK:
-		return new ClockResetInterface(name, type);
+		return new ClockResetInterface(name, type, parent);
 	}
 
 	return nullptr;
@@ -220,8 +234,8 @@ Linkpoint* Interface::get_linkpoint(const std::string& name)
 // ClockResetInterface
 //
 
-ClockResetInterface::ClockResetInterface(const std::string& name, Type type)
-	: Interface(name, type)
+ClockResetInterface::ClockResetInterface(const std::string& name, Type type, Component* parent)
+	: Interface(name, type, parent)
 {
 }
 
@@ -229,12 +243,17 @@ ClockResetInterface::~ClockResetInterface()
 {
 }
 
+Interface* ClockResetInterface::clone()
+{
+	return new ClockResetInterface(*this);
+}
+
 //
 // ConduitInterface
 //
 
-ConduitInterface::ConduitInterface(const std::string& name)
-	: Interface(name, CONDUIT)
+ConduitInterface::ConduitInterface(const std::string& name, Component* parent)
+	: Interface(name, CONDUIT, parent)
 {
 }
 
@@ -242,17 +261,27 @@ ConduitInterface::~ConduitInterface()
 {
 }
 
+Interface* ConduitInterface::clone()
+{
+	return new ConduitInterface(*this);
+}
+
 //
 // DataInterface
 //
 
-DataInterface::DataInterface(const std::string& name, Type type)
-	: Interface(name, type)
+DataInterface::DataInterface(const std::string& name, Type type, Component* parent)
+	: Interface(name, type, parent)
 {
 }
 
 DataInterface::~DataInterface()
 {
+}
+
+Interface* DataInterface::clone()
+{
+	return new DataInterface(*this);
 }
 
 //

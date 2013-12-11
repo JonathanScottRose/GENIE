@@ -70,18 +70,18 @@ public:
 		BROADCAST
 	};
 
-	Linkpoint(const std::string& name, Type type, DataInterface* iface);
+	Linkpoint(const std::string& name, Type type, Interface* iface);
 	~Linkpoint();
 
 	PROP_GET_SET(name, const std::string&, m_name);
-	PROP_GET(iface, DataInterface*, m_iface);
+	PROP_GET_SET(iface, Interface*, m_iface);
 	PROP_GET(type, Type, m_type);
 
 	static Type type_from_string(const std::string& type);
 
 protected:	
 	std::string m_name;
-	DataInterface* m_iface;
+	Interface* m_iface;
 	Type m_type;
 };
 
@@ -102,11 +102,14 @@ public:
 		CONDUIT
 	};
 
-	Interface(const std::string& name, Type type);
+	Interface(const std::string& name, Type type, Component* parent);
+	Interface(const Interface&);
 	virtual ~Interface();
+	virtual Interface* clone() = 0;
 
 	PROP_GET_SET(name, const std::string&, m_name);
 	PROP_GET_SET(type, Type, m_type);
+	PROP_GET_SET(parent, Component*, m_parent);
 
 	const Signals& signals() { return m_signals; }
 	void add_signal(Signal* sig);
@@ -120,9 +123,10 @@ public:
 	Linkpoint* get_linkpoint(const std::string& name);
 
 	static Type type_from_string(const std::string& str);
-	static Interface* factory(const std::string& name, Type type);
+	static Interface* factory(const std::string& name, Type type, Component* parent);
 
 protected:
+	Component* m_parent;
 	std::string m_name;
 	Type m_type;
 	Signals m_signals;
@@ -132,15 +136,17 @@ protected:
 class ClockResetInterface : public Interface
 {
 public:
-	ClockResetInterface(const std::string& name, Type type);
+	ClockResetInterface(const std::string& name, Type type, Component* parent);
 	~ClockResetInterface();
+	Interface* clone();
 };
 
 class ConduitInterface : public Interface
 {
 public:
-	ConduitInterface(const std::string& name);
+	ConduitInterface(const std::string& name, Component* parent);
 	~ConduitInterface();
+	Interface* clone();
 };
 
 class DataInterface : public Interface
@@ -148,8 +154,9 @@ class DataInterface : public Interface
 public:
 	typedef std::unordered_map<std::string, Linkpoint*> Linkpoints;
 
-	DataInterface(const std::string& name, Type type);
+	DataInterface(const std::string& name, Type type, Component* parent);
 	~DataInterface();
+	Interface* clone();
 
 	PROP_GET_SET(clock, const std::string&, m_clock);
 

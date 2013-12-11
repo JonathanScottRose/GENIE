@@ -140,7 +140,8 @@ namespace
 		s_cur_interface = Interface::factory
 		(
 			attrs["name"], 
-			Interface::type_from_string(attrs["type"])
+			Interface::type_from_string(attrs["type"]),
+			s_cur_component
 		);
 
 		if (s_cur_interface->get_type() == Interface::SEND ||
@@ -421,4 +422,5 @@ void BuildSpec::go()
 	}
 
 	Spec::validate();
+	Spec::create_subsystems();
 }

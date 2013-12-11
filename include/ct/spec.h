@@ -20,5 +20,6 @@ namespace Spec
 	System* get_system(const std::string& name);
 
 	void validate();
+	void create_subsystems();
 }
 }
