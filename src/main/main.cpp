@@ -31,10 +31,10 @@ int main(int argc, char** argv)
 		parse_args(argc, argv);
 		BuildSpec::go();
 		
+		auto elab_order = Spec::get_elab_order();
 
-		for (auto& i : Spec::systems())
+		for (auto spec_sys : elab_order)
 		{
-			Spec::System* spec_sys = i.second;
 			P2P::System* p2p_sys = ct::build_system(spec_sys);
 			Vlog::SystemModule* sys_mod = ImplVerilog::build_top_module(p2p_sys);
 			WriteVerilog::go(sys_mod);

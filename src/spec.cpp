@@ -93,6 +93,11 @@ const Systems& Spec::systems()
 	return s_systems;
 }
 
+const Components& Spec::components()
+{
+	return s_components;
+}
+
 void Spec::define_system(System* sys)
 {
 	assert(s_systems.count(sys->get_name()) == 0);
@@ -171,6 +176,18 @@ void Spec::create_subsystems()
 
 					((DataInterface*)new_iface)->set_clock(exported_clock_iface);
 				}
+
+				// Turn any parameterized widths into concrete const widths
+				for (Signal* s : new_iface->signals())
+				{
+					int width = s->get_width().get_value([=](const std::string& name)
+					{
+						return &(old_inst->get_param_binding(name));
+					});
+
+					// Replace width expression with a ConstExpression
+					s->set_width(width);
+				}
 			}
 
 			// Register interface
@@ -180,4 +197,41 @@ void Spec::create_subsystems()
 		// Register new component
 		define_component(comp);
 	}
+}
+
+bool Spec::is_subsystem_of(System* a, System* b)
+{
+	// is 'a' a subsystem of 'b'?
+
+	// Go through B's instances and find an instance whose component name is A's name
+	for (auto& i : b->objects())
+	{
+		auto inst = (Instance*)i.second;
+		if (inst->get_type() != SysObject::INSTANCE)
+			continue;
+
+		if (inst->get_component() == a->get_name())
+			return true;
+	}
+
+	return false;
+}
+
+Spec::SystemOrder Spec::get_elab_order()
+{
+	SystemOrder result;
+	
+	for (auto& i : s_systems)
+	{
+		result.push_back(i.second);
+	}
+
+	std::sort(result.begin(), result.end(), 
+		[](System* a, System* b)
+		{
+			return is_subsystem_of(a, b);
+		}
+	);
+
+	return result;
 }

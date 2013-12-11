@@ -364,6 +364,22 @@ void BuildSpec::go()
 		process_file(filename);
 	}
 
+	Spec::create_subsystems();
+
+	// Subsystems need an extra ImplAspect to tell them the verilog module name
+	for (auto& i : Spec::components())
+	{
+		Spec::Component* comp = i.second;
+		
+		auto aspect = (ComponentImpl*)comp->get_impl();
+		if (!aspect)
+		{
+			aspect = new ComponentImpl;
+			aspect->module_name = comp->get_name();
+			comp->set_impl(aspect);
+		}
+	}
+
 	// Find any undefined components and look for .xml files
 	std::unordered_set<std::string> undef_comps;
 	bool check_systems = true;
@@ -422,5 +438,4 @@ void BuildSpec::go()
 	}
 
 	Spec::validate();
-	Spec::create_subsystems();
 }
