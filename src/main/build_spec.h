@@ -20,6 +20,4 @@ namespace BuildSpec
 	{
 		std::string encoding;
 	};
-
-	void go();
 }

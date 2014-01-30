@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)../include; $(SolutionDir)../src/main</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../src/lua;$(SolutionDir)../include;$(SolutionDir)../src/main</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>

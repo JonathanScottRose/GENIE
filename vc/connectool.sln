@@ -1,13 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Express 2013 for Windows Desktop
-VisualStudioVersion = 12.0.21005.1
+VisualStudioVersion = 12.0.30110.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "core", "core\core.vcxproj", "{4133A8C2-E422-411C-B3DF-584094E8EFDA}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "main", "main\main.vcxproj", "{27962422-932E-4A39-B06D-2A9B38B2A797}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sysc", "sysc\sysc.vcxproj", "{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "lua\lua.vcxproj", "{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,14 +33,12 @@ Global
 		{27962422-932E-4A39-B06D-2A9B38B2A797}.Release|Win32.Build.0 = Release|Win32
 		{27962422-932E-4A39-B06D-2A9B38B2A797}.Release|x64.ActiveCfg = Release|x64
 		{27962422-932E-4A39-B06D-2A9B38B2A797}.Release|x64.Build.0 = Release|x64
-		{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}.Debug|Win32.ActiveCfg = Debug|Win32
-		{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}.Debug|Win32.Build.0 = Debug|Win32
-		{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}.Debug|x64.ActiveCfg = Debug|x64
-		{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}.Debug|x64.Build.0 = Debug|x64
-		{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}.Release|Win32.ActiveCfg = Release|Win32
-		{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}.Release|Win32.Build.0 = Release|Win32
-		{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}.Release|x64.ActiveCfg = Release|x64
-		{CAB7286C-0EE8-4640-8C8D-4FE81BD88B96}.Release|x64.Build.0 = Release|x64
+		{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}.Debug|Win32.ActiveCfg = Debug|Win32
+		{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}.Debug|Win32.Build.0 = Debug|Win32
+		{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}.Debug|x64.ActiveCfg = Debug|Win32
+		{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}.Release|Win32.ActiveCfg = Release|Win32
+		{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}.Release|Win32.Build.0 = Release|Win32
+		{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

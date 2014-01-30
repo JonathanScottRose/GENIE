@@ -122,9 +122,11 @@
     <ProjectReference Include="..\core\core.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efda}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\lua\lua.vcxproj">
+      <Project>{882ec8d5-fd07-43ae-8e50-53cf3c6b9074}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\main\build_spec.cpp" />
     <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
     <ClCompile Include="..\..\src\main\impl\export.cpp" />
     <ClCompile Include="..\..\src\main\impl\flow_conv.cpp" />
@@ -133,8 +135,8 @@
     <ClCompile Include="..\..\src\main\impl\split.cpp" />
     <ClCompile Include="..\..\src\main\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\main\io.cpp" />
+    <ClCompile Include="..\..\src\main\lua_iface.cpp" />
     <ClCompile Include="..\..\src\main\main.cpp" />
-    <ClCompile Include="..\..\src\main\tinyxml\tinyxml2.cpp" />
     <ClCompile Include="..\..\src\main\vlog.cpp" />
     <ClCompile Include="..\..\src\main\write_vlog.cpp" />
   </ItemGroup>
@@ -144,7 +146,7 @@
     <ClInclude Include="..\..\src\main\globals.h" />
     <ClInclude Include="..\..\src\main\impl_vlog.h" />
     <ClInclude Include="..\..\src\main\io.h" />
-    <ClInclude Include="..\..\src\main\tinyxml\tinyxml2.h" />
+    <ClInclude Include="..\..\src\main\lua_iface.h" />
     <ClInclude Include="..\..\src\main\vlog.h" />
     <ClInclude Include="..\..\src\main\write_vlog.h" />
   </ItemGroup>

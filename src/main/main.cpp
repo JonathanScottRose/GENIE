@@ -7,19 +7,21 @@
 #include "ct/ct.h"
 #include "write_vlog.h"
 #include "impl_vlog.h"
+#include "lua_iface.h"
 
 namespace
 {
+	std::string s_script;
+
 	void parse_args(int argc, char** argv)
 	{
 		GetOpt::GetOpt_pp args(argc, argv);
 
-		args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
-		
-		if (!(args >> GetOpt::GlobalOption(Globals::inst()->input_files)))
-			throw Exception("Must specify input .xml files");
-	}
+		//args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
 
+		if (!(args >> GetOpt::GlobalOption(s_script)))
+			throw Exception("Must specify script");
+	}
 }
 
 
@@ -29,7 +31,8 @@ int main(int argc, char** argv)
 	try
 	{
 		parse_args(argc, argv);
-		BuildSpec::go();
+		LuaIface::init();
+		LuaIface::exec_script(s_script);
 		
 		auto elab_order = Spec::get_elab_order();
 
@@ -47,6 +50,8 @@ int main(int argc, char** argv)
 	{
 		IO::msg_error(e.what());		
 	}
+
+	LuaIface::shutdown();
 
 	return 0;
 }
