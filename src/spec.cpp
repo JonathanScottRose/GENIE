@@ -182,7 +182,7 @@ void Spec::create_subsystems()
 				{
 					int width = s->get_width().get_value([=](const std::string& name)
 					{
-						return &(old_inst->get_param_binding(name));
+						return old_inst->get_param_binding(name);
 					});
 
 					// Replace width expression with a ConstExpression

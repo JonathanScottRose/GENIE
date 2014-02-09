@@ -9,33 +9,35 @@ namespace ct
 		namespace Nodes { class Node; }
 
 		class Expression;
-		typedef std::function<const Expression*(const std::string&)> NameResolver;
+		typedef std::function<Expression(const std::string&)> NameResolver;
 
 		class Expression
 		{
 		public:
 			Expression();
 			Expression(const Expression&);
+			Expression(Expression&&);
 			Expression(const std::string&);
 			Expression(const char*);
 			Expression(int);
 			~Expression();
 
-			int get_value(const NameResolver& r) const;
-			int get_const_value() const;
-			std::string to_string() const;
-
-			Nodes::Node* get_root() const { return m_root; }
-			void set_root(Nodes::Node* root);
-
 			Expression& operator= (const Expression& other);
-			Expression& operator= (const std::string& str);
-			Expression& operator= (int val);
+			Expression& operator= (Expression&& other);
 
-			static Expression* build(const std::string& str);
+			bool is_const() const;
+			int get_value(const NameResolver& r = get_const_resolver()) const;
+			std::string to_string() const;
+			operator std::string() const;
+
+			static const NameResolver& get_const_resolver();
 
 		protected:
-			static Nodes::Node* build_root(const std::string& str);
+			static Nodes::Node* parse(const std::string& str);
+
+			Nodes::Node* get_root() const {	return m_root; }
+			void set_root(Nodes::Node* root);
+
 			Nodes::Node* m_root;
 		};
 	}

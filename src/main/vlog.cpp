@@ -35,7 +35,7 @@ void Port::set_width(const std::string& expr)
 
 int Port::get_width()
 {
-	return m_width.get_const_value();
+	return m_width.get_value();
 }
 
 Port::Dir Port::rev_dir(Port::Dir in)
@@ -246,7 +246,7 @@ void ParamBinding::set_value(int val)
 
 int ParamBinding::get_value()
 {
-	return m_value.get_const_value();
+	return m_value.get_value();
 }
 
 
@@ -372,7 +372,7 @@ Instance::Instance(const std::string& name, Module* module)
 
 	m_resolv = [this] (const std::string& name)
 	{
-		return &(get_param_binding(name)->value());
+		return get_param_binding(name)->value();
 	};
 }
 

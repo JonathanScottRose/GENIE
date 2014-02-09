@@ -14,7 +14,7 @@ void InstanceNode::convert_fields(Port* port, Spec::Interface* iface, Spec::Inst
 	{
 		int width = i->get_width().get_value([=] (const std::string& name)
 		{
-			return &(inst->get_param_binding(name));
+			return inst->get_param_binding(name);
 		});
 
 		std::string field_name = i->get_field_name();

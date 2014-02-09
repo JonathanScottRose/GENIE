@@ -1,4 +1,6 @@
 #include <regex>
+#include <stack>
+#include <sstream>
 #include "expressions.h"
 #include "expressions_nodes.h"
 
@@ -39,6 +41,11 @@ void OpNode::clear()
 	delete m_rhs;
 	m_lhs = nullptr;
 	m_rhs = nullptr;
+}
+
+bool OpNode::is_constant() const
+{
+	return (m_lhs->is_constant() && m_rhs->is_constant());
 }
 
 int OpNode::get_value(const NameResolver& r)
@@ -94,7 +101,7 @@ ConstNode::ConstNode()
 {
 }
 
-ConstNode::ConstNode(int val)
+ConstNode::ConstNode(const int& val)
 : m_value(val)
 {
 }
@@ -109,7 +116,7 @@ int ConstNode::get_value(const NameResolver& r)
 	return m_value;
 }
 
-void ConstNode::set_value(int val)
+void ConstNode::set_value(const int& val)
 {
 	m_value = val;
 }
@@ -117,6 +124,11 @@ void ConstNode::set_value(int val)
 std::string ConstNode::to_string() const
 {
 	return std::to_string(m_value);
+}
+
+bool ConstNode::is_constant() const
+{
+	return true;
 }
 
 //
@@ -139,47 +151,88 @@ Node* NameNode::clone() const
 
 int NameNode::get_value(const NameResolver& r)
 {
-	const Expression* expr = r(m_ref);
-	return expr->get_value(r);
+	Expression expr = r(m_ref);
+	return expr.get_value(r);
 }
 
 std::string NameNode::to_string() const
 {
 	return m_ref;
 }
-	
+
+bool NameNode::is_constant() const
+{
+	return false;
+}
+
+//
+// LogNode
+//
+
+LogNode::LogNode()
+{
+}
+
+Node* LogNode::clone() const
+{
+	return new LogNode(*this);
+}
+
+int LogNode::get_value(const NameResolver& r)
+{
+	int v = m_child->get_value(r);
+	return Util::log2(v);
+}
+
+std::string LogNode::to_string() const
+{
+	return "$clog2(" + m_child->to_string() + ")";
+}
+
+bool LogNode::is_constant() const
+{
+	return m_child->is_constant();
+}
+
+
 
 //
 // Expression
 //
 
 Expression::Expression()
-	: m_root(nullptr)
+: m_root(nullptr)
 {
 }
 
 Expression::Expression(const Expression& other)
-	: Expression()
+: Expression()
 {
 	*this = other;
 }
 
-Expression::Expression(const std::string& str)
-	: Expression()
+Expression::Expression(Expression&& other)
 {
-	*this = str;
+	// c++11 Move Constructor. Efficient!
+	m_root = other.m_root;
+	other.m_root = nullptr;
+}
+
+Expression::Expression(const std::string& str)
+: Expression()
+{
+	set_root(parse(str));
 }
 
 Expression::Expression(int val)
-	: Expression()
+: Expression()
 {
-	*this = val;
+	set_root(new ConstNode(val));
 }
 
 Expression::Expression(const char* str)
-	: Expression()
+: Expression(std::string(str))
 {
-	*this = std::string(str);
 }
 
 Expression::~Expression()
@@ -192,6 +245,16 @@ std::string Expression::to_string() const
 	return m_root->to_string();
 }
 
+Expression::operator std::string() const
+{
+	return to_string();
+}
+
+bool Expression::is_const() const
+{
+	return m_root->is_constant();
+}
+
 void Expression::set_root(Node* root)
 {
 	if (m_root) delete m_root;
@@ -200,62 +263,68 @@ void Expression::set_root(Node* root)
 
 int Expression::get_value(const NameResolver& r) const
 {
+	if (m_root == nullptr)
+		throw Exception("Empty expression");
+
 	return m_root->get_value(r);
 }
 
-int Expression::get_const_value() const
+auto Expression::get_const_resolver() -> const NameResolver&
 {
-	static NameResolver r = [] (const std::string& name)
-	{
-		assert(false);
-		return nullptr;
-	};
+	static NameResolver s_null_resolv = 
+		[](const std::string& name)
+		{
+			throw Exception("Subexpression not constant: " + name);
+			return Expression();
+		};
 
-	return get_value(r);
+	return s_null_resolv;
 }
 
 Expression& Expression::operator= (const Expression& other)
 {
-	if (other.get_root() == nullptr)
+	Node* other_root = other.get_root();
+
+	if (other_root == nullptr)
 	{
 		set_root(nullptr);
 	}
-	else
+	else if (other_root != m_root) // self-check
 	{
-		set_root(other.get_root()->clone());
+		set_root(other_root->clone());
 	}
 	return *this;
 }
 
-Expression& Expression::operator= (int val)
+Expression& Expression::operator= (Expression&& other)
 {
-	set_root(new ConstNode(val));
+	Node* other_root = other.get_root();
+
+	if (other_root == nullptr)
+	{
+		set_root(nullptr);
+	}
+	else if (other_root != m_root) // self-check
+	{
+		set_root(other_root);
+		// do NOT use other.set_root(nullptr) here or else it will delete
+		// the root before nulling it
+		other.m_root = nullptr;
+	}
 	return *this;
 }
 
-Expression& Expression::operator= (const std::string& str)
-{
-	set_root(build_root(str));
-	return *this;
-}
-
-Expression* Expression::build(const std::string& str)
-{
-	Expression* result = new Expression();
-	result->set_root(build_root(str));
-	return result;
-}
-
-Node* Expression::build_root(const std::string& str)
+Node* Expression::parse(const std::string& str)
 {
 	std::string s = str;
 	std::smatch mr;
-	std::regex regex("\\s*(\\d+)|([+-/*])|([[:alnum:]_]+)");
+	std::regex regex("\\s*(\\d+)|([+-/*])|(%)|([[:alnum:]_]+)");
 
 	Node* node = nullptr;
 	Node* last = nullptr;
 	char op = 0;
 	bool has_op = false;
+	bool has_log = false;
 
 	while (std::regex_search(s, mr, regex))
 	{
@@ -272,7 +341,11 @@ Node* Expression::build_root(const std::string& str)
 		}
 		else if (mr[3].matched)
 		{
-			node = new NameNode(mr[3]);
+			has_log = true;
+		}
+		else if (mr[4].matched)
+		{
+			node = new NameNode(mr[4]);
 		}
 		else
 		{
@@ -293,6 +366,13 @@ Node* Expression::build_root(const std::string& str)
 
 				has_op = false;
 				op = 0;
+			}
+			else if (has_log)
+			{
+				LogNode* log_node = new LogNode();
+				log_node->set_child(node);
+				node = log_node;
+				has_log = false;
 			}
 
 			last = node;

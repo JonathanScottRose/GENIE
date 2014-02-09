@@ -13,7 +13,7 @@ Signal::Signal(Type type, const Expression& width)
 	if (type == CLOCK || type == RESET || type == VALID || type == READY ||
 		type == SOP || type == EOP)
 	{
-		assert(width.get_const_value() == 1);
+		assert(width.get_value() == 1);
 	}
 
 	switch (m_type)

@@ -139,7 +139,7 @@ function System:create_auto_exports()
 				src_lt.lp = lp.name
 				
 				if not is_connected[src_lt:str()] then
-					local exname = comp.name .. "_" .. iface.name
+					local exname = obj.name .. "_" .. iface.name
 					if util.count(iface.linkpoints) > 1 then
 						exname = exname .. "_" .. lp.name
 					end

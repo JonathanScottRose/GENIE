@@ -1,5 +1,6 @@
 #pragma once
 
+#include <forward_list>
 #include "expressions.h"
 
 namespace ct
@@ -10,16 +11,16 @@ namespace ct
 		{
 			class Node;
 			class OpNode;
-			class SumNode;
-			class ProductNode;
 			class ConstNode;
 			class NameNode;
+			class LogNode;
 
 			class Node
 			{
 			public:
 				virtual ~Node();
 
+				virtual bool is_constant() const = 0;
 				virtual int get_value(const NameResolver& r) = 0;
 				virtual Node* clone() const = 0;
 				virtual std::string to_string() const = 0;
@@ -40,6 +41,7 @@ namespace ct
 				void set_lhs(Node* node);
 				void set_rhs(Node* node);
 
+				bool is_constant() const;
 				int get_value(const NameResolver& r);
 				Node* clone() const;
 				std::string to_string() const;
@@ -54,11 +56,12 @@ namespace ct
 			{
 			public:
 				ConstNode();
-				ConstNode(int val);
+				ConstNode(const int& val);
 				Node* clone() const;
 
+				bool is_constant() const;
 				int get_value(const NameResolver& r);
-				void set_value(int val);
+				void set_value(const int& val);
 				std::string to_string() const;
 
 			protected:
@@ -72,6 +75,7 @@ namespace ct
 				NameNode(const std::string& expr_name);
 				Node* clone() const;
 
+				bool is_constant() const;
 				int get_value(const NameResolver& r);
 				std::string to_string() const;
 
@@ -79,6 +83,22 @@ namespace ct
 
 			protected:
 				std::string m_ref;
+			};
+
+			class LogNode : public Node
+			{
+			public:
+				LogNode();
+				Node* clone() const;
+
+				bool is_constant() const;
+				int get_value(const NameResolver& r);
+				std::string to_string() const;
+
+				PROP_GET_SET(child, Node*, m_child);
+
+			protected:
+				Node* m_child;
 			};
 		}
 	}
