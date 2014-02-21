@@ -11,13 +11,7 @@ namespace P2P
 	class InstanceNode : public Node
 	{
 	public:
-		struct PortAspect : public ImplAspect
-		{
-			Spec::Interface* iface_def;
-		};
-
 		InstanceNode(Spec::Instance* def);
-		~InstanceNode();
 	
 		PROP_GET_SET(instance, Spec::Instance*, m_instance);
 	

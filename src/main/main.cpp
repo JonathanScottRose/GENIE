@@ -2,7 +2,6 @@
 #include <iostream>
 #include "getoptpp/getopt_pp.h"
 #include "globals.h"
-#include "build_spec.h"
 #include "io.h"
 #include "ct/ct.h"
 #include "write_vlog.h"
@@ -30,8 +29,8 @@ int main(int argc, char** argv)
 {
 	try
 	{
-		parse_args(argc, argv);
 		LuaIface::init();
+		parse_args(argc, argv);
 		LuaIface::exec_script(s_script);
 		
 		auto elab_order = Spec::get_elab_order();

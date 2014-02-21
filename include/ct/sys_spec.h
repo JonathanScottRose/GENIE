@@ -15,6 +15,8 @@ class LinkTarget;
 class InterfaceState;
 class System;
 
+class TopoGraph;
+
 
 class LinkTarget
 {
@@ -27,6 +29,8 @@ public:
 	PROP_GET_SET(lp, const std::string&, m_lp);
 
 	std::string get_path() const;
+
+	bool LinkTarget::operator== (const LinkTarget& other) const;
 
 private:
 	std::string m_inst;
@@ -133,6 +137,7 @@ public:
 	~System();
 
 	PROP_GET_SET(name, const std::string&, m_name);
+	PROP_GET(topology, TopoGraph*, m_topo);
 
 	const Links& links() { return m_links; }
 	void add_link(Link* link);
@@ -150,6 +155,7 @@ protected:
 	std::string m_name;
 	Links m_links;
 	Objects m_objects;
+	TopoGraph* m_topo;
 };
 
 

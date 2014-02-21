@@ -23,8 +23,9 @@ namespace ImplVerilog
 	{
 	public:
 		virtual void visit(INetlist*, P2P::Node*) = 0;
-		virtual Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*) = 0;
-		virtual void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, Vlog::Bindable*) = 0;
+		virtual Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::PhysField*) = 0;
+		virtual void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::PhysField*, P2P::Field*, 
+			Vlog::Bindable*, int net_lo = 0) = 0;
 	};
 
 	// This is specifically for nodes representing module instances
@@ -39,18 +40,18 @@ namespace ImplVerilog
 		};
 
 		void visit(INetlist*, P2P::Node*);
-		Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*);
-		void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, Vlog::Bindable*);
+		Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::PhysField*);
+		void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::PhysField*, P2P::Field*, 
+			Vlog::Bindable*, int);
 
 	protected:
-		struct InstAspect : public ImplAspect { Vlog::Instance* inst; };
 		void set_inst_for_node(P2P::Node*, Vlog::Instance*);
 		Vlog::Instance* get_inst_for_node(P2P::Node*);
 
 		virtual const std::string& get_module_name(ct::P2P::Node* node) = 0;
 		virtual Vlog::Module* implement(P2P::Node*, const std::string&) = 0;
 		virtual void parameterize(P2P::Node*, Vlog::Instance*) = 0;
-		virtual void get_port_name(P2P::Port*, P2P::Field*, Vlog::Instance*, GPNInfo*) = 0;
+		virtual void get_port_name(P2P::Port*, P2P::PhysField*, Vlog::Instance*, GPNInfo*) = 0;
 	};
 
 	void init();
@@ -58,6 +59,6 @@ namespace ImplVerilog
 	void register_impl(P2P::Node::Type type, INodeImpl* entry);
 
 	// Utility
-	Vlog::Port::Dir conv_port_dir(P2P::Port*, P2P::Field*);
-	std::string name_for_p2p_port(P2P::Port*, P2P::Field*);
+	Vlog::Port::Dir conv_port_dir(P2P::Port*, P2P::PhysField*);
+	std::string name_for_p2p_port(P2P::Port*, P2P::PhysField*);
 }

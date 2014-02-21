@@ -2,7 +2,6 @@
 
 #include "impl_vlog.h"
 #include "ct/instance_node.h"
-#include "build_spec.h"
 
 using namespace ct;
 
@@ -32,8 +31,7 @@ namespace
 		{
 			P2P::InstanceNode* snode = (P2P::InstanceNode*) node;
 			Spec::Component* comp_def = Spec::get_component(snode->get_instance()->get_component());
-			BuildSpec::ComponentImpl* impl = (BuildSpec::ComponentImpl*) comp_def->get_impl();
-			return impl->module_name;
+			return comp_def->get_aspect_val<std::string>();
 		}
 
 		Vlog::Module* implement(ct::P2P::Node* generic_node, const std::string& name)
@@ -63,9 +61,8 @@ namespace
 
 				for (Spec::Signal* sig : iface->signals())
 				{
-					BuildSpec::SignalImpl* impl = (BuildSpec::SignalImpl*)sig->get_impl();
-
-					Vlog::Port* port = new Vlog::Port(impl->signal_name, result);
+					std::string signal_name = sig->get_aspect_val<std::string>();
+					Vlog::Port* port = new Vlog::Port(signal_name, result);
 					port->set_dir(conv_port_dir(iface->get_type(), sig->get_sense()));
 					port->width() = sig->get_width();
 					result->add_port(port);
@@ -87,14 +84,12 @@ namespace
 			}
 		}
 
-		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, GPNInfo* result)
+		void get_port_name(P2P::Port* port, P2P::PhysField* pfield, Vlog::Instance* inst, GPNInfo* result)
 		{
-			auto port_impl = (P2P::InstanceNode::PortAspect*)port->get_impl("iface_def");
-			Spec::Interface* iface = port_impl->iface_def;
-			Spec::Signal* sig = iface->get_signal(field->name);
-			auto sig_impl = (BuildSpec::SignalImpl*)sig->get_impl();
+			auto iface = port->get_aspect<Spec::Interface>("iface_def");
+			Spec::Signal* sig = iface->get_signal(pfield->name);
 			
-			result->port = sig_impl->signal_name;			
+			result->port = sig->get_aspect_val<std::string>();
 			result->lo = 0;
 		}
 	} s_impl;

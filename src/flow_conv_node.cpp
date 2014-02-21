@@ -2,55 +2,39 @@
 
 using namespace ct::P2P;
 
-FlowConvNode::FlowConvNode(System* parent, const std::string& name, bool to_flow, 
-	const Protocol& user_proto, const DataPort::Flows& flows, DataPort* user_port)
-	: P2P::Node(FLOW_CONV), m_to_flow(to_flow), m_user_port(user_port)
+FlowConvNode::FlowConvNode(const std::string& name, bool to_flow)
+	: Node(FLOW_CONV), m_to_flow(to_flow)
 {
 	set_name(name);
 
-	// Create clock input
-	ClockResetPort* cport = new ClockResetPort(Port::CLOCK, Port::IN, this);
-	cport->set_name("clock");
-	add_port(cport);
+	// Create clock and reset ports
+	ClockResetPort* clkport = new ClockResetPort(Port::CLOCK, Port::IN, this);
+	clkport->set_name("clock");
+	add_port(clkport);
 
-	// Create reset input
-	ClockResetPort* rport = new ClockResetPort(Port::RESET, Port::IN, this);
-	rport->set_name("reset");
-	add_port(rport);
+	ClockResetPort* rstport = new ClockResetPort(Port::RESET, Port::IN, this);
+	rstport->set_name("reset");
+	add_port(rstport);
+
+	// Common protocol for input and output (flow_id and lp_id created in configure())
+	Protocol proto;
+	proto.init_physfield("data", 0);
+	proto.init_field("valid", 1);
+	proto.init_field("ready", 1, PhysField::REV);
 
 	// Create input
 	DataPort* in_port = new DataPort(this, Port::IN);
 	in_port->set_name("in");
-	in_port->set_clock(cport);
-	in_port->add_flows(flows);
+	in_port->set_clock(clkport);
+	in_port->set_proto(proto);
 	add_port(in_port);
 
 	// Create output
 	DataPort* out_port = new DataPort(this, Port::OUT);
 	out_port->set_name("out");
-	out_port->set_clock(cport);
-	out_port->add_flows(flows);
+	out_port->set_clock(clkport);
+	out_port->set_proto(proto);
 	add_port(out_port);
-
-	DataPort* user_facing_port = to_flow? in_port : out_port;
-	DataPort* sys_facing_port = to_flow? out_port : in_port;
-
-	// Configure user port
-	user_facing_port->set_proto(user_proto);
-
-	// Calculate flow_id width
-	int flow_width = parent->get_global_flow_id_width();
-
-	// Configure system port
-	Protocol sys_proto = user_proto;
-	assert(!sys_proto.has_field("link_id"));
-	sys_proto.delete_field("lp_id");
-	sys_proto.add_field(new Field("flow_id", flow_width, Field::FWD));
-	sys_facing_port->set_proto(sys_proto);
-}
-
-FlowConvNode::~FlowConvNode()
-{
 }
 
 ClockResetPort* FlowConvNode::get_clock_port()
@@ -63,12 +47,12 @@ ClockResetPort* FlowConvNode::get_reset_port()
 	return (ClockResetPort*)get_port("reset");
 }
 
-DataPort* FlowConvNode::get_inport()
+Port* FlowConvNode::get_inport()
 {
 	return (DataPort*)get_port("in");
 }
 
-DataPort* FlowConvNode::get_outport()
+Port* FlowConvNode::get_outport()
 {
 	return (DataPort*)get_port("out");
 }
@@ -94,21 +78,55 @@ int FlowConvNode::get_n_entries()
 
 int FlowConvNode::get_in_field_width()
 {
-	const Protocol& proto = get_inport()->get_proto();
+	Protocol& proto = get_inport()->get_proto();
 	Field* f = proto.get_field(get_in_field_name());
 	return f->width;
 }
 
 int FlowConvNode::get_out_field_width()
 {
-	const Protocol& proto = get_outport()->get_proto();
+	Protocol& proto = get_outport()->get_proto();
 	Field* f = proto.get_field(get_out_field_name());
 	return f->width;
 }
 
-const DataPort::Flows& FlowConvNode::get_flows()
+const Port::Flows& FlowConvNode::get_flows()
 {
 	return get_inport()->flows();
 }
 
+Node::PortList FlowConvNode::trace(Port* port, Flow* flow)
+{
+	return PortList(1, get_outport());
+}
 
+Port* FlowConvNode::rtrace(Port* port, Flow* flow)
+{
+	return get_inport();
+}
+
+void FlowConvNode::configure_1()
+{
+	// set correct lp_id width and flow_id width
+	Port* user_facing_port = m_to_flow ? get_inport() : get_outport();
+	Port* sys_facing_port = m_to_flow ? get_outport() : get_inport();
+
+	Port* user_port = user_facing_port->get_first_connected_port();
+	int lp_id_width = user_port->get_proto().get_field("lp_id")->width;
+	user_facing_port->get_proto().init_field("lp_id", lp_id_width);
+	
+	sys_facing_port->get_proto().init_field("flow_id", m_parent->get_global_flow_id_width());
+
+	m_user_port = user_facing_port->get_first_connected_port();
+}
+
+void FlowConvNode::carry_fields(const FieldSet& set)
+{
+	get_outport()->get_proto().carry_fields(set, "data");
+}
+
+void FlowConvNode::configure_2()
+{
+	get_outport()->get_proto().allocate_bits();
+	get_inport()->get_proto().copy_carriage(get_outport()->get_proto(),	"data");
+}

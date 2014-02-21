@@ -1,4 +1,5 @@
 require 'spec'
+require 'topo_xbar'
 
 local s = spec.Spec:new()
 local b = s:builder()
@@ -33,7 +34,7 @@ b:component('add', 'add')
 		b:signal('valid', 'o_result_valid')
 		b:signal('ready', 'i_result_ready')
 
-b:system('the_sys')
+b:system('the_sys', topo_xbar)
 	b:instance('the_mult', 'mult')
 		b:defparam('WIDTH', '16')
 	b:instance('the_add', 'add')

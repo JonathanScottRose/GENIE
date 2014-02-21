@@ -23,15 +23,16 @@ namespace
 			{
 				P2P::Port* p = i.second;
 
-				for (P2P::Field* f : p->get_proto().fields())
+				for (auto& j : p->get_proto().phys_fields())
 				{
+					P2P::PhysField* pf = j.second;
 					// Create port. Don't forget to reverse the direction of the port, because
 					// the export node's ports point inwards towards the system components but
 					// we want to create a port facing outwards to a higher-level module.
-					std::string portname = ImplVerilog::name_for_p2p_port(p, f);
+					std::string portname = ImplVerilog::name_for_p2p_port(p, pf);
 					Vlog::Port* port = new Vlog::Port(portname, sysmod);
-					port->set_dir(Vlog::Port::rev_dir(ImplVerilog::conv_port_dir(p, f))); // reverse dir!
-					port->set_width(f->width);
+					port->set_dir(Vlog::Port::rev_dir(ImplVerilog::conv_port_dir(p, pf))); // reverse dir!
+					port->set_width(pf->width);
 					sysmod->add_port(port);
 
 					// Create corresponding export net
@@ -45,15 +46,15 @@ namespace
 		// have nets associated with each input and output. Return the name of these nets
 		// and return true.
 		Vlog::Net* produce_net(INetlist* netlist, P2P::Node* generic_node, P2P::Port* port, 
-			P2P::Field* field)
+			P2P::PhysField* pfield)
 		{
-			std::string name = ImplVerilog::name_for_p2p_port(port, field);
+			std::string name = ImplVerilog::name_for_p2p_port(port, pfield);
 			return netlist->get_system_module()->get_net(name);
 		}
 
 		// No kind of binding is required
-		void accept_net(INetlist* netlist, P2P::Node* generic_node, P2P::Port* port, P2P::Field* field,
-			Vlog::Bindable* net)
+		void accept_net(INetlist* netlist, P2P::Node* generic_node, P2P::Port* port, 
+			P2P::PhysField* pfield, P2P::Field* field, Vlog::Bindable* net, int net_lo)
 		{
 		}
 	} s_impl;

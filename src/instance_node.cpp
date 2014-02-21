@@ -18,10 +18,10 @@ void InstanceNode::convert_fields(Port* port, Spec::Interface* iface, Spec::Inst
 		});
 
 		std::string field_name = i->get_field_name();
-		Field::Sense field_sense = i->get_sense() == Spec::Signal::FWD? Field::FWD : Field::REV;
+		PhysField::Sense field_sense = i->get_sense() == Spec::Signal::FWD? 
+			PhysField::FWD : PhysField::REV;
 
-		Field* f = new Field(field_name, width, field_sense);
-		proto.add_field(f);
+		proto.init_field(field_name, width, field_sense);
 	}
 
 	port->set_proto(proto);
@@ -90,15 +90,9 @@ InstanceNode::InstanceNode(Spec::Instance* def)
 		}
 
 		port->set_name(ifacedef->get_name());
-		
-		PortAspect* asp = new PortAspect;
-		asp->iface_def = ifacedef;
-		port->set_impl("iface_def", asp);
+		port->set_aspect("iface_def", ifacedef);
 
 		add_port(port);
 	}
 }
 
-InstanceNode::~InstanceNode()
-{
-}

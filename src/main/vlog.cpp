@@ -121,7 +121,7 @@ bool PortState::is_empty()
 
 void PortState::bind(Bindable* target, int width, int port_lo, int targ_lo)
 {
-	// Check if this binding will overlap with existing bindings
+	// Check if this binding will overlap with existing bindings (at the port binding site)
 	for (auto& b : m_bindings)
 	{
 		assert(port_lo + width <= b->get_port_lo() ||
@@ -145,12 +145,6 @@ void PortState::bind(Bindable* target, int width, int port_lo, int targ_lo)
 	binding->set_target_lo(targ_lo);
 	binding->set_width(width);
 	m_bindings.push_back(binding);
-
-	/*
-	std::sort(m_bindings.begin(), m_bindings.end(), [] (PortBinding* a, PortBinding* b)
-	{
-		return a->get_port_lo() > b->get_port_lo();
-	});*/
 }
 
 void PortState::bind(Bindable* target, int port_lo, int targ_lo)

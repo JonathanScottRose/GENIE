@@ -1,49 +1,35 @@
+#include <unordered_set>
 #include "split_node.h"
+
 
 using namespace ct;
 using namespace ct::P2P;
 
-namespace
-{
-	// Custom impl-aspect for outports: holds integer index of outport
-	struct PortIndex : public ImplAspect
-	{
-		PortIndex(int i) : idx(i) {}
-		int idx;
-	};
-}
 
-SplitNode::SplitNode(const std::string& name, const Protocol& proto, int n_outputs)
-	: Node(SPLIT), m_n_outputs(n_outputs), m_proto(proto)
+SplitNode::SplitNode(const std::string& name, int n_outputs)
+	: Node(SPLIT), m_n_outputs(n_outputs)
 {
 	set_name(name);
 
 	// Create clock and reset ports
-	ClockResetPort* cport = new ClockResetPort(Port::CLOCK, Port::IN, this);
-	cport->set_name("clock");
-	add_port(cport);
+	ClockResetPort* clkport = new ClockResetPort(Port::CLOCK, Port::IN, this);
+	clkport->set_name("clock");
+	add_port(clkport);
 
-	cport = new ClockResetPort(Port::RESET, Port::IN, this);
-	cport->set_name("reset");
-	add_port(cport);
-
-	// Force required fields in the protocol (hack, please fix me).
-	// The input protocol may be lacking a flow_id if it's connected to a
-	// broadcast linkpoint, so we have to add this field in the input, figure
-	// out its width based on the flow coming in, and then let allow that
-	// field to be defaulted
-	if (!m_proto.has_field("valid"))
-		m_proto.add_field(new Field("valid", 1, Field::FWD));
-	if (!m_proto.has_field("ready"))
-		m_proto.add_field(new Field("ready", 1, Field::REV));
-	if (!m_proto.has_field("flow_id"))
-		m_proto.add_field(new Field("flow_id", 1, Field::FWD)); // configured later to correct width
+	ClockResetPort* rstport = new ClockResetPort(Port::RESET, Port::IN, this);
+	rstport->set_name("reset");
+	add_port(rstport);
 
 	// Create inports
+	Protocol proto;
+	proto.init_field("valid", 1);
+	proto.init_field("ready", 1, PhysField::REV);
+	proto.init_physfield("data", 0);
+
 	DataPort* port = new DataPort(this, Port::IN);
 	port->set_name("in");
-	port->set_clock(cport);
-	port->set_proto(m_proto);
+	port->set_clock(clkport);
+	port->set_proto(proto);
 	add_port(port);
 
 	// Create outports
@@ -51,32 +37,10 @@ SplitNode::SplitNode(const std::string& name, const Protocol& proto, int n_outpu
 	{
 		port = new DataPort(this, Port::OUT);
 		port->set_name("out" + std::to_string(i));
-		port->set_clock(cport);
-		port->set_proto(m_proto);
-		port->set_impl("idx", new PortIndex(i));
+		port->set_clock(clkport);
+		port->set_proto(proto);
+		port->set_aspect_val("idx", i);
 		add_port(port);
-	}
-}
-
-SplitNode::~SplitNode()
-{
-}
-
-void SplitNode::configure()
-{
-	// After all the flows have been added, figure out the width of the flow_id field.
-	// This is duplicating work if the protocol already had a properly-sized flow_id field,
-	// but is necessary if we're creating a defaulted flow_id field at the input.
-	int w = get_flow_id_width();
-
-	// There's 3 copies of the protocol lying around here...
-	m_proto.get_field("flow_id")->width = w;
-
-	get_inport()->get_proto().get_field("flow_id")->width = w;
-
-	for (int i = 0; i < m_n_outputs; i++)
-	{
-		get_outport(i)->get_proto().get_field("flow_id")->width = w;
 	}
 }
 
@@ -89,12 +53,12 @@ void SplitNode::register_flow(Flow* flow, int outport_idx)
 	m_route_map[flow->get_id()].push_back(outport_idx);
 }
 
-DataPort* SplitNode::get_inport()
+Port* SplitNode::get_inport()
 {
 	return (DataPort*)get_port("in");
 }
 
-DataPort* SplitNode::get_outport(int i)
+Port* SplitNode::get_outport(int i)
 {
 	return (DataPort*)get_port("out" + std::to_string(i));
 }
@@ -116,9 +80,19 @@ int SplitNode::get_n_flows()
 
 int SplitNode::get_idx_for_outport(Port* port)
 {
-	auto impl = (PortIndex*)port->get_impl("idx");
-	assert(impl);
-	return impl->idx;
+	return port->get_aspect_val<int>("idx");
+}
+
+Port* SplitNode::get_free_outport()
+{
+	for (int i = 0; i < m_n_outputs; i++)
+	{
+		Port* result = get_outport(i);
+		if (result->get_conn() == nullptr)
+			return result;
+	}
+	
+	return nullptr;
 }
 
 int SplitNode::get_flow_id_width()
@@ -136,4 +110,70 @@ auto SplitNode::get_dests_for_flow(int flow_id) -> const DestVec&
 const DataPort::Flows& SplitNode::get_flows()
 {
 	return get_inport()->flows();
+}
+
+Node::PortList SplitNode::trace(Port* in, Flow* f)
+{
+	PortList result;
+
+	for (int i = 0; i < m_n_outputs; i++)
+	{
+		Port* out = get_outport(i);
+		if (out->has_flow(f))
+			result.push_back(out);
+	}
+
+	return result;
+}
+
+Port* SplitNode::rtrace(Port* port, Flow* flow)
+{
+	return get_inport();
+}
+
+void SplitNode::configure_1()
+{
+	// add flow_id fields to protocol
+	get_inport()->get_proto().init_field("flow_id", m_parent->get_global_flow_id_width());
+
+	for (int i = 0; i < m_n_outputs; i++)
+	{
+		get_outport(i)->get_proto().init_field(
+			"flow_id", m_parent->get_global_flow_id_width());
+	}
+
+	// update route map (could be obsolete later)
+	for (auto flow : get_inport()->flows())
+	{
+		for (int i = 0; i < m_n_outputs; i++)
+		{
+			Port* out = get_outport(i);
+			if (out->has_flow(flow))
+			{
+				m_route_map[flow->get_id()].push_back(i);
+			}
+		}
+	}
+}
+
+Protocol& SplitNode::get_proto()
+{
+	return get_inport()->get_proto();
+}
+
+void SplitNode::carry_fields(const FieldSet& set)
+{
+	get_inport()->get_proto().carry_fields(set, "data");
+}
+
+void SplitNode::configure_2()
+{
+	Protocol& src_proto = get_inport()->get_proto();
+	src_proto.allocate_bits();
+
+	for (int i = 0; i < m_n_outputs; i++)
+	{
+		Port* p = get_outport(i);
+		p->get_proto().copy_carriage(src_proto, "data");
+	}
 }

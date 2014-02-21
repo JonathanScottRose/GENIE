@@ -123,6 +123,13 @@ function Spec:submit()
 		for link in Set.values(sys.links) do
 			ct.reg_link(sys.name, link.src:str(), link.dest:str())
 		end
+		
+		if not sys.topo_func then
+			util.error("System " .. sys.name .. " missing topology function")
+		end
+		
+		local g = sys.topo_func(sys)
+		g:submit()
 	end	
 end
 
@@ -216,10 +223,11 @@ function Builder:linkpoint(name, encoding, type)
 	})
 end
 
-function Builder:system(name)
+function Builder:system(name, topofunc)
 	self.cur_sys = System:new
 	{
-		name = name
+		name = name,
+		topo_func = topofunc
 	}
 	self.cur_spec:add_system(self.cur_sys)
 end

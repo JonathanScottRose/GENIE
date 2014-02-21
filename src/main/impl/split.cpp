@@ -26,15 +26,16 @@ namespace
 			result->add_param(new Vlog::Parameter("WF", result));
 			result->add_param(new Vlog::Parameter("FLOWS", result));
 			result->add_param(new Vlog::Parameter("ENABLES", result));
-			result->add_param(new Vlog::Parameter("FLOW_LOC", result));
 
 			result->add_port(new Vlog::Port("clk", result, 1, Vlog::Port::IN));
 			result->add_port(new Vlog::Port("reset", result, 1, Vlog::Port::IN));
 			result->add_port(new Vlog::Port("i_data", result, "WO", Vlog::Port::IN));
+			result->add_port(new Vlog::Port("i_flow", result, "WF", Vlog::Port::IN));
 			result->add_port(new Vlog::Port("i_valid", result, 1, Vlog::Port::IN));
 			result->add_port(new Vlog::Port("o_ready", result, 1, Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("o_valid", result, "NO", Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("o_data", result, "NO*WO", Vlog::Port::OUT));
+			result->add_port(new Vlog::Port("o_flow", result, "NO*WF", Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("i_ready", result, "NO", Vlog::Port::IN));
 
 			return result;
@@ -47,20 +48,7 @@ namespace
 			SplitNode* node = (SplitNode*)generic_node;
 			assert(node->get_type() == Node::SPLIT);
 
-			int data_width = 0;
-			for (auto& i : node->get_proto().fields())
-			{
-				if (i->name == "flow_id")
-				{
-					vinst->set_param_value("FLOW_LOC", data_width);
-				}
-				
-				if (i->name != "valid" && i->name != "ready")
-				{
-					data_width += i->width;
-				}
-			}
-			
+			int data_width = node->get_proto().get_phys_field("data")->width;
 			int fid_width = node->get_flow_id_width();
 
 			vinst->set_param_value("NO", node->get_n_outputs());
@@ -92,8 +80,10 @@ namespace
 			vinst->set_param_value("FLOWS", flows_param);
 		}
 
-		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, GPNInfo* result)
+		void get_port_name(P2P::Port* port, P2P::PhysField* pfield, Vlog::Instance* inst, GPNInfo* result)
 		{
+			using namespace P2P;
+
 			if (port->get_name() == "clock")
 			{
 				result->port = "clk";
@@ -107,59 +97,29 @@ namespace
 				return;
 			}
 			
-			int base_idx = 0;
+			const Protocol& proto = port->get_proto();
+
 			if (port->get_name() == "in")
 			{
-				if (field->name == "valid")
-				{
-					result->port = "i_valid";
-					result->lo = 0;
-					return;
-				}
-				else if (field->name == "ready")
-				{
-					result->port = "o_ready";
-					result->lo = 0;
-					return;
-				}
-				else
-				{
-					result->port = "i_data";
-				}
+				if (pfield->name == "valid")	result->port = "i_valid";
+				else if (pfield->name == "ready") result->port = "o_ready";
+				else if (pfield->name == "flow_id") result->port = "i_flow";
+				else result->port = "i_data";
+
+				result->lo = 0;
 			}
 			else
 			{
 				auto parent = (P2P::SplitNode*)port->get_parent();
 				int port_idx = parent->get_idx_for_outport(port);
 
-				if (field->name == "valid")
-				{
-					result->port = "o_valid";
-					result->lo = port_idx;
-					return;
-				}
-				else if (field->name == "ready")
-				{
-					result->port = "i_ready";
-					result->lo = port_idx;
-					return;
-				}
-				else
-				{
-					result->port = "o_data";
-					base_idx = port_idx * inst->get_param_value("WO");
-				}
+				if (pfield->name == "valid") result->port = "o_valid";
+				else if (pfield->name == "ready") result->port = "i_ready";
+				else if (pfield->name == "flow_id") result->port = "o_flow";
+				else result->port = "o_data";
+				
+				result->lo = port_idx * pfield->width;
 			}
-
-			for (P2P::Field* f : port->get_proto().fields())
-			{
-				if (f->name == field->name)
-					break;
-				else if (f->name != "valid" && f->name != "ready")
-					base_idx += f->width;
-			}
-
-			result->lo = base_idx;
 		}
 	} s_impl;
 

@@ -1,4 +1,5 @@
 #include <unordered_set>
+#include <stack>
 
 #include "ct.h"
 #include "spec.h"
@@ -50,38 +51,6 @@ namespace
 
 		port->set_name(exp_def->get_name());
 		exp->add_port(port);
-	}
-
-	Conn* get_system_reset_conn(System* sys)
-	{
-		ClockResetPort* rst = sys->get_a_reset_port();
-		Conn* result = rst->get_conn();
-
-		if (result == nullptr)
-		{
-			result = new Conn();
-			result->set_source(rst);
-			rst->set_conn(result);
-			sys->add_conn(result);
-		}
-
-		return result;
-	}
-
-	void connect(Port* src, Conn* sink)
-	{
-		assert(src->get_conn() == nullptr);
-		assert(sink->get_source() == nullptr);
-		src->set_conn(sink);
-		sink->set_source(src);
-	}
-
-	void connect(Conn* src, Port* sink)
-	{
-		src->remove_sink(sink);
-		src->add_sink(sink);
-		assert(sink->get_conn() == nullptr);
-		sink->set_conn(src);
 	}
 
 	P2P::System* init_netlist(Spec::System* sys_spec)
@@ -143,7 +112,7 @@ namespace
 			// All links in the bin share a common source. Do different things depending on whether
 			// the source is an export, a broadcast linkpoint, or a unicast linkpoint
 
-			// Locate source port and source node if applicable
+			// Locate source port and source node
 			const Spec::LinkTarget& src_target = bin.front()->get_src();
 			const std::string& objname = src_target.get_inst();
 			const std::string& ifname = src_target.get_iface();
@@ -155,339 +124,413 @@ namespace
 
 			Node* src_node = src_is_export ? sys->get_export_node() : sys->get_node(objname);
 			Port* src_port = src_is_export ? src_node->get_port(objname) : src_node->get_port(ifname);
-		
-			// Clock, reset, or any kind of export - create direct connection immediately
-			// and don't mess with flows
-			if (src_port->get_type() == Port::CLOCK ||
-				src_port->get_type() == Port::RESET || 
-				src_is_export || dest_is_export)
+
+			// Broadcast linkpoints : all links constitute one flow (we only have these right now)
+			Flow* flow = new Flow();
+			flow->set_id(flow_id++);
+			flow->set_src(src_port, src_target);
+			src_port->add_flow(flow);
+			sys->add_flow(flow);
+
+			// For each link, either create a new flow (non-broadcast) or add to one big
+			// flow (broadcast) <-- only this one exists now
+			for (auto& link : bin)
 			{
-				Conn* conn = new Conn();
-				conn->set_source(src_port);
-				src_port->set_conn(conn);
-				sys->add_conn(conn);
+				const Spec::LinkTarget& dest_target = link->get_dest();
+				Node* dest_node = dest_is_export ? sys->get_export_node() : 
+					sys->get_node(dest_target.get_inst());
+				Port* dest_port = dest_is_export? dest_node->get_port(dest_target.get_inst()) :
+					dest_node->get_port(dest_target.get_iface());
 
-				for (auto& link : bin)
-				{
-					const Spec::LinkTarget& dest_target = link->get_dest();
-					
-					Node* dest_node = dest_is_export ? sys->get_export_node() :
-						sys->get_node(dest_target.get_inst());
-					Port* dest_port = dest_is_export ? dest_node->get_port(dest_target.get_inst()) :
-						dest_node->get_port(dest_target.get_iface());
-
-					assert(dest_port->get_type() == src_port->get_type());
-					assert(dest_port->get_dir() == Port::rev_dir(src_port->get_dir()));
-
-					conn->add_sink(dest_port);
-					dest_port->set_conn(conn);
-				}
-			}
-			else // internal data connection
-			{
-				Spec::Linkpoint* src_lp = sys_spec->get_linkpoint(src_target);
-				bool is_broadcast = src_lp->get_type() == Spec::Linkpoint::BROADCAST;
-				DataPort* src_data_port = (DataPort*)src_port;
-
-				// Broadcast linkpoints : all links constitute one flow
-				Flow* flow = nullptr;
-				if (is_broadcast)
-				{
-					flow = new Flow();
-					flow->set_id(flow_id++);
-					flow->set_src(src_data_port, src_target);
-					src_data_port->add_flow(flow);
-					sys->add_flow(flow);
-				}
-
-				// For each link, either create a new flow (non-broadcast) or add to one big
-				// flow (broadcast)
-				for (auto& link : bin)
-				{
-					const Spec::LinkTarget& dest_target = link->get_dest();
-					Spec::Linkpoint* dest_lp = sys_spec->get_linkpoint(dest_target);
-					Node* dest_node = sys->get_node(dest_target.get_inst());
-					DataPort* dest_data_port = (DataPort*)dest_node->get_port(dest_target.get_iface());
-
-					if (!is_broadcast)
-					{
-						flow = new Flow();
-						flow->set_id(flow_id++);
-						flow->set_src(src_data_port, src_target);
-						flow->set_sink(dest_data_port, dest_target);
-						sys->add_flow(flow);
-
-						src_data_port->add_flow(flow);
-						dest_data_port->add_flow(flow);
-					}
-					else
-					{
-						flow->add_sink(dest_data_port, dest_target);
-						dest_data_port->add_flow(flow);
-					}
-				}
+				flow->add_sink(dest_port, dest_target);
+				dest_port->add_flow(flow);
 			}
 		} // finish iterating over bins/sources
-
-		// 4: Fixup clocks/protocols of exported data/conduit interfaces
-		for (auto& i : sys->get_export_node()->ports())
-		{
-			Port* exp_port = (DataPort*)i.second;
-			if (exp_port->get_type() != Port::DATA &&
-				exp_port->get_type() != Port::CONDUIT)
-				continue;
-
-			Port* other_port;
-			if (exp_port->get_dir() == Port::OUT)
-				other_port = exp_port->get_conn()->get_sink();
-			else
-				other_port = exp_port->get_conn()->get_source();
-			
-			exp_port->set_proto(other_port->get_proto());
-
-			// Clock fixup only for data ports
-			if (exp_port->get_type() != Port::DATA)
-				continue;
-
-			DataPort* exp_data_port = (DataPort*)exp_port;
-			DataPort* other_data_port = (DataPort*)other_port;
-
-			ClockResetPort* node_clock_port = other_data_port->get_clock();
-			assert(node_clock_port->get_dir() == Port::IN); // only handle this case for now
-
-			ClockResetPort* src_clock_port = (ClockResetPort*)node_clock_port->get_conn()->get_source();
-
-			exp_data_port->set_clock(src_clock_port);
-		}
 
 		return sys;
 	}
 
-	void create_network(System* sys)
+	void parse_topo_node(System* sys, Spec::System* sysspec, 
+		const std::string& in, Node** out_node, Port** out_port, bool is_src)
 	{
-		// Collect all the inports and outports of all the instance nodes that are referened
-		// by flows (ignore exported signals, internal connections only)
-		std::unordered_set<DataPort*> outports_to_visit;
-		std::unordered_set<DataPort*> inports_to_visit;
-		std::unordered_map<DataPort*, DataPort*> inport_to_feeder;
-		std::list<DataPort*> tmp;
+		// split string
+		auto dotpos = in.find_first_of('.', 0);
+		std::string objname = in.substr(0, dotpos);
+		std::string ifname = in.substr(dotpos+1);
 
-		for (auto& it : sys->flows())
+		// sweet baby jesus this is bad
+		Spec::TopoNode* tnode = sysspec->get_topology()->get_node(in);
+		if (tnode->type == "SPLIT")
 		{
-			Flow* f = it.second;
-			outports_to_visit.insert(f->get_src()->port);
-			for (FlowTarget* sink : f->sinks())
+			*out_node = sys->get_node(objname);
+			assert((*out_node)->get_type() == Node::SPLIT);
+			*out_port = is_src? 
+				((SplitNode*)(*out_node))->get_free_outport() :
+				((SplitNode*)(*out_node))->get_inport();
+		}
+		else if (tnode->type == "MERGE")
+		{
+			*out_node = sys->get_node(objname);
+			assert((*out_node)->get_type() == Node::MERGE);
+			*out_port = is_src?
+				((MergeNode*)(*out_node))->get_outport() :
+				((MergeNode*)(*out_node))->get_free_inport();
+		}
+		else if (tnode->type == "EP")
+		{
+			auto obj = sysspec->get_object(objname);
+			switch (obj->get_type())
 			{
-				inport_to_feeder[sink->port] = sink->port;
-				inports_to_visit.insert(sink->port);
+				case Spec::SysObject::EXPORT:
+					*out_node = sys->get_export_node();
+					*out_port = (*out_node)->get_port(objname);
+					break;
+				case Spec::SysObject::INSTANCE:
+					*out_node = sys->get_node(objname);
+					*out_port = (*out_node)->get_port(ifname);
+					break;
+				default:
+					assert(false);
 			}
 		}
-
-		// Create flow conversion nodes at outports which have a lp_id field
-		tmp.assign(outports_to_visit.begin(), outports_to_visit.end());
-		for (DataPort* src_port : tmp)
+		else
 		{
-			const Protocol& src_proto = src_port->get_proto();
-			if (!src_proto.has_field("lp_id"))
-				continue;
-
-			Node* src_node = src_port->get_parent();
-
-			FlowConvNode* fc_node = new FlowConvNode(
-				sys,
-				src_node->get_name() + "_" + src_port->get_name() + "_conv",
-				true,
-				src_proto,
-				src_port->flows(),
-				src_port
-			);
-			sys->add_node(fc_node);
-
-			// Connect clock
-			Conn* clk_conn = src_port->get_clock()->get_conn();
-			connect(clk_conn, fc_node->get_clock_port());
-
-			// Connect reset
-			Conn* reset_conn = get_system_reset_conn(sys);
-			connect(reset_conn, fc_node->get_reset_port());
-
-			// Connect input
-			sys->connect_ports(src_port, fc_node->get_inport());
-
-			// Put output on to_visit list
-			outports_to_visit.erase(src_port);
-			outports_to_visit.insert(fc_node->get_outport());
+			assert(false);
 		}
-
-		// Do the same thing with inports
-		tmp.assign(inports_to_visit.begin(), inports_to_visit.end());
-		for (DataPort* dest_port : tmp)
-		{
-			const Protocol& dest_proto = dest_port->get_proto();
-			if (!dest_proto.has_field("lp_id"))
-				continue;
-			
-			Node* dest_node = dest_port->get_parent();
-
-			FlowConvNode* fc_node = new FlowConvNode(
-				sys,
-				dest_node->get_name() + "_" + dest_port->get_name() + "_conv",
-				false,
-				dest_proto,
-				dest_port->flows(),
-				dest_port
-			);
-			sys->add_node(fc_node);
-
-			// Connect clock
-			Conn* clk_conn = dest_port->get_clock()->get_conn();
-			connect(clk_conn, fc_node->get_clock_port());
-
-			// Connect reset
-			Conn* reset_conn = get_system_reset_conn(sys);
-			connect(reset_conn, fc_node->get_reset_port());
-
-			// Connect output
-			sys->connect_ports(fc_node->get_outport(), dest_port);
-
-			// Put input on to_visit list
-			inports_to_visit.erase(dest_port);
-			inports_to_visit.insert(fc_node->get_inport());
-			inport_to_feeder[dest_port] = fc_node->get_inport();
-		}
-
-		// Visit each outport and construct a Split node if there is more than one unique destination
-		// port referenced by all the flows associated with the outport.
-		// When done, populate a map that says, for each destination port, which ports want to feed it.
-		std::unordered_map<DataPort*, std::vector<DataPort*>> post_split_mapping;
-		int unique_name_cnt = 0;
-
-		for (DataPort* inst_outport : outports_to_visit)
-		{
-			// Enumerate all the physical destination ports referenced by all flows emanating from
-			// this outport. For each one, group the flows going to that destination port.
-			std::unordered_map<DataPort*, std::forward_list<Flow*>> phys_dest_map;
-
-			for (Flow* flow : inst_outport->flows())
-			{
-				for (FlowTarget* phys_dest : flow->sinks())
-				{
-					phys_dest_map[phys_dest->port].push_front(flow);
-				}
-			}
-
-			// If there's only one physical destination, no need to create a split node. Just
-			// populate the thingy for the merge-creation stage.
-			auto n_phys_dest = phys_dest_map.size();
-			if (n_phys_dest == 1)
-			{
-				DataPort* phys_dest = phys_dest_map.begin()->first;
-				post_split_mapping[inport_to_feeder[phys_dest]].push_back(inst_outport);
-				continue; // next inst_outport
-			}
-
-			// Otherwise, create a split node and customize it
-			SplitNode* split_node = new SplitNode(
-				"split" + std::to_string(unique_name_cnt++),
-				inst_outport->get_proto(),
-				n_phys_dest
-			);
-
-			sys->add_node(split_node);
-
-			// Connect input
-			sys->connect_ports(inst_outport, split_node->get_inport());
-
-			// Connect clock
-			Conn* clk_conn = inst_outport->get_clock()->get_conn();
-			connect(clk_conn, split_node->get_clock_port());
-
-			// Connect reset
-			Conn* reset_conn = get_system_reset_conn(sys);
-			connect(reset_conn, split_node->get_reset_port());
-
-			// Configure outputs and add them to the structure needed for the Split creation stage
-			int outport_idx = 0;
-			for (auto& i : phys_dest_map)
-			{
-				DataPort* phys_dest = i.first;
-				DataPort* split_output = split_node->get_outport(outport_idx);
-
-				// Update the post-split structure
-				post_split_mapping[inport_to_feeder[phys_dest]].push_back(split_output);
-
-				// Register all flows going through this output
-				for (Flow* f : i.second)
-				{
-					split_node->register_flow(f, outport_idx);
-				}
-				
-				outport_idx++;
-			}
-
-			// After everything registered, let the split node figure some things out about itself
-			split_node->configure();
-		} // next outport to visit
-
-		// Splits are done. Now time to create Merge nodes. Visit every inport and create a Merge
-		// node whenever there's more than one total physical port driving it across all incoming flows.
-		unique_name_cnt = 0;
-
-		for (DataPort* inst_inport : inports_to_visit)
-		{
-			auto& phys_sources = post_split_mapping[inst_inport];
-
-			// If there's only one physical source, connect it directly to the target instance node
-			// without instantiating any Split nodes
-			auto n_phys_src = phys_sources.size();
-			if (n_phys_src == 1)
-			{
-				DataPort* src = phys_sources.front();
-				sys->connect_ports(src, inst_inport);
-				continue; // next inst_inport
-			}
-
-			// Otherwise, create a Merge node
-			MergeNode* merge_node = new MergeNode(
-				"merge" + std::to_string(unique_name_cnt++),
-				inst_inport->get_proto(),
-				n_phys_src);
-
-			sys->add_node(merge_node);
-
-			// Connect output
-			DataPort* merge_output = merge_node->get_outport();
-			sys->connect_ports(merge_output, inst_inport);
-			
-			// Connect clock
-			Conn* clk_conn = inst_inport->get_clock()->get_conn();
-			connect(clk_conn, merge_node->get_clock_port());
-			
-			// Connect reset
-			Conn* reset_conn = get_system_reset_conn(sys);
-			connect(reset_conn, merge_node->get_reset_port());
-
-			// Connect inports
-			int inport_idx = 0;
-			for (DataPort* phys_src : phys_sources)
-			{
-				DataPort* merge_input = merge_node->get_inport(inport_idx);
-
-				// Connect port
-				sys->connect_ports(phys_src, merge_input);
-
-				// Register flows with merge node
-				for (Flow* f : phys_src->flows())
-				{
-					merge_node->register_flow(f, merge_input);
-				}
-				
-				inport_idx++;
-			}
-		} // next inst_inport
 	}
 
-	void post_process(System* sys)
+	void create_topology(System* sys, Spec::System* sysspec)
+	{
+		Spec::TopoGraph* topo = sysspec->get_topology();
+
+		// Instantiate split and merge nodes
+		for (auto& i : topo->nodes())
+		{
+			Spec::TopoNode* toponode = i.second;
+
+			// based on type, make split or merge node. calculate # of inputs/outputs from topnode
+
+			if (toponode->type == "SPLIT")
+			{
+				auto node = new SplitNode(toponode->name, toponode->outs.size());
+				sys->add_node(node);
+			}
+			else if (toponode->type == "MERGE")
+			{
+				auto node = new MergeNode(toponode->name, toponode->ins.size());
+				sys->add_node(node);
+			}
+			else if (toponode->type == "EP")
+			{
+				// nothing
+			}
+			else
+			{
+				assert(false);
+			}
+		}
+
+		// Process links in topo graph into Conns
+		for (auto& edge : topo->edges())
+		{
+			// find source node/port of each edge by parsing srcname/destname
+			// fixup for exports: need to delve into sysobject type
+
+			Node* src_node;
+			Port* src_port;
+			Node* dest_node;
+			Port* dest_port;
+			parse_topo_node(sys, sysspec, edge->src, &src_node, &src_port, true);
+			parse_topo_node(sys, sysspec, edge->dest, &dest_node, &dest_port, false);
+
+			// find or create Conn from src node and make the connection from src to dest
+			Conn* conn = src_port->get_conn();
+			if (!conn)
+			{
+				conn = sys->connect_ports(src_port, dest_port);
+			}
+			else
+			{
+				conn->add_sink(dest_port);
+				assert(dest_port->get_conn() == nullptr);
+				dest_port->set_conn(conn);
+			}
+
+			// go through associated Links.
+			std::unordered_set<Flow*> flows_to_add;
+			for (auto& link : edge->links)
+			{
+				// for each Link, use its src/dest LinkTargets to find correct flow this link belongs to
+				// do this by going through all Flows and comparing FlowTargets
+
+				Flow* f = nullptr;
+				for (auto& i : sys->flows())
+				{
+					Flow* flow = i.second;
+
+					if (flow->get_src()->lt == link.get_src())
+					{
+						for (auto& dest : flow->sinks())
+						{
+							if (dest->lt == link.get_dest())
+							{
+								f = flow;
+								break;
+							}
+						}
+						if (f) break;
+					}
+				}
+
+				// add flow to temporary set
+				assert(f);
+				flows_to_add.insert(f);
+			}
+
+			// after looping through links, set srcport/destport/conn flows to everything in set
+			for (auto& flow : flows_to_add)
+			{
+				if (!src_port->has_flow(flow))
+					src_port->add_flow(flow);
+
+				if (!dest_port->has_flow(flow))
+					dest_port->add_flow(flow);
+
+				// conn doesn't contain flows? okay then
+			}
+		}
+	}
+
+	void set_clock_on_port(System* sys, DataPort* target_port, ClockResetPort* clock_src)
+	{
+		auto target_clock_port = target_port->get_clock();
+
+		// hack: if the target port references a null clock port, the target port probably
+		// belongs to an export node. in this case, the clock source is likely ON the export node
+		// itself, so let's set it here.
+		if (!target_clock_port)
+		{
+			assert(clock_src->get_parent()->get_type() == Node::EXPORT && 
+				clock_src->get_parent() == target_port->get_parent());
+
+			target_port->set_clock(clock_src);
+			target_clock_port = clock_src;
+			return; // done here, no connections need to be made
+		}
+
+		auto existing_clock_src = target_clock_port->get_first_connected_port();
+		if (existing_clock_src)
+		{
+			// we don't know how to handle this otherwise yet
+			assert(existing_clock_src == clock_src);
+		}
+		else
+		{
+			sys->connect_ports(clock_src, target_clock_port);
+		}
+	}
+
+	void fixup_clocks_resets(System* sys)
+	{
+		// give everyone who needs it a reset connection
+		for (auto& i : sys->nodes())
+		{
+			Node* node = i.second;
+
+			for (auto& j : node->ports())
+			{
+				auto port = j.second;
+				if (port->get_type() != Port::RESET || port->get_dir() != Port::IN)
+					continue;
+				
+				if (!port->get_conn())
+				{
+					// just...find one.
+					// right now, the Spec post-processing auto-creates one if none present
+					sys->connect_ports(sys->get_a_reset_port(), port);
+				}
+			}
+		}
+
+		// dirt-stupid clock domain matching.
+		// follow all flows from their source to their sinks, dispensing the same clock assignment
+		// as found at the source.
+		//
+		// IF the source is an export, which lacks a clock assignment, use the flow destination's
+		// clock assignment instead.
+		for (auto& i : sys->flows())
+		{
+			Flow* flow = i.second;
+			auto flow_src = (DataPort*)flow->get_src()->port;
+			if (flow_src->get_type() != Port::DATA)
+				continue; // only data ports have clock assignments
+
+			// Get source port's clock port
+			auto flow_src_clock_port = (ClockResetPort*)flow_src->get_clock();
+
+			// Follow the source port's clock port to its source to get the clock driver port
+			ClockResetPort* clock_src = flow_src_clock_port ?
+				(ClockResetPort*)flow_src_clock_port->get_first_connected_port() : nullptr;
+
+			// Try the flow's destination if querying the source fails (happens when an export is
+			// the source of a flow)
+			if (!clock_src)
+			{
+				clock_src = (ClockResetPort*)
+					((DataPort*)flow->get_sink0()->port)->get_clock()->get_first_connected_port();
+			}
+
+			assert(clock_src->get_type() == Port::CLOCK && clock_src->get_dir() == Port::OUT);
+
+			std::stack<DataPort*> ports_to_visit;
+			ports_to_visit.push(flow_src);
+
+			while (!ports_to_visit.empty())
+			{
+				DataPort* src = ports_to_visit.top();
+				ports_to_visit.pop();
+
+				// Check/fixup existing assignment
+				set_clock_on_port(sys, src, clock_src);
+
+				// we assume only one fanout since these are data ports.
+				// fixup its clock as well
+				auto dest = (DataPort*)src->get_first_connected_port();
+				set_clock_on_port(sys, dest, clock_src);
+
+				// we just arrived at an input to some node. follow the flow THROUGH this input
+				// to the node's outputs, for this flow only.
+				auto new_srces = dest->get_parent()->trace(dest, flow);
+				for (auto& new_src : new_srces)
+				{
+					ports_to_visit.push((DataPort*)new_src);
+				}
+
+				// repeat the process, depth-first
+			}
+		}
+	}
+
+	void configure_pre_negotiate(System* sys)
+	{
+		for (auto& i : sys->nodes())
+		{
+			i.second->configure_1();
+		}
+	}
+
+	void insert_converters(System* sys)
+	{
+		// insert flow_id <-> lp_id conversion nodes
+		// modify the actual netlist AFTER traversing it, since we don't want to change
+		// sys->conns while iterating through them
+		std::forward_list<std::pair<Conn*, FlowConvNode*>> to_add;
+
+		for (auto conn : sys->conns())
+		{
+			Port* src = conn->get_source();
+			Port* dest = conn->get_sink();
+
+			for (Port* p : {src, dest})
+			{
+				if (p->get_proto().has_field("lp_id"))
+				{
+					const std::string& nodename = p->get_parent()->get_name();
+					const std::string& portname = p->get_name();
+					std::string fcname = nodename + "_" + portname + "_conv";
+					
+					bool to_flow = (p == src);
+					
+					auto fc = new FlowConvNode(fcname, to_flow);
+					to_add.emplace_front(conn, fc); // defer until after traversal
+				}
+			}
+		}
+
+		// do netlist modification now
+		for (auto& i : to_add)
+		{
+			auto conn = i.first;
+			auto fc = i.second;
+			sys->splice_conn(conn, fc->get_inport(), fc->get_outport());
+			sys->add_node(fc);
+		}
+	}
+
+	void do_proto_carriage(System* sys)
+	{
+		// For each flow, work backwards from the ultimate sink and figure out which intermediate
+		// ports need to carry which fields
+		for (auto i : sys->flows())
+		{
+			Flow* flow = i.second;
+			Port* flow_sink = flow->get_sink0()->port;
+			Port* flow_src = flow->get_src()->port;
+
+			// Skip encapsulation for clock/reset flows. They have multiple-fanout local connections
+			// and that might break this algorithm.
+			if (flow_sink->get_type() == Port::CLOCK ||
+				flow_sink->get_type() == Port::RESET)
+			{
+				continue;
+			}
+
+			// Start with an empty carriage set at the end of the flow
+			FieldSet carriage_set;
+			Port* cur_sink = flow_sink;
+
+			// Work backwards to the start of the flow
+			while(true)
+			{
+				Port* cur_src = cur_sink->get_first_connected_port();
+				if (cur_src == flow_src)
+					break;
+
+				// Add locally-required fields at sink to carriage set
+				// Then, remove locally-produced fields at source form carriage set
+				for (Port* p : {cur_sink, cur_src})
+				{
+					for (auto& j : p->get_proto().field_states())
+					{
+						FieldState* fs = j.second;
+						Field* f = p->get_proto().get_field(j.first);
+						PhysField* pf = p->get_proto().get_phys_field(fs->phys_field);
+
+						// Ignore reverse signals and non-locals
+						if (pf->sense != PhysField::FWD || !fs->is_local)
+							continue;
+
+						if (p == cur_sink)
+						{
+							carriage_set.add_field(*f);
+						}
+						else
+						{
+							carriage_set.remove_field(f->name);
+						}
+					}
+				}
+
+				// Ask the driving node to carry these fields (assumed to be co-temporal)
+				Node* src_node = cur_src->get_parent();
+				src_node->carry_fields(carriage_set);
+
+				// Follow the flow backwards through the node to a new sink port
+				cur_sink = src_node->rtrace(cur_src, flow);
+			}
+
+		}
+	}
+
+	void configure_post_negotiate(System* sys)
+	{
+		for (auto& i : sys->nodes())
+		{
+			i.second->configure_2();
+		}
+	}
+
+	void remove_dangling_ports(System* sys)
 	{
 		ExportNode* exp = sys->get_export_node();
 
@@ -498,7 +541,7 @@ namespace
 			Port* p = i.second;
 			if (p->get_conn() == nullptr)
 			{
-				ports_to_delete.push_front(p);				
+				ports_to_delete.push_front(p);
 			}
 		}
 
@@ -507,7 +550,10 @@ namespace
 			exp->remove_port(p);
 			delete p;
 		}
+	}
 
+	void handle_defaults(System* sys)
+	{
 		// Early version of protocol negotiation - set constant values for
 		// unconnected fields.
 		for (auto& i : sys->conns())
@@ -515,9 +561,13 @@ namespace
 			Port* src = i->get_source();
 			Port* sink = i->get_sink(); // only for data connections - one sink
 
-			for (Field* f : sink->get_proto().fields())
+			for (auto& j : sink->get_proto().field_states())
 			{
-				if (f->sense != Field::FWD)
+				FieldState* fs = j.second;
+				Field* f = sink->get_proto().get_field(j.first);
+				PhysField* pf = sink->get_proto().get_phys_field(fs->phys_field);
+
+				if (pf->sense != PhysField::FWD)
 					continue;
 
 				if (src->get_proto().has_field(f->name))
@@ -530,10 +580,7 @@ namespace
 				else if (f->name == "eop") value = 1;
 				else if (f->name == "flow_id")
 				{
-					DataPort* dsink = (DataPort*)sink;
-					assert(dsink->get_type() == Port::DATA);
-
-					auto& flows = dsink->flows();
+					auto& flows = sink->flows();
 					assert(flows.size() == 1);
 
 					Flow* flow = flows.front();
@@ -541,16 +588,20 @@ namespace
 				}
 				else
 				{
-					throw Exception("Don't know how to default field: " + f->name);
+					continue;
 				}
 
-				f->is_const = true;
-				f->const_val = value;
+				fs->is_const = true;
+				fs->const_value = value;
 			}
 
-			for (Field* f : src->get_proto().fields())
+			for (auto& j : src->get_proto().field_states())
 			{
-				if (f->sense != Field::REV)
+				FieldState* fs = j.second;
+				Field* f = src->get_proto().get_field(j.first);
+				PhysField* pf = src->get_proto().get_phys_field(fs->phys_field);
+
+				if (pf->sense != PhysField::REV)
 					continue;
 
 				if (sink->get_proto().has_field(f->name))
@@ -561,11 +612,11 @@ namespace
 				if (f->name == "ready") value = 1;
 				else
 				{
-					throw Exception("Don't know how to default field: " + f->name);
+					continue;
 				}
 
-				f->is_const = true;
-				f->const_val = value;
+				fs->is_const = true;
+				fs->const_value = value;
 			}
 		}
 	}
@@ -574,7 +625,14 @@ namespace
 P2P::System* ct::build_system(Spec::System* system)
 {
 	P2P::System* result = init_netlist(system);
-	create_network(result);
-	post_process(result);
+	create_topology(result, system);
+	insert_converters(result);
+	remove_dangling_ports(result);
+	configure_pre_negotiate(result);
+	fixup_clocks_resets(result);
+	do_proto_carriage(result);
+	configure_post_negotiate(result);
+	handle_defaults(result);
+	//result->dump_graph();
 	return result;
 }

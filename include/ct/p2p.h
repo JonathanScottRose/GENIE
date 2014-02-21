@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "spec.h"
+#include "protocol.h"
 
 namespace ct
 {
@@ -11,54 +12,13 @@ namespace P2P
 	class Port;
 	class Flow;
 	class Conn;
-	class Protocol;
 	class System;
-	struct Field;
-
-	struct Field
-	{
-		enum Sense
-		{
-			FWD,
-			REV
-		};
-
-		Field();
-		Field(const std::string&, int, Sense);
-
-		std::string name;
-		int width;
-		Sense sense;
-		bool is_const;
-		int const_val;
-	};
-
-	class Protocol
-	{
-	public:
-		typedef std::list<Field*> Fields;
-
-		Protocol();
-		Protocol(const Protocol&);
-		Protocol& operator= (const Protocol&);
-		~Protocol();
-		
-		const Fields& fields() const { return m_fields; }
-
-		void add_field(Field* f);
-		Field* get_field(const std::string& name) const;
-		bool has_field(const std::string& name) const;
-		void remove_field(Field* f);
-		void delete_field(const std::string& name);
-
-	protected:
-		Fields m_fields;
-	};
 
 	class Node : public HasImplAspects
 	{
 	public:
 		typedef std::unordered_map<std::string, Port*> PortMap;
+		typedef std::vector<Port*> PortList;
 
 		enum Type
 		{
@@ -76,6 +36,12 @@ namespace P2P
 		PROP_GET_SET(type, Type, m_type);
 		PROP_GET_SET(parent, System*, m_parent);
 
+		virtual void configure_1() {}
+		virtual void configure_2() {}
+		virtual PortList trace(Port* in, Flow* f) { return PortList(); }
+		virtual Port* rtrace(Port* out, Flow* f) { return nullptr; }
+		virtual void carry_fields(const FieldSet& set) { }
+
 		const PortMap& ports() { return m_ports; }
 		Port* get_port(const std::string& name) { return m_ports[name]; }
 		void add_port(Port* port);
@@ -92,6 +58,8 @@ namespace P2P
 	class Port : public HasImplAspects
 	{
 	public:
+		typedef std::vector<Flow*> Flows;
+
 		enum Type
 		{		
 			CLOCK,
@@ -115,7 +83,19 @@ namespace P2P
 		PROP_GET_SET(dir, Dir, m_dir);
 		PROP_GET_SET(parent, Node*, m_parent);
 		PROP_GET_SET(conn, Conn*, m_conn);
-		PROP_GET_SET(proto, const Protocol&, m_proto);
+		
+		void set_proto(const Protocol& proto) { m_proto = proto; }
+		Protocol& get_proto() { return m_proto; }
+
+		const Flows& flows() { return m_flows; }
+		void add_flow(Flow* f);
+		void remove_flow(Flow* f);
+		bool has_flow(Flow* f);
+		void clear_flows();
+		void add_flows(const Flows& f);
+
+		Port* get_driver();
+		Port* get_first_connected_port();
 
 		static Dir rev_dir(Dir dir);
 
@@ -126,43 +106,30 @@ namespace P2P
 		Node* m_parent;	
 		Conn* m_conn;
 		Protocol m_proto;
+		Flows m_flows;
 	};
 
 	class ClockResetPort : public Port
 	{
 	public:
 		ClockResetPort(Type type, Dir dir, Node* node);
-		~ClockResetPort();
 	};
 
 	class ConduitPort : public Port
 	{
 	public:
 		ConduitPort(Node* node);
-		~ConduitPort();
 	};
 
 	class DataPort : public Port
 	{
 	public:
-		typedef std::vector<Flow*> Flows;
-
 		DataPort(Node* node, Dir dir);
-		~DataPort();
 
 		PROP_GET_SET(clock, ClockResetPort*, m_clock);
-		
-
-		const Flows& flows() { return m_flows; }
-		void add_flow(Flow* f);
-		void remove_flow(Flow* f);
-		bool has_flow(Flow* f);
-		void clear_flows();
-		void add_flows(const Flows& f);
 
 	protected:
 		ClockResetPort* m_clock;
-		Flows m_flows;
 	};
 
 	class Conn
@@ -191,10 +158,12 @@ namespace P2P
 	{
 	public:
 		FlowTarget();
-		FlowTarget(DataPort*, const Spec::LinkTarget&);
+		FlowTarget(Port*, const Spec::LinkTarget&);
 		Spec::Linkpoint* get_linkpoint() const;
 
-		DataPort* port;
+		bool operator== (const FlowTarget& other) const;
+
+		Port* port;
 		Spec::LinkTarget lt;
 	};
 	
@@ -208,16 +177,17 @@ namespace P2P
 
 		PROP_GET_SET(id, int, m_id);
 		
-		void set_src(DataPort* port, const Spec::LinkTarget& lt);
+		void set_src(Port* port, const Spec::LinkTarget& lt);
 		FlowTarget* get_src();
 		
 		FlowTarget* get_sink();
-		FlowTarget* get_sink(DataPort* port);
-		void set_sink(DataPort* port, const Spec::LinkTarget& lt);
+		FlowTarget* get_sink(Port* port);
+		FlowTarget* get_sink0();
+		void set_sink(Port* port, const Spec::LinkTarget& lt);
 		const Sinks& sinks() { return m_sinks; }
-		void add_sink(DataPort* sink, const Spec::LinkTarget& lt);
+		void add_sink(Port* sink, const Spec::LinkTarget& lt);
 		void remove_sink(FlowTarget* ft);
-		bool has_sink(DataPort* port);
+		bool has_sink(Port* port);
 
 	protected:
 		FlowTarget* m_src;
@@ -252,8 +222,9 @@ namespace P2P
 		void add_flow(Flow* flow);
 		int get_global_flow_id_width();
 
-		void connect_ports(DataPort* src, DataPort* dest);
-		void disconnect_ports(DataPort* src, DataPort* dest);
+		Conn* connect_ports(Port* src, Port* dest);
+		void disconnect_ports(Port* src, Port* dest);
+		void splice_conn(Conn* conn, Port* new_in, Port* new_out);
 
 		class ExportNode* get_export_node();
 		ClockResetPort* get_a_reset_port();

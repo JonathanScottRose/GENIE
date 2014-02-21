@@ -1,6 +1,7 @@
 #include <sstream>
 #include <unordered_set>
 #include "spec.h"
+#include "topo_spec.h"
 
 using namespace ct;
 using namespace ct::Spec;
@@ -37,6 +38,11 @@ std::string LinkTarget::get_path() const
 	result += m_lp.empty()? ".lp" : '.' + m_lp;
 
 	return result;
+}
+
+bool LinkTarget::operator== (const LinkTarget& other) const
+{
+	return get_path() == other.get_path();
 }
 
 
@@ -104,12 +110,14 @@ Export::Export(const std::string& name, Interface::Type iface_type, System* pare
 
 System::System()
 {
+	m_topo = new TopoGraph();
 }
 
 System::~System()
 {
 	Util::delete_all(m_links);
 	Util::delete_all_2(m_objects);
+	delete m_topo;
 }
 
 void System::add_link(Link* link)

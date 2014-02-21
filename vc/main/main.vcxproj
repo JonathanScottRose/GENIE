@@ -141,7 +141,6 @@
     <ClCompile Include="..\..\src\main\write_vlog.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\main\build_spec.h" />
     <ClInclude Include="..\..\src\main\getoptpp\getopt_pp.h" />
     <ClInclude Include="..\..\src\main\globals.h" />
     <ClInclude Include="..\..\src\main\impl_vlog.h" />

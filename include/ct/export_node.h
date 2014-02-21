@@ -10,7 +10,7 @@ namespace P2P
 	{
 	public:
 		ExportNode(System* sys);
-		~ExportNode();
+		void configure_1();
 	};
 }
 }

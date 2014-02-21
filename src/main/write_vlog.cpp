@@ -103,6 +103,11 @@ namespace
 		const std::string& portname = ps->get_name();
 		std::string bindstr = "";
 
+		bool is_input = ps->get_port()->get_dir() == Vlog::Port::IN;
+
+		// Keep track of whether or not we wrote multiple comma-separated items
+		bool had_commas = false;
+
 		if (!ps->is_empty())
 		{
 			// Multiple bindings? Curly brackets
@@ -118,52 +123,84 @@ namespace
 				return l->get_port_lo() > r->get_port_lo();
 			});
 
-			int cur_bit = ps->get_width();
-			for (PortBinding* binding : sorted_bindings)
-			{
-				Bindable* targ = binding->get_target();
+			
 
-				if (targ->get_type() == Bindable::CONST)
+			// Now traverse the port's bits from MSB to LSB and connect either bindings (const or net),
+			// or unconnected bits (hi-impedance)
+			auto& binding_iter = sorted_bindings.begin();
+			auto& binding_iter_end = sorted_bindings.end();
+			int cur_bit = ps->get_width();
+
+			while (cur_bit > 0)
+			{
+				// Grab the next binding, in descending connected bit order
+				PortBinding* binding = (binding_iter == binding_iter_end)? nullptr : *binding_iter;
+
+				// Find out where the next connected-to-something bit is. If there's no next binding,
+				// then this is the port's LSB and it's all Z's from here on
+				int next_binding_hi = binding? (binding->get_port_lo() + binding->get_width()) : 0;
+
+				// The number of unconnected bits from the current bit forwards
+				int unconnected = cur_bit - next_binding_hi;
+				if (unconnected)
 				{
-					auto cv = (ConstValue*)targ;
-					bindstr += std::to_string(cv->get_width());
-					bindstr += "'d";
-					bindstr += std::to_string(cv->get_value());
+					// Put hi-impedance for the unconnected bits.
+					// Only inputs may be left unconnected: can't connect an output port to constant
+					// z's
+					assert(is_input);
+					bindstr += std::to_string(unconnected) + "'b" + std::string(unconnected, 'z');
+
+					// Advance to the next connected thing (or the LSB if there's nothing left)
+					cur_bit = next_binding_hi;
 				}
 				else
 				{
-					assert(targ->get_type() == Bindable::NET);
-					auto net = (Net*)targ;
-
-					bindstr += net->get_name();
-					if (!binding->is_full_target_binding())
+					// Otherwise, cur_bit points to the top of the next binding. Write it out.			
+					Bindable* targ = binding->get_target();
+					if (targ->get_type() == Bindable::CONST)
 					{
-						bindstr += "[";
-						bindstr += std::to_string(binding->get_target_lo() + binding->get_width() - 1);
-						bindstr += ":";
-						bindstr += std::to_string(binding->get_target_lo());
-						bindstr += "]";
+						auto cv = (ConstValue*)targ;
+						bindstr += std::to_string(cv->get_width());
+						bindstr += "'d";
+						bindstr += std::to_string(cv->get_value());
 					}
+					else
+					{
+						assert(targ->get_type() == Bindable::NET);
+						auto net = (Net*)targ;
+
+						bindstr += net->get_name();
+						if (!binding->is_full_target_binding())
+						{
+							bindstr += "[";
+							bindstr += std::to_string(binding->get_target_lo() + binding->get_width() - 1);
+							bindstr += ":";
+							bindstr += std::to_string(binding->get_target_lo());
+							bindstr += "]";
+						}
+					}
+
+					// Advance to whatever's after this binding (could be another binding or
+					// some unconnected bits)
+					cur_bit -= binding->get_width();
 				}
 
-				// If this isn't the last binding, then add a comma before moving on to the next
-				cur_bit -= binding->get_width();
-				if (cur_bit > 0) bindstr += ",";
-
-				// Make sure the order of bindings is descending and there are no unbound gaps in the port
-				assert(cur_bit == binding->get_port_lo());
-			}
-
-			assert(cur_bit == 0);
-
-			// Multiple bindings? End curly brackets
-			if (ps->has_multiple_bindings())
-			{
-				bindstr += "}";
-			}
+				// After whatever we just wrote (unconnectedness, or a binding), if there's more to
+				// follow, then add a comma
+				if (cur_bit > 0)
+				{
+					bindstr += ",";
+					had_commas = true;
+				}
+			} // while cur_bit > 0
 		} // non-empty
 		
-		write_line("." + portname + "(" + bindstr + ")", true, false);	
+		// If we're binding a concatenation of multiple items (thus, we had to write commas), then
+		// we need to surround the concatenation with curly braces
+		std::string opener = had_commas ? "({" : "(";
+		std::string closer = had_commas ? "})" : ")";
+
+		write_line("." + portname + opener + bindstr + closer, true, false);
 	}
 
 	void write_param_binding(ParamBinding* binding)

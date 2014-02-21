@@ -3,7 +3,6 @@
 #include "lauxlib.h"
 
 #include "lua_iface.h"
-#include "build_spec.h"
 
 #include "ct/common.h"
 #include "ct/spec.h"
@@ -11,7 +10,6 @@
 
 using namespace ct;
 using namespace LuaIface;
-using namespace BuildSpec;
 
 #define LFUNC(name) int name(lua_State* L)
 #define REG_LFUNC(name) register_func(#name, name)
@@ -101,11 +99,8 @@ namespace
 		req.emplace_back("hier", true);
 		auto attrs = parse_attribs(L, req);
 
-		ComponentImpl* impl = new ComponentImpl;
-		impl->module_name = attrs["hier"];
-
 		auto comp = new Spec::Component(attrs["name"]);
-		comp->set_impl(impl);
+		comp->set_aspect_val<std::string>(attrs["hier"]);
 		Spec::define_component(comp);
 
 		lua_pop(L, 1);
@@ -219,11 +214,8 @@ namespace
 		if (attrs.count("binding") == 0)
 			lerror("Missing HDL signal name in signal definition");
 
-		SignalImpl* simpl = new SignalImpl;
-		simpl->signal_name = attrs["binding"];
-
 		Signal* sig = new Signal(stype, swidth);
-		sig->set_impl(simpl);
+		sig->set_aspect_val<std::string>(attrs["binding"]);
 
 		if (has_usertype)
 			sig->set_subtype(attrs["usertype"]);
@@ -304,7 +296,7 @@ namespace
 
 		// args: sysname
 
-		std::string name = luaL_checkstring(L, -1);
+		std::string name = luaL_checkstring(L, 1);
 		
 		auto sys = new System();
 		sys->set_name(name);
@@ -334,15 +326,64 @@ namespace
 
 		Linkpoint::Type type = Linkpoint::type_from_string(attrs["type"]);
 
-		LinkpointImpl* limpl = new LinkpointImpl;
-		limpl->encoding = attrs["encoding"];
-
 		Linkpoint* lp = new Linkpoint(attrs["name"], type, (DataInterface*)iface);
-		lp->set_impl(limpl);
+		lp->set_aspect_val<std::string>(attrs["encoding"]);
 
 		iface->add_linkpoint(lp);
 
 		lua_pop(L, 3);
+		return 0;
+	}
+
+	LFUNC(create_topo_node)
+	{
+		Spec::TopoNode* node = new Spec::TopoNode();
+
+		// args: sysname, nodename, nodetype
+		std::string sysname = luaL_checkstring(L, 1);
+		node->name = luaL_checkstring(L, 2);
+		node->type = luaL_checkstring(L, 3);
+
+		Spec::System* sys = Spec::get_system(sysname);
+		sys->get_topology()->add_node(node);
+
+		lua_pop(L, 3);
+		return 0;
+	}
+
+	LFUNC(create_topo_edge)
+	{
+		// args: sysname, srcnode, destnode, { _={src=, dest=}, ... }
+		std::string sysname = luaL_checkstring(L, 1);
+		std::string srcnodename = luaL_checkstring(L, 2);
+		std::string destnodename = luaL_checkstring(L, 3);
+		luaL_checktype(L, 4, LUA_TTABLE);
+
+		Spec::System* sys = Spec::get_system(sysname);
+		Spec::TopoNode* srcnode = sys->get_topology()->get_node(srcnodename);
+		Spec::TopoNode* destnode = sys->get_topology()->get_node(destnodename);
+
+		Spec::TopoEdge* edge = new Spec::TopoEdge();
+		edge->src = srcnodename;
+		edge->dest = destnodename;
+
+		lua_pushnil(L);
+		while (lua_next(L, 4))
+		{
+			lua_getfield(L, -1, "src");
+			lua_getfield(L, -2, "dest");
+
+			edge->links.emplace_back(Spec::LinkTarget(luaL_checkstring(L, -2)),
+				Spec::LinkTarget(luaL_checkstring(L, -1)));
+
+			lua_pop(L, 3);
+		}
+
+		sys->get_topology()->add_edge(edge);
+		srcnode->outs.push_back(edge);
+		destnode->ins.push_back(edge);
+
+		lua_pop(L, 4);
 		return 0;
 	}
 
@@ -357,6 +398,8 @@ namespace
 		REG_LFUNC(reg_export);
 		REG_LFUNC(reg_system);
 		REG_LFUNC(reg_linkpoint);
+		REG_LFUNC(create_topo_node);
+		REG_LFUNC(create_topo_edge);
 	}
 }
 

@@ -96,7 +96,8 @@ System = class
 	name = nil,
 	parent = nil,
 	links = {},
-	objects = {}
+	objects = {},
+	topo_func = nil
 }
 
 function System:new(o)

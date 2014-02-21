@@ -2,7 +2,6 @@
 
 #include "impl_vlog.h"
 #include "ct/flow_conv_node.h"
-#include "build_spec.h"
 
 using namespace ct;
 
@@ -52,15 +51,8 @@ namespace
 			const std::string& in_field_name = node->get_in_field_name();
 			const std::string& out_field_name = node->get_out_field_name();
 
-			int data_width = 0;
-			for (auto& i : node->get_inport()->get_proto().fields())
-			{				
-				if (i->name != "valid" && i->name != "ready" && i->name != in_field_name)
-				{
-					data_width += i->width;
-				}
-			}
-
+			int data_width = node->get_inport()->get_proto().get_phys_field("data")->width;
+			
 			vinst->set_param_value("N_ENTRIES", node->get_n_entries());
 			vinst->set_param_value("WD", data_width);
 			vinst->set_param_value("WIF", node->get_in_field_width());
@@ -84,10 +76,10 @@ namespace
 					f->get_sink(node->get_user_port());
 				
 				Spec::Linkpoint* lp = ft->get_linkpoint();
-				auto encoding = (BuildSpec::LinkpointImpl*) lp->get_impl();
+				auto encoding = lp->get_aspect_val<std::string>();
 
 				lpids_param <<= lpid_width;
-				lpids_param |= Vlog::parse_constant(encoding->encoding);
+				lpids_param |= Vlog::parse_constant(encoding);
 			}
 
 			if (!node->is_to_flow())
@@ -97,7 +89,7 @@ namespace
 			vinst->set_param_value("OF", flows_param);			
 		}
 
-		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, GPNInfo* result)
+		void get_port_name(P2P::Port* port, P2P::PhysField* pfield, Vlog::Instance* inst, GPNInfo* result)
 		{
 			using namespace P2P;
 
@@ -116,72 +108,26 @@ namespace
 				return;
 			}
 			
-			std::string conv_field_name;
+			const Protocol& proto = port->get_proto();
 
 			if (port->get_name() == "in")
 			{
-				if (field->name == "valid")
-				{
-					result->port = "i_valid";
-					result->lo = 0;
-					return;
-				}
-				else if (field->name == "ready")
-				{
-					result->port = "o_ready";
-					result->lo = 0;
-					return;
-				}
-				else if (field->name == node->get_in_field_name())
-				{
-					result->port = "i_field";
-					result->lo = 0;
-					return;
-				}
-				else
-				{
-					result->port = "i_data";
-					conv_field_name = node->get_in_field_name();
-				}
+				if (pfield->name == "valid") result->port = "i_valid";
+				else if (pfield->name == "ready") result->port = "o_ready";
+				else if (pfield->name == node->get_in_field_name()) result->port = "i_field";
+				else result->port = "i_data";
+
+				result->lo = 0;
 			}
 			else if (port->get_name() == "out")
 			{
-				if (field->name == "valid")
-				{
-					result->port = "o_valid";
-					result->lo = 0;
-					return;
-				}
-				else if (field->name == "ready")
-				{
-					result->port = "i_ready";
-					result->lo = 0;
-					return;
-				}
-				else if (field->name == node->get_out_field_name())
-				{
-					result->port = "o_field";
-					result->lo = 0;
-					return;
-				}
-				else
-				{
-					result->port = "o_data";
-					conv_field_name = node->get_out_field_name();
-				}
-			}
+				if (pfield->name == "valid") result->port = "o_valid";
+				else if (pfield->name == "ready") result->port = "i_ready";
+				else if (pfield->name == node->get_out_field_name()) result->port = "o_field";
+				else result->port = "o_data";
 
-			// for data
-			int port_idx = 0;
-			for (P2P::Field* f : port->get_proto().fields())
-			{
-				if (f->name == field->name)
-					break;
-				else if (f->name != "valid" && f->name != "ready" && f->name != conv_field_name)
-					port_idx += f->width;
+				result->lo = 0;
 			}
-
-			result->lo = port_idx;
 		}
 	} s_impl;
 

@@ -1,4 +1,5 @@
 require 'spec'
+require 'topo_xbar'
 
 local s = spec.Spec:new()
 local b = s:builder()
@@ -57,7 +58,7 @@ b:component('reverser', 'reverser')
 		b:signal('ready', 'i_ready')
 		b:signal('data', 'o_data', 'WIDTH')
 
-b:system('sm_test')
+b:system('sm_test', topo_xbar)
 	b:instance('the_dispatch', 'dispatch')
 		b:defparam('WIDTH', '16')
 	b:instance('the_inverter', 'inverter')

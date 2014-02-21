@@ -17,6 +17,8 @@
     <ClCompile Include="..\..\src\split_node.cpp" />
     <ClCompile Include="..\..\src\flow_conv_node.cpp" />
     <ClCompile Include="..\..\src\export_node.cpp" />
+    <ClCompile Include="..\..\src\topo_spec.cpp" />
+    <ClCompile Include="..\..\src\protocol.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ct\p2p.h">
@@ -59,5 +61,11 @@
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\expressions_nodes.h" />
+    <ClInclude Include="..\..\include\ct\topo_spec.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\protocol.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

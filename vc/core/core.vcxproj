@@ -27,9 +27,11 @@
     <ClCompile Include="..\..\src\ct.cpp" />
     <ClCompile Include="..\..\src\merge_node.cpp" />
     <ClCompile Include="..\..\src\p2p.cpp" />
+    <ClCompile Include="..\..\src\protocol.cpp" />
     <ClCompile Include="..\..\src\spec.cpp" />
     <ClCompile Include="..\..\src\split_node.cpp" />
     <ClCompile Include="..\..\src\sys_spec.cpp" />
+    <ClCompile Include="..\..\src\topo_spec.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ct\common.h" />
@@ -41,10 +43,12 @@
     <ClInclude Include="..\..\include\ct\instance_node.h" />
     <ClInclude Include="..\..\include\ct\merge_node.h" />
     <ClInclude Include="..\..\include\ct\p2p.h" />
+    <ClInclude Include="..\..\include\ct\protocol.h" />
     <ClInclude Include="..\..\include\ct\spec.h" />
     <ClInclude Include="..\..\include\ct\split_node.h" />
     <ClInclude Include="..\..\include\ct\static_init.h" />
     <ClInclude Include="..\..\include\ct\sys_spec.h" />
+    <ClInclude Include="..\..\include\ct\topo_spec.h" />
     <ClInclude Include="..\..\src\expressions_nodes.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

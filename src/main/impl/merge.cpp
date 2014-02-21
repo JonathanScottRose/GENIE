@@ -22,14 +22,15 @@ namespace
 
 			result->add_param(new Vlog::Parameter("NI", result));
 			result->add_param(new Vlog::Parameter("WIDTH", result));
-			result->add_param(new Vlog::Parameter("EOP_LOC", result));
 
 			result->add_port(new Vlog::Port("clk", result, 1, Vlog::Port::IN));
 			result->add_port(new Vlog::Port("reset", result, 1, Vlog::Port::IN));
 			result->add_port(new Vlog::Port("i_data", result, "NI*WIDTH", Vlog::Port::IN));
 			result->add_port(new Vlog::Port("i_valid", result, "NI", Vlog::Port::IN));
+			result->add_port(new Vlog::Port("i_eop", result, "NI", Vlog::Port::IN));
 			result->add_port(new Vlog::Port("o_ready", result, "NI", Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("o_valid", result, 1, Vlog::Port::OUT));
+			result->add_port(new Vlog::Port("o_eop", result, 1, Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("o_data", result, "WIDTH", Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("i_ready", result, 1, Vlog::Port::IN));
 
@@ -43,26 +44,16 @@ namespace
 			MergeNode* node = (MergeNode*)generic_node;
 			assert(node->get_type() == Node::MERGE);
 
-			int data_width = 0;
-			for (auto& i : node->get_proto().fields())
-			{
-				if (i->name == "eop")
-				{
-					vinst->set_param_value("EOP_LOC", data_width);
-				}
-				
-				if (i->name != "valid" && i->name != "ready")
-				{
-					data_width += i->width;
-				}
-			}
+			int data_width = node->get_proto().get_phys_field("data")->width;
 			
 			vinst->set_param_value("NI", node->get_n_inputs());
 			vinst->set_param_value("WIDTH", data_width);
 		}
 
-		void get_port_name(P2P::Port* port, P2P::Field* field, Vlog::Instance* inst, GPNInfo* result)
+		void get_port_name(P2P::Port* port, P2P::PhysField* pfield, Vlog::Instance* inst, GPNInfo* result)
 		{
+			using namespace P2P;
+
 			if (port->get_name() == "clock")
 			{
 				result->port = "clk";
@@ -76,59 +67,30 @@ namespace
 				return;
 			}
 			
+			const Protocol& proto = port->get_proto();
+
 			int base_idx = 0;
 			if (port->get_name() == "out")
 			{
-				if (field->name == "valid")
-				{
-					result->port = "o_valid";
-					result->lo = 0;
-					return;
-				}
-				else if (field->name == "ready")
-				{
-					result->port = "i_ready";
-					result->lo = 0;
-					return;
-				}
-				else
-				{
-					result->port = "o_data";
-				}
+				if (pfield->name == "valid") result->port = "o_valid";
+				else if (pfield->name == "ready") result->port = "i_ready";
+				else if (pfield->name == "eop") result->port = "o_eop";
+				else result->port = "o_data";
+				
+				result->lo = 0;
 			}
 			else
 			{
 				auto parent = (P2P::MergeNode*) port->get_parent();
 				int port_idx = parent->get_inport_idx(port);
 
-				if (field->name == "valid")
-				{
-					result->port = "i_valid";
-					result->lo = port_idx;
-					return;
-				}
-				else if (field->name == "ready")
-				{
-					result->port = "o_ready";
-					result->lo = port_idx;
-					return;
-				}
-				else
-				{
-					result->port = "i_data";
-					base_idx = port_idx * inst->get_param_value("WIDTH");
-				}
-			}
+				if (pfield->name == "valid") result->port = "i_valid";
+				else if (pfield->name == "ready") result->port = "o_ready";
+				else if (pfield->name == "eop") result->port = "i_eop";
+				else result->port = "i_data";
 
-			for (P2P::Field* f : port->get_proto().fields())
-			{
-				if (f->name == field->name)
-					break;
-				else if (f->name != "valid" && f->name != "ready")
-					base_idx += f->width;
+				result->lo = port_idx * pfield->width;
 			}
-
-			result->lo = base_idx;
 		}
 	} s_impl;
 
