@@ -103,13 +103,16 @@ end
 function Component:create_default_linkpoints()
 	for _,iface in pairs(self.interfaces) do
 		local lps = iface.linkpoints
+		
 		if util.empty(lps) then
-			util.insert_unique(Linkpoint:new
+			local lp = Linkpoint:new
 			{
 				name = "lp", 
 				type="BROADCAST",
 				encoding=""
-			}, lps)
+			}
+			
+			util.insert_unique(lp, lps)
 		end
 	end
 end

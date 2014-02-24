@@ -180,8 +180,6 @@ public:
 	InterfaceList get_interfaces(Interface::Type type);
 	Interface* get_interface(const std::string& name);
 
-	void validate();
-
 protected:
 	std::string m_name;
 	Interfaces m_interfaces;

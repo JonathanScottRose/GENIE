@@ -232,16 +232,15 @@ namespace
 		// 4: Fixup clocks/protocols of exported data/conduit interfaces
 		for (auto& i : sys->get_export_node()->ports())
 		{
-			Port* exp_port = (DataPort*)i.second;
+			Port* exp_port = i.second;
 			if (exp_port->get_type() != Port::DATA &&
 				exp_port->get_type() != Port::CONDUIT)
 				continue;
 
-			Port* other_port;
-			if (exp_port->get_dir() == Port::OUT)
-				other_port = exp_port->get_conn()->get_sink();
-			else
+			Port* other_port = exp_port->get_conn()->get_sink();
+			if (other_port == exp_port)
 				other_port = exp_port->get_conn()->get_source();
+			assert(other_port != exp_port);
 			
 			exp_port->set_proto(other_port->get_proto());
 

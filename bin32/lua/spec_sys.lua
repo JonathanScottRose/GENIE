@@ -123,9 +123,12 @@ function System:create_auto_exports()
 		is_connected[link.dest:str()] = true
 	end
 	
+	-- to insert
+	local new_objs = {}
+	
 	for _,obj in pairs(self.objects) do
 		if obj.type ~= 'INSTANCE' then goto nextobj end
-		
+	
 		local src_lt = LinkTarget:new()
 		src_lt.obj = obj.name
 		
@@ -167,14 +170,19 @@ function System:create_auto_exports()
 						new_link.src = exp_lt
 						new_link.dest = src_lt
 					end
-					
+
 					self:add_link(new_link)
-					self:add_object(new_export)
+					Set.add(new_objs, new_export) -- add later
 				end
 			end
 		end
 		
 		::nextobj::
+	end
+	
+	-- add here, after iteration!
+	for obj in Set.values(new_objs) do
+		self:add_object(obj)
 	end
 end
 
