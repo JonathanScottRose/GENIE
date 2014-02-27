@@ -110,21 +110,6 @@ System* Spec::get_system(const std::string& name)
 	else return s_systems[name];
 }
 
-void Spec::validate()
-{
-	// Validate each component
-	for (auto& i : s_components)
-	{
-		i.second->validate();			
-	}
-
-	// Validate systems
-	for (auto& i : s_systems)
-	{
-		i.second->validate();
-	}
-}
-
 void Spec::create_subsystems()
 {
 	for (auto& i : s_systems)

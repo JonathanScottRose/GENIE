@@ -319,18 +319,3 @@ Interface* Component::get_interface(const std::string& name)
 {
 	return m_interfaces[name];
 }
-
-void Component::validate()
-{
-	for (auto& i : interfaces())
-	{
-		Interface* iface = i.second;
-
-		if (iface->linkpoints().empty())
-		{
-			Linkpoint* lp = new Linkpoint("lp", Spec::Linkpoint::BROADCAST, (DataInterface*)iface);
-			iface->add_linkpoint(lp);
-		}
-	}
-}
-

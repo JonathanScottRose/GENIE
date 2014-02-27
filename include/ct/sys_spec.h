@@ -146,8 +146,6 @@ public:
 	void add_object(SysObject* inst);
 	SysObject* get_object(const std::string& name);
 
-	void validate();
-
 	Component* get_component_for_instance(const std::string& name);
 	Linkpoint* get_linkpoint(const LinkTarget& path);
 

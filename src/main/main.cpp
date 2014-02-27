@@ -33,6 +33,22 @@ int main(int argc, char** argv)
 		parse_args(argc, argv);
 		LuaIface::exec_script(s_script);
 		
+		Spec::create_subsystems();
+
+		// Subsystems need an extra ImplAspect to tell them the verilog module name
+		for (auto& i : Spec::components())
+		{
+			Spec::Component* comp = i.second;
+
+			auto aspect = (BuildSpec::ComponentImpl*)comp->get_impl();
+			if (!aspect)
+			{
+				aspect = new BuildSpec::ComponentImpl;
+				aspect->module_name = comp->get_name();
+				comp->set_impl(aspect);
+			}
+		}
+
 		auto elab_order = Spec::get_elab_order();
 
 		for (auto spec_sys : elab_order)

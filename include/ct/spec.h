@@ -24,7 +24,6 @@ namespace Spec
 	// Elaboration
 	typedef std::vector<System*> SystemOrder;
 
-	void validate();
 	void create_subsystems();
 	bool is_subsystem_of(System* a, System* b);
 	SystemOrder get_elab_order();
