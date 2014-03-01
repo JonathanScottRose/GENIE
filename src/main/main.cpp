@@ -32,27 +32,10 @@ int main(int argc, char** argv)
 		LuaIface::init();
 		parse_args(argc, argv);
 		LuaIface::exec_script(s_script);
-		
-		Spec::create_subsystems();
 
-		// Subsystems need an extra ImplAspect to tell them the verilog module name
-		for (auto& i : Spec::components())
+		for (auto& i : Spec::systems())
 		{
-			Spec::Component* comp = i.second;
-
-			auto aspect = (BuildSpec::ComponentImpl*)comp->get_impl();
-			if (!aspect)
-			{
-				aspect = new BuildSpec::ComponentImpl;
-				aspect->module_name = comp->get_name();
-				comp->set_impl(aspect);
-			}
-		}
-
-		auto elab_order = Spec::get_elab_order();
-
-		for (auto spec_sys : elab_order)
-		{
+			Spec::System* spec_sys = i.second;
 			P2P::System* p2p_sys = ct::build_system(spec_sys);
 			Vlog::SystemModule* sys_mod = ImplVerilog::build_top_module(p2p_sys);
 			WriteVerilog::go(sys_mod);

@@ -56,11 +56,13 @@ end
 
 function Interface:add_signal(sig)
 	Set.add(self.signals, sig)
+	return sig
 end
 
 function Interface:add_linkpoint(lp)
 	lp.parent = self
 	util.insert_unique(lp, self.linkpoints)
+	return lp
 end
 
 -- Parameter
@@ -93,6 +95,7 @@ end
 function Component:add_interface(iface)
 	iface.parent = self
 	util.insert_unique(iface, self.interfaces)
+	return iface
 end
 
 function Component:add_parameter(param)

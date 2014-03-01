@@ -25,11 +25,13 @@ end
 
 function Spec:add_component(comp)
 	util.insert_unique(comp, self.components)
+	return comp
 end
 
 function Spec:add_system(sys)
 	sys.parent = self
 	util.insert_unique(sys, self.systems)
+	return sys
 end
 
 function Spec:builder()
@@ -39,12 +41,16 @@ function Spec:builder()
 end
 
 function Spec:post_process()
-	for _,component in pairs(self.components) do
-		component:create_default_linkpoints()
+	for _,system in spairsv(self.systems, 
+		function(t,a,b) return a:is_subsystem_of(b) end
+	) do
+		system:create_auto_exports()
+		system:componentize()
+		system:create_default_reset()
 	end
 	
-	for _,system in pairs(self.systems) do
-		system:create_auto_exports()
+	for _,component in pairs(self.components) do
+		component:create_default_linkpoints()
 	end
 end
 

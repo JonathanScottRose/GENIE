@@ -1,6 +1,7 @@
 #pragma once
 
 #include "impl_vlog.h"
+#include "build_spec.h"
 #include "ct/export_node.h"
 
 using namespace ct;
@@ -8,6 +9,25 @@ using namespace ImplVerilog;
 
 namespace
 {
+	// copied from instance.cpp. please kill me now
+	Vlog::Port::Dir conv_port_dir(Spec::Interface::Type itype, Spec::Signal::Sense ssense)
+	{
+		using namespace ct::Spec;
+
+		bool is_out = ssense == Signal::FWD;
+
+		switch (itype)
+		{
+			case Interface::CLOCK_SINK:
+			case Interface::RESET_SINK:
+			case Interface::RECV:
+				is_out = !is_out;
+				break;
+		}
+
+		return is_out ? Vlog::Port::OUT : Vlog::Port::IN;
+	}
+
 	class : public ImplVerilog::INodeImpl
 	{
 		// Visiting a (the) export node adds top-level ports and nets to
@@ -19,20 +39,24 @@ namespace
 
 			Vlog::SystemModule* sysmod = netlist->get_system_module();
 
-			for (auto& i : node->ports())
-			{
-				P2P::Port* p = i.second;
+			// add ports according to the Spec::Component for this system, which has the
+			// same name as the system
+			Spec::Component* comp_def = Spec::get_component(node->get_name());
 
-				for (auto& j : p->get_proto().phys_fields())
+			// Convert ports
+			for (auto& i : comp_def->interfaces())
+			{
+				Spec::Interface* iface = i.second;
+				const std::string& ifacename = iface->get_name();
+
+				for (Spec::Signal* sig : iface->signals())
 				{
-					P2P::PhysField* pf = j.second;
-					// Create port. Don't forget to reverse the direction of the port, because
-					// the export node's ports point inwards towards the system components but
-					// we want to create a port facing outwards to a higher-level module.
-					std::string portname = ImplVerilog::name_for_p2p_port(p, pf);
-					Vlog::Port* port = new Vlog::Port(portname, sysmod);
-					port->set_dir(Vlog::Port::rev_dir(ImplVerilog::conv_port_dir(p, pf))); // reverse dir!
-					port->set_width(pf->width);
+					auto impl = (BuildSpec::SignalImpl*)sig->get_impl();
+
+					// Create port. The direction of the Interface actually points the right way.
+					Vlog::Port* port = new Vlog::Port(impl->signal_name, sysmod);
+					port->set_dir(conv_port_dir(iface->get_type(), sig->get_sense()));
+					port->width() = sig->get_width(); // is a constant
 					sysmod->add_port(port);
 
 					// Create corresponding export net
@@ -43,13 +67,15 @@ namespace
 		}
 
 		// An export node's ports correspond to the system module's top-level ports, and already
-		// have nets associated with each input and output. Return the name of these nets
-		// and return true.
+		// have nets associated with each input and output. 
 		Vlog::Net* produce_net(INetlist* netlist, P2P::Node* generic_node, P2P::Port* port, 
 			P2P::PhysField* pfield)
 		{
-			std::string name = ImplVerilog::name_for_p2p_port(port, pfield);
-			return netlist->get_system_module()->get_net(name);
+			Spec::Component* comp_def = Spec::get_component(generic_node->get_name());
+			Spec::Interface* iface = comp_def->get_interface(port->get_name());
+			Spec::Signal* sig = iface->get_signal(pfield->name);
+			auto sig_impl = (BuildSpec::SignalImpl*)sig->get_impl();
+			return netlist->get_system_module()->get_net(sig_impl->signal_name);
 		}
 
 		// No kind of binding is required
