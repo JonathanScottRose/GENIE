@@ -19,12 +19,5 @@ namespace Spec
 	const Systems& systems();
 	void define_system(System* sys);
 	System* get_system(const std::string& name);
-
-	// Elaboration
-	typedef std::vector<System*> SystemOrder;
-
-	void create_subsystems();
-	bool is_subsystem_of(System* a, System* b);
-	SystemOrder get_elab_order();
 }
 }

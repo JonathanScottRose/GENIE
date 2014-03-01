@@ -44,6 +44,26 @@ function keys(tab)
 		nil
 end
 
+-- http://stackoverflow.com/questions/15706270/sort-a-table-in-lua
+-- iterates through a table by value
+function spairsv(t, order)
+    -- collect the keys
+    local keys = {}
+    for k in pairs(t) do keys[#keys+1] = k end
+
+	-- sort the keys based on a function of the values
+    table.sort(keys, function(a,b) return order(t, t[a], t[b]) end)
+    
+    -- return the iterator function
+    local i = 0
+    return function()
+        i = i + 1
+        if keys[i] then
+            return keys[i], t[keys[i]]
+        end
+    end
+end
+
 -- types
 
 Set = 

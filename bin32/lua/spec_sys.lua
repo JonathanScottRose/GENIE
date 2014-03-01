@@ -186,4 +186,133 @@ function System:create_auto_exports()
 	end
 end
 
+function System:create_default_reset()
+	-- check if system has a reset already
+	local has_reset = false
+	for _,obj in pairs(self.objects) do
+		if obj.iface_type == "RESET" then
+			has_reset = true
+			break
+		end
+	end
+	
+	if has_reset then return end
+	
+	-- create a reset export, connected to nothing
+	self:add_object(Export:new
+	{
+		name = "reset",
+		iface_type = "RESET",
+		iface_dir = "IN"
+	})
+	
+	-- for the component representing the system, create a reset sink
+	-- interface with one reset signal
+	local comp = self.parent.components[self.name]
+	local iface = comp:add_interface(Interface:new
+	{
+		name = "reset",
+		type = "RESET",
+		dir = "IN"
+	})
+	
+	iface:add_signal(Signal:new
+	{
+		type = "RESET",
+		binding = "reset",
+		width = 1
+	})
+end
+
+function System:componentize()
+	-- check for existing component with same name
+	local new_comp = self.parent.components[self.name]
+	if new_comp then
+		util.error("Can't componentize system " .. self.name .. " because a component with the same \
+			name already exists")
+	end
+	
+	-- create the new component for this system and register it with the parent Spec
+	new_comp = self.parent:add_component(Component:new
+	{
+		name = self.name,
+		module = self.name
+	})
+	
+	-- to ensure we only visit exports once (for clocks, resets)
+	local visited = {}
+	
+	-- find feeders of all destinations: used to find clock sources
+	local feeder = {}
+	for link in Set.values(self.links) do
+		feeder[link.dest:phys()] = link.src.obj
+	end
+	
+	local function find_clk(obj,iface)
+		if not iface then return nil end
+		return feeder[obj .. "." .. iface]
+	end
+	
+	-- find all exports in this system and the things they are exporting
+	for link in Set.values(self.links) do
+		local ex = link.src
+		local ex_o = self.objects[link.src.obj]
+		local other = link.dest
+		local other_o = self.objects[link.dest.obj]
 		
+		-- swap so that "other" is the exported thing
+		if other_o.type == "EXPORT" then
+			ex_o,other_o,ex,other = other_o,ex_o,other,ex
+		end
+		
+		if ex_o.type == "EXPORT" and not visited[ex_o] then
+			util.assert(other_o.type == "INSTANCE")
+			Set.add(visited, ex_o)
+			local other_if = self.parent.components[other_o.component].interfaces[other.iface]
+			
+			-- create an interface of the same type and direction as the export and exported interface
+			-- it's named after the export, though
+			local new_if = new_comp:add_interface(Interface:new
+			{
+				name = ex_o.name,
+				type = other_if.type,
+				dir = other_if.dir,
+				clock = find_clk(other_o.name, other_if.clock)
+			})
+			
+			-- create signals, whose net names are auto-generated based on exported object, exported interface
+			-- name, and type/role
+			for old_sig in Set.values(other_if.signals) do
+				local newsigname = ex_o.name
+				if new_if.type == "CLOCK" or new_if.type == "RESET" then
+					-- no additional modifications
+				elseif old_sig.usertype then
+					-- data signal with usertype OR a conduit
+					newsigname = newsigname .. "_" .. old_sig.usertype
+				else
+					-- signal in a data interface with no usertype
+					newsigname = newsigname .. "_" .. string.lower(old_sig.type)
+				end
+	
+				-- resolve parameterized widths to a constant, using the exported instance's param bindings
+				local width = ct.eval_expression(old_sig.width, other_o.param_bindings)
+				
+				new_if:add_signal
+				{
+					binding = newsigname,
+					type = old_sig.type,
+					usertype = old_sig.usertype,
+					width = width
+				}
+			end				
+		end
+	end
+end
+
+function System:is_subsystem_of(other)
+	for objname,obj in pairs(other.objects) do
+		if obj.type == "INSTANCE" and obj.component == self.name then return true end
+	end
+	return false
+end
+

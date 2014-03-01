@@ -346,6 +346,26 @@ namespace
 		return 0;
 	}
 
+	LFUNC(eval_expression)
+	{
+		// args: expression (str), param binding (table)
+		std::string expr_str = luaL_checkstring(L, 1);
+		luaL_checktype(L, 2, LUA_TTABLE);
+
+		// get key/value pairs. recycle "Attribs" for this - not intended purpose
+		Attribs params = get_table(L);
+
+		Expression expr(expr_str);
+
+		int result = expr.get_value([&] (const std::string param)
+		{
+			return Expression(params[param]);
+		});
+
+		lua_pushinteger(L, result);
+		return 1;
+	}
+
 	void register_funcs()
 	{
 		REG_LFUNC(reg_component);
@@ -357,6 +377,7 @@ namespace
 		REG_LFUNC(reg_export);
 		REG_LFUNC(reg_system);
 		REG_LFUNC(reg_linkpoint);
+		REG_LFUNC(eval_expression);
 	}
 }
 
