@@ -175,7 +175,7 @@ function util.unique_key(t, base)
 	for _,v in pairs(t) do
 		k = base .. tostring(n)
 		if t[k] then 
-			k = k + 1
+			n = n + 1
 		else
 			break
 		end

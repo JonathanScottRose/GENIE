@@ -79,7 +79,8 @@ namespace
 					FieldState* sink_fs = sink_proto.get_field_state(i.first);
 					PhysField* sink_pf = sink_proto.get_phys_field(sink_fs->phys_field);
 
-					if (sink_fs->is_const || !src_proto.has_field(i.first))
+					if (sink_pf->sense == PhysField::REV || 
+						sink_fs->is_const || !src_proto.has_field(i.first))
 						continue;
 
 					Field* src_f = src_proto.get_field(i.first);
@@ -101,6 +102,37 @@ namespace
 						net = src_impl->produce_net(&s_netlist_iface, p2psrc_node, p2psrc_port, src_f,
 							&net_lo);
 						sink_impl->accept_net(&s_netlist_iface, p2psink_node, p2psink_port, sink_f,
+							net, net_lo);
+					}
+				}
+
+				for (auto& i : src_proto.fields())
+				{
+					Field* src_f = i.second;
+					FieldState* src_fs = src_proto.get_field_state(i.first);
+					PhysField* src_pf = src_proto.get_phys_field(src_fs->phys_field);
+
+					if (src_pf->sense == PhysField::FWD ||
+						src_fs->is_const || !sink_proto.has_field(i.first))
+						continue;
+
+					Field* sink_f = sink_proto.get_field(i.first);
+					FieldState* sink_fs = sink_proto.get_field_state(i.first);
+					PhysField* sink_pf = sink_proto.get_phys_field(sink_fs->phys_field);
+
+					Vlog::Net* net = src_impl->produce_net(&s_netlist_iface, p2psrc_node,
+						p2psrc_port, src_f, 0);
+
+					if (net)
+					{
+						sink_impl->accept_net(&s_netlist_iface, p2psink_node, p2psink_port, sink_f, net);
+					}
+					else
+					{
+						int net_lo;
+						net = sink_impl->produce_net(&s_netlist_iface, p2psink_node, p2psink_port, sink_f,
+							&net_lo);
+						src_impl->accept_net(&s_netlist_iface, p2psrc_node, p2psrc_port, src_f,
 							net, net_lo);
 					}
 				}
@@ -213,15 +245,15 @@ void IModuleImpl::visit(INetlist* netlist, P2P::Node* node)
 Vlog::Net* IModuleImpl::produce_net(INetlist* netlist, P2P::Node* node, P2P::Port* port, 
 	P2P::Field* field, int* net_lo)
 {
-	if (port->get_dir() == P2P::Port::IN)
+	// Determine field's physical containment/location
+	FieldState* fs = port->get_proto().get_field_state(field->name);
+	PhysField* pfield = port->get_proto().get_phys_field(fs->phys_field);
+
+	if ((port->get_dir() == P2P::Port::IN) != (pfield->sense == P2P::PhysField::REV))
 		return nullptr;
 
 	// Get the HDL instance corresponding to the node 
 	Vlog::Instance* inst = this->get_inst_for_node(node);
-
-	// Determine field's physical containment/location
-	FieldState* fs = port->get_proto().get_field_state(field->name);
-	PhysField* pfield = port->get_proto().get_phys_field(fs->phys_field);
 
 	// P2PPort + Physfield --> HDL Port
 	GPNInfo ci;
