@@ -130,12 +130,12 @@ void PortState::bind(Bindable* target, int width, int port_lo, int targ_lo)
 
 	Port* port = get_port();
 
-	// Check to make sure the top bit of the binding exceeds neither that of the port
-	// nor the target
 	int port_width = get_width();
 	int targ_width = target->get_width();
 	int port_hi = port_lo + width - 1;
 	int targ_hi = targ_lo + width - 1;
+
+	
 	assert(port_hi < port_lo + port_width);
 	assert(targ_hi < targ_lo + targ_width);
 

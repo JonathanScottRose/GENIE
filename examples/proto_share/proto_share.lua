@@ -33,7 +33,7 @@ local protos =
 	
 	D =
 	{
-		data = 16,
+		data = 24,
 		x = 4
 	}
 }

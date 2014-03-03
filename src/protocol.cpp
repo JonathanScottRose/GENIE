@@ -83,6 +83,10 @@ void Protocol::carry_fields(const FieldSet& set, const std::string& targ_phys)
 		{
 			add_field(new Field(f));
 		}
+		else
+		{
+			m_fields[f.name]->width = std::max(m_fields[f.name]->width, f.width);
+		}
 
 		// initialize field state
 		FieldState* fs = get_field_state(f.name);

@@ -289,7 +289,10 @@ void IModuleImpl::accept_net(INetlist* netlist, P2P::Node* node, P2P::Port* port
 	GPNInfo ci;
 	this->get_port_name(port, pfield, inst, &ci);
 
-	inst->bind_port(ci.port, net, field->width, ci.lo + fs->phys_field_lo, net_lo);
+	// Bind only as many bits as given/available
+	int width = std::min(net->get_width(), field->width);
+
+	inst->bind_port(ci.port, net, width, ci.lo + fs->phys_field_lo, net_lo);
 }
 
 // Get/set P2P::Node<-->Vlog::Instance association
