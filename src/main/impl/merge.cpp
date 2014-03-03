@@ -44,7 +44,7 @@ namespace
 			MergeNode* node = (MergeNode*)generic_node;
 			assert(node->get_type() == Node::MERGE);
 
-			int data_width = node->get_proto().get_phys_field("data")->width;
+			int data_width = node->get_proto().get_phys_field("xdata")->width;
 			
 			vinst->set_param_value("NI", node->get_n_inputs());
 			vinst->set_param_value("WIDTH", data_width);

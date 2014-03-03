@@ -461,34 +461,86 @@ namespace
 	{
 		// For each flow, work backwards from the ultimate sink and figure out which intermediate
 		// ports need to carry which fields
-		for (auto i : sys->flows())
+		for (auto& i : sys->flows())
 		{
 			Flow* flow = i.second;
-			Port* flow_sink = flow->get_sink0()->port;
 			Port* flow_src = flow->get_src()->port;
 
-			// Skip encapsulation for clock/reset flows. They have multiple-fanout local connections
-			// and that might break this algorithm.
-			if (flow_sink->get_type() == Port::CLOCK ||
-				flow_sink->get_type() == Port::RESET)
+			// Skip encapsulation for clock/reset flows. 
+			if (flow_src->get_type() == Port::CLOCK ||
+				flow_src->get_type() == Port::RESET)
 			{
 				continue;
 			}
 
-			// Start with an empty carriage set at the end of the flow
-			FieldSet carriage_set;
-			Port* cur_sink = flow_sink;
-
-			// Work backwards to the start of the flow
-			while(true)
+			// For all sinks, work backwards to the source
+			for (auto& j : flow->sinks())
 			{
-				Port* cur_src = cur_sink->get_first_connected_port();
-				if (cur_src == flow_src)
+				Port* flow_sink = j->port;
+			
+				// Start with an empty carriage set at the end of the flow
+				FieldSet carriage_set;
+				Port* cur_sink = flow_sink;
+
+				// Work backwards to the start of the flow
+				while(true)
+				{
+					Port* cur_src = cur_sink->get_first_connected_port();
+					if (cur_src == flow_src)
+						break;
+
+					// Add locally-required fields at sink to carriage set
+					// Then, remove locally-produced fields at source form carriage set
+					for (Port* p : {cur_sink, cur_src})
+					{
+						for (auto& j : p->get_proto().field_states())
+						{
+							FieldState* fs = j.second;
+							Field* f = p->get_proto().get_field(j.first);
+							PhysField* pf = p->get_proto().get_phys_field(fs->phys_field);
+
+							// Ignore reverse signals and non-locals
+							if (pf->sense != PhysField::FWD || !fs->is_local)
+								continue;
+
+							if (p == cur_sink)
+							{
+								carriage_set.add_field(*f);
+							}
+							else
+							{
+								carriage_set.remove_field(f->name);
+							}
+						}
+					}
+
+					// Ask the driving node to carry these fields (assumed to be co-temporal)
+					Node* src_node = cur_src->get_parent();
+					src_node->carry_fields(carriage_set);
+
+					// Follow the flow backwards through the node to a new sink port
+					cur_sink = src_node->rtrace(cur_src, flow);
+				} // end backward pass
+			}
+
+			// Do the same thing but forwards
+			FieldSet carriage_set;
+			std::stack<Port*> srcs_to_visit;
+			srcs_to_visit.push(flow_src);
+
+			while (!srcs_to_visit.empty())
+			{
+				Port* cur_src = srcs_to_visit.top();
+				srcs_to_visit.pop();
+
+				Port* cur_sink = cur_src->get_first_connected_port();
+
+				if (flow->has_sink(cur_sink))
 					break;
 
-				// Add locally-required fields at sink to carriage set
-				// Then, remove locally-produced fields at source form carriage set
-				for (Port* p : {cur_sink, cur_src})
+				// Add locally-produced fields to the carriage set.
+				// Remove locally-consumed fields.
+				for (Port* p : { cur_src, cur_sink })
 				{
 					for (auto& j : p->get_proto().field_states())
 					{
@@ -500,7 +552,7 @@ namespace
 						if (pf->sense != PhysField::FWD || !fs->is_local)
 							continue;
 
-						if (p == cur_sink)
+						if (p == cur_src)
 						{
 							carriage_set.add_field(*f);
 						}
@@ -511,15 +563,16 @@ namespace
 					}
 				}
 
-				// Ask the driving node to carry these fields (assumed to be co-temporal)
-				Node* src_node = cur_src->get_parent();
-				src_node->carry_fields(carriage_set);
+				// Ask the sink node to carry these fields
+				Node* sink_node = cur_sink->get_parent();
+				sink_node->carry_fields(carriage_set);
 
-				// Follow the flow backwards through the node to a new sink port
-				cur_sink = src_node->rtrace(cur_src, flow);
+				// Follow the flow forwards through the sink node, which could have multiple
+				// exits for this flow, so add them all the the visitation stack
+				auto new_srcs = sink_node->trace(cur_sink, flow);
+				for (auto& k : new_srcs) srcs_to_visit.push(k);
 			}
-
-		}
+		} 
 	}
 
 	void configure_post_negotiate(System* sys)

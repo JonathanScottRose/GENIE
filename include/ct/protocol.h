@@ -33,6 +33,7 @@ namespace P2P
 		void remove_field(const std::string& name);
 		bool has_field(const std::string& name) const;
 		Field& get_field() const;
+		void clear();
 		
 	protected:
 		Fields m_fields;

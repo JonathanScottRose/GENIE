@@ -48,7 +48,7 @@ namespace
 			SplitNode* node = (SplitNode*)generic_node;
 			assert(node->get_type() == Node::SPLIT);
 
-			int data_width = node->get_proto().get_phys_field("data")->width;
+			int data_width = node->get_proto().get_phys_field("xdata")->width;
 			int fid_width = node->get_flow_id_width();
 
 			vinst->set_param_value("NO", node->get_n_outputs());

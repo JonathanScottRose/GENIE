@@ -23,8 +23,8 @@ namespace ImplVerilog
 	{
 	public:
 		virtual void visit(INetlist*, P2P::Node*) = 0;
-		virtual Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::PhysField*) = 0;
-		virtual void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::PhysField*, P2P::Field*, 
+		virtual Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, int*) = 0;
+		virtual void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, 
 			Vlog::Bindable*, int net_lo = 0) = 0;
 	};
 
@@ -40,8 +40,8 @@ namespace ImplVerilog
 		};
 
 		void visit(INetlist*, P2P::Node*);
-		Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::PhysField*);
-		void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::PhysField*, P2P::Field*, 
+		Vlog::Net* produce_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, int*);
+		void accept_net(INetlist*, P2P::Node*, P2P::Port*, P2P::Field*, 
 			Vlog::Bindable*, int);
 
 	protected:

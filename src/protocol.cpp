@@ -61,7 +61,6 @@ Field* Protocol::init_field(const std::string& name, int width, PhysField::Sense
 PhysField* Protocol::init_physfield(const std::string& name, int width, PhysField::Sense sense)
 {
 	auto pf = new PhysField;
-	pf->add_field(name);
 	pf->name = name;
 	pf->width = width;
 	pf->sense = sense;
@@ -117,108 +116,19 @@ void Protocol::allocate_bits()
 	{
 		PhysField* pf = i.second;
 
-		// for each field, how many sets does it show up in?
-		std::unordered_map<std::string, int> occurrence;
+		// stupid bit allocation - make all carried fields non-overlapping.
+		// this is sub-optimal but guarantees they can be accessed/swizzled anywhere
 
-		// an ordering for visiting the fields during bit-assignment
-		std::vector<std::string> field_order;
-		
-		// the co-field set for each field. this is the set of all fields that a given field
-		// will ever be simultaneously transmitted with, in the same clock cycle.
-		std::unordered_map<Field*, std::unordered_set<std::string>> co_fields;
+		int cur_lo = 0;
 
 		for (auto& fname : pf->fields)
 		{
-			// add here, sort later
-			field_order.push_back(fname);
-
 			// initialize each field's position to 'unallocated'
-			m_field_states[fname]->phys_field_lo = -1;
-
-			Field* f = m_fields[fname];
-
-			// for each carriage set...
-			for (auto& set : pf->sets)
-			{
-				// does this field exist in this set? 0 or 1
-				int count = set.count(fname);
-
-				// count how many sets each field appears in (used for sorting)
-				occurrence[fname] += count;
-
-				// if a field shows up in a set, every other field in that set is added to that 
-				// field's co-field set
-				if (count)
-				{
-					// insert the whole set (which includes f...) and remove f from each set later
-					co_fields[f].insert(set.begin(), set.end());
-				}
-			}
-
-			// remove each field from its own co-field set
-			co_fields[f].erase(fname);
+			m_field_states[fname]->phys_field_lo = cur_lo;
+			cur_lo += m_fields[fname]->width;
 		}
 
-		// create field ordering by descending number of co-temporal sets a field appears in.
-		// this creates a greedy ordering by trying to allocate the most-common fields first, minimizing
-		// wasteage of bit-space
-		std::sort(field_order.begin(), field_order.end(), [&](const std::string& a, const std::string& b)
-		{
-			return occurrence[a] > occurrence[b];
-		});
-
-		// now go through each field and assign/fix its bit-location inside the parent field.
-		// for each field, we have a proposed position POS, which is initially 0.
-		// bits [POS+field_size-1 : POS] must not already be occupied by any other field that is ever
-		// co-temporally transmitted with it.
-		// POS gradually advances until one can be found that's agreed in all transmission configurations.
-		//
-
-		for (auto& fname : field_order)
-		{
-			int pos = 0; // proposed position of field
-			bool found_pos = false; // have we found an agreed-upon position yet?
-
-			Field* f = m_fields[fname];
-			FieldState* fs = m_field_states[fname];
-
-			while (!found_pos)
-			{
-				found_pos = true;
-
-				// test this proposed location against all already-allocated fields in the co-field set
-				for (auto& co_name : co_fields[f])
-				{
-					FieldState* co_fs = m_field_states[co_name];
-					Field* co_f = m_fields[co_name];
-
-					// do not test against un-allocated fields
-					if (co_fs->phys_field_lo < 0)
-						continue;
-					
-					// check for overlap
-					int lo1 = pos;
-					int hi1 = pos + f->width;
-					int lo2 = co_fs->phys_field_lo;
-					int hi2 = lo2 + co_f->width;
-
-					if (lo1 < hi2 && hi1 > lo2)
-					{
-						// overlap. try again with a new bit position (advance to the obstructing
-						// co-field's end)
-						found_pos = false;
-						pos = hi2;
-						break;
-					}
-				}
-			}
-
-			// Allocate the field, give it a position
-			fs->phys_field_lo = pos;
-
-			// Expand the size of the physfield to accommodate
-			pf->width = std::max(pf->width, fs->phys_field_lo + f->width);
-		}
+		pf->width = cur_lo;
 
 		// clean up unused data structures in the physfield
 		pf->sets.clear();
@@ -335,4 +245,9 @@ bool FieldSet::has_field(const std::string& name) const
 {
 	auto exist = std::find_if(m_fields.begin(), m_fields.end(), finder(name));
 	return (exist != m_fields.end());
+}
+
+void FieldSet::clear()
+{
+	m_fields.clear();
 }

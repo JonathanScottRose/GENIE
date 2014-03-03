@@ -18,7 +18,7 @@ FlowConvNode::FlowConvNode(const std::string& name, bool to_flow)
 
 	// Common protocol for input and output (flow_id and lp_id created in configure())
 	Protocol proto;
-	proto.init_physfield("data", 0);
+	proto.init_physfield("xdata", 0);
 	proto.init_field("valid", 1);
 	proto.init_field("ready", 1, PhysField::REV);
 
@@ -122,11 +122,11 @@ void FlowConvNode::configure_1()
 
 void FlowConvNode::carry_fields(const FieldSet& set)
 {
-	get_outport()->get_proto().carry_fields(set, "data");
+	get_outport()->get_proto().carry_fields(set, "xdata");
 }
 
 void FlowConvNode::configure_2()
 {
 	get_outport()->get_proto().allocate_bits();
-	get_inport()->get_proto().copy_carriage(get_outport()->get_proto(),	"data");
+	get_inport()->get_proto().copy_carriage(get_outport()->get_proto(),	"xdata");
 }

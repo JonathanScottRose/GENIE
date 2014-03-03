@@ -22,7 +22,7 @@ MergeNode::MergeNode(const std::string& name, int n_inputs)
 	proto.init_field("valid", 1);
 	proto.init_field("ready", 1, PhysField::REV);
 	proto.init_field("eop", 1);
-	proto.init_physfield("data", 0);
+	proto.init_physfield("xdata", 0);
 	
 	DataPort* port = new DataPort(this, Port::OUT);
 	port->set_name("out");
@@ -110,7 +110,7 @@ Protocol& MergeNode::get_proto()
 
 void MergeNode::carry_fields(const FieldSet& set)
 {
-	get_outport()->get_proto().carry_fields(set, "data");
+	get_outport()->get_proto().carry_fields(set, "xdata");
 }
 
 void MergeNode::configure_2()
@@ -121,6 +121,6 @@ void MergeNode::configure_2()
 	for (int i = 0; i < m_n_inputs; i++)
 	{
 		Port* p = get_inport(i);
-		p->get_proto().copy_carriage(src_proto, "data");
+		p->get_proto().copy_carriage(src_proto, "xdata");
 	}
 }

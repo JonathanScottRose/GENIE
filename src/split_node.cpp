@@ -24,7 +24,7 @@ SplitNode::SplitNode(const std::string& name, int n_outputs)
 	Protocol proto;
 	proto.init_field("valid", 1);
 	proto.init_field("ready", 1, PhysField::REV);
-	proto.init_physfield("data", 0);
+	proto.init_physfield("xdata", 0);
 
 	DataPort* port = new DataPort(this, Port::IN);
 	port->set_name("in");
@@ -163,7 +163,7 @@ Protocol& SplitNode::get_proto()
 
 void SplitNode::carry_fields(const FieldSet& set)
 {
-	get_inport()->get_proto().carry_fields(set, "data");
+	get_inport()->get_proto().carry_fields(set, "xdata");
 }
 
 void SplitNode::configure_2()
@@ -174,6 +174,6 @@ void SplitNode::configure_2()
 	for (int i = 0; i < m_n_outputs; i++)
 	{
 		Port* p = get_outport(i);
-		p->get_proto().copy_carriage(src_proto, "data");
+		p->get_proto().copy_carriage(src_proto, "xdata");
 	}
 }

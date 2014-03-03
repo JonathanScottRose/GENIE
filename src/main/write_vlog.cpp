@@ -110,20 +110,12 @@ namespace
 
 		if (!ps->is_empty())
 		{
-			// Multiple bindings? Curly brackets
-			if (ps->has_multiple_bindings())
-			{
-				bindstr = "{";
-			}
-
 			// Sort bindings in most to least significant bit order
 			auto sorted_bindings = ps->bindings();
 			std::sort(sorted_bindings.begin(), sorted_bindings.end(), [](PortBinding* l, PortBinding* r)
 			{
 				return l->get_port_lo() > r->get_port_lo();
 			});
-
-			
 
 			// Now traverse the port's bits from MSB to LSB and connect either bindings (const or net),
 			// or unconnected bits (hi-impedance)
@@ -183,6 +175,7 @@ namespace
 					// Advance to whatever's after this binding (could be another binding or
 					// some unconnected bits)
 					cur_bit -= binding->get_width();
+					++binding_iter;
 				}
 
 				// After whatever we just wrote (unconnectedness, or a binding), if there's more to

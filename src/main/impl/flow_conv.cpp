@@ -51,7 +51,7 @@ namespace
 			const std::string& in_field_name = node->get_in_field_name();
 			const std::string& out_field_name = node->get_out_field_name();
 
-			int data_width = node->get_inport()->get_proto().get_phys_field("data")->width;
+			int data_width = node->get_inport()->get_proto().get_phys_field("xdata")->width;
 			
 			vinst->set_param_value("N_ENTRIES", node->get_n_entries());
 			vinst->set_param_value("WD", data_width);

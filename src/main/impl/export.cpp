@@ -1,7 +1,6 @@
 #pragma once
 
 #include "impl_vlog.h"
-#include "build_spec.h"
 #include "ct/export_node.h"
 
 using namespace ct;
@@ -51,10 +50,10 @@ namespace
 
 				for (Spec::Signal* sig : iface->signals())
 				{
-					auto impl = (BuildSpec::SignalImpl*)sig->get_impl();
+					std::string sig_name = sig->get_aspect_val<std::string>();
 
 					// Create port. The direction of the Interface actually points the right way.
-					Vlog::Port* port = new Vlog::Port(impl->signal_name, sysmod);
+					Vlog::Port* port = new Vlog::Port(sig_name, sysmod);
 					port->set_dir(conv_port_dir(iface->get_type(), sig->get_sense()));
 					port->width() = sig->get_width(); // is a constant
 					sysmod->add_port(port);
@@ -69,18 +68,19 @@ namespace
 		// An export node's ports correspond to the system module's top-level ports, and already
 		// have nets associated with each input and output. 
 		Vlog::Net* produce_net(INetlist* netlist, P2P::Node* generic_node, P2P::Port* port, 
-			P2P::PhysField* pfield)
+			P2P::Field* field, int* net_lo)
 		{
 			Spec::Component* comp_def = Spec::get_component(generic_node->get_name());
 			Spec::Interface* iface = comp_def->get_interface(port->get_name());
-			Spec::Signal* sig = iface->get_signal(pfield->name);
-			auto sig_impl = (BuildSpec::SignalImpl*)sig->get_impl();
-			return netlist->get_system_module()->get_net(sig_impl->signal_name);
+			Spec::Signal* sig = iface->get_signal(field->name);
+			std::string sig_name = sig->get_aspect_val<std::string>();
+			if (net_lo) *net_lo = 0;
+			return netlist->get_system_module()->get_net(sig_name);
 		}
 
 		// No kind of binding is required
 		void accept_net(INetlist* netlist, P2P::Node* generic_node, P2P::Port* port, 
-			P2P::PhysField* pfield, P2P::Field* field, Vlog::Bindable* net, int net_lo)
+			P2P::Field* field, Vlog::Bindable* net, int net_lo)
 		{
 		}
 	} s_impl;
