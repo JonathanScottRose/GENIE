@@ -52,7 +52,33 @@ function spairsv(t, order)
     for k in pairs(t) do keys[#keys+1] = k end
 
 	-- sort the keys based on a function of the values
-    table.sort(keys, function(a,b) return order(t, t[a], t[b]) end)
+	if order then
+		table.sort(keys, function(a,b) return order(t, t[a], t[b]) end)
+	else
+		table.sort(keys, function(a,b) return t[a] < t[b] end)
+	end
+    
+    -- return the iterator function
+    local i = 0
+    return function()
+        i = i + 1
+        if keys[i] then
+            return keys[i], t[keys[i]]
+        end
+    end
+end
+
+function spairsk(t, order)
+    -- collect the keys
+    local keys = {}
+    for k in pairs(t) do keys[#keys+1] = k end
+
+	-- sort the keys based on a function of the values
+	if order then
+		table.sort(keys, function(a,b) return order(t, t[a], t[b]) end)
+	else
+		table.sort(keys)
+	end
     
     -- return the iterator function
     local i = 0

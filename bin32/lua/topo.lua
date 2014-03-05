@@ -76,20 +76,26 @@ function Graph:init(sys)
 	end
 end
 
+function Graph:add_node(n)
+	util.insert_unique(n, self.nodes)
+	return n -- heck, why not
+end
+
 function Graph:connect(s,d)
-	local snode = self.nodes[s]
-	local dnode = self.nodes[d]
-	local newedge = Edge:new { src = s, dest = d }
-	Set.add(snode.outs, newedge)
-	Set.add(snode.ins, newedge)
+	s = self.nodes[s] or s
+	d = self.nodes[d] or d
+	local newedge = self:get_edge(s,d) or Edge:new { src = s.name, dest = d.name }
+	Set.add(s.outs, newedge)
+	Set.add(d.ins, newedge)
 	Set.add(self.edges, newedge)
 	return newedge
 end
 
 function Graph:get_edge(s,d)
-	local snode = self.nodes[s]
-	for edge in keys(snode.outs) do
-		if edge.dest == d then return edge end
+	s = self.nodes[s] or s
+	d = self.nodes[d] or d
+	for edge in keys(s.outs) do
+		if edge.dest == d.name then return edge end
 	end
 	return nil
 end
@@ -98,7 +104,7 @@ function Graph:dump_dot(filename)
 	io.output(filename)
 	io.write('digraph {\n')
 	for edge in keys(self.edges) do
-		io.write(string.format('"%s" -> "%s"\n', edge.src, edge.dest))
+		io.write(string.format('"%s" -> "%s" [label="%s"];\n', edge.src, edge.dest, util.count(edge.links)))
 	end
 	io.write('}')
 	io.close()

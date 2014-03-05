@@ -1,5 +1,5 @@
 require 'spec'
-require 'topo_shared_toob'
+require 'topo_ring'
 
 -- define serveral protocols, and create a sender/receiver pair for each one, with a link from the 
 -- sender to the receiver. all links will share the same physical channel:
@@ -72,7 +72,7 @@ end
 
 -- define system and instances and links
 
-b:system('sys', topo_shared_toob)
+b:system('sys', topo_ring)
 b:export('clk', 'clock', 'in')
 b:export('reset', 'reset', 'in')
 

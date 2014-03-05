@@ -34,8 +34,8 @@ namespace
 			result->add_port(new Vlog::Port("i_valid", result, 1, Vlog::Port::IN));
 			result->add_port(new Vlog::Port("o_ready", result, 1, Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("o_valid", result, "NO", Vlog::Port::OUT));
-			result->add_port(new Vlog::Port("o_data", result, "NO*WO", Vlog::Port::OUT));
-			result->add_port(new Vlog::Port("o_flow", result, "NO*WF", Vlog::Port::OUT));
+			result->add_port(new Vlog::Port("o_data", result, "WO", Vlog::Port::OUT));
+			result->add_port(new Vlog::Port("o_flow", result, "WF", Vlog::Port::OUT));
 			result->add_port(new Vlog::Port("i_ready", result, "NO", Vlog::Port::IN));
 
 			return result;
@@ -50,6 +50,8 @@ namespace
 
 			int data_width = node->get_proto().get_phys_field("xdata")->width;
 			int fid_width = node->get_flow_id_width();
+
+			data_width = std::max(0, data_width);
 
 			vinst->set_param_value("NO", node->get_n_outputs());
 			vinst->set_param_value("WO", data_width);
@@ -112,13 +114,15 @@ namespace
 			{
 				auto parent = (P2P::SplitNode*)port->get_parent();
 				int port_idx = parent->get_idx_for_outport(port);
+				bool bcast = false;
 
 				if (pfield->name == "valid") result->port = "o_valid";
 				else if (pfield->name == "ready") result->port = "i_ready";
-				else if (pfield->name == "flow_id") result->port = "o_flow";
-				else result->port = "o_data";
+				else if (pfield->name == "flow_id") { result->port = "o_flow"; bcast = true; }
+				else { result->port = "o_data"; bcast = true; }
 				
-				result->lo = port_idx * pfield->width;
+				if (bcast) result->lo = 0;
+				else result->lo = port_idx * pfield->width;
 			}
 		}
 	} s_impl;

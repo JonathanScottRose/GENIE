@@ -106,6 +106,7 @@ function integer CLogB2;
 		i = Depth;		
 		for(CLogB2 = 0; i > 0; CLogB2 = CLogB2 + 1)
 			i = i >> 1;
+		if (CLogB2 < 1) CLogB2 = 1;
 	end
 endfunction
 

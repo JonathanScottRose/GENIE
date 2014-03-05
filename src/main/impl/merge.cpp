@@ -45,6 +45,7 @@ namespace
 			assert(node->get_type() == Node::MERGE);
 
 			int data_width = node->get_proto().get_phys_field("xdata")->width;
+			data_width = std::max(1, data_width);
 			
 			vinst->set_param_value("NI", node->get_n_inputs());
 			vinst->set_param_value("WIDTH", data_width);

@@ -69,6 +69,7 @@ function Spec:submit()
 		if type=='conduit' then return 'conduit' end
 	end
 
+	
 	for _,component in pairs(self.components) do
 		ct.reg_component
 		{
@@ -135,6 +136,7 @@ function Spec:submit()
 		end
 		
 		local g = sys.topo_func(sys)
+		--g:dump_dot('topo.dot')
 		g:submit()
 	end	
 end

@@ -634,6 +634,9 @@ namespace
 				else if (f->name == "flow_id")
 				{
 					auto& flows = sink->flows();
+					if (flows.empty())
+						continue;
+
 					assert(flows.size() == 1);
 
 					Flow* flow = flows.front();
