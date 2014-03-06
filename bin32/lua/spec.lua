@@ -41,15 +41,13 @@ function Spec:builder()
 end
 
 function Spec:post_process()
-	for _,system in spairsv(self.systems, 
-		function(t,a,b) return a:is_subsystem_of(b) end
-	) do
+	for system in svaluesv(self.systems, function(a,b) return a:is_subsystem_of(b) end) do
 		system:create_auto_exports()
 		system:componentize()
 		system:create_default_reset()
 	end
 	
-	for _,component in pairs(self.components) do
+	for component in values(self.components) do
 		component:create_default_linkpoints()
 	end
 end
@@ -68,16 +66,15 @@ function Spec:submit()
 		if type=='data' and dir=='out' then return 'send' end
 		if type=='conduit' then return 'conduit' end
 	end
-
 	
-	for _,component in pairs(self.components) do
+	for component in svaluesk(self.components) do
 		ct.reg_component
 		{
 			name = component.name,
 			hier = component.module
 		}
 		
-		for _,iface in pairs(component.interfaces) do
+		for iface in svaluesk(component.interfaces) do
 			ct.reg_interface(component.name,
 			{
 				name = iface.name,
@@ -85,7 +82,7 @@ function Spec:submit()
 				clock = iface.clock
 			})
 			
-			for sig in Set.values(iface.signals) do
+			for sig in svaluesk(iface.signals) do
 				ct.reg_signal(component.name, iface.name,
 				{
 					binding = sig.binding,
@@ -95,7 +92,7 @@ function Spec:submit()
 				})
 			end
 			
-			for _,lp in pairs(iface.linkpoints) do
+			for lp in svaluesk(iface.linkpoints) do
 				ct.reg_linkpoint(component.name, iface.name,
 				{
 					name = lp.name,
@@ -106,10 +103,10 @@ function Spec:submit()
 		end
 	end
 	
-	for _,sys in pairs(self.systems) do
+	for sys in svaluesk(self.systems) do
 		ct.reg_system(sys.name)
 		
-		for _,obj in pairs(sys.objects) do
+		for obj in svaluesk(sys.objects) do
 			if obj.type == "INSTANCE" then
 				ct.reg_instance(sys.name,
 				{
@@ -127,7 +124,7 @@ function Spec:submit()
 			end
 		end
 		
-		for link in Set.values(sys.links) do
+		for link in svaluesk(sys.links) do
 			ct.reg_link(sys.name, link.src:str(), link.dest:str())
 		end
 		

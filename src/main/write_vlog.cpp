@@ -206,7 +206,7 @@ namespace
 	void write_sys_insts(SystemModule* mod)
 	{
 		write_line("");
-		
+
 		for (auto& i : mod->instances())
 		{
 			Instance* inst = i.second;

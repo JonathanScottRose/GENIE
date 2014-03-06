@@ -35,7 +35,7 @@ function topo_xbar(sys)
 	-- helper functions: gather all the sources/sinks of a set of links into one set
 	local function gather_srcs(links)
 		local result = {}
-		for link in keys(links) do
+		for link in values(links) do
 			Set.add(result, link.src)
 		end
 		return result
@@ -43,7 +43,7 @@ function topo_xbar(sys)
 
 	function gather_dests(links)
 		local result = {}
-		for link in keys(links) do
+		for link in values(links) do
 			Set.add(result, link.dest)
 		end
 		return result
@@ -57,7 +57,7 @@ function topo_xbar(sys)
 	
 	-- 2: initialize the head/tail for each link to be at its ultimate 
 	-- source/destination respectively
-	for link in keys(sys.links) do
+	for link in values(sys.links) do
 		heads[link] = link.src:phys()
 		tails[link] = link.dest:phys()
 	end
@@ -71,7 +71,7 @@ function topo_xbar(sys)
 		if t == 'CLOCK' or t == 'RESET' or t == 'CONDUIT' then
 			-- make direct connection
 			local e = graph:connect(link.src:phys(), link.dest:phys())
-			Set.add(e.links, link)
+			e:add_link(link)
 			
 			-- delete this link 
 			heads[link] = nil
@@ -97,11 +97,11 @@ function topo_xbar(sys)
 				type = 'SPLIT'
 			}
 			
-			graph.nodes[split.name] = split
-			local edge = graph:connect(src, split.name)
+			graph:add_node(split)
+			local edge = graph:connect(src, split)
 			
-			for link in keys(links) do
-				Set.add(edge.links, link)
+			for link in values(links) do
+				edge:add_link(link)
 				heads[link] = split.name
 			end
 		end
@@ -126,11 +126,11 @@ function topo_xbar(sys)
 				type = 'MERGE'
 			}
 			
-			graph.nodes[merge.name] = merge
-			local edge = graph:connect(merge.name, dest)
+			graph:add_node(merge)
+			local edge = graph:connect(merge, dest)
 			
 			for link in keys(links) do
-				Set.add(edge.links, link)
+				edge:add_link(link)
 				tails[link] = merge.name
 			end
 		end
@@ -143,8 +143,8 @@ function topo_xbar(sys)
 	for link,src in pairs(heads) do
 		local dest = tails[link]
 		
-		local edge = graph:get_edge(src, dest) or graph:connect(src, dest)
-		Set.add(edge.links, link)
+		local edge = graph:connect(src, dest)
+		edge:add_link(link)
 	end
 	
 	return graph

@@ -5,6 +5,7 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <forward_list>
 #include <list>
 #include <fstream>
@@ -44,8 +45,11 @@
 //
 // The class destructor should iterate over things() and call delete on the pointers.
 //
-#define PROP_DICT(name_plur,name_sing,vtype) \
-	typedef std::unordered_map<std::string, vtype*> name_plur; \
+#define PROP_DICT(name_plur,name_sing,vtype) PROP_DICT_BASE(name_plur,name_sing,vtype,std::unordered_map)
+#define PROP_SDICT(name_plur,name_sing,vtype) PROP_DICT_BASE(name_plur,name_sing,vtype,std::map)
+
+#define PROP_DICT_BASE(name_plur,name_sing,vtype,container) \
+	typedef container<std::string, vtype*> name_plur; \
 	const name_plur& name_sing##s() const { return m_##name_sing##s; } \
 	void add_##name_sing(vtype* v) \
 	{ \

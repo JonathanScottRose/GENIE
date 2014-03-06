@@ -55,7 +55,7 @@ function Interface:new(o)
 end
 
 function Interface:add_signal(sig)
-	Set.add(self.signals, sig)
+	table.insert(self.signals, sig)
 	return sig
 end
 
@@ -104,7 +104,7 @@ function Component:add_parameter(param)
 end
 
 function Component:create_default_linkpoints()
-	for _,iface in pairs(self.interfaces) do
+	for iface in values(self.interfaces) do
 		local lps = iface.linkpoints
 		
 		if util.empty(lps) then

@@ -152,8 +152,6 @@ public:
 class DataInterface : public Interface
 {
 public:
-	typedef std::unordered_map<std::string, Linkpoint*> Linkpoints;
-
 	DataInterface(const std::string& name, Type type, Component* parent);
 	~DataInterface();
 	Interface* clone();

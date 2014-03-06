@@ -1,6 +1,8 @@
 util = {}
 
--- language support
+--
+-- LANGUAGE/OO SUPPORT
+--
 
 function class(members)
 	local result = members or {}
@@ -34,63 +36,103 @@ function enum(names)
 	return result
 end
 
-function keys(tab)
-	return 
-		function (t, i)
-			local k,v = next(t, i)
-			return k
-		end,
-		tab,
-		nil
-end
+--
+-- ITERATION
+--
 
--- http://stackoverflow.com/questions/15706270/sort-a-table-in-lua
--- iterates through a table by value
-function spairsv(t, order)
-    -- collect the keys
-    local keys = {}
-    for k in pairs(t) do keys[#keys+1] = k end
-
-	-- sort the keys based on a function of the values
-	if order then
-		table.sort(keys, function(a,b) return order(t, t[a], t[b]) end)
-	else
-		table.sort(keys, function(a,b) return t[a] < t[b] end)
+-- generic iterator: table, order(key,val), extractor to process each iterated key,val
+function iter(t, order, extr)
+	local keys = {}
+	for k in pairs(t) do
+		table.insert(keys, k)
 	end
-    
-    -- return the iterator function
-    local i = 0
-    return function()
-        i = i + 1
-        if keys[i] then
-            return keys[i], t[keys[i]]
-        end
-    end
+	
+	if order then
+		table.sort(keys, function(a,b) return order(t, a, b) end)
+	end
+	
+	local i = 0
+	return function()
+		i = i + 1
+		if keys[i] ~= nil then
+			k,v = keys[i], t[keys[i]]
+			if extr then return extr(k,v)
+			else return k,v
+			end
+		end
+	end
 end
 
+-- extract key
+local function extr_k(k,v)
+	return k
+end
+	
+-- extract value
+local function extr_v(k,v)
+	return v
+end
+
+-- redirects sorting function to work on values rather than keys
+local function sort_v(func)
+	return function(t,a,b)
+		if func then return func(t[a], t[b])
+		else return t[a] < t[b]
+		end
+	end
+end
+
+local function sort_k(func)
+	return function(t,a,b)
+		if func then return func(a,b)
+		else return a < b
+		end
+	end
+end
+
+-- over keys, unsorted
+function keys(t)
+	return iter(t, nil, extr_k)
+end
+
+-- over keys, sorted by order(keys)
+function skeysk(t, order)
+	return iter(t, sort_k(order), extr_k)
+end
+
+-- over keys, sorted by order(values)
+function skeysv(t, order)
+	return iter(t, sort_v(order), extr_k)
+end
+
+-- over values, unsorted
+function values(t)
+	return iter(t, nil, extr_v)
+end
+
+-- over values, sorted by order(keys)
+function svaluesk(t, order)
+	return iter(t, sort_k(order), extr_v)
+end
+
+-- over values, sorted by order(values)
+function svaluesv(t, order)
+	return iter(t, sort_v(order), extr_v)
+end
+
+-- over pairs, sorted by order(keys)
 function spairsk(t, order)
-    -- collect the keys
-    local keys = {}
-    for k in pairs(t) do keys[#keys+1] = k end
-
-	-- sort the keys based on a function of the values
-	if order then
-		table.sort(keys, function(a,b) return order(t, t[a], t[b]) end)
-	else
-		table.sort(keys)
-	end
-    
-    -- return the iterator function
-    local i = 0
-    return function()
-        i = i + 1
-        if keys[i] then
-            return keys[i], t[keys[i]]
-        end
-    end
+	return iter(t, sort_k(order))
 end
 
--- types
+-- over pairs, sorted by order(values)
+function spairsv(t, order)
+	return iter(t, sort_v(order))
+end
+
+--
+-- TYPES
+--
 
 Set = 
 {
@@ -120,7 +162,9 @@ Set =
 }
 
 
--- utility functions
+--
+-- FUNCTIONS
+--
 
 function util.error(e, level)
 	print(debug.traceback())

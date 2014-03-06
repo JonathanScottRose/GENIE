@@ -108,7 +108,7 @@ function System:new(o)
 end
 
 function System:add_link(link)
-	Set.add(self.links, link)
+	table.insert(self.links, link)
 end
 
 function System:add_object(obj)
@@ -119,7 +119,7 @@ end
 function System:create_auto_exports()
 	local is_connected = {}
 	
-	for link in keys(self.links) do
+	for link in values(self.links) do
 		is_connected[link.src:str()] = true
 		is_connected[link.dest:str()] = true
 	end
@@ -127,19 +127,19 @@ function System:create_auto_exports()
 	-- to insert
 	local new_objs = {}
 	
-	for _,obj in pairs(self.objects) do
+	for obj in values(self.objects) do
 		if obj.type ~= 'INSTANCE' then goto nextobj end
 	
 		local src_lt = LinkTarget:new()
 		src_lt.obj = obj.name
 		
 		local comp = self.parent.components[obj.component]
-		for _,iface in pairs(comp.interfaces) do
+		for iface in values(comp.interfaces) do
 			src_lt.iface = iface.name
 			
 			local is_out = iface.dir == 'OUT'
 			
-			for _,lp in pairs(iface.linkpoints) do
+			for lp in values(iface.linkpoints) do
 				src_lt.lp = lp.name
 				
 				if not is_connected[src_lt:str()] then
@@ -189,15 +189,9 @@ end
 
 function System:create_default_reset()
 	-- check if system has a reset already
-	local has_reset = false
-	for _,obj in pairs(self.objects) do
-		if obj.iface_type == "RESET" then
-			has_reset = true
-			break
-		end
+	for obj in values(self.objects) do
+		if obj.iface_type == "RESET" then return end
 	end
-	
-	if has_reset then return end
 	
 	-- create a reset export, connected to nothing
 	self:add_object(Export:new
@@ -245,7 +239,7 @@ function System:componentize()
 	
 	-- find feeders of all destinations: used to find clock sources
 	local feeder = {}
-	for link in Set.values(self.links) do
+	for link in values(self.links) do
 		feeder[link.dest:phys()] = link.src.obj
 	end
 	
@@ -255,7 +249,7 @@ function System:componentize()
 	end
 	
 	-- find all exports in this system and the things they are exporting
-	for link in Set.values(self.links) do
+	for link in values(self.links) do
 		local ex = link.src
 		local ex_o = self.objects[link.src.obj]
 		local other = link.dest
@@ -283,7 +277,7 @@ function System:componentize()
 			
 			-- create signals, whose net names are auto-generated based on exported object, exported interface
 			-- name, and type/role
-			for old_sig in Set.values(other_if.signals) do
+			for old_sig in values(other_if.signals) do
 				local newsigname = ex_o.name
 				if new_if.type == "CLOCK" or new_if.type == "RESET" then
 					-- no additional modifications
@@ -311,7 +305,7 @@ function System:componentize()
 end
 
 function System:is_subsystem_of(other)
-	for objname,obj in pairs(other.objects) do
+	for obj in values(other.objects) do
 		if obj.type == "INSTANCE" and obj.component == self.name then return true end
 	end
 	return false

@@ -27,6 +27,14 @@ function Node:new(o)
 	return o
 end
 
+function Node:add_in(x)
+	table.insert(self.ins, x)
+end
+
+function Node:add_out(x)
+	table.insert(self.outs, x)
+end
+
 -- Edge
 
 Edge = class
@@ -43,7 +51,7 @@ function Edge:new(o)
 end
 
 function Edge:add_link(link)
-	Set.add(self.links, link)
+	table.insert(self.links, link)
 end
 
 -- Graph
@@ -63,7 +71,7 @@ end
 
 function Graph:init(sys)
 	self.sys = sys
-	for link in keys(sys.links) do
+	for link in values(sys.links) do
 		for _,x in ipairs({link.src, link.dest}) do			
 			local name = x:phys()
 			
@@ -82,19 +90,19 @@ function Graph:add_node(n)
 end
 
 function Graph:connect(s,d)
-	s = self.nodes[s] or s
+	s = self.nodes[s] or s -- allows s and d to be specified by name or by entry interchangeably
 	d = self.nodes[d] or d
 	local newedge = self:get_edge(s,d) or Edge:new { src = s.name, dest = d.name }
-	Set.add(s.outs, newedge)
-	Set.add(d.ins, newedge)
-	Set.add(self.edges, newedge)
+	s:add_out(newedge)
+	d:add_in(newedge)
+	table.insert(self.edges, newedge)
 	return newedge
 end
 
 function Graph:get_edge(s,d)
 	s = self.nodes[s] or s
 	d = self.nodes[d] or d
-	for edge in keys(s.outs) do
+	for edge in values(s.outs) do
 		if edge.dest == d.name then return edge end
 	end
 	return nil
@@ -103,7 +111,7 @@ end
 function Graph:dump_dot(filename)
 	io.output(filename)
 	io.write('digraph {\n')
-	for edge in keys(self.edges) do
+	for edge in values(self.edges) do
 		io.write(string.format('"%s" -> "%s" [label="%s"];\n', edge.src, edge.dest, util.count(edge.links)))
 	end
 	io.write('}')
@@ -111,13 +119,13 @@ function Graph:dump_dot(filename)
 end
 
 function Graph:submit()
-	for nodename,node in pairs(self.nodes) do
+	for nodename,node in spairsk(self.nodes) do
 		ct.create_topo_node(self.sys.name, nodename, node.type)
 	end
 	
-	for edge in Set.values(self.edges) do
+	for edge in svaluesk(self.edges) do
 		local linkarray = {}
-		for link in Set.values(edge.links) do
+		for link in svaluesk(edge.links) do
 			table.insert(linkarray, {src = link.src:str(), dest = link.dest:str()})
 		end
 		ct.create_topo_edge(self.sys.name, edge.src, edge.dest, linkarray)

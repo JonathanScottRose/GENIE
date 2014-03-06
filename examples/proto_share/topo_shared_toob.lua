@@ -32,24 +32,24 @@ function topo_shared_toob(sys)
 	graph:init(sys)
 	
 	-- 2: create a single split and a single merge node, and a physical edge between them
-	graph.nodes['split'] = topo.Node:new
+	graph:add_node(topo.Node:new
 	{
 		name = 'split',
 		type = 'SPLIT'
-	}
+	})
 	
-	graph.nodes['merge'] = topo.Node:new
+	graph:add_node(topo.Node:new
 	{
 		name = 'merge',
 		type = 'MERGE'
-	}
+	})
 	
 	local merge_to_split_edge = graph:connect('merge', 'split')
 	
 	-- 3: go through all links in the spec
 	-- make direct connections for clock/reset/conduit links
 	-- for data links, make them pass through the merge node and then the split node	
-	for link in Set.values(sys.links) do
+	for link in values(sys.links) do
 		local t = get_iface_type(sys, link.src:phys())
 		if t == 'CLOCK' or t == 'RESET' or t == 'CONDUIT' then
 			-- make direct connection

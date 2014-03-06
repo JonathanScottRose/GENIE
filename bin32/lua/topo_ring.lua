@@ -39,16 +39,16 @@ function topo_ring(sys)
 	--
 	local data_links = {}
 	
-	for link in Set.values(sys.links) do
+	for link in values(sys.links) do
 		local st,sot = get_iface_type(sys, link.src:phys())
 		local dt,dot = get_iface_type(sys, link.dest:phys())
 		if st == 'CLOCK' or st == 'RESET' or st == 'CONDUIT' or sot == 'EXPORT' or dot == 'EXPORT' then
 			-- make direct connection
 			local e = graph:connect(link.src:phys(), link.dest:phys())
-			Set.add(e.links, link)
+			e:add_link(link)
 		else
 			-- data_links is what's left to process
-			Set.add(data_links, link)
+			table.insert(data_links, link)
 		end
 	end
 
@@ -96,7 +96,7 @@ function topo_ring(sys)
 	-- Follow end-to-end links through the ring, updating edges to reflect carriage
 	--
 	
-	for link in Set.values(data_links) do
+	for link in values(data_links) do
 		-- start at source node's ringstop
 		local cur = ring[link.src.obj]
 		

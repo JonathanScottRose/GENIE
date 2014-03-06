@@ -1,5 +1,5 @@
 require 'spec'
-require 'topo_ring'
+require 'topo_shared_toob'
 
 -- define serveral protocols, and create a sender/receiver pair for each one, with a link from the 
 -- sender to the receiver. all links will share the same physical channel:
@@ -43,7 +43,7 @@ local protos =
 local s = spec.Spec:new()
 local b = s:builder()
 
-for name,sigs in pairs(protos) do
+for name,sigs in spairsk(protos) do
 	for dir in Set.mkvalues{"out", "in"} do
 		local comp_name = name .. "_" .. dir
 		local pfx_fwd = ((dir == "out") and "o_" or "i_")
@@ -72,7 +72,7 @@ end
 
 -- define system and instances and links
 
-b:system('sys', topo_ring)
+b:system('sys', topo_shared_toob)
 b:export('clk', 'clock', 'in')
 b:export('reset', 'reset', 'in')
 
