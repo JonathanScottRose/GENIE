@@ -35,7 +35,7 @@ function topo_xbar(sys)
 	-- helper functions: gather all the sources/sinks of a set of links into one set
 	local function gather_srcs(links)
 		local result = {}
-		for link in values(links) do
+		for link in Set.values(links) do
 			Set.add(result, link.src)
 		end
 		return result
@@ -43,7 +43,7 @@ function topo_xbar(sys)
 
 	function gather_dests(links)
 		local result = {}
-		for link in values(links) do
+		for link in Set.values(links) do
 			Set.add(result, link.dest)
 		end
 		return result
@@ -100,7 +100,7 @@ function topo_xbar(sys)
 			graph:add_node(split)
 			local edge = graph:connect(src, split)
 			
-			for link in values(links) do
+			for link in Set.values(links) do
 				edge:add_link(link)
 				heads[link] = split.name
 			end
@@ -129,7 +129,7 @@ function topo_xbar(sys)
 			graph:add_node(merge)
 			local edge = graph:connect(merge, dest)
 			
-			for link in keys(links) do
+			for link in Set.values(links) do
 				edge:add_link(link)
 				tails[link] = merge.name
 			end
