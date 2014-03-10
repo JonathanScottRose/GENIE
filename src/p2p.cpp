@@ -101,7 +101,19 @@ Port* Port::get_first_connected_port()
 	if (!m_conn)
 		return nullptr;
 
-	return (m_dir == IN)? m_conn->get_source() : m_conn->get_sink();
+	switch (m_dir)
+	{
+		case IN: return m_conn->get_source(); break;
+		case OUT: return m_conn->get_sink(); break;
+		case MIXED:
+		{
+			return this==m_conn->get_source()? 
+				m_conn->get_sink() : m_conn->get_source();
+			break;
+		}
+	}
+
+	return nullptr;
 }
 
 

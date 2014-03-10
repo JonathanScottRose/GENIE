@@ -41,6 +41,10 @@ function Spec:builder()
 end
 
 function Spec:post_process()
+	for component in values(self.components) do
+		component:create_default_linkpoints()
+	end
+	
 	for system in svaluesv(self.systems, function(a,b) return a:is_subsystem_of(b) end) do
 		system:create_auto_exports()
 		system:componentize()
