@@ -50,10 +50,6 @@ function Spec:post_process()
 		system:componentize()
 		system:create_default_reset()
 	end
-	
-	for component in values(self.components) do
-		component:create_default_linkpoints()
-	end
 end
 
 function Spec:submit()
