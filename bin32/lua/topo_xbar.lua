@@ -36,7 +36,7 @@ function topo_xbar(sys)
 	local function gather_srcs(links)
 		local result = {}
 		for link in Set.values(links) do
-			Set.add(result, link.src)
+			Set.add(result, link.src:phys())
 		end
 		return result
 	end
@@ -44,7 +44,7 @@ function topo_xbar(sys)
 	function gather_dests(links)
 		local result = {}
 		for link in Set.values(links) do
-			Set.add(result, link.dest)
+			Set.add(result, link.dest:phys())
 		end
 		return result
 	end

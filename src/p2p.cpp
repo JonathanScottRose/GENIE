@@ -347,7 +347,7 @@ void System::remove_conn(Conn* conn)
 
 void System::dump_graph()
 {
-	std::ofstream out("graph.dot");
+	std::ofstream out(get_name() + ".dot");
 
 	out << "digraph netlist {" << std::endl;
 

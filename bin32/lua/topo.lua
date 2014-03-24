@@ -92,11 +92,16 @@ end
 function Graph:connect(s,d)
 	s = self.nodes[s] or s -- allows s and d to be specified by name or by entry interchangeably
 	d = self.nodes[d] or d
-	local newedge = self:get_edge(s,d) or Edge:new { src = s.name, dest = d.name }
-	s:add_out(newedge)
-	d:add_in(newedge)
-	table.insert(self.edges, newedge)
-	return newedge
+	
+	-- return existing edge if there is one
+	local edge = self:get_edge(s,d)
+	if edge then return edge end
+	
+	edge = Edge:new { src = s.name, dest = d.name }
+	s:add_out(edge)
+	d:add_in(edge)
+	table.insert(self.edges, edge)
+	return edge
 end
 
 function Graph:get_edge(s,d)
