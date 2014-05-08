@@ -1,9 +1,9 @@
 #include <fstream>
-#include "p2p.h"
-#include "common.h"
-#include "spec.h"
-#include "export_node.h"
-#include "instance_node.h" // bad
+#include "ct/p2p.h"
+#include "ct/common.h"
+#include "ct/spec.h"
+#include "ct/export_node.h"
+#include "ct/instance_node.h" // bad
 
 using namespace ct;
 using namespace P2P;

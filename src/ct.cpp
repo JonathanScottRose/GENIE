@@ -1,14 +1,14 @@
 #include <unordered_set>
 #include <stack>
 
-#include "ct.h"
-#include "spec.h"
-#include "p2p.h"
-#include "instance_node.h"
-#include "merge_node.h"
-#include "split_node.h"
-#include "flow_conv_node.h"
-#include "export_node.h"
+#include "ct/ct.h"
+#include "ct/spec.h"
+#include "ct/p2p.h"
+#include "ct/instance_node.h"
+#include "ct/merge_node.h"
+#include "ct/split_node.h"
+#include "ct/flow_conv_node.h"
+#include "ct/export_node.h"
 
 using namespace ct;
 using namespace ct::P2P;

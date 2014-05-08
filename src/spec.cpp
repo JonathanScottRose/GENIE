@@ -1,6 +1,6 @@
-#include "spec.h"
-#include "common.h"
-#include "static_init.h"
+#include "ct/spec.h"
+#include "ct/common.h"
+#include "ct/static_init.h"
 
 using namespace ct;
 using namespace Spec;

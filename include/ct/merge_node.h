@@ -1,7 +1,7 @@
 #pragma once
 
-#include "p2p.h"
-#include "common.h"
+#include "ct/p2p.h"
+#include "ct/common.h"
 
 namespace ct
 {

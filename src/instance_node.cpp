@@ -1,4 +1,4 @@
-#include "instance_node.h"
+#include "ct/instance_node.h"
 
 using namespace ct;
 using namespace ct::P2P;

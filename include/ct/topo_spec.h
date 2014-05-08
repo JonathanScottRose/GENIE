@@ -1,7 +1,7 @@
 #pragma once
 
-#include "common.h"
-#include "sys_spec.h"
+#include "ct/common.h"
+#include "ct/sys_spec.h"
 
 namespace ct
 {

@@ -1,7 +1,7 @@
 #include <sstream>
 #include <unordered_set>
-#include "spec.h"
-#include "topo_spec.h"
+#include "ct/spec.h"
+#include "ct/topo_spec.h"
 
 using namespace ct;
 using namespace ct::Spec;

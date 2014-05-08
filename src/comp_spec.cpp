@@ -1,4 +1,4 @@
-#include "comp_spec.h"
+#include "ct/comp_spec.h"
 
 using namespace ct;
 using namespace ct::Spec;

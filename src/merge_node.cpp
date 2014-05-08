@@ -1,4 +1,4 @@
-#include "merge_node.h"
+#include "ct/merge_node.h"
 
 using namespace ct;
 using namespace ct::P2P;

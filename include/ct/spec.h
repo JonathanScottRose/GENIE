@@ -1,8 +1,8 @@
 #pragma once
 
-#include "sys_spec.h"
-#include "comp_spec.h"
-#include "topo_spec.h"
+#include "ct/sys_spec.h"
+#include "ct/comp_spec.h"
+#include "ct/topo_spec.h"
 
 namespace ct
 {
