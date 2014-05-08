@@ -16,7 +16,7 @@ using namespace ImplVerilog;
 
 namespace
 {
-	typedef std::unordered_map<P2P::Node::Type, INodeImpl*> INodeImpls;
+	typedef std::unordered_map<P2P::Node::Type, INodeImpl*, std::hash<int>> INodeImpls;
 
 	// Private
 	Vlog::SystemModule* s_cur_top;

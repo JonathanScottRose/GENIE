@@ -119,8 +119,8 @@ namespace
 
 			// Now traverse the port's bits from MSB to LSB and connect either bindings (const or net),
 			// or unconnected bits (hi-impedance)
-			auto& binding_iter = sorted_bindings.begin();
-			auto& binding_iter_end = sorted_bindings.end();
+			auto binding_iter = sorted_bindings.begin();
+			const auto& binding_iter_end = sorted_bindings.end();
 			int cur_bit = ps->get_width();
 
 			while (cur_bit > 0)

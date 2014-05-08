@@ -11,6 +11,7 @@
 #include <fstream>
 #include <type_traits>
 #include <memory>
+#include <stdexcept>
 
 // These macros create trivial getters and/or setters for a given member variable
 #define PROP_GET(name,type,field) \
@@ -112,7 +113,7 @@ namespace ct
 		{
 			for (auto i : src)
 			{
-				typedef std::remove_reference<decltype(*i)>::type obj_type;
+				typedef typename std::remove_reference<decltype(*i)>::type obj_type;
 				dest.push_back(new obj_type(*i));
 			}
 		}
@@ -122,7 +123,7 @@ namespace ct
 		{
 			for (auto i : src)
 			{
-				typedef std::remove_reference<decltype(*i.second)>::type obj_type;
+				typedef typename std::remove_reference<decltype(*i.second)>::type obj_type;
 				dest[i.first] = new obj_type(*i.second);
 			}
 		}
@@ -256,12 +257,12 @@ namespace ct
 	};
 
 	// ConnecTool exception base class
-	class Exception : public std::exception
+	class Exception : public std::runtime_error
 	{
 	public:
 		Exception(const char* what)
-			: std::exception(what) { }
+			: std::runtime_error(what) { }
 		Exception(const std::string& what)
-			: std::exception(what.c_str()) { }
+			: std::runtime_error(what) { }
 	};
 }

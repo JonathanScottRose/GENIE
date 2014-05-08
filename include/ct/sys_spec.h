@@ -30,7 +30,7 @@ public:
 
 	std::string get_path() const;
 
-	bool LinkTarget::operator== (const LinkTarget& other) const;
+	bool operator== (const LinkTarget& other) const;
 
 private:
 	std::string m_inst;

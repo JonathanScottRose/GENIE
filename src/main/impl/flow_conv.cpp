@@ -1,5 +1,3 @@
-#pragma once
-
 #include "impl_vlog.h"
 #include "ct/flow_conv_node.h"
 

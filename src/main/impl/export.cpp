@@ -1,5 +1,3 @@
-#pragma once
-
 #include "impl_vlog.h"
 #include "ct/export_node.h"
 
