@@ -407,6 +407,14 @@ namespace
 		return 0;
 	}
 
+	int s_panic(lua_State* L)
+	{
+		std::string err = luaL_checkstring(L, -1);
+		lua_pop(L, 1);
+		throw Exception(err);
+		return 0;
+	}
+
 	void register_funcs()
 	{
 		REG_LFUNC(reg_component);
@@ -432,6 +440,7 @@ lua_State* LuaIface::get_state()
 void LuaIface::init()
 {
 	s_state = luaL_newstate();
+	lua_atpanic(s_state, s_panic);
 	luaL_checkversion(s_state);
 	luaL_openlibs(s_state);
 
@@ -455,13 +464,7 @@ void LuaIface::exec_script(const std::string& filename)
 		lua_pop(s_state, 1);
 		throw Exception(err);
 	}
-	s = lua_pcall(s_state, 0, LUA_MULTRET, 0);
-	if (s != 0)
-	{
-		std::string err = luaL_checkstring(s_state, -1);
-		lua_pop(s_state, 1);
-		throw Exception(err);
-	}
+	lua_call(s_state, 0, LUA_MULTRET);
 }
 
 void LuaIface::register_func(const std::string& name, lua_CFunction fptr)

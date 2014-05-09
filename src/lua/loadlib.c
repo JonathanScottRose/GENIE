@@ -141,7 +141,7 @@ static void setprogdir (lua_State *L) {
 static void setprogdir (lua_State *L) {
   char buff[PATH_MAX + 1];
   char *lb;
-  ssize_t n = readlink("proc/self/exe", buff, sizeof(buff));
+  ssize_t n = readlink("/proc/self/exe", buff, sizeof(buff));
   if (n < 0 || (lb = strrchr(buff, '/')) == NULL)
     luaL_error(L, "unable to get readlink(%s)", strerror(errno));
   else {
