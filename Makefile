@@ -1,6 +1,6 @@
 CC=g++
-CFLAGS=-std=c++11 -Iinclude -Isrc/lua -Isrc/main -DLUA_USE_LINUX
-LFLAGS=-ldl
+CFLAGS=-std=c++11 -Iinclude -Isrc/lua -Isrc/main -DLUA_USE_LINUX -g
+LFLAGS=-ldl -lboost_regex
 
 EXE=$(EXEDIR)/connectool
 LIB_LUA=$(LIBDIR)/lua.a

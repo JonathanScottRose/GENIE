@@ -261,8 +261,8 @@ namespace ct
 	{
 	public:
 		Exception(const char* what)
-			: std::runtime_error(what) { assert(false); }
+			: std::runtime_error(what) { }
 		Exception(const std::string& what)
-			: std::runtime_error(what) { assert(false); }
+			: std::runtime_error(what) { }
 	};
 }
