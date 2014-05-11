@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\clock_cross_node.cpp" />
     <ClCompile Include="..\..\src\comp_spec.cpp" />
     <ClCompile Include="..\..\src\export_node.cpp" />
     <ClCompile Include="..\..\src\expressions.cpp" />
@@ -34,6 +35,7 @@
     <ClCompile Include="..\..\src\topo_spec.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\ct\clock_cross_node.h" />
     <ClInclude Include="..\..\include\ct\common.h" />
     <ClInclude Include="..\..\include\ct\comp_spec.h" />
     <ClInclude Include="..\..\include\ct\ct.h" />

@@ -25,6 +25,9 @@
     <ClCompile Include="..\..\src\main\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\main\vlog.cpp" />
     <ClCompile Include="..\..\src\main\write_vlog.cpp" />
+    <ClCompile Include="..\..\src\main\impl\clock_cross.cpp">
+      <Filter>impl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\globals.h" />

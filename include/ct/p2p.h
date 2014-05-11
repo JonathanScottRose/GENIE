@@ -26,7 +26,8 @@ namespace P2P
 			SPLIT,
 			MERGE,
 			FLOW_CONV,
-			EXPORT
+			EXPORT,
+			CLOCK_CROSS
 		};
 
 		Node(Type type);

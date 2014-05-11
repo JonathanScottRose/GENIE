@@ -19,6 +19,7 @@
     <ClCompile Include="..\..\src\export_node.cpp" />
     <ClCompile Include="..\..\src\topo_spec.cpp" />
     <ClCompile Include="..\..\src\protocol.cpp" />
+    <ClCompile Include="..\..\src\clock_cross_node.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ct\p2p.h">
@@ -65,6 +66,9 @@
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\ct\protocol.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\clock_cross_node.h">
       <Filter>Public</Filter>
     </ClInclude>
   </ItemGroup>

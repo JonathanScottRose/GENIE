@@ -128,6 +128,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
+    <ClCompile Include="..\..\src\main\impl\clock_cross.cpp" />
     <ClCompile Include="..\..\src\main\impl\export.cpp" />
     <ClCompile Include="..\..\src\main\impl\flow_conv.cpp" />
     <ClCompile Include="..\..\src\main\impl\instance.cpp" />
