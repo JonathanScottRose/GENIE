@@ -89,11 +89,14 @@ bool Port::has_flow(Flow* flow)
 
 Port* Port::get_driver()
 {
-	assert(m_dir == IN);
-	if (!m_conn)
-		return nullptr;
+	switch (m_dir)
+	{
+		case OUT: return this; break;
+		case IN: return m_conn? m_conn->get_source() : nullptr; break;
+		case MIXED: assert(false); break;
+	}
 
-	return m_conn->get_source();
+	return nullptr;
 }
 
 Port* Port::get_first_connected_port()
@@ -395,6 +398,34 @@ ClockResetPort* System::get_a_reset_port()
 
 	assert(false);
 	return nullptr;
+}
+
+void System::connect_clock_src(DataPort* target_port, ClockResetPort* clock_src)
+{
+	auto target_clock_port = target_port->get_clock();
+
+	// hack: if the target port references a null clock port, the target port probably
+	// belongs to an export node. in this case, the clock source is likely ON the export node
+	// itself, so let's set it here.
+	if (!target_clock_port)
+	{
+		assert(clock_src->get_parent()->get_type() == Node::EXPORT &&
+			clock_src->get_parent() == target_port->get_parent());
+
+		target_port->set_clock(clock_src);
+		return; // done here, no connections need to be made
+	}
+	
+	auto existing_clock_src = target_clock_port->get_driver();
+	if (existing_clock_src)
+	{
+		// we don't know how to handle this otherwise yet
+		assert(existing_clock_src == clock_src);
+	}
+	else
+	{
+		connect_ports(clock_src, target_clock_port);
+	}
 }
 
 ExportNode* System::get_export_node()

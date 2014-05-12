@@ -226,6 +226,7 @@ namespace P2P
 		Conn* connect_ports(Port* src, Port* dest);
 		void disconnect_ports(Port* src, Port* dest);
 		void splice_conn(Conn* conn, Port* new_in, Port* new_out);
+		void connect_clock_src(DataPort* target_port, ClockResetPort* clock_src);
 
 		class ExportNode* get_export_node();
 		ClockResetPort* get_a_reset_port();

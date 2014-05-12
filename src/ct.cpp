@@ -301,36 +301,7 @@ namespace
 		}
 	}
 
-	void set_clock_on_port(System* sys, DataPort* target_port, ClockResetPort* clock_src)
-	{
-		auto target_clock_port = target_port->get_clock();
-
-		// hack: if the target port references a null clock port, the target port probably
-		// belongs to an export node. in this case, the clock source is likely ON the export node
-		// itself, so let's set it here.
-		if (!target_clock_port)
-		{
-			assert(clock_src->get_parent()->get_type() == Node::EXPORT && 
-				clock_src->get_parent() == target_port->get_parent());
-
-			target_port->set_clock(clock_src);
-			target_clock_port = clock_src;
-			return; // done here, no connections need to be made
-		}
-
-		auto existing_clock_src = target_clock_port->get_first_connected_port();
-		if (existing_clock_src)
-		{
-			// we don't know how to handle this otherwise yet
-			assert(existing_clock_src == clock_src);
-		}
-		else
-		{
-			sys->connect_ports(clock_src, target_clock_port);
-		}
-	}
-
-	void fixup_clocks_resets(System* sys)
+	void connect_resets(System* sys)
 	{
 		// give everyone who needs it a reset connection
 		for (auto& i : sys->nodes())
@@ -342,7 +313,7 @@ namespace
 				auto port = j.second;
 				if (port->get_type() != Port::RESET || port->get_dir() != Port::IN)
 					continue;
-				
+
 				if (!port->get_conn())
 				{
 					// just...find one.
@@ -351,7 +322,10 @@ namespace
 				}
 			}
 		}
+	}
 
+	void connect_clocks(System* sys)
+	{
 		// dirt-stupid clock domain matching.
 		// follow all flows from their source to their sinks, dispensing the same clock assignment
 		// as found at the source.
@@ -367,18 +341,7 @@ namespace
 
 			// Get source port's clock port
 			auto flow_src_clock_port = (ClockResetPort*)flow_src->get_clock();
-
-			// Follow the source port's clock port to its source to get the clock driver port
-			ClockResetPort* clock_src = flow_src_clock_port ?
-				(ClockResetPort*)flow_src_clock_port->get_first_connected_port() : nullptr;
-
-			// Try the flow's destination if querying the source fails (happens when an export is
-			// the source of a flow)
-			if (!clock_src)
-			{
-				clock_src = (ClockResetPort*)
-					((DataPort*)flow->get_sink0()->port)->get_clock()->get_first_connected_port();
-			}
+			auto clock_src = (ClockResetPort*)flow_src_clock_port->get_driver();
 
 			assert(clock_src->get_type() == Port::CLOCK && clock_src->get_dir() == Port::OUT);
 
@@ -391,12 +354,12 @@ namespace
 				ports_to_visit.pop();
 
 				// Check/fixup existing assignment
-				set_clock_on_port(sys, src, clock_src);
+				sys->connect_clock_src(src, clock_src);
 
 				// we assume only one fanout since these are data ports.
 				// fixup its clock as well
 				auto dest = (DataPort*)src->get_first_connected_port();
-				set_clock_on_port(sys, dest, clock_src);
+				sys->connect_clock_src(dest, clock_src);
 
 				// we just arrived at an input to some node. follow the flow THROUGH this input
 				// to the node's outputs, for this flow only.
@@ -685,10 +648,11 @@ P2P::System* ct::build_system(Spec::System* system)
 	insert_converters(result);
 	remove_dangling_ports(result);
 	configure_pre_negotiate(result);
-	fixup_clocks_resets(result);
 	do_proto_carriage(result);
 	configure_post_negotiate(result);
 	handle_defaults(result);
+	connect_clocks(result);
+	connect_resets(result);
 	//result->dump_graph();
 	return result;
 }
