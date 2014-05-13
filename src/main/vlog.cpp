@@ -1,4 +1,15 @@
+#ifdef _WIN32
 #include <regex>
+using std::regex;
+using std::smatch;
+using std::regex_search;
+#else
+#include <boost/regex.hpp>
+using boost::regex;
+using boost::smatch;
+using boost::regex_search;
+#endif
+
 #include "ct/common.h"
 #include "vlog.h"
 
@@ -457,10 +468,10 @@ int Vlog::parse_constant(const std::string& val)
 {
 	int base = 10;
 
-	std::regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
-	std::smatch mr;
+	regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
+	smatch mr;
 
-	std::regex_match(val, mr, regex);
+	regex_match(val, mr, regex);
 	int bits = std::stoi(mr[1]);
 	char radix = mr[2].str().at(0);
 	switch (radix)
