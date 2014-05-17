@@ -5,54 +5,59 @@
 using namespace ct;
 using namespace ct::Graphs;
 
-template class Graph::IterContainer<Graph::VContType, VertexID>;
-template class Graph::IterContainer<Graph::EContType, EdgeID>;
-
-template<class C, class T>
-bool Graph::IterContainer<C, T>::iterator::operator!= (const iterator& other) const
+namespace ct
 {
-	return it != other.it;
-}
-
-template<class C, class T>
-typename Graph::IterContainer<C, T>::iterator& Graph::IterContainer<C, T>::iterator::operator++()
+namespace Graphs
 {
-	it++;
-	return *this;
-}
+	template<class C, class T>
+	bool Graph::IterContainer<C, T>::iterator::operator!= (const iterator& other) const
+	{
+		return it != other.it;
+	}
 
-template<class C, class T>
-const T& Graph::IterContainer<C, T>::iterator::operator*() const
-{
-	return it->first;
-}
+	template<class C, class T>
+	typename Graph::IterContainer<C, T>::iterator& Graph::IterContainer<C, T>::iterator::operator++()
+	{
+		it++;
+		return *this;
+	}
 
-template<>
-Graph::IterContainer<Graph::VContType, VertexID>::iterator 
-	Graph::IterContainer<Graph::VContType, VertexID>::begin() const
-{
-	return iterator(g, g.V.begin());
-}
+	template<class C, class T>
+	const T& Graph::IterContainer<C, T>::iterator::operator*() const
+	{
+		return it->first;
+	}
 
-template<>
- Graph::IterContainer<Graph::VContType, VertexID>::iterator
-	Graph::IterContainer<Graph::VContType, VertexID>::end() const
-{
-	return iterator(g, g.V.end());
-}
+	template<>
+	Graph::IterContainer<Graph::VContType, VertexID>::iterator 
+		Graph::IterContainer<Graph::VContType, VertexID>::begin() const
+	{
+		return iterator(g, g.V.begin());
+	}
 
-template<>
-Graph::IterContainer<Graph::EContType, EdgeID>::iterator
-Graph::IterContainer<Graph::EContType, EdgeID>::begin() const
-{
-	return iterator(g, g.E.begin());
-}
+	template<>
+	 Graph::IterContainer<Graph::VContType, VertexID>::iterator
+		Graph::IterContainer<Graph::VContType, VertexID>::end() const
+	{
+		return iterator(g, g.V.end());
+	}
 
-template<>
-Graph::IterContainer<Graph::EContType, EdgeID>::iterator
-Graph::IterContainer<Graph::EContType, EdgeID>::end() const
-{
-	return iterator(g, g.E.end());
+	template<>
+	Graph::IterContainer<Graph::EContType, EdgeID>::iterator
+	Graph::IterContainer<Graph::EContType, EdgeID>::begin() const
+	{
+		return iterator(g, g.E.begin());
+	}
+
+	template<>
+	Graph::IterContainer<Graph::EContType, EdgeID>::iterator
+	Graph::IterContainer<Graph::EContType, EdgeID>::end() const
+	{
+		return iterator(g, g.E.end());
+	}
+
+	template class Graph::IterContainer<Graph::VContType, VertexID>;
+	template class Graph::IterContainer<Graph::EContType, EdgeID>;
 }
 
 
@@ -65,6 +70,7 @@ void Graph::remove_e(VertexID vid, EdgeID eid)
 
 	auto thisedge = [=](EdgeID eid2) { return eid == eid2; };
 	edges.erase(std::remove_if(edges.begin(), edges.end(), thisedge), edges.end());
+}
 }
 
 Graph::Vertex& Graph::getv(VertexID id)

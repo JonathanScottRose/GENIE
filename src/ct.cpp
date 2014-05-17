@@ -365,7 +365,7 @@ namespace
 			{
 				// Filter by clock sinks
 				auto port = (ClockResetPort*)j.second;
-				if (port->get_type() != Port::CLOCK || port->get_type() != Port::IN)
+				if (port->get_type() != Port::CLOCK || port->get_dir() != Port::IN)
 					continue;
 				
 				// Create vertex representing the clock sink
@@ -431,7 +431,7 @@ namespace
 			VertexID t = verts_to_merge.front();
 
 			// Go through remaining vertices and merge
-			auto& it = verts_to_merge.begin();
+			auto it = verts_to_merge.begin();
 			const auto& it_end = verts_to_merge.end();
 			
 			for (++it; it != it_end; ++it)

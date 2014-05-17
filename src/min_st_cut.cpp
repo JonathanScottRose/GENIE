@@ -15,7 +15,7 @@ int Graphs::min_st_cut(Graph& G, EAttr<int> cap, VertexID s, VertexID t)
 	
 	for (EdgeID e : G.edges())
 	{
-		auto& vs = G.verts(e);
+		auto vs = G.verts(e);
 		EdgeID newe = R.newe(vs.second, vs.first);
 		cap[newe] = cap[e];
 	}
@@ -107,7 +107,7 @@ int Graphs::min_st_cut(Graph& G, EAttr<int> cap, VertexID s, VertexID t)
 		{
 			VPair verts = R.verts(e);
 			EdgeID e2 = R.dir_edge(verts.second, verts.first); // get reverse edge
-			result += cap(e2) / 2; // capacity in reverse direction must equal initial weight * 2
+			result += cap[e2] / 2; // capacity in reverse direction must equal initial weight * 2
 			
 			EdgeID e_orig = G.edge(verts.first, verts.second); // get undirected edge in original graph
 			G.dele(e_orig);
