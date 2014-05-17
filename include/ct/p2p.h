@@ -97,6 +97,7 @@ namespace P2P
 
 		Port* get_driver();
 		Port* get_first_connected_port();
+		bool is_connected();
 
 		static Dir rev_dir(Dir dir);
 

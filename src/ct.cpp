@@ -10,6 +10,8 @@
 #include "ct/flow_conv_node.h"
 #include "ct/export_node.h"
 
+#include "graph.h"
+
 using namespace ct;
 using namespace ct::P2P;
 
@@ -326,52 +328,153 @@ namespace
 
 	void connect_clocks(System* sys)
 	{
-		// dirt-stupid clock domain matching.
-		// follow all flows from their source to their sinks, dispensing the same clock assignment
-		// as found at the source.
-		//
-		// IF the source is an export, which lacks a clock assignment, use the flow destination's
-		// clock assignment instead.
-		for (auto& i : sys->flows())
+		using namespace ct::Graphs;
+
+		// The system contains interconnect-related nodes which have no clocks connected yet.
+		// When there are multiple clock domains, the choice of which clock domain to assign
+		// which interconnect node is an optimization problem: we want to minimize the total number
+		// of data bits that need clock crossing. This is an instance of a Multiway Graph Cut problem, 
+		// which is optimally solvable in polynomial time for k=2 clocks, but is NP-hard for 3 or more.
+		// We will use a greedy heuristic.
+
+		// The implementation of the algorithm sits in a different file, and works on a generic graph.
+		// Here, we need to generate this graph so that we can properly express the problem at hand.
+		// In the generated graph, each vertex will correspond to a ClockResetPort of some Node, which 
+		// either already has a clock assignment (making it a 'terminal' in the multiway problem) or
+		// has yet to have a clock assigned, which is ultimately what we want to find out.
+
+		// So, a Vertex represents a clock input port. An edge will represent a Conn between two DataPorts, 
+		// and the two vertices of the edge are the clock input ports associated with the DataPorts. Each edge
+		// will be weighted with the total number of PhysField bits in the protocol. In the case that the protocols
+		// are different between the two DataPorts, we will take the union (only the physfields present in both) since
+		// the missing ones will be defaulted later.
+
+		Graph G;
+		std::unordered_map<ClockResetPort*, VertexID> clocksink_to_vertex;
+		VAttr<ClockResetPort*> vertex_to_clocksink;
+
+		std::unordered_map<ClockResetPort*, std::vector<VertexID>> clocksrc_to_vertices;
+		VAttr<ClockResetPort*> vertex_to_clocksrc;
+
+		// First, create the vertices of the graph and identify terminal nodes.
+		for (auto& i : sys->nodes())
 		{
-			Flow* flow = i.second;
-			auto flow_src = (DataPort*)flow->get_src()->port;
-			if (flow_src->get_type() != Port::DATA)
-				continue; // only data ports have clock assignments
+			Node* node = i.second;
 
-			// Get source port's clock port
-			auto flow_src_clock_port = (ClockResetPort*)flow_src->get_clock();
-			auto clock_src = (ClockResetPort*)flow_src_clock_port->get_driver();
-
-			assert(clock_src->get_type() == Port::CLOCK && clock_src->get_dir() == Port::OUT);
-
-			std::stack<DataPort*> ports_to_visit;
-			ports_to_visit.push(flow_src);
-
-			while (!ports_to_visit.empty())
+			for (auto& j : node->ports())
 			{
-				DataPort* src = ports_to_visit.top();
-				ports_to_visit.pop();
+				// Filter by clock sinks
+				auto port = (ClockResetPort*)j.second;
+				if (port->get_type() != Port::CLOCK || port->get_type() != Port::IN)
+					continue;
+				
+				// Create vertex representing the clock sink
+				VertexID v = G.newv();
+				clocksink_to_vertex[port] = v;
+				vertex_to_clocksink[v] = port;
 
-				// Check/fixup existing assignment
-				sys->connect_clock_src(src, clock_src);
-
-				// we assume only one fanout since these are data ports.
-				// fixup its clock as well
-				auto dest = (DataPort*)src->get_first_connected_port();
-				sys->connect_clock_src(dest, clock_src);
-
-				// we just arrived at an input to some node. follow the flow THROUGH this input
-				// to the node's outputs, for this flow only.
-				auto new_srces = dest->get_parent()->trace(dest, flow);
-				for (auto& new_src : new_srces)
+				// If the clock sink is already driven, it's a terminal.
+				// The clock source driving the sink identifies a clock domain.
+				// Keep track of which sinks are on which clock domains.
+				if (port->is_connected())
 				{
-					ports_to_visit.push((DataPort*)new_src);
+					auto clocksrc = (ClockResetPort*)port->get_driver();
+					clocksrc_to_vertices[clocksrc].push_back(v);
 				}
-
-				// repeat the process, depth-first
 			}
 		}
+
+		// Then, create edges and calculate their weights
+		EAttr<int> weights;
+		for (auto& conn : sys->conns())
+		{
+			// Iterate over all Data edges
+			auto data_a = (DataPort*)conn->get_source();
+			if (data_a->get_type() != Port::DATA)
+				continue;
+
+			auto data_b = (DataPort*)conn->get_sink(); // data conn, only one sink
+
+			// Get the clocks driving both ends
+			ClockResetPort* clock_a = data_a->get_clock();
+			ClockResetPort* clock_b = data_b->get_clock();
+
+			// Look up vertices corresponding to clock sinks
+			VertexID v_a = clocksink_to_vertex[clock_a];
+			VertexID v_b = clocksink_to_vertex[clock_b];
+
+			// Determine weight based on sum of widths offields common
+			// to both ends of the Conn
+			int weight = 0;
+			for (auto& i : data_a->get_proto().fields())
+			{
+				auto pf = i.second;	
+				if (data_b->get_proto().has_field(i.first))
+					weight += pf->width;
+			}
+
+			// Create and add edge with weight
+			EdgeID e = G.newe(v_a, v_b);
+			weights[e] = weight;
+		}
+
+		VList T;
+
+		// Merge all vertices that are driven by the same clock source, such that there's only 
+		// one terminal vertex per clock source. Create the terminals array.
+		for (auto& i : clocksrc_to_vertices)
+		{
+			VList& verts_to_merge = i.second;
+
+			// Arbitrarily choose the first one to merge all the others with. This will be the
+			// terminal vertex for this clock domain
+			VertexID t = verts_to_merge.front();
+
+			// Go through remaining vertices and merge
+			auto& it = verts_to_merge.begin();
+			const auto& it_end = verts_to_merge.end();
+			
+			for (++it; it != it_end; ++it)
+			{
+				VertexID otherv = *it;
+				G.mergev(otherv, t);
+			}
+
+			// Maintain list of terminal vertices
+			T.push_back(t);
+
+			// Remember the clock domain for each terminal vertex
+			vertex_to_clocksrc[t] = i.first;
+		}
+
+		// Call multiway cut algorithm, get vertex->terminal mapping
+		auto vertex_to_terminal = Graphs::multi_way_cut(G, weights, T);
+
+		// Traverse result, connect up clocks
+		for (auto& v : G.verts())
+		{
+			VertexID t = vertex_to_terminal[v];
+			ClockResetPort* clock_src = vertex_to_clocksrc[t];
+			ClockResetPort* clock_sink = vertex_to_clocksink[v];
+
+			if (clock_sink->is_connected())
+			{
+				assert(clock_sink->get_driver() == clock_src);
+			}
+			else
+			{
+				sys->connect_ports(clock_src, clock_sink);
+			}
+		}
+	}
+
+	void insert_clock_crossing(System* sys)
+	{
+		// Traverse data conns to find ones where the endpoints are in two different
+		// clock domains, and then splice in a clock domain converter node in there.
+		// 
+
+
 	}
 
 	void configure_pre_negotiate(System* sys)
@@ -652,6 +755,7 @@ P2P::System* ct::build_system(Spec::System* system)
 	configure_post_negotiate(result);
 	handle_defaults(result);
 	connect_clocks(result);
+	insert_clock_crossing(result);
 	connect_resets(result);
 	//result->dump_graph();
 	return result;

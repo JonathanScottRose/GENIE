@@ -119,6 +119,11 @@ Port* Port::get_first_connected_port()
 	return nullptr;
 }
 
+bool Port::is_connected()
+{
+	return get_conn() != nullptr;
+}
+
 
 //
 // ClockResetPort
