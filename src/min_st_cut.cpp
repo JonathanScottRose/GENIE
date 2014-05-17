@@ -75,7 +75,7 @@ int Graphs::min_st_cut(Graph& G, EAttr<int> cap, VertexID s, VertexID t)
 			for (unsigned int i = 1; i < path.size(); i++)
 			{
 				VertexID v2 = path[i];
-				EdgeID e = R.edge(v1, v2);
+				EdgeID e = R.dir_edge(v1, v2);
 				mincap = std::min(mincap, cap[e]);
 				v1 = v2;
 			}
@@ -85,8 +85,8 @@ int Graphs::min_st_cut(Graph& G, EAttr<int> cap, VertexID s, VertexID t)
 			for (unsigned int i = 1; i < path.size(); i++)
 			{
 				VertexID v2 = path[i];
-				EdgeID e1 = R.edge(v1, v2);
-				EdgeID e2 = R.edge(v2, v1);
+				EdgeID e1 = R.dir_edge(v1, v2);
+				EdgeID e2 = R.dir_edge(v2, v1);
 
 				cap[e1] -= mincap;
 				cap[e2] += mincap;
