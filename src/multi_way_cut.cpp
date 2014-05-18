@@ -1,6 +1,7 @@
 #include <cassert>
 #include <algorithm>
 #include <stack>
+#include <string>
 #include "graph.h"
 
 using namespace ct;
@@ -22,6 +23,8 @@ namespace
 			to_visit.pop();
 
 			visited[v] = true;
+			result.push_back(v);
+
 			VList neigh = G.neigh(v);
 			for (auto n : neigh)
 			{
@@ -39,23 +42,6 @@ VAttr<VertexID> Graphs::multi_way_cut(Graph G, EAttr<int>& weights, VList T)
 	VAttr<VertexID> result;
 
 	assert(T.size() > 0);
-
-	// Merge multiple edges between vertices v1,v2 into one edge with combined weight
-	for (auto& v : G.verts())
-	{
-		VList neigh = G.neigh(v);
-		for (auto& u : neigh)
-		{
-			EList edges = G.edges(u, v);
-			EdgeID e1 = edges[0];
-			for (unsigned int i = 1; i < edges.size(); i++)
-			{
-				EdgeID e2 = edges[i];
-				weights[e1] += weights[e2];
-				G.dele(e2);
-			}
-		}
-	}
 
 	// until nterminals == 1
 	while (T.size() > 1)
@@ -85,8 +71,33 @@ VAttr<VertexID> Graphs::multi_way_cut(Graph G, EAttr<int>& weights, VList T)
 				H.mergev(otherT[i], s);
 			}
 
+			// Merge multiple edges between vertices v1,v2 into one edge with combined weight
+			auto merged_weights = weights;
+			for (auto& v : H.verts())
+			{
+				VList neigh = H.neigh(v);
+				for (auto& u : neigh)
+				{
+					EList edges = H.edges(u, v);
+					EdgeID e1 = edges[0];
+					for (unsigned int i = 1; i < edges.size(); i++)
+					{
+						EdgeID e2 = edges[i];
+						merged_weights[e1] += merged_weights[e2];
+						H.dele(e2);
+					}
+				}
+			}
+			
+			/*
+			H.dump("H" + std::to_string(t), [&](EdgeID e) 
+			{ 
+				return std::to_string(merged_weights[e]); 
+			});
+			*/
+
 			// call st mincut with s,t on H and get: total weight, residue grpah
-			cut_weight = min_st_cut(H, weights, t, s);
+			cut_weight = min_st_cut(H, merged_weights, t, s);
 
 			// results are remembered in cuts map
 		}
@@ -100,9 +111,8 @@ VAttr<VertexID> Graphs::multi_way_cut(Graph G, EAttr<int>& weights, VList T)
 		VertexID min_terminal = smallest_cut->first;
 		Graph& R = smallest_cut->second.second;
 		
-		// Find all vertices connected to min_terminal in R
+		// Find all vertices connected to min_terminal in R (including min_terminal itself)
 		VList connected = connected_verts(R, min_terminal);
-		connected.push_back(min_terminal);
 
 		// For all those connected vertices, paint them as belonging to the terminal vertex min_terminal
 		// Also: remove them from G (our copy) permanently

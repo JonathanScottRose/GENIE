@@ -9,6 +9,7 @@
 #include "ct/split_node.h"
 #include "ct/flow_conv_node.h"
 #include "ct/export_node.h"
+#include "ct/clock_cross_node.h"
 
 #include "graph.h"
 
@@ -399,9 +400,30 @@ namespace
 			ClockResetPort* clock_a = data_a->get_clock();
 			ClockResetPort* clock_b = data_b->get_clock();
 
+			// Ignore data links whose source is driven by a clock source, but make sure
+			// that the data sink is already also driven by that same clock source
+			if (clock_a->get_dir() == Port::OUT)
+			{
+				assert(clock_b->get_driver() == clock_a);
+				continue;
+			}
+			else if (clock_b->get_dir() == Port::OUT)
+			{
+				// also the converse
+				assert(clock_a->get_driver() == clock_b);
+				continue;
+			}
+
+			// Two dataports in same node connected to each other, under same clock domain.
+			// This creates self-loops in the graph and derps up the MWC algorithm.
+			if (clock_a == clock_b)
+				continue;
+
 			// Look up vertices corresponding to clock sinks
 			VertexID v_a = clocksink_to_vertex[clock_a];
 			VertexID v_b = clocksink_to_vertex[clock_b];
+
+			assert(v_a != v_b);
 
 			// Determine weight based on sum of widths offields common
 			// to both ends of the Conn
@@ -468,13 +490,47 @@ namespace
 		}
 	}
 
-	void insert_clock_crossing(System* sys)
+	void insert_clock_crossings(System* sys)
 	{
 		// Traverse data conns to find ones where the endpoints are in two different
 		// clock domains, and then splice in a clock domain converter node in there.
-		// 
+		//
+		
+		int nodenum = 0;
+		auto old_conns = sys->conns();
 
+		for (Conn* conn : old_conns)
+		{
+			auto data_a = (DataPort*)conn->get_source();
+			if (data_a->get_type() != Port::DATA)
+				continue;
 
+			auto data_b = (DataPort*)conn->get_sink();
+			auto clocksink_a = data_a->get_clock();
+			auto clocksink_b = data_b->get_clock();
+			auto clocksrc_a = clocksink_a->get_driver();
+			auto clocksrc_b = clocksink_b->get_driver();
+
+			assert(clocksrc_a && clocksrc_b);
+
+			// We only care about mismatched domains
+			if (clocksrc_a == clocksrc_b)
+				continue;
+
+			// Create and add clockx node
+			ClockCrossNode* node = new ClockCrossNode("clockx" + std::to_string(nodenum++));
+			sys->add_node(node);
+
+			// Connect its clock inputs
+			sys->connect_ports(clocksrc_a, node->get_inclock_port());
+			sys->connect_ports(clocksrc_b, node->get_outclock_port());
+
+			// Splice the node into the existing data connection
+			sys->splice_conn(conn, node->get_inport(), node->get_outport());
+
+			// Do protocol containment
+
+		}
 	}
 
 	void configure_pre_negotiate(System* sys)
@@ -755,7 +811,9 @@ P2P::System* ct::build_system(Spec::System* system)
 	configure_post_negotiate(result);
 	handle_defaults(result);
 	connect_clocks(result);
-	insert_clock_crossing(result);
+	insert_clock_crossings(result);
+	do_proto_carriage(result);
+	configure_post_negotiate(result);
 	connect_resets(result);
 	//result->dump_graph();
 	return result;

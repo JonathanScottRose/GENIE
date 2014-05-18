@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <limits>
+#include <functional>
 
 namespace ct
 {
@@ -24,22 +25,18 @@ namespace ct
 		protected:
 			struct Vertex
 			{
-				VertexID id;
 				EList edges;
 
-				Vertex() : id(INVALID_V) { }
-				Vertex(VertexID _id) : id(_id) { }
 				void remove_e(EdgeID eid);
 			};
 
 			struct Edge
 			{
-				EdgeID id;
 				VertexID v1;
 				VertexID v2;
 
-				Edge() : id(INVALID_E), v1(INVALID_V), v2(INVALID_V) { };
-				Edge(EdgeID _id, VertexID _v1, VertexID _v2) : id(_id), v1(_v1), v2(_v2) { }
+				Edge() : Edge(INVALID_V, INVALID_V) { };
+				Edge(VertexID _v1, VertexID _v2) : v1(_v1), v2(_v2) { }
 			};
 
 			typedef std::unordered_map<VertexID, Vertex> VContType;
@@ -104,6 +101,8 @@ namespace ct
 			void connect(VertexID v1, EdgeID e);
 
 			void mergev(VertexID src, VertexID dest);
+			void dump(const std::string& filename, 
+				const std::function<std::string(EdgeID)>& efunc = std::function<std::string(EdgeID)>());
 
 		protected:
 			friend class IterContainer<VContType, VertexID>;

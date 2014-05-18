@@ -1,5 +1,7 @@
 #include <cassert>
 #include <algorithm>
+#include <string>
+#include <fstream>
 #include "graph.h"
 
 using namespace ct;
@@ -99,7 +101,7 @@ const Graph::Edge& Graph::gete(EdgeID id) const
 
 VertexID Graph::newv()
 {
-	auto ins = V.emplace(m_next_vid, Vertex(m_next_vid));
+	auto ins = V.emplace(m_next_vid, Vertex());
 	m_next_vid++;
 	
 	VertexID result = ins.first->first;
@@ -109,7 +111,7 @@ VertexID Graph::newv()
 
 EdgeID Graph::newe(VertexID v1, VertexID v2)
 {
-	auto ins = E.emplace(m_next_eid, Edge(m_next_eid, v1, v2));
+	auto ins = E.emplace(m_next_eid, Edge(v1, v2));
 	m_next_eid++;
 
 	EdgeID result = ins.first->first;
@@ -290,4 +292,29 @@ Graph::IterContainer<Graph::VContType, VertexID> Graph::verts()
 Graph::IterContainer<Graph::EContType, EdgeID> Graph::edges()
 {
 	return IterContainer<EContType, EdgeID>(*this);
+}
+
+void Graph::dump(const std::string& filename, const std::function<std::string(EdgeID)>& efunc)
+{
+	std::ofstream out(filename + ".dot");
+
+	out << "digraph G {" << std::endl;
+
+	for (auto& i : E)
+	{
+		EdgeID eid = i.first;
+		Edge& e = i.second;
+
+		std::string ltxt;
+		if (efunc)
+		{
+			ltxt = " [label=\"" + efunc(eid) + "\"]";
+		}
+
+		out << std::to_string(e.v1) << " -> " << std::to_string(e.v2)
+			<< ltxt << ";"
+			<< std::endl;
+	}
+
+	out << "}" << std::endl;
 }

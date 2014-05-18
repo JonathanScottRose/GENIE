@@ -102,7 +102,8 @@ void Protocol::carry_fields(const FieldSet& set, const std::string& targ_phys)
 		fs->is_local = false;
 
 		// modify target physfield
-		pf->add_field(f.name);
+		if (!pf->has_field(f.name))
+			pf->add_field(f.name);
 
 		tmpset.insert(f.name);
 	}

@@ -54,17 +54,17 @@ namespace
 
 			if (port->get_name() == "reset")
 			{
-				result->port = "reset";
+				result->port = "arst";
 				result->lo = 0;
 				return;
 			}
-			else if (port->get_name() == "in_clock")
+			else if (port->get_name() == "clock_in")
 			{
 				result->port = "wrclk";
 				result->lo = 0;
 				return;
 			}
-			else if (port->get_name() == "out_clock")
+			else if (port->get_name() == "clock_out")
 			{
 				result->port = "rdclk";
 				result->lo = 0;
@@ -73,7 +73,7 @@ namespace
 
 			const Protocol& proto = port->get_proto();
 
-			if (port->get_name() == "in_data")
+			if (port->get_name() == "data_in")
 			{
 				if (pfield->name == "valid") result->port = "i_valid";
 				else if (pfield->name == "ready") result->port = "o_ready";
@@ -81,7 +81,7 @@ namespace
 
 				result->lo = 0;
 			}
-			else if (port->get_name() == "out_data")
+			else if (port->get_name() == "data_out")
 			{
 				if (pfield->name == "valid") result->port = "o_valid";
 				else if (pfield->name == "ready") result->port = "i_ready";

@@ -90,6 +90,7 @@ int Graphs::min_st_cut(Graph& G, EAttr<int> cap, VertexID s, VertexID t)
 
 				cap[e1] -= mincap;
 				cap[e2] += mincap;
+				v1 = v2;
 			}
 		}
 		else
