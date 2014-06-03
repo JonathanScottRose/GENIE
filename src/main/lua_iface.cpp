@@ -348,7 +348,13 @@ namespace
 
 		int result = expr.get_value([&] (const std::string param)
 		{
-			return Expression(params[param]);
+			auto& it = params.find(param);
+			if (it == params.end())
+			{
+				lerror("Unknown parameter " + param + " while evaluating expression " + expr_str);
+			}
+
+			return Expression(it->second);
 		});
 
 		lua_pushinteger(L, result);
@@ -415,6 +421,13 @@ namespace
 		return 0;
 	}
 
+	int s_stacktrace(lua_State* L)
+	{
+		const char* err = luaL_checkstring(L, -1);
+		luaL_traceback(L, L, err, 1);
+		return 1;
+	}
+
 	void register_funcs()
 	{
 		REG_LFUNC(reg_component);
@@ -457,6 +470,8 @@ void LuaIface::shutdown()
 
 void LuaIface::exec_script(const std::string& filename)
 {
+	lua_pushcfunction(s_state, s_stacktrace);
+
 	int s = luaL_loadfile(s_state, filename.c_str());
 	if (s != 0)
 	{
@@ -464,7 +479,15 @@ void LuaIface::exec_script(const std::string& filename)
 		lua_pop(s_state, 1);
 		throw Exception(err);
 	}
-	lua_call(s_state, 0, LUA_MULTRET);
+	
+	s = lua_pcall(s_state, 0, LUA_MULTRET, lua_absindex(s_state, -2));
+	//lua_call(s_state, 0, LUA_MULTRET);
+	if (s != 0)
+	{
+		std::string err = luaL_checkstring(s_state, -1);
+		lua_pop(s_state, 1);
+		throw Exception(err);
+	}
 }
 
 void LuaIface::register_func(const std::string& name, lua_CFunction fptr)
