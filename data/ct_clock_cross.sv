@@ -11,7 +11,7 @@ module ct_clock_cross #
 	input i_valid,
 	output logic o_ready,
 	
-	output [WIDTH-1:0] o_data,
+	output logic [WIDTH-1:0] o_data,
 	output logic o_valid,
 	input i_ready
 );
