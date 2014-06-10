@@ -118,12 +118,14 @@ protected:
 class Export : public SysObject
 {
 public:
-	Export(const std::string& name, Interface::Type type, System* parent);
+	Export(const std::string& name, Interface::Type type, Interface::Dir dir, System* parent);
 
 	PROP_GET_SET(iface_type, Interface::Type, m_iface_type);
+	PROP_GET_SET(iface_dir, Interface::Dir, m_iface_dir);
 
 protected:
 	Interface::Type m_iface_type;
+	Interface::Dir m_iface_dir;
 };
 
 

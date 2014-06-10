@@ -72,8 +72,7 @@ namespace P2P
 		enum Dir
 		{
 			IN,
-			OUT,
-			MIXED
+			OUT
 		};
 
 		Port(Type type, Dir dir, Node* node);
@@ -120,7 +119,7 @@ namespace P2P
 	class ConduitPort : public Port
 	{
 	public:
-		ConduitPort(Node* node);
+		ConduitPort(Node* node, Dir dir);
 	};
 
 	class DataPort : public Port

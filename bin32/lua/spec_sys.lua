@@ -142,12 +142,8 @@ function System:create_auto_exports()
 			for lp in values(iface.linkpoints) do
 				src_lt.lp = lp.name
 				
-				if not is_connected[src_lt:str()] then
+				if not is_connected[src_lt:str()] and util.count(iface.linkpoints) < 2 then
 					local exname = obj.name .. "_" .. iface.name
-					if util.count(iface.linkpoints) > 1 then
-						exname = exname .. "_" .. lp.name
-					end
-					
 					local src_lt = LinkTarget:new
 					{
 						obj = obj.name,

@@ -93,22 +93,26 @@ public:
 
 	enum Type
 	{
-		CLOCK_SRC,
-		CLOCK_SINK,
-		RESET_SRC,
-		RESET_SINK,
-		SEND,
-		RECV,
+		CLOCK,
+		RESET,
+		DATA,
 		CONDUIT
 	};
 
-	Interface(const std::string& name, Type type, Component* parent);
+	enum Dir
+	{
+		IN,
+		OUT
+	};
+
+	Interface(const std::string& name, Type type, Dir dir, Component* parent);
 	Interface(const Interface&);
 	virtual ~Interface();
 	virtual Interface* clone() = 0;
 
 	PROP_GET_SET(name, const std::string&, m_name);
 	PROP_GET_SET(type, Type, m_type);
+	PROP_GET_SET(dir, Dir, m_dir);
 	PROP_GET_SET(parent, Component*, m_parent);
 
 	const Signals& signals() { return m_signals; }
@@ -123,12 +127,14 @@ public:
 	Linkpoint* get_linkpoint(const std::string& name);
 
 	static Type type_from_string(const std::string& str);
-	static Interface* factory(const std::string& name, Type type, Component* parent);
+	static Dir dir_from_string(const std::string& str);
+	static Interface* factory(const std::string& name, Type type, Dir dir, Component* parent);
 
 protected:
 	Component* m_parent;
 	std::string m_name;
 	Type m_type;
+	Dir m_dir;
 	Signals m_signals;
 	Linkpoints m_linkpoints;
 };
@@ -136,7 +142,7 @@ protected:
 class ClockResetInterface : public Interface
 {
 public:
-	ClockResetInterface(const std::string& name, Type type, Component* parent);
+	ClockResetInterface(const std::string& name, Type type, Dir dir, Component* parent);
 	~ClockResetInterface();
 	Interface* clone();
 };
@@ -144,7 +150,7 @@ public:
 class ConduitInterface : public Interface
 {
 public:
-	ConduitInterface(const std::string& name, Component* parent);
+	ConduitInterface(const std::string& name, Dir dir, Component* parent);
 	~ConduitInterface();
 	Interface* clone();
 };
@@ -152,7 +158,7 @@ public:
 class DataInterface : public Interface
 {
 public:
-	DataInterface(const std::string& name, Type type, Component* parent);
+	DataInterface(const std::string& name, Type type, Dir dir, Component* parent);
 	~DataInterface();
 	Interface* clone();
 
