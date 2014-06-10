@@ -351,7 +351,7 @@ namespace
 
 		int result = expr.get_value([&] (const std::string param)
 		{
-			auto& it = params.find(param);
+			const auto& it = params.find(param);
 			if (it == params.end())
 			{
 				lerror("Unknown parameter " + param + " while evaluating expression " + expr_str);
