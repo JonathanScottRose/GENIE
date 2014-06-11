@@ -9,7 +9,7 @@ namespace
 	{
 		using namespace ct::Spec;
 
-		bool is_out = (ssense == Signal::FWD) ^ (idir == Interface::OUT);
+		bool is_out = (ssense == Signal::FWD) == (idir == Interface::OUT);
 		return is_out? Vlog::Port::OUT : Vlog::Port::IN;
 	}
 
