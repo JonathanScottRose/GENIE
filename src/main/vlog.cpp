@@ -249,6 +249,11 @@ void ParamBinding::set_value(int val)
 	m_value = val;
 }
 
+void ParamBinding::set_hack_value(const std::string& val)
+{
+	m_value = Expression::build_hack_expression(val);
+}
+
 int ParamBinding::get_value()
 {
 	return m_value.get_value();
@@ -419,6 +424,11 @@ int Instance::get_param_value(const std::string& name)
 void Instance::set_param_value(const std::string& name, int val)
 {
 	get_param_binding(name)->set_value(val);
+}
+
+void Instance::set_param_value(const std::string& name, const std::string& val)
+{
+	get_param_binding(name)->set_hack_value(val);
 }
 
 //

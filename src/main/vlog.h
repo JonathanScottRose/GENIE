@@ -168,6 +168,7 @@ namespace Vlog
 		const std::string& get_name();
 		Expression& value() { return m_value; }
 		void set_value(int val);
+		void set_hack_value(const std::string& val);
 		int get_value();
 
 	protected:
@@ -264,6 +265,7 @@ namespace Vlog
 		ParamBinding* get_param_binding(const std::string& name);
 		int get_param_value(const std::string& name);
 		void set_param_value(const std::string& name, int val);
+		void set_param_value(const std::string& name, const std::string& val);
 
 		const NameResolver& get_param_resolver() { return m_resolv; }
 

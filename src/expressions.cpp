@@ -143,6 +143,46 @@ bool ConstNode::is_constant() const
 }
 
 //
+// LiteralNode
+//
+
+LiteralNode::LiteralNode()
+{
+}
+
+LiteralNode::LiteralNode(const std::string& val)
+: m_value(val)
+{
+}
+
+Node* LiteralNode::clone() const
+{
+	return new LiteralNode(*this);
+}
+
+int LiteralNode::get_value(const NameResolver& r)
+{
+	throw Exception("NO!");
+	assert(false);
+	return -1;
+}
+
+void LiteralNode::set_value(const std::string& val)
+{
+	m_value = val;
+}
+
+std::string LiteralNode::to_string() const
+{
+	return m_value;
+}
+
+bool LiteralNode::is_constant() const
+{
+	return true;
+}
+
+//
 // NameNode
 //
 
@@ -394,4 +434,11 @@ Node* Expression::parse(const std::string& str)
 
 	assert(node);
 	return node;
+}
+
+Expression Expression::build_hack_expression(const std::string& val)
+{
+	Expression result;
+	result.set_root(new LiteralNode(val));
+	return result;
 }
