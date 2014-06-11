@@ -60,7 +60,6 @@ Port::Dir Port::rev_dir(Dir dir)
 	{
 	case IN : return OUT;
 	case OUT: return IN;
-	case MIXED: return MIXED;
 	default: assert(false); return IN;
 	}
 }
@@ -93,7 +92,6 @@ Port* Port::get_driver()
 	{
 		case OUT: return this; break;
 		case IN: return m_conn? m_conn->get_source() : nullptr; break;
-		case MIXED: assert(false); break;
 	}
 
 	return nullptr;
@@ -104,19 +102,15 @@ Port* Port::get_first_connected_port()
 	if (!m_conn)
 		return nullptr;
 
+	Port* result = nullptr;
 	switch (m_dir)
 	{
-		case IN: return m_conn->get_source(); break;
-		case OUT: return m_conn->get_sink(); break;
-		case MIXED:
-		{
-			return this==m_conn->get_source()? 
-				m_conn->get_sink() : m_conn->get_source();
-			break;
-		}
+		case IN: result =  m_conn->get_source(); break;
+		case OUT: result =  m_conn->get_sink(); break;
 	}
 
-	return nullptr;
+	assert(result != this);
+	return result;
 }
 
 bool Port::is_connected()
@@ -147,8 +141,8 @@ ClockResetPort::ClockResetPort(Type type, Dir dir, Node* node)
 // ConduitPort
 //
 
-ConduitPort::ConduitPort(Node* node)
-	: Port(CONDUIT, MIXED, node)
+ConduitPort::ConduitPort(Node* node, Dir dir)
+	: Port(CONDUIT, dir, node)
 {
 };
 

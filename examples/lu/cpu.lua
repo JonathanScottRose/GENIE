@@ -1,4 +1,3 @@
--- Duplicated from the package 
 local CACHE_DWIDTH = 256
 local BSIZEBITS = 8
 local MAX_BDIMBITS = 8 
@@ -38,10 +37,10 @@ b:component('pipe','cpu_pipeline')
     b:reset_sink('reset','reset')
     b:interface('ctrl','conduit','in')
         for sig in Set.values(sigs_ctrl_to_pipe) do
-            b:signal('in','i_' .. sig,1,sig)
+            b:signal('out','i_' .. sig,1,sig)
         end
         for sig in Set.values(sigs_pipe_to_ctrl) do
-            b:signal('out','o_' .. sig,1,sig)
+            b:signal('in','o_' .. sig,1,sig)
         end
     for i,cache in ipairs{'top','left','cur'} do
         local iface = cache .. "_rdreq"
@@ -51,9 +50,9 @@ b:component('pipe','cpu_pipeline')
         b:interface(iface,'data','out','clk')
             b:signal('valid',osig .. '_valid')
             b:signal('ready',isig .. '_ready')
-            b:signal('data',osig .. 'addr',CACHE_AWIDTH)
+            b:signal('data',osig .. '_addr',CACHE_AWIDTH)
             if not istop then
-                b:signal('lp_id',osig .. 'lp_id',1)
+                b:signal('lp_id',osig .. '_lp_id',1)
                 b:linkpoint('buf0',"1'b0",'broadcast')
                 b:linkpoint('buf1',"1'b1",'broadcast')
             end
@@ -90,7 +89,7 @@ b:component('pipe_ctrl','cpu_pipe_ctrl')
         b:signal('data','i_whichpage','1','whichpage')
     b:interface('done', 'data','out','clk')
         b:signal('valid','o_done')
-    b:interface('pipe','conduit','out')
+    b:interface('ctrl','conduit','out')
         for sig in Set.values(sigs_ctrl_to_pipe) do
             b:signal('out','o_' .. sig,1,sig)
         end
@@ -114,13 +113,15 @@ b:component('main_ctrl','cpu_main_ctrl')
     b:interface('rdreq','data','out','clk')
         b:signal('valid','o_rdreq')
         b:signal('ready','i_rdreq_ack')
-        b:signal('lp_id','o_rdreq_toctrl','1')
+        -- DB HACK: work around linkpoint exports until supported 
+        --b:signal('lp_id','o_rdreq_toctrl','1')
+        b:signal('data','o_rdreq_toctrl','1','toctrl')
         b:signal('data','o_rdreq_blkx','8','blkx')
         b:signal('data','o_rdreq_blky','8','blky')
         b:signal('data','o_rdreq_whichbufs','3','whichbufs')
         b:signal('data','o_rdreq_whichpage','1','whichpage')
-        b:linkpoint('mem',"1'b0",'broadcast')
-        b:linkpoint('ctrl',"1'b1",'broadcast')
+        --b:linkpoint('mem',"1'b0",'broadcast')
+        --b:linkpoint('ctrl',"1'b1",'broadcast')
     b:interface('rddone','data','in','clk')
         b:signal('valid','i_rddone')
         b:signal('data','i_rddone_whichbufs','3','whichbufs')
@@ -146,8 +147,8 @@ b:component('cache_to_net','cpu_cache_to_net')
     b:clock_sink('clk','clk')
     b:reset_sink('reset','reset')
     -- TO OUTSIDE: wrreq
-    b:interface('wrreq','data','in','clk')
-        b:signal('data','o_net_wrreq_data','CACHE_DWIDTH-1:0','data')
+    b:interface('wrreq','data','out','clk')
+        b:signal('data','o_net_wrreq_data',CACHE_DWIDTH,'data')
         b:signal('data','o_net_wrreq_x',MAX_BDIMBITS,'x')
         b:signal('data','o_net_wrreq_y',MAX_BDIMBITS,'y')
         b:signal('valid','o_net_wrreq_valid')
@@ -156,7 +157,7 @@ b:component('cache_to_net','cpu_cache_to_net')
     
     -- TO CACHES: rdreq
     b:interface('rdreq', 'data', 'out', 'clk')
-            b:signal('data','o_cache_rdreq_addr,','CACHE_AWIDTH-1:0','addr')
+            b:signal('data','o_cache_rdreq_addr',CACHE_AWIDTH,'addr')
             b:signal('valid','o_cache_rdreq_valid')
             b:signal('ready','i_cache_rdreq_ready')
             b:signal('lp_id','o_cache_rdreq_which','2')
@@ -167,7 +168,7 @@ b:component('cache_to_net','cpu_cache_to_net')
     
     -- FROM CACHES: rdresp
     b:interface('rdresp', 'data', 'in', 'clk')
-            b:signal('data','i_cache_rdresp_data','CACHE_DWIDTH-1:0','data')
+            b:signal('data','i_cache_rdresp_data',CACHE_DWIDTH,'data')
             b:signal('valid','i_cache_rdresp_valid')
             b:signal('ready','o_cache_rdresp_ready')
     
@@ -194,6 +195,7 @@ b:component('net_to_cache','cpu_net_to_cache')
 			b:signal('data','i_net_rdresp_whichpage','1','whichpage')
 			b:signal('valid','i_net_rdresp_valid')
 			b:signal('sop','i_net_rdresp_sop')
+			b:signal('eop','i_net_rdresp_eop')
 			b:signal('ready','o_net_rdresp_ready')
     
     -- TO CACHES: wrreq
@@ -240,14 +242,17 @@ b:system('cpu', topo_xbar)
     b:export('clk_a','clock','in')
     b:export('clk_b','clock','in')
     b:export('reset','reset','in')
+
+    --b:export('main_ctrl.rdreq.mem','data','out')
+    --b:export('main_ctrl.rdreq.ctrl','data','out')
     
     for inst in Set.values(pipe_clock_domain) do
-        b:link('clk_a', inst..'.clk')
+        b:link('clk_b', inst..'.clk')
         b:link('reset', inst..'.reset')
     end
 
     for inst in Set.values(net_clock_domain) do
-        b:link('clk_b', inst..'.clk')
+        b:link('clk_a', inst..'.clk')
         b:link('reset', inst..'.reset')
     end
     
@@ -258,21 +263,22 @@ b:system('cpu', topo_xbar)
     b:link('left1.rdresp.pipe','pipe.left_rdresp')
 
     b:link('cur0.rdresp.pipe','pipe.cur_rdresp')
-    b:link('cur0.rdresp.mem','c2n.rdresp')
+    b:link('cur0.rdresp.net','c2n.rdresp')
     b:link('cur1.rdresp.pipe','pipe.cur_rdresp')
-    b:link('cur1.rdresp.mem','c2n.rdresp')
+    b:link('cur1.rdresp.net','c2n.rdresp')
 
     b:link('top.rdresp.pipe','pipe.top_rdresp')
-    b:link('top.rdresp.mem','c2n.rdresp')
+    b:link('top.rdresp.net','c2n.rdresp')
+
 
     
     --Network interfaces
     b:link('n2c.rddone','main_ctrl.rddone')
 
-    b:link('c2n.rdreq.c0','cur0.rdreq')
-    b:link('c2n.rdreq.c1','cur1.rdreq')
-    b:link('c2n.rdreq.t','top.rdreq')
-    b:link('c2n.rdreq.t_alias','top.rdreq')
+    b:link('c2n.rdreq.c0','cur0.rdreq.net')
+    b:link('c2n.rdreq.c1','cur1.rdreq.net')
+    b:link('c2n.rdreq.t','top.rdreq.net')
+    b:link('c2n.rdreq.t_alias','top.rdreq.net')
     b:link('c2n.wrdone','main_ctrl.wrdone')
 
     --this bundles up wrreq to caches from net and mem due to 
@@ -304,14 +310,14 @@ b:system('cpu', topo_xbar)
     end
     -- Pipeline 
     for i,cache in pairs{'left','cur'} do
-        b:link('pipe.'..cache..'_rdreq',cache..'0.rdreq')
-        b:link('pipe.'..cache..'_rdreq',cache..'1.rdreq')
+        b:link('pipe.'..cache..'_rdreq.buf0',cache..'0.rdreq.pipe')
+        b:link('pipe.'..cache..'_rdreq.buf1',cache..'1.rdreq.pipe')
     end
-    b:link('pipe.top_rdreq', 'top.rdreq')
+    b:link('pipe.top_rdreq', 'top.rdreq.pipe')
     
     -- Pipeline control
     b:link('pipe_ctrl.done','main_ctrl.pipe_done')
-    b:link('pipe_ctrl.pipe','pipe.ctrl')
+    b:link('pipe_ctrl.ctrl','pipe.ctrl')
 
     -- Main control 
     b:link('main_ctrl.pipe_go','pipe_ctrl.go')

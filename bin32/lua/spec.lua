@@ -54,18 +54,6 @@ end
 
 function Spec:submit()
 	self:post_process()
-
-	local function trans_iftype(type, dir)
-		type = string.lower(type)
-		dir = string.lower(dir)
-		if type=="clock" and dir=="in" then return 'clock_sink' end
-		if type=='clock' and dir=='out' then return 'clock_src' end
-		if type=='reset' and dir=='in' then return 'reset_sink' end
-		if type=='reset' and dir=='out' then return 'reset_src' end
-		if type=='data' and dir=='in' then return 'recv' end
-		if type=='data' and dir=='out' then return 'send' end
-		if type=='conduit' then return 'conduit' end
-	end
 	
 	for component in svaluesk(self.components) do
 		ct.reg_component
@@ -78,7 +66,8 @@ function Spec:submit()
 			ct.reg_interface(component.name,
 			{
 				name = iface.name,
-				type = trans_iftype(iface.type, iface.dir),
+				type = string.lower(iface.type),
+                dir = string.lower(iface.dir),
 				clock = iface.clock
 			})
 			
@@ -119,7 +108,8 @@ function Spec:submit()
 				ct.reg_export(sys.name,
 				{
 					name = obj.name,
-					type = trans_iftype(obj.iface_type, obj.iface_dir)
+					type = string.lower(obj.iface_type),
+                    dir = string.lower(obj.iface_dir)
 				})					
 			end
 		end

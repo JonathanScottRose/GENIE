@@ -137,6 +137,7 @@ namespace
 		RequiredAttribs req;
 		req.emplace_back("name", true);
 		req.emplace_back("type", true);
+		req.emplace_back("dir", true);
 		req.emplace_back("clock", false);
 		auto attrs = parse_attribs(L, req);
 
@@ -146,11 +147,11 @@ namespace
 			(
 			attrs["name"],
 			Spec::Interface::type_from_string(attrs["type"]),
+			Spec::Interface::dir_from_string(attrs["dir"]),
 			comp
 			);
 
-		if (iface->get_type() == Spec::Interface::SEND ||
-			iface->get_type() == Spec::Interface::RECV)
+		if (iface->get_type() == Spec::Interface::DATA)
 		{
 			if (attrs.count("clock") == 0)
 				lerror("Missing clock for interface");
@@ -278,12 +279,14 @@ namespace
 		RequiredAttribs req;
 		req.emplace_back("name", true);
 		req.emplace_back("type", true);
+		req.emplace_back("dir", true);
 		auto attrs = parse_attribs(L, req);
 
 		const std::string& name = attrs["name"];
 		Interface::Type iftype = Interface::type_from_string(attrs["type"]);
+		Interface::Dir ifdir = Interface::dir_from_string(attrs["dir"]);
 
-		Export* ex = new Export(name, iftype, sys);
+		Export* ex = new Export(name, iftype, ifdir, sys);
 		sys->add_object(ex);
 
 		lua_pop(L, 2);

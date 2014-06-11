@@ -33,8 +33,7 @@ void InstanceNode::set_clock(Port* port, Spec::Interface* iface)
 	Spec::DataInterface* diface = (Spec::DataInterface*) iface;
 
 	assert(dport->get_type() == Port::DATA);
-	assert(diface->get_type() == Spec::Interface::SEND ||
-		diface->get_type() == Spec::Interface::RECV);
+	assert(diface->get_type() == Spec::Interface::DATA);
 
 	// Assign clock
 	ClockResetPort* clockport = (ClockResetPort*)this->get_port(diface->get_clock());
@@ -52,37 +51,38 @@ InstanceNode::InstanceNode(Spec::Instance* def)
 	// Create ports for interfaces
 	// Do clock/reset ones first (reverse order cause splice works that way)
 	Spec::Component::InterfaceList ifaces;
-	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::SEND));
-	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::RECV));
-	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::CLOCK_SRC));
-	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::CLOCK_SINK));
-	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::RESET_SRC));
-	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::RESET_SINK));
+	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::DATA));
+	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::CLOCK));
+	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::RESET));
 	ifaces.splice_after(ifaces.before_begin(), comp->get_interfaces(Spec::Interface::CONDUIT));
 
 	for (Spec::Interface* ifacedef : ifaces)
 	{
-		Port::Dir pdir = Port::OUT;
+		Port::Dir pdir;
 		Port* port = nullptr;
+
+		switch (ifacedef->get_dir())
+		{
+			case Spec::Interface::IN: pdir = Port::IN; break;
+			case Spec::Interface::OUT: pdir = Port::OUT; break;
+			default: pdir = (Port::Dir)0; assert(false); break;
+		}
 
 		switch (ifacedef->get_type())
 		{
-		case Spec::Interface::CLOCK_SINK: pdir = Port::IN;
-		case Spec::Interface::CLOCK_SRC:
+		case Spec::Interface::CLOCK:
 			port = new ClockResetPort(Port::CLOCK, pdir, this);
 			break;
-		case Spec::Interface::RESET_SINK: pdir = Port::IN;
-		case Spec::Interface::RESET_SRC:
+		case Spec::Interface::RESET:
 			port = new ClockResetPort(Port::RESET, pdir, this);
 			break;
-		case Spec::Interface::RECV: pdir = Port::IN;
-		case Spec::Interface::SEND:
+		case Spec::Interface::DATA:
 			port = new DataPort(this, pdir);
 			convert_fields(port, ifacedef, def);
 			set_clock(port, ifacedef);
 			break;
 		case Spec::Interface::CONDUIT:
-			port = new ConduitPort(this);
+			port = new ConduitPort(this, pdir);
 			convert_fields(port, ifacedef, def);
 			break;
 		default:

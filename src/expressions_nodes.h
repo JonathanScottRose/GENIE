@@ -14,6 +14,7 @@ namespace ct
 			class ConstNode;
 			class NameNode;
 			class LogNode;
+			class LiteralNode;
 
 			class Node
 			{
@@ -99,6 +100,22 @@ namespace ct
 
 			protected:
 				Node* m_child;
+			};
+
+			class LiteralNode : public Node
+			{
+			public:
+				LiteralNode();
+				LiteralNode(const std::string& val);
+				Node* clone() const;
+
+				bool is_constant() const;
+				int get_value(const NameResolver& r);
+				void set_value(const std::string& val);
+				std::string to_string() const;
+
+			protected:
+				std::string m_value;
 			};
 		}
 	}

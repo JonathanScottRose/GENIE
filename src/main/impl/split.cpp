@@ -39,6 +39,19 @@ namespace
 			return result;
 		}
 
+		std::string to_binary(int x, int bits)
+		{
+			std::string result;
+
+			while (bits--)
+			{
+				result = ((x&1)? "1" : "0") + result;
+				x >>= 1;
+			}
+
+			return result;
+		}
+
 		void parameterize(P2P::Node* generic_node, Vlog::Instance* vinst)
 		{
 			using namespace P2P;
@@ -48,33 +61,43 @@ namespace
 
 			int data_width = node->get_proto().get_phys_field("xdata")->width;
 			int fid_width = node->get_flow_id_width();
+			int n_outputs = node->get_n_outputs();
+			int n_flows = node->get_n_flows();
 
 			data_width = std::max(0, data_width);
 
-			vinst->set_param_value("NO", node->get_n_outputs());
+			vinst->set_param_value("NO", n_outputs);
 			vinst->set_param_value("WO", data_width);
-			vinst->set_param_value("NF", node->get_n_flows());
+			vinst->set_param_value("NF", n_flows);
 			vinst->set_param_value("WF", fid_width);
 
 			// Until parameters can be expressed like this {1, 2, 3}, convert
 			// these into a single big integers using bitwise arithmetic
 
-			int flows_param = 0;
-			int enables_param = 0;
+			std::string flows_param;
+			std::string enables_param;
+			
+			int n_added_flows = n_flows;
 			for (Flow* f : node->get_flows())
 			{
-				flows_param <<= fid_width;
-				flows_param |= f->get_id();
-
 				int enable_val = 0;
 				for (auto& v : node->get_dests_for_flow(f->get_id()))
 				{
 					enable_val |= 1 << v;
 				}
 
-				enables_param <<= node->get_n_outputs();
-				enables_param |= enable_val;
+				flows_param = to_binary(f->get_id(), fid_width) + flows_param;
+				enables_param = to_binary(enable_val, n_outputs) + enables_param;
+
+				if (--n_added_flows)
+				{
+					flows_param = "_" + flows_param;
+					enables_param = "_" + enables_param;
+				}
 			}
+
+			flows_param = std::to_string(n_flows * fid_width) + "'b" + flows_param;
+			enables_param = std::to_string(n_flows * n_outputs) + "'b" + enables_param;
 
 			vinst->set_param_value("ENABLES", enables_param);
 			vinst->set_param_value("FLOWS", flows_param);

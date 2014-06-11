@@ -22,34 +22,35 @@ namespace
 	// and protocol.
 	void create_top_level_port(System* sys, Spec::Export* exp_def)
 	{
+		Port::Dir pdir;
 		Port* port;
 		ExportNode* exp = sys->get_export_node();
 
+		// REVERSE it: an export of dir IN is bringing data into the system, therefore
+		// it acts like an output port when inside the system
+		switch (exp_def->get_iface_dir())
+		{
+			case Spec::Interface::IN: pdir = Port::OUT; break;
+			case Spec::Interface::OUT: pdir = Port::IN; break;
+			default: pdir = (Port::Dir)0; assert(false); break;
+		}
+
 		switch (exp_def->get_iface_type())
 		{
-		case Spec::Interface::CLOCK_SINK:
-			port = new ClockResetPort(Port::CLOCK, Port::OUT, exp);
-			break;
-		case Spec::Interface::CLOCK_SRC:
-			port = new ClockResetPort(Port::CLOCK, Port::IN, exp);
-			break;
-		case Spec::Interface::RESET_SRC:
-			port = new ClockResetPort(Port::RESET, Port::IN, exp);
-			break;
-		case Spec::Interface::RESET_SINK:
-			port = new ClockResetPort(Port::RESET, Port::OUT, exp);
-			break;
-		case Spec::Interface::SEND:
-			port = new DataPort(exp, Port::IN);
-			break;
-		case Spec::Interface::RECV:
-			port = new DataPort(exp, Port::OUT);
-			break;
-		case Spec::Interface::CONDUIT:
-			port = new ConduitPort(exp);
-			break;
-		default:
-			assert(false);
+			case Spec::Interface::CLOCK:
+				port = new ClockResetPort(Port::CLOCK, pdir, exp);
+				break;
+			case Spec::Interface::RESET:
+				port = new ClockResetPort(Port::RESET, pdir, exp);
+				break;
+			case Spec::Interface::DATA:
+				port = new DataPort(exp, pdir);
+				break;
+			case Spec::Interface::CONDUIT:
+				port = new ConduitPort(exp, pdir);
+				break;
+			default:
+				assert(false);
 		}
 
 		port->set_name(exp_def->get_name());

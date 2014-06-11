@@ -32,6 +32,8 @@ namespace ct
 
 			static const NameResolver& get_const_resolver();
 
+			static Expression build_hack_expression(const std::string&);
+
 		protected:
 			static Nodes::Node* parse(const std::string& str);
 

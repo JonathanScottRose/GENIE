@@ -7,21 +7,11 @@ using namespace ImplVerilog;
 namespace
 {
 	// copied from instance.cpp. please kill me now
-	Vlog::Port::Dir conv_port_dir(Spec::Interface::Type itype, Spec::Signal::Sense ssense)
+	Vlog::Port::Dir conv_port_dir(Spec::Interface::Dir idir, Spec::Signal::Sense ssense)
 	{
 		using namespace ct::Spec;
 
-		bool is_out = ssense == Signal::FWD;
-
-		switch (itype)
-		{
-			case Interface::CLOCK_SINK:
-			case Interface::RESET_SINK:
-			case Interface::RECV:
-				is_out = !is_out;
-				break;
-		}
-
+		bool is_out = (ssense == Signal::FWD) ^ (idir == Interface::OUT);
 		return is_out ? Vlog::Port::OUT : Vlog::Port::IN;
 	}
 
@@ -52,7 +42,7 @@ namespace
 
 					// Create port. The direction of the Interface actually points the right way.
 					Vlog::Port* port = new Vlog::Port(sig_name, sysmod);
-					port->set_dir(conv_port_dir(iface->get_type(), sig->get_sense()));
+					port->set_dir(conv_port_dir(iface->get_dir(), sig->get_sense()));
 					port->width() = sig->get_width(); // is a constant
 					sysmod->add_port(port);
 

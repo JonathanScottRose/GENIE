@@ -115,8 +115,8 @@ Linkpoint::Type Linkpoint::type_from_string(const std::string& str)
 // Interface
 //
 
-Interface::Interface(const std::string& name, Type type, Component* parent)
-	: m_name(name), m_type(type), m_parent(parent)
+Interface::Interface(const std::string& name, Type type, Dir dir, Component* parent)
+	: m_name(name), m_type(type), m_parent(parent), m_dir(dir)
 {
 }
 
@@ -188,32 +188,36 @@ Signal* Interface::get_signal(const std::string& field_name)
 Interface::Type Interface::type_from_string(const std::string& str)
 {
 	std::string str2 = Util::str_tolower(str);
-	if (str2 == "clock_sink") return Type::CLOCK_SINK;
-	else if (str2 == "clock_src") return Type::CLOCK_SRC;
-	else if (str2 == "reset_src") return Type::RESET_SRC;
-	else if (str2 == "reset_sink") return Type::RESET_SINK;
-	else if (str2 == "send") return Type::SEND;
-	else if (str2 == "recv") return Type::RECV;
+
+	if (str2 == "clock") return Type::CLOCK;
+	else if (str2 == "reset") return Type::RESET;
+	else if (str2 == "data") return Type::DATA;
 	else if (str2 == "conduit") return Type::CONDUIT;
 	else throw Exception("Unknown interface type: " + str);
-	
-	return Type::CLOCK_SRC;
+
+	return Type::CLOCK;
 }
 
-Interface* Interface::factory(const std::string& name, Type type, Component* parent)
+Interface::Dir Interface::dir_from_string(const std::string& str)
+{
+	std::string str2 = Util::str_tolower(str);
+
+	if (str2 == "in") return Dir::IN;
+	else if (str2 == "out") return Dir::OUT;
+	else throw Exception("Unknown interface dir: " + str);
+
+	return Dir::OUT;
+}
+
+Interface* Interface::factory(const std::string& name, Type type, Dir dir, Component* parent)
 {
 	switch(type)
 	{
-	case CONDUIT:
-		return new ConduitInterface(name, parent);
-	case SEND:
-	case RECV:
-		return new DataInterface(name, type, parent);
-	case CLOCK_SRC:
-	case CLOCK_SINK:
-	case RESET_SRC:
-	case RESET_SINK:
-		return new ClockResetInterface(name, type, parent);
+	case CONDUIT: return new ConduitInterface(name, dir, parent);
+	case DATA: return new DataInterface(name, type, dir, parent);
+	case CLOCK:
+	case RESET:
+		return new ClockResetInterface(name, type, dir, parent);
 	}
 
 	return nullptr;
@@ -234,8 +238,8 @@ Linkpoint* Interface::get_linkpoint(const std::string& name)
 // ClockResetInterface
 //
 
-ClockResetInterface::ClockResetInterface(const std::string& name, Type type, Component* parent)
-	: Interface(name, type, parent)
+ClockResetInterface::ClockResetInterface(const std::string& name, Type type, Dir dir, Component* parent)
+	: Interface(name, type, dir, parent)
 {
 }
 
@@ -252,8 +256,8 @@ Interface* ClockResetInterface::clone()
 // ConduitInterface
 //
 
-ConduitInterface::ConduitInterface(const std::string& name, Component* parent)
-	: Interface(name, CONDUIT, parent)
+ConduitInterface::ConduitInterface(const std::string& name, Dir dir, Component* parent)
+	: Interface(name, CONDUIT, dir, parent)
 {
 }
 
@@ -270,8 +274,8 @@ Interface* ConduitInterface::clone()
 // DataInterface
 //
 
-DataInterface::DataInterface(const std::string& name, Type type, Component* parent)
-	: Interface(name, type, parent)
+DataInterface::DataInterface(const std::string& name, Type type, Dir dir, Component* parent)
+	: Interface(name, type, dir, parent)
 {
 }
 
