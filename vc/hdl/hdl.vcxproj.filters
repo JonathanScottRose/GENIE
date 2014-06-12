@@ -4,76 +4,18 @@
     <Filter Include="Public">
       <UniqueIdentifier>{0217f364-c611-4575-92d5-ff0e68a30902}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Builtins">
+      <UniqueIdentifier>{365205de-758f-4e1b-b0b5-15c35f47b878}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\instance_node.cpp" />
-    <ClCompile Include="..\..\src\p2p.cpp" />
-    <ClCompile Include="..\..\src\spec.cpp" />
-    <ClCompile Include="..\..\src\sys_spec.cpp" />
-    <ClCompile Include="..\..\src\comp_spec.cpp" />
-    <ClCompile Include="..\..\src\ct.cpp" />
-    <ClCompile Include="..\..\src\expressions.cpp" />
-    <ClCompile Include="..\..\src\merge_node.cpp" />
-    <ClCompile Include="..\..\src\split_node.cpp" />
-    <ClCompile Include="..\..\src\flow_conv_node.cpp" />
-    <ClCompile Include="..\..\src\export_node.cpp" />
-    <ClCompile Include="..\..\src\topo_spec.cpp" />
-    <ClCompile Include="..\..\src\protocol.cpp" />
-    <ClCompile Include="..\..\src\clock_cross_node.cpp" />
-    <ClCompile Include="..\..\src\multi_way_cut.cpp" />
-    <ClCompile Include="..\..\src\graph.cpp" />
-    <ClCompile Include="..\..\src\min_st_cut.cpp" />
+    <ClCompile Include="..\..\src\hdl\impl_vlog.cpp" />
+    <ClCompile Include="..\..\src\hdl\vlog.cpp" />
+    <ClCompile Include="..\..\src\hdl\write_vlog.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\include\ct\p2p.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\instance_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\comp_spec.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\common.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\sys_spec.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\static_init.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\spec.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\ct.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\split_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\merge_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\expressions.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\flow_conv_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\export_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\expressions_nodes.h" />
-    <ClInclude Include="..\..\include\ct\topo_spec.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\protocol.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\clock_cross_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\graph.h" />
+    <ClInclude Include="..\..\src\hdl\impl_vlog.h" />
+    <ClInclude Include="..\..\src\hdl\vlog.h" />
+    <ClInclude Include="..\..\src\hdl\write_vlog.h" />
   </ItemGroup>
 </Project>
