@@ -69,7 +69,7 @@ module next_input_calc #
 	// next_input remains at the current input by virtue of sorting.
 	always @* begin : pri_enc
 		integer i;
-		o_next_input = NI-1; // this corresponds to the current input
+		o_next_input = sorted_idxs[NIBITS*(NI-1) +: NIBITS]; // this corresponds to the current input
 		
 		for (i = NI-2; i >= 0; i = i - 1) begin
 			if (sorted_valids[i]) o_next_input = sorted_idxs[NIBITS*i +: NIBITS];
