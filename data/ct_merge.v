@@ -69,7 +69,7 @@ module next_input_calc #
 	// next_input remains at the current input by virtue of sorting.
 	always @* begin : pri_enc
 		integer i;
-		o_next_input = NI-1; // this corresponds to the current input
+		o_next_input = sorted_idxs[NIBITS*(NI-1) +: NIBITS]; // this corresponds to the current input
 		
 		for (i = NI-2; i >= 0; i = i - 1) begin
 			if (sorted_valids[i]) o_next_input = sorted_idxs[NIBITS*i +: NIBITS];
@@ -82,8 +82,7 @@ endmodule
 module ct_merge #
 (
 	parameter NI = 1,
-	parameter WIDTH = 1,
-	parameter EOP_LOC = 0
+	parameter WIDTH = 1
 )
 (
 	input clk,
@@ -92,10 +91,12 @@ module ct_merge #
 	input [NI*WIDTH-1:0] i_data,
 	input [NI-1:0] i_valid,
 	output reg [NI-1:0] o_ready,
+	input [NI-1:0] i_eop,
 	
 	output o_valid,
 	output [WIDTH-1:0] o_data,
-	input i_ready
+	input i_ready,
+	output o_eop
 );
 
 function integer CLogB2;
@@ -105,6 +106,7 @@ function integer CLogB2;
 		i = Depth;		
 		for(CLogB2 = 0; i > 0; CLogB2 = CLogB2 + 1)
 			i = i >> 1;
+		if (CLogB2 < 1) CLogB2 = 1;
 	end
 endfunction
 
@@ -120,7 +122,7 @@ wire [NIBITS-1:0] next_input;
 wire cur_input_load;
 
 // Staging registers
-reg [NI*WIDTH-1:0] staging_datas, staging_datas_din;
+reg [NI*(WIDTH+1)-1:0] staging_datas, staging_datas_din;
 reg [NI-1:0] staging_valids, staging_valids_din;
 
 // Next input calculator
@@ -138,7 +140,7 @@ next_input_calc #
 // Output muxes
 ct_mux #
 (
-	.lpm_width(WIDTH),
+	.lpm_width(WIDTH+1),
 	.lpm_size(NI),
 	.lpm_widths(NIBITS),
 	.lpm_pipeline(0)
@@ -146,7 +148,7 @@ ct_mux #
 (
 	.data(staging_datas),
 	.sel(cur_input),
-	.result(o_data)
+	.result({o_data, o_eop})
 );
 
 ct_mux #
@@ -185,14 +187,13 @@ always @* begin : dp_comb
 		
 		// Select input from outside, or busywait recirculation
 		staging_valids_din[i] = o_ready[i]? i_valid[i] : staging_valids[i];
-		staging_datas_din[WIDTH*i+:WIDTH] = o_ready[i]? 
-			i_data[WIDTH*i+:WIDTH] :
-			staging_datas[WIDTH*i+:WIDTH];
+		staging_datas_din[(WIDTH+1)*i +: WIDTH+1] = o_ready[i]? 
+			{i_data[WIDTH*i+:WIDTH], i_eop[i]} :
+			staging_datas[(WIDTH+1)*i +: WIDTH+1];
 	end
 end
 
 wire pipe_enable = !(o_valid && !i_ready);
-wire o_eop = o_data[EOP_LOC];
 assign cur_input_load = pipe_enable && !(o_valid && i_ready && !o_eop);
 
 endmodule

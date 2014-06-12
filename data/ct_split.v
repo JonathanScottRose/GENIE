@@ -5,8 +5,7 @@ module ct_split #
 	parameter NF = 0, // Number of flows registered with this node
 	parameter WF = 0, // Width of the flow_id signal
 	parameter [NF*WF-1:0] FLOWS = 0, // Vector of flow_id for each flow
-	parameter [NF*NO-1:0] ENABLES = 0, // Vector of targeted outputs for each flow
-	parameter FLOW_LOC = 0 // Bit location of flow_id within data stream
+	parameter [NF*NO-1:0] ENABLES = 0 // Vector of targeted outputs for each flow
 )
 (
 	input clk,
@@ -14,15 +13,14 @@ module ct_split #
 	
 	input [WO-1:0] i_data,
 	input i_valid,
+	input [WF-1:0] i_flow,
 	output reg o_ready,
 
-	output reg [(NO*WO)-1:0] o_data,
+	output reg [WO-1:0] o_data,
 	output reg [NO-1:0] o_valid,
+	output reg [WF-1:0] o_flow,
 	input [NO-1:0] i_ready
 );
-
-// Extract flow_id from data stream
-wire [WF-1:0] flow_id = i_data[FLOW_LOC +: WF];
 
 // Calculate which outputs the incoming flow is trying to send data on.
 // There are NF flows known to this split node. The FLOWS parameter
@@ -40,7 +38,7 @@ always @* begin : mux
 	enabled_outputs = 0;
 	
 	for (i = 0; i < NF; i = i + 1) begin
-		match = FLOWS[WF*i +: WF] == flow_id;
+		match = FLOWS[WF*i +: WF] == i_flow;
 		enabled_outputs = enabled_outputs | (ENABLES[NO*i +: NO] & {NO{match}});
 	end
 end
@@ -74,13 +72,14 @@ end
 always @* begin : assignment
 	integer i;
 	
+	// Same data gets broadcast to everyone
+	o_data = i_data;
+	o_flow = i_flow;
+	
 	// Initialize to 1 to perform a wide-AND
 	o_ready = 1'b1;
 	
 	for (i = 0; i < NO; i = i + 1) begin
-		// Same data gets broadcast to everyone
-		o_data[i*WO +: WO] = i_data;
-		
 		// Broadcast the valid signal if the output is targeted/enabled and it hasn't already
 		// received/transferred the data yet
 		o_valid[i] = i_valid & enabled_outputs[i] & !done_outputs[i];

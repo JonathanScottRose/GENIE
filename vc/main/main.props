@@ -3,17 +3,18 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
+	<ConfigurationType>Application</ConfigurationType>
     <OutDir>$(SolutionDir)../bin$(PlatformArchitecture)/</OutDir>
     <TargetName>connectool</TargetName>
     <IntDir>$(ProjectDir)$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)../include;$(SolutionDir)../src/lua;$(SolutionDir)../src/main</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)../src/lua;$(SolutionDir)../include;$(SolutionDir)../src/main;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
-      <AdditionalDependencies>$(SolutionDir)../lib$(PlatformArchitecture)/ct_$(Configuration).lib;$(SolutionDir)../lib$(PlatformArchitecture)/lua_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)../lib$(PlatformArchitecture)/ctcore_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />

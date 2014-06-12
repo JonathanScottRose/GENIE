@@ -2,7 +2,8 @@
 
 namespace ct
 {
-	namespace Core { class Registry; }
+	namespace P2P { class System; }
+	namespace Spec { class System; }
 
-	Core::Registry* get_registry();
+	P2P::System* build_system(Spec::System* system);
 }

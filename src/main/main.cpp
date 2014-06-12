@@ -1,17 +1,12 @@
+#include <stdexcept>
 #include <iostream>
-#include "ct/common.h"
 #include "getoptpp/getopt_pp.h"
-
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-
-
-#include "io.h"
 #include "globals.h"
-
-using namespace ct;
-
+#include "io.h"
+#include "ct/ct.h"
+#include "write_vlog.h"
+#include "impl_vlog.h"
+#include "lua_iface.h"
 
 namespace
 {
@@ -22,45 +17,39 @@ namespace
 		GetOpt::GetOpt_pp args(argc, argv);
 
 		//args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
-		
+
 		if (!(args >> GetOpt::GlobalOption(s_script)))
 			throw Exception("Must specify script");
 	}
-
 }
+
 
 
 int main(int argc, char** argv)
 {
 	try
 	{
+		LuaIface::init();
 		parse_args(argc, argv);
+		LuaIface::exec_script(s_script);
 
-		lua_State *L = luaL_newstate();
-		luaL_checkversion(L);
-		luaL_openlibs(L);
-
-		int s = luaL_loadfile(L, s_script.c_str());
-		if (s != 0)
+		for (auto& i : Spec::systems())
 		{
-			std::string err = lua_tostring(L, -1);
-			lua_pop(L, 1);
-			throw Exception(err);
+			Spec::System* spec_sys = i.second;
+			P2P::System* p2p_sys = ct::build_system(spec_sys);
+			Vlog::SystemModule* sys_mod = ImplVerilog::build_top_module(p2p_sys);
+			WriteVerilog::go(sys_mod);
+			
+			delete sys_mod;
+			delete p2p_sys;
 		}
-		s = lua_pcall(L, 0, LUA_MULTRET, 0);
-		if (s != 0)
-		{
-			std::string err = lua_tostring(L, -1);
-			lua_pop(L, 1);
-			throw Exception(err);
-		}
-
-		lua_close(L);
 	}
 	catch (std::exception& e)
 	{
 		IO::msg_error(e.what());		
 	}
+
+	LuaIface::shutdown();
 
 	return 0;
 }

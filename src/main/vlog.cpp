@@ -1,4 +1,15 @@
+#ifdef _WIN32
 #include <regex>
+using std::regex;
+using std::smatch;
+using std::regex_search;
+#else
+#include <boost/regex.hpp>
+using boost::regex;
+using boost::smatch;
+using boost::regex_search;
+#endif
+
 #include "ct/common.h"
 #include "vlog.h"
 
@@ -35,7 +46,7 @@ void Port::set_width(const std::string& expr)
 
 int Port::get_width()
 {
-	return m_width.get_const_value();
+	return m_width.get_value();
 }
 
 Port::Dir Port::rev_dir(Port::Dir in)
@@ -121,7 +132,7 @@ bool PortState::is_empty()
 
 void PortState::bind(Bindable* target, int width, int port_lo, int targ_lo)
 {
-	// Check if this binding will overlap with existing bindings
+	// Check if this binding will overlap with existing bindings (at the port binding site)
 	for (auto& b : m_bindings)
 	{
 		assert(port_lo + width <= b->get_port_lo() ||
@@ -130,12 +141,12 @@ void PortState::bind(Bindable* target, int width, int port_lo, int targ_lo)
 
 	Port* port = get_port();
 
-	// Check to make sure the top bit of the binding exceeds neither that of the port
-	// nor the target
 	int port_width = get_width();
 	int targ_width = target->get_width();
 	int port_hi = port_lo + width - 1;
 	int targ_hi = targ_lo + width - 1;
+
+	
 	assert(port_hi < port_lo + port_width);
 	assert(targ_hi < targ_lo + targ_width);
 
@@ -145,12 +156,6 @@ void PortState::bind(Bindable* target, int width, int port_lo, int targ_lo)
 	binding->set_target_lo(targ_lo);
 	binding->set_width(width);
 	m_bindings.push_back(binding);
-
-	/*
-	std::sort(m_bindings.begin(), m_bindings.end(), [] (PortBinding* a, PortBinding* b)
-	{
-		return a->get_port_lo() > b->get_port_lo();
-	});*/
 }
 
 void PortState::bind(Bindable* target, int port_lo, int targ_lo)
@@ -244,9 +249,14 @@ void ParamBinding::set_value(int val)
 	m_value = val;
 }
 
+void ParamBinding::set_hack_value(const std::string& val)
+{
+	m_value = Expression::build_hack_expression(val);
+}
+
 int ParamBinding::get_value()
 {
-	return m_value.get_const_value();
+	return m_value.get_value();
 }
 
 
@@ -372,7 +382,7 @@ Instance::Instance(const std::string& name, Module* module)
 
 	m_resolv = [this] (const std::string& name)
 	{
-		return &(get_param_binding(name)->value());
+		return get_param_binding(name)->value();
 	};
 }
 
@@ -414,6 +424,11 @@ int Instance::get_param_value(const std::string& name)
 void Instance::set_param_value(const std::string& name, int val)
 {
 	get_param_binding(name)->set_value(val);
+}
+
+void Instance::set_param_value(const std::string& name, const std::string& val)
+{
+	get_param_binding(name)->set_hack_value(val);
 }
 
 //
@@ -463,10 +478,10 @@ int Vlog::parse_constant(const std::string& val)
 {
 	int base = 10;
 
-	std::regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
-	std::smatch mr;
+	regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
+	smatch mr;
 
-	std::regex_match(val, mr, regex);
+	regex_match(val, mr, regex);
 	int bits = std::stoi(mr[1]);
 	char radix = mr[2].str().at(0);
 	switch (radix)

@@ -1,66 +1,35 @@
 #pragma once
 
-#include "common.h"
+#include "ct/common.h"
+#include "ct/spec.h"
+#include "ct/protocol.h"
 
 namespace ct
 {
-namespace Core
+namespace P2P
 {
 	class Node;
 	class Port;
+	class Flow;
 	class Conn;
-	class Protocol;
 	class System;
-	class Registry;
-	struct Field;
-
-	struct Field
-	{
-		enum Sense
-		{
-			FWD,
-			REV
-		};
-
-		Field();
-		Field(const std::string&, int, Sense);
-
-		std::string name;
-		int width;
-		Sense sense;
-		bool is_const;
-		int const_value;
-	};
-
-	class Protocol
-	{
-	public:
-		typedef std::list<Field*> Fields;
-
-		Protocol();
-		Protocol(const Protocol&);
-		Protocol& operator= (const Protocol&);
-		~Protocol();
-		
-		const Fields& fields() const { return m_fields; }
-
-		void add_field(Field* f);
-		Field* get_field(const std::string& name) const;
-		bool has_field(const std::string& name) const;
-		void remove_field(Field* f);
-		void delete_field(const std::string& name);
-
-	protected:
-		Fields m_fields;
-	};
 
 	class Node : public HasImplAspects
 	{
 	public:
-		typedef std::unordered_map<std::string, Port*> Ports;
-		typedef unsigned int Type;
+		typedef std::unordered_map<std::string, Port*> PortMap;
+		typedef std::vector<Port*> PortList;
 
-		Node();
+		enum Type
+		{
+			INSTANCE,
+			SPLIT,
+			MERGE,
+			FLOW_CONV,
+			EXPORT,
+			CLOCK_CROSS
+		};
+
 		Node(Type type);
 		virtual ~Node();
 
@@ -68,7 +37,13 @@ namespace Core
 		PROP_GET_SET(type, Type, m_type);
 		PROP_GET_SET(parent, System*, m_parent);
 
-		const Ports& ports() { return m_ports; }
+		virtual void configure_1() {}
+		virtual void configure_2() {}
+		virtual PortList trace(Port* in, Flow* f) { return PortList(); }
+		virtual Port* rtrace(Port* out, Flow* f) { return nullptr; }
+		virtual void carry_fields(const FieldSet& set) { }
+
+		const PortMap& ports() { return m_ports; }
 		Port* get_port(const std::string& name) { return m_ports[name]; }
 		void add_port(Port* port);
 		void remove_port(Port* port);
@@ -77,13 +52,15 @@ namespace Core
 	protected:
 		Type m_type;
 		std::string m_name;
-		Ports m_ports;
+		PortMap m_ports;
 		System* m_parent;
 	};
 
 	class Port : public HasImplAspects
 	{
 	public:
+		typedef std::vector<Flow*> Flows;
+
 		enum Type
 		{		
 			CLOCK,
@@ -95,8 +72,7 @@ namespace Core
 		enum Dir
 		{
 			IN,
-			OUT,
-			MIXED
+			OUT
 		};
 
 		Port(Type type, Dir dir, Node* node);
@@ -107,7 +83,20 @@ namespace Core
 		PROP_GET_SET(dir, Dir, m_dir);
 		PROP_GET_SET(parent, Node*, m_parent);
 		PROP_GET_SET(conn, Conn*, m_conn);
-		PROP_GET_SET(proto, const Protocol&, m_proto);
+		
+		void set_proto(const Protocol& proto) { m_proto = proto; }
+		Protocol& get_proto() { return m_proto; }
+
+		const Flows& flows() { return m_flows; }
+		void add_flow(Flow* f);
+		void remove_flow(Flow* f);
+		bool has_flow(Flow* f);
+		void clear_flows();
+		void add_flows(const Flows& f);
+
+		Port* get_driver();
+		Port* get_first_connected_port();
+		bool is_connected();
 
 		static Dir rev_dir(Dir dir);
 
@@ -118,27 +107,25 @@ namespace Core
 		Node* m_parent;	
 		Conn* m_conn;
 		Protocol m_proto;
+		Flows m_flows;
 	};
 
 	class ClockResetPort : public Port
 	{
 	public:
 		ClockResetPort(Type type, Dir dir, Node* node);
-		~ClockResetPort();
 	};
 
 	class ConduitPort : public Port
 	{
 	public:
-		ConduitPort(Node* node);
-		~ConduitPort();
+		ConduitPort(Node* node, Dir dir);
 	};
 
 	class DataPort : public Port
 	{
 	public:
 		DataPort(Node* node, Dir dir);
-		~DataPort();
 
 		PROP_GET_SET(clock, ClockResetPort*, m_clock);
 
@@ -149,15 +136,15 @@ namespace Core
 	class Conn
 	{
 	public:
-		typedef std::list<Port*> Sinks;
+		typedef std::forward_list<Port*> Sinks;
 
 		Conn();
 		Conn(Port* src, Port* sink);
 
 		PROP_GET_SET(source, Port*, m_source);
 
-		void set_sink0(Port* sink);
-		Port* get_sink0();
+		void set_sink(Port* sink);
+		Port* get_sink();
 
 		const Sinks& get_sinks() { return m_sinks; }
 		void add_sink(Port* sink);
@@ -168,29 +155,78 @@ namespace Core
 		Sinks m_sinks;
 	};
 
+	class FlowTarget
+	{
+	public:
+		FlowTarget();
+		FlowTarget(Port*, const Spec::LinkTarget&);
+		Spec::Linkpoint* get_linkpoint() const;
+
+		bool operator== (const FlowTarget& other) const;
+
+		Port* port;
+		Spec::LinkTarget lt;
+	};
+	
+	class Flow
+	{
+	public:
+		typedef std::forward_list<FlowTarget*> Sinks;
+
+		Flow();
+		~Flow();
+
+		PROP_GET_SET(id, int, m_id);
+		
+		void set_src(Port* port, const Spec::LinkTarget& lt);
+		FlowTarget* get_src();
+		
+		FlowTarget* get_sink();
+		FlowTarget* get_sink(Port* port);
+		FlowTarget* get_sink0();
+		void set_sink(Port* port, const Spec::LinkTarget& lt);
+		const Sinks& sinks() { return m_sinks; }
+		void add_sink(Port* sink, const Spec::LinkTarget& lt);
+		void remove_sink(FlowTarget* ft);
+		bool has_sink(Port* port);
+
+	protected:
+		FlowTarget* m_src;
+		Sinks m_sinks;
+		int m_id;
+	};
+
 	class System
 	{
 	public:
 		typedef std::vector<Conn*> ConnVec;
+		typedef std::unordered_map<int, Flow*> Flows;
 		typedef std::unordered_map<std::string, Node*> Nodes;
 
 		System(const std::string& name);
 		~System();
 
+		PROP_GET_SET(spec, Spec::System*, m_sys_spec);
 		PROP_GET(name, const std::string&, m_name);
 		
 		const Nodes& nodes() { return m_nodes; }
 		Node* get_node(const std::string& name);
 		void add_node(Node* node);
 		bool has_node(const std::string& name);
-		void remove_node(Node* node);
 
 		const ConnVec& conns() { return m_conns; }
 		void add_conn(Conn* conn);
 		void remove_conn(Conn* conn);
 
-		void connect_ports(Port* src, Port* dest);
+		const Flows& flows() { return m_flows; }
+		Flow* get_flow(int id) { return m_flows[id]; }
+		void add_flow(Flow* flow);
+		int get_global_flow_id_width();
+
+		Conn* connect_ports(Port* src, Port* dest);
 		void disconnect_ports(Port* src, Port* dest);
+		void splice_conn(Conn* conn, Port* new_in, Port* new_out);
+		void connect_clock_src(DataPort* target_port, ClockResetPort* clock_src);
 
 		class ExportNode* get_export_node();
 		ClockResetPort* get_a_reset_port();
@@ -198,33 +234,11 @@ namespace Core
 		void dump_graph();
 
 	protected:
-		ExportNode* m_export;
 		std::string m_name;
+		Spec::System* m_sys_spec;
+		Flows m_flows;
 		ConnVec m_conns;
 		Nodes m_nodes;
-	};
-
-	class Registry
-	{
-	public:
-		struct NodeTypeInfo
-		{
-			std::string name;
-		};
-
-		typedef std::vector<NodeTypeInfo*> NodeTypes;
-
-		Registry();
-		~Registry();
-
-		Node::Type register_nodetype(const std::string& name);
-		Node::Type get_nodetype(const std::string& name);
-		const NodeTypeInfo* get_nodetype_info(Node::Type type);
-		const NodeTypeInfo* get_nodetype_info(const std::string& name);
-		const std::string& get_nodetype_name(Node::Type type);
-
-	protected:
-		NodeTypes m_node_types;
 	};
 }
 }

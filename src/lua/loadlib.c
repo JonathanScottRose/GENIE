@@ -14,6 +14,10 @@
 */
 #if defined(_WIN32)
 #include <windows.h>
+#elif defined(LUA_USE_LINUX)
+#include <unistd.h>
+#include <errno.h>
+#include <limits.h>
 #endif
 
 
@@ -114,6 +118,40 @@ static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym);
 
 
 
+#if defined(_WIN32)
+#undef setprogdir
+
+static void setprogdir (lua_State *L) {
+  char buff[MAX_PATH + 1];
+  char *lb;
+  DWORD nsize = sizeof(buff)/sizeof(char);
+  DWORD n = GetModuleFileNameA(NULL, buff, nsize);
+  if (n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
+    luaL_error(L, "unable to get ModuleFileName");
+  else {
+    *lb = '\0';
+    luaL_gsub(L, lua_tostring(L, -1), LUA_EXEC_DIR, buff);
+    lua_remove(L, -2);  /* remove original string */
+  }
+}
+
+#elif defined(LUA_USE_LINUX)
+#undef setprogdir
+
+static void setprogdir (lua_State *L) {
+  char buff[PATH_MAX + 1];
+  char *lb;
+  ssize_t n = readlink("/proc/self/exe", buff, sizeof(buff));
+  if (n < 0 || (lb = strrchr(buff, '/')) == NULL)
+    luaL_error(L, "unable to get readlink(%s)", strerror(errno));
+  else {
+    *lb = '\0';
+    luaL_gsub(L, lua_tostring(L, -1), LUA_EXEC_DIR, buff);
+    lua_remove(L, -2);  /* remove original string */
+  }
+}
+#endif
+
 #if defined(LUA_USE_DLOPEN)
 /*
 ** {========================================================================
@@ -155,8 +193,6 @@ static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym) {
 ** =======================================================================
 */
 
-#undef setprogdir
-
 /*
 ** optional flags for LoadLibraryEx
 */
@@ -164,20 +200,6 @@ static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym) {
 #define LUA_LLE_FLAGS	0
 #endif
 
-
-static void setprogdir (lua_State *L) {
-  char buff[MAX_PATH + 1];
-  char *lb;
-  DWORD nsize = sizeof(buff)/sizeof(char);
-  DWORD n = GetModuleFileNameA(NULL, buff, nsize);
-  if (n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
-    luaL_error(L, "unable to get ModuleFileName");
-  else {
-    *lb = '\0';
-    luaL_gsub(L, lua_tostring(L, -1), LUA_EXEC_DIR, buff);
-    lua_remove(L, -2);  /* remove original string */
-  }
-}
 
 
 static void pusherror (lua_State *L) {

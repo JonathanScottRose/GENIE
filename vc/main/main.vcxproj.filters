@@ -6,7 +6,28 @@
       <Filter>GetOptPP</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\main\io.cpp" />
+    <ClCompile Include="..\..\src\main\lua_iface.cpp" />
+    <ClCompile Include="..\..\src\main\impl\instance.cpp">
+      <Filter>impl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\impl\merge.cpp">
+      <Filter>impl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\impl\split.cpp">
+      <Filter>impl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\impl\export.cpp">
+      <Filter>impl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\impl\flow_conv.cpp">
+      <Filter>impl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\main\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\main\vlog.cpp" />
+    <ClCompile Include="..\..\src\main\write_vlog.cpp" />
+    <ClCompile Include="..\..\src\main\impl\clock_cross.cpp">
+      <Filter>impl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\globals.h" />
@@ -14,11 +35,17 @@
       <Filter>GetOptPP</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\main\io.h" />
+    <ClInclude Include="..\..\src\main\lua_iface.h" />
+    <ClInclude Include="..\..\src\main\impl_vlog.h" />
     <ClInclude Include="..\..\src\main\vlog.h" />
+    <ClInclude Include="..\..\src\main\write_vlog.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="GetOptPP">
       <UniqueIdentifier>{13047cdb-3610-4c8f-a1e0-d75c8645f148}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="impl">
+      <UniqueIdentifier>{5d2cb114-125e-4741-bc3e-92994c20092d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

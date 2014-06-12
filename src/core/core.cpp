@@ -1,115 +1,20 @@
 #include <fstream>
-#include "common.h"
-#include "core.h"
-#include "export_node.h"
+#include "ct/p2p.h"
+#include "ct/common.h"
+#include "ct/spec.h"
+#include "ct/export_node.h"
+#include "ct/instance_node.h" // bad
 
 using namespace ct;
-using namespace Core;
+using namespace P2P;
 
-
-//
-// Protocol
-//
-
-Protocol::Protocol()
-{
-}
-
-Protocol::Protocol(const Protocol& o)
-{
-	*this = o;
-}
-
-Protocol& Protocol::operator= (const Protocol& o)
-{
-	for (auto& f : m_fields)
-	{
-		delete f;
-	}
-
-	for (auto& f : o.fields())
-	{
-		Field* nf = new Field(*f);
-		m_fields.push_front(nf);
-	}
-	m_fields.reverse();
-
-	return *this;
-}
-
-Protocol::~Protocol()
-{
-	Util::delete_all(m_fields);
-}
-
-void Protocol::add_field(Field* f)
-{
-	assert (!has_field(f->name));
-	m_fields.push_front(f);
-}
- 
-Field* Protocol::get_field(const std::string& name) const
-{
-	auto it = std::find_if(m_fields.begin(), m_fields.end(), [&](Field* f)
-	{
-		return f->name == name;
-	});
-
-	return (it == m_fields.end()) ? nullptr : *it;
-}
-
-bool Protocol::has_field(const std::string& name) const
-{
-	return get_field(name) != nullptr;
-}
-
-void Protocol::remove_field(Field* f)
-{
-	auto it = std::find(m_fields.begin(), m_fields.end(), f);
-	if (it != m_fields.end())
-	{
-		m_fields.erase(it);
-	}
-}
-
-void Protocol::delete_field(const std::string& name)
-{
-	auto it = std::find_if(m_fields.begin(), m_fields.end(), [&](Field* f)
-	{
-		return f->name == name;
-	});
-
-	if (it != m_fields.end())
-	{
-		delete *it;
-		m_fields.erase(it);
-	}
-}
-
-//
-// Field
-//
-
-Field::Field()
-{
-}
-
-Field::Field(const std::string& name_, int width_, Sense sense_)
-: name(name_), width(width_), sense(sense_)
-{
-}
 
 //
 // Node
 //
 
-Node::Node()
-: m_parent(nullptr)
-{
-}
-
 Node::Node(Type type)
-: m_type(type), m_parent(nullptr)
+	: m_type(type), m_parent(nullptr)
 {
 }
 
@@ -155,10 +60,64 @@ Port::Dir Port::rev_dir(Dir dir)
 	{
 	case IN : return OUT;
 	case OUT: return IN;
-	case MIXED: return MIXED;
 	default: assert(false); return IN;
 	}
 }
+
+void Port::clear_flows()
+{
+	m_flows.clear();
+}
+
+
+void Port::add_flow(Flow* flow)
+{
+	m_flows.push_back(flow);
+}
+
+
+void Port::add_flows(const Flows& f)
+{
+	m_flows.insert(m_flows.end(), f.begin(), f.end());
+}
+
+bool Port::has_flow(Flow* flow)
+{
+	return std::find(m_flows.begin(), m_flows.end(), flow) != m_flows.end();
+}
+
+Port* Port::get_driver()
+{
+	switch (m_dir)
+	{
+		case OUT: return this; break;
+		case IN: return m_conn? m_conn->get_source() : nullptr; break;
+	}
+
+	return nullptr;
+}
+
+Port* Port::get_first_connected_port()
+{
+	if (!m_conn)
+		return nullptr;
+
+	Port* result = nullptr;
+	switch (m_dir)
+	{
+		case IN: result =  m_conn->get_source(); break;
+		case OUT: result =  m_conn->get_sink(); break;
+	}
+
+	assert(result != this);
+	return result;
+}
+
+bool Port::is_connected()
+{
+	return get_conn() != nullptr;
+}
+
 
 //
 // ClockResetPort
@@ -175,36 +134,24 @@ ClockResetPort::ClockResetPort(Type type, Dir dir, Node* node)
 	default: assert(false);
 	}
 
-	m_proto.add_field(new Field(fname, 1, Field::FWD));
-}
-
-ClockResetPort::~ClockResetPort()
-{
+	m_proto.init_field(fname, 1);
 }
 
 //
 // ConduitPort
 //
 
-ConduitPort::ConduitPort(Node* node)
-	: Port(CONDUIT, MIXED, node)
+ConduitPort::ConduitPort(Node* node, Dir dir)
+	: Port(CONDUIT, dir, node)
 {
 };
-
-ConduitPort::~ConduitPort()
-{
-}
 
 //
 // DataPort
 //
 
 DataPort::DataPort(Node* node, Dir dir)
-	: Port(DATA, dir, node)
-{
-}
-
-DataPort::~DataPort()
+	: Port(DATA, dir, node), m_clock(nullptr)
 {
 }
 
@@ -220,19 +167,18 @@ Conn::Conn()
 Conn::Conn(Port* src, Port* sink)
 	: m_source(src)
 {
-	set_sink0(sink);
+	set_sink(sink);
 }
 
-void Conn::set_sink0(Port* sink)
+void Conn::set_sink(Port* sink)
 {
 	m_sinks.clear();
 	m_sinks.push_front(sink);
 }
 
-Port* Conn::get_sink0()
+Port* Conn::get_sink()
 {
-	assert(m_sinks.size() <= 1);
-	return m_sinks.empty()? nullptr : m_sinks.front();
+	return m_sinks.front();
 }
 
 void Conn::add_sink(Port* sink)
@@ -246,28 +192,142 @@ void Conn::remove_sink(Port* sink)
 }
 
 //
+// FlowTarget
+//
+
+FlowTarget::FlowTarget()
+	: port(nullptr)
+{
+}
+
+FlowTarget::FlowTarget(Port* _port, const Spec::LinkTarget& _lt)
+	: port(_port), lt(_lt)
+{
+}
+
+Spec::Linkpoint* FlowTarget::get_linkpoint() const
+{
+	auto inst_node = (InstanceNode*) port->get_parent();
+	assert (inst_node->get_type() == Node::INSTANCE);
+	Spec::Instance* inst_def = inst_node->get_instance();
+	Spec::System* sys_spec = inst_def->get_parent();
+	return sys_spec->get_linkpoint(lt);
+}
+
+bool FlowTarget::operator== (const FlowTarget& other) const
+{
+	return port == other.port && lt == other.lt;
+}
+
+//
+// Flow
+//
+
+Flow::Flow()
+{
+	m_src = new FlowTarget();
+}
+
+Flow::~Flow()
+{
+	delete m_src;
+	Util::delete_all(m_sinks);
+}
+
+FlowTarget* Flow::get_sink()
+{
+	return m_sinks.front();
+}
+
+void Flow::set_sink(Port* port, const Spec::LinkTarget& lt)
+{
+	m_sinks.clear();
+	m_sinks.push_front(new FlowTarget(port, lt));
+}
+
+void Flow::add_sink(Port* port, const Spec::LinkTarget& lt)
+{
+	m_sinks.push_front(new FlowTarget(port, lt));
+}
+
+void Flow::remove_sink(FlowTarget* sink)
+{
+	m_sinks.remove(sink);
+}
+
+bool Flow::has_sink(Port* port)
+{
+	return std::find_if(m_sinks.begin(), m_sinks.end(), [=] (FlowTarget* t)
+	{
+		return t->port == port;
+	}) != m_sinks.end();
+}
+
+void Flow::set_src(Port* port, const Spec::LinkTarget& lt)
+{
+	m_src->port = port;
+	m_src->lt = lt;
+}
+
+FlowTarget* Flow::get_src()
+{
+	return m_src;
+}
+
+FlowTarget* Flow::get_sink(Port* port)
+{
+	for (auto& i : m_sinks)
+	{
+		if (i->port == port)
+			return i;
+	}
+
+	assert(false);
+	return nullptr;
+}
+
+FlowTarget* Flow::get_sink0()
+{
+	if (m_sinks.empty())
+		return nullptr;
+
+	return m_sinks.front();
+}
+
+//
 // System
 //
 
 System::System(const std::string& name)
 : m_name(name)
 {
-	m_export = new ExportNode(this);
-	add_node(m_export);
 }
 
 System::~System()
 {
 	Util::delete_all(m_conns);
-	Util::delete_all_2(m_nodes);
+	Util::delete_all_2(m_flows);
 }
 
-void System::connect_ports(Port* src, Port* dest)
+void System::add_flow(Flow* flow)
 {
-	Conn* conn = new Conn(src, dest);
-	src->set_conn(conn);
+	m_flows[flow->get_id()] = flow;
+}
+
+Conn* System::connect_ports(Port* src, Port* dest)
+{
+	Conn* conn = src->get_conn();
+	if (!conn)
+	{
+		conn = new Conn();
+		conn->set_source(src);
+		src->set_conn(conn);
+		add_conn(conn);
+	}
+
+	conn->add_sink(dest);
 	dest->set_conn(conn);
-	add_conn(conn);
+	return conn;
 }
 
 void System::disconnect_ports(Port* src, Port* dest)
@@ -289,21 +349,28 @@ void System::remove_conn(Conn* conn)
 
 void System::dump_graph()
 {
-	std::ofstream out("graph.dot");
+	std::ofstream out(get_name() + ".dot");
 
 	out << "digraph netlist {" << std::endl;
 
 	for (auto& conn : m_conns)
 	{
-		Node* src_node = conn->get_source()->get_parent();
-		Node* dest_node = conn->get_sink0()->get_parent();
+		Port* src = conn->get_source();
+		Node* src_node = src->get_parent();
 
-		DataPort* src = (DataPort*)conn->get_source();
-		if (src->get_type() != Port::DATA)
-			continue;	
+		if (src->get_type() == Port::CLOCK ||
+			src->get_type() == Port::RESET)
+			continue;
 
-		out << src_node->get_name() << " -> " << dest_node->get_name()
-			<< " ;" << std::endl;
+		for (auto& dest : conn->get_sinks())
+		{
+			Node* dest_node = dest->get_parent();
+		
+			out << src_node->get_name() << " -> " << dest_node->get_name()
+				<< " [taillabel=\"" << src->get_name() << "\"]" 
+				<< " [headlabel=\"" << dest->get_name() << "\"];"
+				<< std::endl;
+		}
 	}
 
 	out << "}" << std::endl;
@@ -332,9 +399,47 @@ ClockResetPort* System::get_a_reset_port()
 	return nullptr;
 }
 
+void System::connect_clock_src(DataPort* target_port, ClockResetPort* clock_src)
+{
+	auto target_clock_port = target_port->get_clock();
+
+	// hack: if the target port references a null clock port, the target port probably
+	// belongs to an export node. in this case, the clock source is likely ON the export node
+	// itself, so let's set it here.
+	if (!target_clock_port)
+	{
+		assert(clock_src->get_parent()->get_type() == Node::EXPORT &&
+			clock_src->get_parent() == target_port->get_parent());
+
+		target_port->set_clock(clock_src);
+		return; // done here, no connections need to be made
+	}
+	
+	auto existing_clock_src = target_clock_port->get_driver();
+	if (existing_clock_src)
+	{
+		// we don't know how to handle this otherwise yet
+		assert(existing_clock_src == clock_src);
+	}
+	else
+	{
+		connect_ports(clock_src, target_clock_port);
+	}
+}
+
 ExportNode* System::get_export_node()
 {
-	return m_export;
+	const std::string& exname = get_name();
+	ExportNode* result = (ExportNode*)get_node(exname);
+
+	if (!result)
+	{
+		result = new ExportNode(this);
+		add_node(result);
+	}
+
+	assert(result->get_type() == Node::EXPORT);
+	return result;
 }
 
 Node* System::get_node(const std::string& name)
@@ -348,15 +453,9 @@ Node* System::get_node(const std::string& name)
 void System::add_node(Node* node)
 {
 	assert(!has_node(node->get_name()));
-	assert(node->get_parent() == nullptr || node->get_parent() == this);
+	assert(node->get_parent() == nullptr);
 	m_nodes[node->get_name()] = node;
 	node->set_parent(this);
-}
-
-void System::remove_node(Node* node)
-{
-	assert(node != m_export);
-	m_nodes.erase(node->get_name());
 }
 
 bool System::has_node(const std::string& name)
@@ -364,55 +463,29 @@ bool System::has_node(const std::string& name)
 	return m_nodes.count(name) > 0;
 }
 
-//
-// Registry
-//
-
-Registry::Registry()
+int System::get_global_flow_id_width()
 {
-	// hardcode here for now
-	register_nodetype("export");
-	register_nodetype("system");
+	int result = 0;
+	for (auto& i: m_flows)
+	{
+		result = std::max(result, i.first);
+	}
+	result = Util::log2(result);
+	result = std::max(result, 1);	// handle corner case: one flow with id 0
+	return result;
 }
 
-Registry::~Registry()
+void System::splice_conn(Conn* conn, Port* new_in, Port* new_out)
 {
-	Util::delete_all(m_node_types);
-}
+	Port* orig_out = conn->get_source();
+	Port* orig_in = conn->get_sink();
 
-Node::Type Registry::register_nodetype(const std::string& name)
-{
-	m_node_types.push_back(new NodeTypeInfo{name});
-	return m_node_types.size() - 1;
-}
-
-Node::Type Registry::get_nodetype(const std::string& name)
-{
-	auto it = std::find_if(m_node_types.begin(), m_node_types.end(),
-		[=](NodeTypeInfo* x) { return x->name == name; });
-
-	if (it == m_node_types.end())
-		throw Exception("Node type " + name + " not found");
-
-	return it - m_node_types.begin();
-}
-
-const Registry::NodeTypeInfo* Registry::get_nodetype_info(Node::Type type)
-{
-	if (type >= m_node_types.size()) return nullptr;
-	else return m_node_types[type];
-}
-
-const Registry::NodeTypeInfo* Registry::get_nodetype_info(const std::string& name)
-{
-	auto it = std::find_if(m_node_types.begin(), m_node_types.end(), 
-		[=](NodeTypeInfo* x) { return x->name == name; });
-
-	return it == m_node_types.end() ? nullptr : *it;
-}
-
-const std::string& Registry::get_nodetype_name(Node::Type type)
-{
-	assert(type < m_node_types.size());
-	return m_node_types[type]->name;
+	disconnect_ports(orig_out, orig_in);
+	connect_ports(orig_out, new_in);
+	connect_ports(new_out, orig_in);
+	
+	// copy flows
+	auto flows = orig_in->flows();
+	new_in->add_flows(flows);
+	new_out->add_flows(flows);
 }

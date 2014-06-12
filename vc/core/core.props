@@ -3,14 +3,14 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <OutDir>$(SolutionDir)../lib$(PlatformArchitecture)/</OutDir>
-    <TargetName>ct_$(Configuration)</TargetName>
+    <TargetName>ctcore_$(Configuration)</TargetName>
     <IntDir>$(ProjectDir)$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)../src/core;$(SolutionDir)../include/ct</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)../include</AdditionalIncludeDirectories>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
     <Link />
