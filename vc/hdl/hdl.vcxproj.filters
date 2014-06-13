@@ -9,9 +9,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\hdl\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\hdl\vlog.cpp" />
     <ClCompile Include="..\..\src\hdl\write_vlog.cpp" />
+    <ClCompile Include="..\..\src\hdl\impl_vlog.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\hdl\impl_vlog.h" />

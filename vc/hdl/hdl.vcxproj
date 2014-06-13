@@ -5,15 +5,19 @@
     <RootNamespace>hdl</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup>
+  <PropertyGroup Label="Configuration">
     <TargetName>cthdl_$(Configuration)</TargetName>
   </PropertyGroup>
   <ImportGroup Label="PropertySheets">
-	<Import Project="..\staticlib.props" />
+    <Import Project="..\staticlib.props" />
     <Import Project="..\common.props" />
   </ImportGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  
+  <ItemGroup>
+    <ProjectReference Include="..\core\core.vcxproj">
+      <Project>{4133a8c2-e422-411c-b3df-584094e8efda}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\hdl\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\hdl\vlog.cpp" />
@@ -24,9 +28,6 @@
     <ClInclude Include="..\..\src\hdl\vlog.h" />
     <ClInclude Include="..\..\src\hdl\write_vlog.h" />
   </ItemGroup>
-  
-  
-  
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)../include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

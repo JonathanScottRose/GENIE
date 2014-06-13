@@ -5,16 +5,14 @@
     <RootNamespace>main</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup>
+  <PropertyGroup Label="Configuration">
     <TargetName>connectool</TargetName>
   </PropertyGroup>
-  
   <ImportGroup Label="PropertySheets">
     <Import Project="..\exe.props" />
     <Import Project="..\common.props" />
   </ImportGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  
   <ItemGroup>
     <ProjectReference Include="..\core\core.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efda}</Project>
@@ -23,7 +21,6 @@
       <Project>{882ec8d5-fd07-43ae-8e50-53cf3c6b9074}</Project>
     </ProjectReference>
   </ItemGroup>
-  
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)../src/lua;$(SolutionDir)../include;$(SolutionDir)../src/main;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -32,9 +29,6 @@
       <AdditionalDependencies>$(SolutionDir)../lib$(PlatformArchitecture)/ctcore_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  
-  
-  
   <ItemGroup>
     <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
     <ClCompile Include="..\..\src\main\io.cpp" />
@@ -47,6 +41,5 @@
     <ClInclude Include="..\..\src\main\io.h" />
     <ClInclude Include="..\..\src\main\lua_iface.h" />
   </ItemGroup>
-  
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

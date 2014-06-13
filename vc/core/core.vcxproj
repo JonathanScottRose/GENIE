@@ -5,7 +5,7 @@
     <RootNamespace>core</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup>
+  <PropertyGroup Label="Configuration">
     <TargetName>ctcore_$(Configuration)</TargetName>
   </PropertyGroup>
   <ImportGroup Label="PropertySheets">

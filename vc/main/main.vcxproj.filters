@@ -12,9 +12,9 @@
     <ClInclude Include="..\..\src\main\getoptpp\getopt_pp.h">
       <Filter>GetOptPP</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\main\globals.h" />
     <ClInclude Include="..\..\src\main\io.h" />
     <ClInclude Include="..\..\src\main\lua_iface.h" />
+    <ClInclude Include="..\..\src\main\globals.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="GetOptPP">
