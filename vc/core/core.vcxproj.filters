@@ -32,5 +32,6 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />
     <ClCompile Include="..\..\src\core\hierarchy.cpp" />
+    <ClCompile Include="..\..\src\core\structure.cpp" />
   </ItemGroup>
 </Project>
