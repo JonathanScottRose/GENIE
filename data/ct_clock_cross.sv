@@ -21,12 +21,13 @@ localparam SYNC_STAGES = 3;
 
 wire rdarst, wrarst;
 reg rdempty;
-wire rdreq = i_ready || !o_valid;
+wire rdreq = i_ready;
 wire rdpipe_en = rdreq && !rdempty;
 
 always @(posedge rdclk or posedge rdarst) begin
 	if (rdarst) o_valid <= '0;
-	else if (rdpipe_en) o_valid <= !rdempty;
+	else if (rdpipe_en) o_valid <= 1;
+	else o_valid <= 0; 
 end
 
 //////////////////////////////////////////
@@ -81,8 +82,6 @@ end
 reg wrfull;
 wire wrreq = i_valid;
 assign o_ready = !wrfull;
-
-
 
 reg [RAM_ADDR_WIDTH:0] wrgray = 0, wrbin = 0 /* synthesis preserve */;
 initial wrfull = 1'b1;
@@ -167,5 +166,5 @@ always @ (posedge rdclk) begin
 	if (rdpipe_en) o_data <= mem[rdbin[RAM_ADDR_WIDTH-1:0]];
 end
 
-
 endmodule
+
