@@ -815,6 +815,7 @@ P2P::System* ct::build_system(Spec::System* system)
 	insert_clock_crossings(result);
 	do_proto_carriage(result);
 	configure_post_negotiate(result);
+	handle_defaults(result);
 	connect_resets(result);
 	//result->dump_graph();
 	return result;
