@@ -39,6 +39,19 @@ namespace
 			return result;
 		}
 
+		std::string to_binary(int x, int bits)
+		{
+			std::string result;
+
+			while (bits--)
+			{
+				result = ((x & 1) ? "1" : "0") + result;
+				x >>= 1;
+			}
+
+			return result;
+		}
+
 		void parameterize(P2P::Node* generic_node, Vlog::Instance* vinst)
 		{
 			using namespace P2P;
@@ -50,24 +63,27 @@ namespace
 			const std::string& out_field_name = node->get_out_field_name();
 
 			int data_width = node->get_inport()->get_proto().get_phys_field("xdata")->width;
-			
-			vinst->set_param_value("N_ENTRIES", node->get_n_entries());
-			vinst->set_param_value("WD", data_width);
-			vinst->set_param_value("WIF", node->get_in_field_width());
-			vinst->set_param_value("WOF", node->get_out_field_width());
+			int n_entries = node->get_n_entries();
+			int in_width = node->get_in_field_width();
+			int out_width = node->get_out_field_width();
 
-			int flows_param = 0;
-			int lpids_param = 0;
-			int lpid_width = node->get_in_field_width();
-			int flow_width = node->get_out_field_width();
+			vinst->set_param_value("N_ENTRIES", n_entries);
+			vinst->set_param_value("WD", data_width);
+			vinst->set_param_value("WIF", in_width);
+			vinst->set_param_value("WOF", out_width);
+
+			std::string flows_param;
+			std::string lpids_param;
+			int lpid_width = in_width;
+			int flow_width = out_width;
 
 			if (!node->is_to_flow())
 				std::swap(lpid_width, flow_width);
 
+			int n_added_flows = n_entries;
 			for (Flow* f : node->get_flows())
 			{
-				flows_param <<= flow_width;
-				flows_param |= f->get_id();
+				flows_param = to_binary(f->get_id(), flow_width) + flows_param;
 
 				FlowTarget* ft = node->is_to_flow() ? 
 					f->get_src() :
@@ -76,9 +92,17 @@ namespace
 				Spec::Linkpoint* lp = ft->get_linkpoint();
 				auto encoding = lp->get_aspect_val<std::string>();
 
-				lpids_param <<= lpid_width;
-				lpids_param |= Vlog::parse_constant(encoding);
+				lpids_param = to_binary(Vlog::parse_constant(encoding), lpid_width) + lpids_param;
+
+				if (--n_added_flows)
+				{
+					flows_param = "_" + flows_param;
+					lpids_param = "_" + lpids_param;
+				}
 			}
+
+			flows_param = std::to_string(n_entries * flow_width) + "'b" + flows_param;
+			lpids_param = std::to_string(n_entries * lpid_width) + "'b" + lpids_param;
 
 			if (!node->is_to_flow())
 				std::swap(lpids_param, flows_param);
