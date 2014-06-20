@@ -1,6 +1,6 @@
 module ct_clock_cross #
 (
-	integer WIDTH = 1
+	integer WIDTH = 256
 )
 (
 	input arst,
@@ -24,11 +24,7 @@ reg rdempty;
 wire rdreq = i_ready;
 wire rdpipe_en = rdreq && !rdempty;
 
-always @(posedge rdclk or posedge rdarst) begin
-	if (rdarst) o_valid <= '0;
-	else if (rdpipe_en) o_valid <= 1;
-	else o_valid <= 0; 
-end
+assign o_valid = rdpipe_en;
 
 //////////////////////////////////////////
 // reset distribution
@@ -162,9 +158,8 @@ always @ (posedge wrclk) begin
 	if (we) mem[wrbin[RAM_ADDR_WIDTH-1:0]] <= i_data;
 end
 
-always @ (posedge rdclk) begin
-	if (rdpipe_en) o_data <= mem[rdbin[RAM_ADDR_WIDTH-1:0]];
-end
+
+assign o_data = mem[rdbin[RAM_ADDR_WIDTH-1:0]];
 
 endmodule
 
