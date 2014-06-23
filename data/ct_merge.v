@@ -1,12 +1,12 @@
-module next_input_calc #
+module cur_input_calc #
 (
 	parameter NI = 1,
 	parameter NIBITS = 1
 )
 (
 	input [NI-1:0] i_valid,
-	input [NIBITS-1:0] i_cur_input,
-	output reg [NIBITS-1:0] o_next_input
+	input [NIBITS-1:0] i_last_input,
+	output reg [NIBITS-1:0] o_cur_input
 );
 	// This generate block creates NI valid/idx pairs, one for each
 	// of the NI inputs. The IDXs are just the numbers 0 to NI-1.
@@ -58,7 +58,7 @@ module next_input_calc #
 			(
 				.data(sort_in),
 				.result({sorted_valids[gi], sorted_idxs[gi*NIBITS +: NIBITS]}),
-				.sel(i_cur_input)
+				.sel(i_last_input)
 			);
 		end
 	endgenerate
@@ -66,13 +66,13 @@ module next_input_calc #
 	// Once we have sorted_valids/sorted_idx, this priority encoder
 	// scans through sorted_valids and finds the first nonzero entry.
 	// This guy will get the grant next. If no one is making a request,
-	// next_input remains at the current input by virtue of sorting.
+	// cur_input stays at last_input
 	always @* begin : pri_enc
 		integer i;
-		o_next_input = sorted_idxs[NIBITS*(NI-1) +: NIBITS]; // this corresponds to the current input
+		o_cur_input = sorted_idxs[NIBITS*(NI-1) +: NIBITS]; // this corresponds to the last input
 		
 		for (i = NI-2; i >= 0; i = i - 1) begin
-			if (sorted_valids[i]) o_next_input = sorted_idxs[NIBITS*i +: NIBITS];
+			if (sorted_valids[i]) o_cur_input = sorted_idxs[NIBITS*i +: NIBITS];
 		end
 	end
 endmodule
@@ -117,38 +117,47 @@ localparam NIBITS = CLogB2(NI-1);
 //
 
 // Current input
-reg [NIBITS-1:0] cur_input;
-wire [NIBITS-1:0] next_input;
-wire cur_input_load;
+reg [NIBITS-1:0] last_input;
+wire [NIBITS-1:0] cur_input;
+wire last_input_load;
 
-// Staging registers
-reg [NI*(WIDTH+1)-1:0] staging_datas, staging_datas_din;
-reg [NI-1:0] staging_valids, staging_valids_din;
-
-// Next input calculator
-next_input_calc #
+// Mux select calculator (arbiter function)
+cur_input_calc #
 (
 	.NI(NI),
 	.NIBITS(NIBITS)
 ) calc
 (
-	.i_valid(staging_valids_din),
-	.i_cur_input(cur_input),
-	.o_next_input(next_input)
+	.i_valid(i_valid),
+	.i_last_input(last_input),
+	.o_cur_input(cur_input)
 );
 
 // Output muxes
 ct_mux #
 (
-	.lpm_width(WIDTH+1),
+	.lpm_width(WIDTH),
 	.lpm_size(NI),
 	.lpm_widths(NIBITS),
 	.lpm_pipeline(0)
 ) out_mux_data
 (
-	.data(staging_datas),
+	.data(i_data),
 	.sel(cur_input),
-	.result({o_data, o_eop})
+	.result(o_data)
+);
+
+ct_mux #
+(
+	.lpm_width(1),
+	.lpm_size(NI),
+	.lpm_widths(NIBITS),
+	.lpm_pipeline(0)
+) out_mux_eop
+(
+	.data(i_eop),
+	.sel(cur_input),
+	.result(o_eop)
 );
 
 ct_mux #
@@ -159,42 +168,29 @@ ct_mux #
 	.lpm_pipeline(0)
 ) out_mux_valid
 (
-	.data(staging_valids),
+	.data(i_valid),
 	.sel(cur_input),
 	.result(o_valid)
 );
 
 always @ (posedge clk or posedge reset) begin
 	if (reset) begin
-		cur_input <= 'd0;
-		staging_valids <= 'd0;
+		last_input <= 'd0;
 	end
 	else begin
-		if (cur_input_load) cur_input <= next_input;
-		
-		staging_valids <= staging_valids_din;
-		staging_datas <= staging_datas_din;
+		if (last_input_load) last_input <= cur_input;
 	end
 end
 
 always @* begin : dp_comb
 	integer i;
 	for (i = 0; i < NI; i = i + 1) begin
-		// Staging register can be filled from external input (instead of recirculated) if:
-		// - it's empty (not valid), or
-		// - it's the currently granted input and the output is ready to accept it
-		o_ready[i] = !staging_valids[i] || (cur_input == i[NIBITS-1:0] && i_ready);
-		
-		// Select input from outside, or busywait recirculation
-		staging_valids_din[i] = o_ready[i]? i_valid[i] : staging_valids[i];
-		staging_datas_din[(WIDTH+1)*i +: WIDTH+1] = o_ready[i]? 
-			{i_data[WIDTH*i+:WIDTH], i_eop[i]} :
-			staging_datas[(WIDTH+1)*i +: WIDTH+1];
-	end
+        // Broadcast ready
+		o_ready[i] = i_ready;
+    end
 end
 
-wire pipe_enable = !(o_valid && !i_ready);
-assign cur_input_load = pipe_enable && !(o_valid && i_ready && !o_eop);
+assign last_input_load = o_valid && i_ready && o_eop;
 
 endmodule
 
