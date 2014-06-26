@@ -1,3 +1,4 @@
+/*
 #include "vlog.h"
 #include "impl_vlog.h"
 
@@ -308,3 +309,4 @@ Vlog::Instance* IModuleImpl::get_inst_for_node(P2P::Node* node)
 	return result;
 }
 
+*/

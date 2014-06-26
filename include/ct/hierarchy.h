@@ -5,7 +5,9 @@
 namespace ct
 {
 	class HierNode;
-	class HierChild;
+	class HierContainer;
+
+	typedef std::string HierPath;
 
 	// This is an interface that allows a class to participate in The Hierarchy.
 	//
@@ -16,11 +18,8 @@ namespace ct
 	class HierNode
 	{
 	public:
-		// Used as result of get_children_by_type
-		template<class T> using TypedChildren = std::vector<T*>;
-
 		// Used as result of get_children()
-		typedef std::vector<HierNode*> Children;
+		typedef List<HierNode*> Children;
 
 		// A function that acceps a HierNode and decides whether or not to include
 		// it in a list of children when calling the filtered version of get_children()
@@ -31,7 +30,7 @@ namespace ct
 		virtual const std::string& hier_name() const = 0;
 		virtual HierNode* hier_parent() const = 0;
 		virtual HierNode* hier_child(const std::string&) const { return nullptr; }
-		virtual Children hier_children() const = 0 { return Children(); }
+		virtual Children hier_children() const { return Children(); }
 
 		// Returns only the children satisfying the given filter function
 		Children hier_children(const FilterFunc& filter) const;
@@ -40,22 +39,53 @@ namespace ct
 		// Given a class T, return all children that can be cast into T, as a nice vector<T*>
 		// (note: must be done element by element due to possible pointer adjustment by dynamic_cast)
 		template<class T>
-		TypedChildren<T> hier_children_by_type() const
+		List<T> hier_children_as() const
 		{
-			TypedChildren<T> result;
-			Children allchildren = get_children();
+			List<T> result;
+			Children allchildren = hier_children();
 			for (HierNode* child : allchildren)
 			{
-				T* casted = dynamic_cast<T*>(child);
+				T casted = dynamic_cast<T>(child);
 				if (casted) result.push_back(casted);
 			}
 			return result;
 		}
 
+		template<class T>
+		T hier_child_as(const std::string& name) const
+		{
+			return as_a<T>(hier_child(name));
+		}
+
 		// Returns the node's full hierarchical name with respect to the root
-		std::string hier_full_name() const;
+		HierPath hier_full_name() const;
 
 		// Get a descendent (not necessarily a direct child) by relative path to this node
-		HierNode* hier_node(const std::string&) const;
+		HierNode* hier_node(const HierPath&) const;
+	};
+
+	//
+	// A concrete class that is a generic container of HierNodes.
+	//
+	class HierContainer : public HierNode
+	{
+	public:
+		HierContainer(const std::string& name = std::string(), HierNode* parent = nullptr);
+		~HierContainer();
+
+		virtual const std::string& hier_name() const;
+		virtual HierNode* hier_parent() const;
+		virtual HierNode* hier_child(const std::string&) const;
+		virtual Children hier_children() const;
+
+		virtual void hier_add(HierNode* node);
+
+		PROP_GET_SET(name, const std::string&, m_name);
+		PROP_SET(parent, HierNode*, m_parent);
+
+	protected:
+		HierNode* m_parent;
+		std::string m_name;
+		StringMap<HierNode*> m_nodes;
 	};
 }

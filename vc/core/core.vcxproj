@@ -5,13 +5,13 @@
     <RootNamespace>core</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Label="Configuration">
-    <TargetName>ctcore_$(Configuration)</TargetName>
-  </PropertyGroup>
   <ImportGroup Label="PropertySheets">
     <Import Project="..\staticlib.props" />
     <Import Project="..\common.props" />
   </ImportGroup>
+  <PropertyGroup Label="Configuration">
+    <TargetName>ct_core$(LibSuffix)</TargetName>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ItemDefinitionGroup>
     <ClCompile>
@@ -22,16 +22,26 @@
   <ItemGroup>
     <ClInclude Include="..\..\include\ct\aspects.h" />
     <ClInclude Include="..\..\include\ct\common.h" />
+    <ClInclude Include="..\..\include\ct\connections.h" />
     <ClInclude Include="..\..\include\ct\ct.h" />
     <ClInclude Include="..\..\include\ct\expressions.h" />
     <ClInclude Include="..\..\include\ct\hierarchy.h" />
+    <ClInclude Include="..\..\include\ct\networks.h" />
+    <ClInclude Include="..\..\include\ct\net_clock.h" />
+    <ClInclude Include="..\..\include\ct\net_reset.h" />
+    <ClInclude Include="..\..\include\ct\static_init.h" />
     <ClInclude Include="..\..\include\ct\structure.h" />
     <ClInclude Include="..\..\include\ct\util.h" />
     <ClInclude Include="..\..\src\core\expressions_nodes.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\core\connections.cpp" />
+    <ClCompile Include="..\..\src\core\ct.cpp" />
     <ClCompile Include="..\..\src\core\expressions.cpp" />
     <ClCompile Include="..\..\src\core\hierarchy.cpp" />
+    <ClCompile Include="..\..\src\core\networks.cpp" />
+    <ClCompile Include="..\..\src\core\net_clock.cpp" />
+    <ClCompile Include="..\..\src\core\net_reset.cpp" />
     <ClCompile Include="..\..\src\core\structure.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

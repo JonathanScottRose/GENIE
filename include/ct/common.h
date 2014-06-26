@@ -14,6 +14,8 @@
 
 #include "ct/util.h"
 #include "ct/aspects.h"
+#include "ct/static_init.h"
+
 
 // These macros create trivial getters and/or setters for a given member variable
 #define PROP_GET(name,type,field) \
@@ -79,6 +81,12 @@
 
 namespace ct
 {
+	// Common typedef of a hashmap keyed by std::string
+	template<class T> using StringMap = std::unordered_map<std::string, T>;
+
+	// Wrapper around STL
+	template<class T> using List = std::vector<T>;
+
 	// ConnecTool exception base class
 	class Exception : public std::exception
 	{

@@ -3,10 +3,8 @@
 #include "getoptpp/getopt_pp.h"
 #include "globals.h"
 #include "io.h"
-#include "ct/ct.h"
-#include "write_vlog.h"
-#include "impl_vlog.h"
-#include "lua_iface.h"
+
+#include "ct/static_init.h"
 
 namespace
 {
@@ -18,8 +16,8 @@ namespace
 
 		//args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
 
-		if (!(args >> GetOpt::GlobalOption(s_script)))
-			throw Exception("Must specify script");
+		//if (!(args >> GetOpt::GlobalOption(s_script)))
+		//	throw Exception("Must specify script");
 	}
 }
 
@@ -27,6 +25,7 @@ namespace
 
 int main(int argc, char** argv)
 {
+	/*
 	try
 	{
 		LuaIface::init();
@@ -49,7 +48,7 @@ int main(int argc, char** argv)
 		IO::msg_error(e.what());		
 	}
 
-	LuaIface::shutdown();
+	LuaIface::shutdown();*/
 
 	return 0;
 }

@@ -28,10 +28,30 @@
     <ClInclude Include="..\..\include\ct\util.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\ct\networks.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\connections.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\net_clock.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\net_reset.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\ct\static_init.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />
     <ClCompile Include="..\..\src\core\hierarchy.cpp" />
     <ClCompile Include="..\..\src\core\structure.cpp" />
+    <ClCompile Include="..\..\src\core\networks.cpp" />
+    <ClCompile Include="..\..\src\core\connections.cpp" />
+    <ClCompile Include="..\..\src\core\net_clock.cpp" />
+    <ClCompile Include="..\..\src\core\ct.cpp" />
+    <ClCompile Include="..\..\src\core\net_reset.cpp" />
   </ItemGroup>
 </Project>

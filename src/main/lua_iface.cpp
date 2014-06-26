@@ -1,3 +1,4 @@
+/*
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
@@ -515,3 +516,4 @@ void LuaIface::free_ref(int ref)
 {
 	luaL_unref(s_state, LUA_REGISTRYINDEX, ref);
 }
+*/

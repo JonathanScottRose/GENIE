@@ -40,7 +40,7 @@ namespace ct
 	public:
 		Object() = default; // empty aspect map
 		~Object() = default; // destroy shared ptrs in map -> decrement refcounts
-		Object(const Object&) = default; // point to same aspect instances as in original
+		Object(const Object&) = delete; // disable copying, need to call a future clone() function
 		
 		Aspect* asp_get(AspectID id) const
 		{

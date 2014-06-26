@@ -17,6 +17,9 @@
     <ProjectReference Include="..\core\core.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efda}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\hdl\hdl.vcxproj">
+      <Project>{4133A8C2-E422-411C-B3DF-584094E8EFDF}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\lua\lua.vcxproj">
       <Project>{882ec8d5-fd07-43ae-8e50-53cf3c6b9074}</Project>
     </ProjectReference>
@@ -26,7 +29,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)../src/lua;$(SolutionDir)../include;$(SolutionDir)../src/main;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(SolutionDir)../lib$(PlatformArchitecture)/ctcore_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

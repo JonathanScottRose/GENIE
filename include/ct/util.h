@@ -69,6 +69,13 @@ namespace ct
 			return container.count(elem) != 0;
 		}
 
+		// Erase from container
+		template <class T, class V>
+		void erase(T& container, const V& elem)
+		{
+			container.erase(std::find(container.begin(), container.end(), elem));
+		}
+
 		// Take a key/value type and return just the values
 		template <class DEST, class SRC>
 		DEST values(const SRC& src)

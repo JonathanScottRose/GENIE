@@ -1,5 +1,5 @@
 #pragma once
-
+/*
 #include "vlog.h"
 #include "ct/static_init.h"
 #include "ct/p2p.h"
@@ -62,3 +62,4 @@ namespace ImplVerilog
 	Vlog::Port::Dir conv_port_dir(P2P::Port*, P2P::PhysField*);
 	std::string name_for_p2p_port(P2P::Port*, P2P::PhysField*);
 }
+*/
