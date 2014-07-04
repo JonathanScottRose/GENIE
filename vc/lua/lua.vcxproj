@@ -3,17 +3,18 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}</ProjectGuid>
     <RootNamespace>lua</RootNamespace>
-    <ProjectName>lua</ProjectName>
   </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <ImportGroup Label="PropertySheets">
-    <Import Project="..\staticlib.props" />
-    <Import Project="..\common.props" />
-  </ImportGroup>
+  
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  
+  <Import Project="..\common.props" />
+  
   <PropertyGroup Label="Configuration">
     <TargetName>lua$(LibSuffix)</TargetName>
   </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  
   <ItemDefinitionGroup>
     <ClCompile>
       <CompileAs>CompileAsCpp</CompileAs>

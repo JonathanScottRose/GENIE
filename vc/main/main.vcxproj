@@ -4,15 +4,17 @@
     <ProjectGuid>{27962422-932E-4A39-B06D-2A9B38B2A797}</ProjectGuid>
     <RootNamespace>main</RootNamespace>
   </PropertyGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+  </PropertyGroup>
+  
+  <Import Project="..\common.props" />
+  
   <PropertyGroup Label="Configuration">
     <TargetName>connectool</TargetName>
   </PropertyGroup>
-  <ImportGroup Label="PropertySheets">
-    <Import Project="..\exe.props" />
-    <Import Project="..\common.props" />
-  </ImportGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+ 
   <ItemGroup>
     <ProjectReference Include="..\core\core.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efda}</Project>
