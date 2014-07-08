@@ -107,6 +107,24 @@ namespace
 		return 0;
 	}
 
+	LFUNC(reg_parameter)
+	{
+		RequiredAttribs req;
+		req.emplace_back("comp", true);
+		req.emplace_back("name", true);
+		auto attrs = parse_attribs(L, req);
+
+		auto comp = Spec::get_component(attrs["comp"]);
+		if (!comp)
+			lerror("Unknown component: " + attrs["comp"]);
+
+		const std::string& param_name = attrs["name"];
+
+		comp->add_parameter(param_name);		
+
+		return 0;
+	}
+
 	LFUNC(inst_defparams)
 	{
 		// args: systemname, instname, { parmname=parmval}, parmname=parmval, ...}
@@ -434,6 +452,7 @@ namespace
 	void register_funcs()
 	{
 		REG_LFUNC(reg_component);
+		REG_LFUNC(reg_parameter);
 		REG_LFUNC(inst_defparams);
 		REG_LFUNC(reg_interface);
 		REG_LFUNC(reg_signal);

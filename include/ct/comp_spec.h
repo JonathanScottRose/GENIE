@@ -173,6 +173,7 @@ class Component : public HasImplAspect
 public:
 	typedef std::unordered_map<std::string, Interface*> Interfaces;
 	typedef std::forward_list<Interface*> InterfaceList;
+	typedef std::vector<std::string> Parameters;
 
 	Component(const std::string& name);
 	~Component();
@@ -184,9 +185,13 @@ public:
 	InterfaceList get_interfaces(Interface::Type type);
 	Interface* get_interface(const std::string& name);
 
+	void add_parameter(const std::string& p) { m_params.push_back(p); }
+	const Parameters& parameters() { return m_params; }
+
 protected:
 	std::string m_name;
 	Interfaces m_interfaces;
+	Parameters m_params;
 };
 
 

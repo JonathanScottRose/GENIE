@@ -61,6 +61,14 @@ function Spec:submit()
 			name = component.name,
 			hier = component.module
 		}
+        
+        for param in svaluesk(component.parameters) do
+            ct.reg_parameter
+            {
+                comp = component.name,
+                name = param.name
+            }
+        end
 		
 		for iface in svaluesk(component.interfaces) do
 			ct.reg_interface(component.name,
@@ -146,6 +154,10 @@ function Builder:new(spec)
 end
 
 function Builder:component(name, module)
+    self.cur_iface = nil
+    self.cur_lp = nil
+    self.cur_inst = nil
+    self_cur_sys = nil
 	self.cur_comp = Component:new
 	{
 		name = name,
@@ -155,8 +167,9 @@ function Builder:component(name, module)
 end
 
 function Builder:parameter(name, width, depth)
-	if not self.cur_comp then util.errlr("Unexpected 'parameter'") end
-	self.cur_comp:add_parameter(Parameter:new
+    local obj = self.cur_comp or self.cur_sys
+	if not obj then util.error("Unexpected 'parameter'") end
+    obj:add_parameter(Parameter:new
 	{
 		name = name,
 		width = width or 1,
@@ -165,6 +178,7 @@ function Builder:parameter(name, width, depth)
 end
 
 function Builder:interface(name, type, dir, clock)
+    self.cur_lp = nil
 	if not self.cur_comp then util.error("Unexpected 'interface'") end
 	self.cur_iface = Interface:new
 	{
@@ -219,6 +233,7 @@ function Builder:linkpoint(name, encoding, type)
 end
 
 function Builder:system(name, topofunc)
+    self.cur_comp = nil
 	self.cur_sys = System:new
 	{
 		name = name,

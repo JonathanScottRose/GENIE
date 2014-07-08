@@ -46,6 +46,13 @@ namespace
 	{
 		s_cur_top->set_name(sys->get_name());
 
+		// Copy parameter definitions
+		Spec::Component* syscompspec = Spec::get_component(sys->get_name());
+		for (auto& i : syscompspec->parameters())
+		{
+			s_cur_top->add_param(new Vlog::Parameter(i, s_cur_top));
+		}
+
 		// Visit each child node and implement it
 		for (auto& i : sys->nodes())
 		{

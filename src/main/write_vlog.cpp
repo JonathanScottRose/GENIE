@@ -14,11 +14,13 @@ namespace
 
 	void write_line(const std::string& line, bool indent = true, bool newline = true);
 	void write_port(Port* port);
+	void write_param(Parameter* param);
 	void write_wire(WireNet* net);
 	void write_port_bindings(PortBinding* binding);
 	void write_param_binding(ParamBinding* binding);
 
 	void write_sys_ports(SystemModule* mod);
+	void write_sys_params(SystemModule* mod);
 	void write_sys_nets(SystemModule* mod);
 	void write_sys_file(SystemModule* mod);
 	void write_sys_body(SystemModule* mod);
@@ -53,6 +55,12 @@ namespace
 		write_line(dir_str + size_str + port->get_name(), true, false);
 	}
 
+	void write_param(Parameter* param)
+	{
+		// do default values sometime in the future too
+		write_line("parameter " + param->get_name(), true, false);
+	}
+
 	void write_wire(WireNet* net)
 	{
 		std::string size_str;
@@ -85,6 +93,23 @@ namespace
 
 		s_cur_indent--;
 	}
+
+	void write_sys_params(SystemModule* mod)
+	{
+		s_cur_indent++;
+
+		int parmno = mod->params().size();
+		for (auto& i : mod->params())
+		{
+			write_param(i.second);
+			if (--parmno > 0) write_line(",", false, true);
+		}
+
+		write_line("", false, true);
+
+		s_cur_indent--;
+	}
+
 
 	void write_sys_nets(SystemModule* mod)
 	{
@@ -271,7 +296,23 @@ namespace
 	{
 		const std::string& mod_name = mod->get_name();
 
-		write_line("module " + mod_name);
+		bool has_params = !mod->params().empty();
+
+		write_line("module " + mod_name, true, false);
+
+		if (has_params)
+		{
+			write_line(" #", false, true);
+			write_line("(");
+			write_sys_params(mod);
+			write_line(")");
+		}
+		else
+		{
+			// no parameters
+			write_line("", false, true);
+		}
+
 		write_line("(");
 		write_sys_ports(mod);
 		write_line(");");

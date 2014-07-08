@@ -1,4 +1,5 @@
 require "util"
+require "spec_comp"
 
 -- Create this package and set up environment
 
@@ -97,6 +98,7 @@ System = class
 	parent = nil,
 	links = {},
 	objects = {},
+    parameters = {},
 	topo_func = nil
 }
 
@@ -104,6 +106,7 @@ function System:new(o)
 	o = System:_init_inst(o)
 	o.links = {}
 	o.objects = {}
+    o.parameters = {}
 	return o
 end
 
@@ -114,6 +117,11 @@ end
 function System:add_object(obj)
 	obj.parent = self
 	util.insert_unique(obj, self.objects)
+end
+
+function System:add_parameter(param)
+	param.parent = self
+	util.insert_unique(param, self.parameters)
 end
 	
 function System:create_auto_exports()
@@ -229,6 +237,11 @@ function System:componentize()
 		name = self.name,
 		module = self.name
 	})
+    
+    -- copy parameter definitions from System to Component
+    for k,v in pairs(self.parameters) do
+        new_comp.parameters[k] = v
+    end
 	
 	-- to ensure we only visit exports once (for clocks, resets)
 	local visited = {}
