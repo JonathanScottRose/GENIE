@@ -807,15 +807,16 @@ P2P::System* ct::build_system(Spec::System* system)
 	create_topology(result, system);
 	insert_converters(result);
 	remove_dangling_ports(result);
-	configure_pre_negotiate(result);
-	do_proto_carriage(result);
-	configure_post_negotiate(result);
-	handle_defaults(result);
+	
+	configure_pre_negotiate(result); // handles clocks on Export node, must precede clock stuff
+
 	connect_clocks(result);
 	insert_clock_crossings(result);
+
 	do_proto_carriage(result);
 	configure_post_negotiate(result);
 	handle_defaults(result);
+	
 	connect_resets(result);
 	//result->dump_graph();
 	return result;
