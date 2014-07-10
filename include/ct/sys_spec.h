@@ -12,7 +12,6 @@ class SysObject;
 class Instance;
 class Link;
 class LinkTarget;
-class InterfaceState;
 class System;
 
 class TopoGraph;
@@ -51,24 +50,6 @@ public:
 protected:
 	LinkTarget m_src;
 	LinkTarget m_dest;
-};
-
-
-class LinkBinding
-{
-public:
-
-protected:
-};
-
-
-class InterfaceState
-{
-public:
-	InterfaceState(const std::string& name);
-
-protected:
-	std::string m_name;
 };
 
 

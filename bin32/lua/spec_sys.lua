@@ -125,50 +125,55 @@ function System:add_parameter(param)
 end
 	
 function System:create_auto_exports()
-	local is_connected = {}
+    -- iterate over all links and mark each link's endpoint as being connected.
+    -- we use this to find out which things are UNconnected later
+    local is_connected = {}
 	
 	for link in values(self.links) do
 		is_connected[link.src:str()] = true
 		is_connected[link.dest:str()] = true
 	end
 	
-	-- to insert
-	local new_objs = {}
+    -- gather instances from system
+    local instances = {}
+    for obj in values(self.objects) do
+        if obj.type == 'INSTANCE' then Set.add(instances, obj) end
+    end
 	
-	for obj in values(self.objects) do
-		if obj.type ~= 'INSTANCE' then goto nextobj end
-	
-		local src_lt = LinkTarget:new()
-		src_lt.obj = obj.name
-		
-		local comp = self.parent.components[obj.component]
-		for iface in values(comp.interfaces) do
-			src_lt.iface = iface.name
-			
-			local is_out = iface.dir == 'OUT'
-			
+    -- iterate over all instance.interface.linkpoint
+	for inst in Set.values(instances) do
+		local comp = self.parent.components[inst.component]
+		for iface in values(comp.interfaces) do		
 			for lp in values(iface.linkpoints) do
-				src_lt.lp = lp.name
-				
+            
+                -- create a linktarget to represent this instance.interface.linkpoint
+                local src_lt = LinkTarget:new
+				{
+					obj = inst.name,
+					iface = iface.name,
+					lp = lp.name
+				}
+			
+                -- auto-export if it's unconnected
 				if not is_connected[src_lt:str()] and util.count(iface.linkpoints) < 2 then
-					local exname = obj.name .. "_" .. iface.name
-					local src_lt = LinkTarget:new
-					{
-						obj = obj.name,
-						iface = iface.name,
-						lp = lp.name
-					}
-					
+                    -- create name for the export
+                    local exname = inst.name .. "_" .. iface.name
+                    -- create linktarget for the export
 					local exp_lt = LinkTarget:new { obj = exname }
-					local new_export = Export:new
+                    
+                    -- create and register the export
+                    local new_export = Export:new
 					{
 						name = exname,
 						iface_type = iface.type,
 						iface_dir = iface.dir
 					}
+                    
+                    self:add_object(new_export)
 					
+                    -- connect the export to the thing it's now exporting, choosing correct direction
 					local new_link = Link:new()
-					if (is_out) then
+					if (iface.dir == 'OUT') then
 						new_link.src = src_lt
 						new_link.dest = exp_lt
 					else
@@ -177,17 +182,9 @@ function System:create_auto_exports()
 					end
 
 					self:add_link(new_link)
-					Set.add(new_objs, new_export) -- add later
 				end
 			end
 		end
-		
-		::nextobj::
-	end
-	
-	-- add here, after iteration!
-	for obj in Set.values(new_objs) do
-		self:add_object(obj)
 	end
 end
 
