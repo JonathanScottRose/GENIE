@@ -99,9 +99,14 @@ void Instance::set_param_binding(const std::string& name, const Expression& expr
 // Export
 //
 
-Export::Export(const std::string& name, Interface::Type iface_type, Interface::Dir dir, System* parent)
-	: SysObject(name, EXPORT, parent), m_iface_type(iface_type), m_iface_dir(dir)
+Export::Export(const std::string& name, Interface* iface, System* parent)
+	: SysObject(name, EXPORT, parent), m_iface(iface)
 {
+}
+
+Export::~Export()
+{
+	delete m_iface;
 }
 
 //

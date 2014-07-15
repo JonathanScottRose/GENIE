@@ -9,6 +9,31 @@ using namespace ct;
 using namespace P2P;
 
 
+namespace
+{
+	void convert_fields(Port* port, Spec::Interface* iface, const Expressions::NameResolver& resolv)
+	{
+		// Create port protocol
+		Protocol proto;
+
+		// Add fields
+		for (auto& i : iface->signals())
+		{
+			int width = i->get_width().get_value(resolv);
+
+			std::string field_name = i->get_field_name();
+			PhysField::Sense field_sense = i->get_sense() == Spec::Signal::FWD ?
+				PhysField::FWD : PhysField::REV;
+
+			proto.init_field(field_name, width, field_sense);
+		}
+
+		port->set_proto(proto);
+	}
+}
+
+
+
 //
 // Node
 //
@@ -27,6 +52,8 @@ void Node::add_port(Port* port)
 {
 	assert(!port->get_name().empty());
 	assert(!Util::exists_2(m_ports, port->get_name()));
+	assert(port->get_parent() == this || port->get_parent() == nullptr);
+	port->set_parent(this);
 	m_ports.emplace(port->get_name(), port);
 }
 
@@ -118,6 +145,46 @@ bool Port::is_connected()
 	return get_conn() != nullptr;
 }
 
+Port* Port::from_interface(Spec::Interface* ifacedef, const Expressions::NameResolver& resolv)
+{
+	using namespace ct::Spec;
+
+	Port::Dir pdir;
+	Port* port = nullptr;
+
+	switch (ifacedef->get_dir())
+	{
+		case Spec::Interface::IN: pdir = Port::IN; break;
+		case Spec::Interface::OUT: pdir = Port::OUT; break;
+		default: pdir = (Port::Dir)0; assert(false); break;
+	}
+
+	switch (ifacedef->get_type())
+	{
+		case Spec::Interface::CLOCK:
+			port = new ClockResetPort(Port::CLOCK, pdir);
+			break;
+		case Spec::Interface::RESET:
+			port = new ClockResetPort(Port::RESET, pdir);
+			break;
+		case Spec::Interface::DATA:
+			port = new DataPort(pdir);
+			convert_fields(port, ifacedef, resolv);
+			// does not set clock!
+			break;
+		case Spec::Interface::CONDUIT:
+			port = new ConduitPort(pdir);
+			convert_fields(port, ifacedef, resolv);
+			break;
+		default:
+			assert(false);
+	}
+
+	port->set_name(ifacedef->get_name());
+	port->set_aspect("iface_def", ifacedef);
+
+	return port;
+}
 
 //
 // ClockResetPort
@@ -141,7 +208,7 @@ ClockResetPort::ClockResetPort(Type type, Dir dir, Node* node)
 // ConduitPort
 //
 
-ConduitPort::ConduitPort(Node* node, Dir dir)
+ConduitPort::ConduitPort(Dir dir, Node* node)
 	: Port(CONDUIT, dir, node)
 {
 };
@@ -150,7 +217,7 @@ ConduitPort::ConduitPort(Node* node, Dir dir)
 // DataPort
 //
 
-DataPort::DataPort(Node* node, Dir dir)
+DataPort::DataPort(Dir dir, Node* node)
 	: Port(DATA, dir, node), m_clock(nullptr)
 {
 }
@@ -431,13 +498,7 @@ ExportNode* System::get_export_node()
 {
 	const std::string& exname = get_name();
 	ExportNode* result = (ExportNode*)get_node(exname);
-
-	if (!result)
-	{
-		result = new ExportNode(this);
-		add_node(result);
-	}
-
+	assert(result);
 	assert(result->get_type() == Node::EXPORT);
 	return result;
 }

@@ -23,14 +23,14 @@ FlowConvNode::FlowConvNode(const std::string& name, bool to_flow)
 	proto.init_field("ready", 1, PhysField::REV);
 
 	// Create input
-	DataPort* in_port = new DataPort(this, Port::IN);
+	DataPort* in_port = new DataPort(Port::IN, this);
 	in_port->set_name("in");
 	in_port->set_clock(clkport);
 	in_port->set_proto(proto);
 	add_port(in_port);
 
 	// Create output
-	DataPort* out_port = new DataPort(this, Port::OUT);
+	DataPort* out_port = new DataPort(Port::OUT, this);
 	out_port->set_name("out");
 	out_port->set_clock(clkport);
 	out_port->set_proto(proto);

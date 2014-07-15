@@ -17,8 +17,9 @@ namespace
 
 	class : public ImplVerilog::INodeImpl
 	{
-		// Visiting a (the) export node adds top-level ports and nets to
-		// the system module
+		// Visiting a (the) export node adds top-level ports and their associated nets to
+		// the system module. Also adds parameters to the system module. All this is copied from
+		// the auto-generated Component definition for the system.
 		void visit(INetlist* netlist, P2P::Node* generic_node)
 		{
 			auto node = (P2P::ExportNode*)generic_node;
@@ -26,9 +27,15 @@ namespace
 
 			Vlog::SystemModule* sysmod = netlist->get_system_module();
 
-			// add ports according to the Spec::Component for this system, which has the
+			// add portsand paremeters according to the Spec::Component for this system, which has the
 			// same name as the system
 			Spec::Component* comp_def = Spec::get_component(node->get_name());
+
+			// Copy parameter definitions
+			for (auto& i : comp_def->parameters())
+			{
+				sysmod->add_param(new Vlog::Parameter(i, sysmod));
+			}
 
 			// Convert ports
 			for (auto& i : comp_def->interfaces())

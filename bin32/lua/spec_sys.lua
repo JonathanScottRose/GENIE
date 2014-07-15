@@ -43,9 +43,22 @@ end
 Export = SysObject:subclass
 {
 	type = 'EXPORT',
-	iface_type = nil,
-	iface_dir = nil
+	interface = nil
 }
+
+function Export:new(o)
+    o = self:_init_inst(o)
+    
+    -- make sure the export is already named, so we can name the interface
+    if not o.name then util.error("must provide name") end
+    
+    -- create internal interface, or co-opt the passed-in one
+    o.interface = o.interface or {}
+    o.interface.name = o.name
+    o.interface = Interface:new(o.interface)
+        
+    return o
+end
 
 -- LinkTarget
 
@@ -56,6 +69,14 @@ LinkTarget = class
 	lp = "lp"
 }
 
+function LinkTarget:new(o)
+    if o and not o.obj then o.obj = self.obj end
+    if o and not o.iface then o.iface = self.iface end
+    if o and not o.lp then o.lp = self.lp end
+    o = self:_init_inst(o)
+    return o
+end
+
 function LinkTarget:parse(str)
 	m = {}
 	for val in string.gmatch(str, "[^.]+") do
@@ -64,6 +85,12 @@ function LinkTarget:parse(str)
 	self.obj = m[1] or self.obj
 	self.iface = m[2] or self.iface
 	self.lp = m[3] or self.lp
+end
+
+function LinkTarget:create_from_parse(str)
+    local result = LinkTarget:new()
+    result:parse(str)
+    return result
 end
 
 function LinkTarget:str()
@@ -117,21 +144,84 @@ end
 function System:add_object(obj)
 	obj.parent = self
 	util.insert_unique(obj, self.objects)
+    return obj
 end
 
 function System:add_parameter(param)
 	param.parent = self
 	util.insert_unique(param, self.parameters)
 end
+
+function System:export_iface(exname, target)
+    -- extract target's object name and interface name
+    local targ_lt = LinkTarget:create_from_parse(target)
+    local instname = targ_lt.obj
+    local ifname = targ_lt.iface
+    
+    -- get target object and interface
+    local inst = self.objects[instname]
+    local iface = self.parent.components[inst.component].interfaces[ifname]
+    
+    -- create the export
+    -- defer copying of clock and signals until system post-processing time
+    local ex = Export:new
+    {
+        name = exname,
+        interface =
+        {
+            type = iface.type, 
+            dir = Interface:rev_dir(iface.dir)
+        }
+    }
+    
+    -- register export in system
+    self:add_object(ex)
+    
+    -- create linktarget that points to the export
+    local ex_lt = LinkTarget:new
+    {
+        obj = exname
+    }
+    
+    -- copy linkpoints and create links from exported interface to export
+    for old_lp in values(iface.linkpoints) do
+        local new_lp = Linkpoint:new
+        {
+            name = old_lp.name,
+            type = old_lp.type,
+            encoding = old_lp.encoding
+        }
+        ex.interface:add_linkpoint(new_lp)
+        
+        -- set up linktarget that points to exported interface
+        targ_lt.lp = old_lp.name
+        
+        -- set up linktarget that points to the export
+        ex_lt.lp = new_lp.name
+        
+        -- create link and determine correct polarity
+        local link = Link:new()
+        if iface.dir == 'OUT' then
+            link.src = targ_lt
+            link.dest = ex_lt
+        else
+            link.src = ex_lt
+            link.dest = targ_lt
+        end
+        
+        -- register link in system
+        self:add_link(link)
+    end
+end
 	
 function System:create_auto_exports()
-    -- iterate over all links and mark each link's endpoint as being connected.
+    -- iterate over all links and mark each link's PHYSICAL endpoint as being connected.
     -- we use this to find out which things are UNconnected later
     local is_connected = {}
 	
 	for link in values(self.links) do
-		is_connected[link.src:str()] = true
-		is_connected[link.dest:str()] = true
+		is_connected[link.src:phys()] = true
+		is_connected[link.dest:phys()] = true
 	end
 	
     -- gather instances from system
@@ -140,84 +230,124 @@ function System:create_auto_exports()
         if obj.type == 'INSTANCE' then Set.add(instances, obj) end
     end
 	
-    -- iterate over all instance.interface.linkpoint
+    -- iterate over all unconnected instance.interface and export them
 	for inst in Set.values(instances) do
 		local comp = self.parent.components[inst.component]
 		for iface in values(comp.interfaces) do		
-			for lp in values(iface.linkpoints) do
+            local test_lt = LinkTarget:new
+            {
+                obj = inst.name,
+                iface = iface.name
+            }
             
-                -- create a linktarget to represent this instance.interface.linkpoint
-                local src_lt = LinkTarget:new
-				{
-					obj = inst.name,
-					iface = iface.name,
-					lp = lp.name
-				}
-			
-                -- auto-export if it's unconnected
-				if not is_connected[src_lt:str()] and util.count(iface.linkpoints) < 2 then
-                    -- create name for the export
-                    local exname = inst.name .. "_" .. iface.name
-                    -- create linktarget for the export
-					local exp_lt = LinkTarget:new { obj = exname }
-                    
-                    -- create and register the export
-                    local new_export = Export:new
-					{
-						name = exname,
-						iface_type = iface.type,
-						iface_dir = iface.dir
-					}
-                    
-                    self:add_object(new_export)
-					
-                    -- connect the export to the thing it's now exporting, choosing correct direction
-					local new_link = Link:new()
-					if (iface.dir == 'OUT') then
-						new_link.src = src_lt
-						new_link.dest = exp_lt
-					else
-						new_link.src = exp_lt
-						new_link.dest = src_lt
-					end
-
-					self:add_link(new_link)
-				end
-			end
+            if not is_connected[test_lt:phys()] then
+                -- automatically create a name for the export
+                local exname = util.con_cat(inst.name, iface.name)
+                self:export_iface(exname, test_lt:phys())
+            end
 		end
 	end
 end
 
+function System:finalize_exports()
+    -- for every clock sink, find the source export
+    local clk_feeder = {}
+    for link in values(self.links) do
+        local ex = self.objects[link.src.obj]
+        if ex.type == 'EXPORT' and ex.interface.type == 'CLOCK' and ex.interface.dir == 'OUT' then
+            clk_feeder[link.dest:phys()] = ex
+        end
+    end
+    
+    for link in values(self.links) do
+        local inst = self.objects[link.src.obj]
+        local ex = self.objects[link.dest.obj]
+        local ifname = link.src.iface
+        
+        if inst.type == 'EXPORT' then
+            inst,ex = ex,inst
+            ifname = link.dest.iface
+        end
+        
+        if inst.type == 'INSTANCE' and ex.type == 'EXPORT' then
+            local iface = self.parent.components[inst.component].interfaces[ifname]
+            
+            -- copy clock domain of exported thing
+            if iface.clock and not ex.interface.clock then
+                -- create a path to the clock sink interface
+                local clk_sink_targ = LinkTarget:new
+                {
+                    obj = inst.name,
+                    iface = iface.clock
+                }
+                
+                -- look up the export feeding this interface
+                local clk_src_export = clk_feeder[clk_sink_targ:phys()]
+                
+                -- make the name of that export the clock feeder of the data export
+                ex.interface.clock = clk_src_export.name
+            end
+            
+            -- copy signals of exported thing
+            for old_sig in values(iface.signals) do
+                -- nasty. find if this type of signal already has a definition in the export
+                local found = false
+                for ex_sig in values(ex.interface.signals) do
+                    if ex_sig.type == old_sig.type and ex_sig.usertype == old_sig.usertype then
+                        found = true
+                        break
+                    end
+                end
+                
+                -- signal in interface but not in export: copy it
+                if not found then
+                    -- auto-generate a verilog signal name
+                    local binding = util.con_cat(ex.name, string.lower(old_sig.usertype or old_sig.type))
+                    if (iface.type == 'CLOCK' or iface.type == 'RESET') then
+                        binding = ex.name
+                    end
+                    
+                    -- if the width of the exported thing was parameterized, resolve
+                    -- the parameter expression to a concrete value using the instance's parameter
+                    -- bindings.
+                    local width = ct.eval_expression(old_sig.width, inst.param_bindings)
+                    
+                    ex.interface:add_signal(Signal:new
+                    {
+                        type = old_sig.type,
+                        usertype = old_sig.usertype,
+                        width = width,
+                        binding = binding
+                    })
+                end  
+            end
+        end
+    end
+end
+
 function System:create_default_reset()
-	-- check if system has a reset already
+	-- check if system has a reset export already
 	for obj in values(self.objects) do
-		if obj.iface_type == "RESET" then return end
+		if obj.type == 'EXPORT' and obj.interface.type == "RESET" then return end
 	end
 	
 	-- create a reset export, connected to nothing
-	self:add_object(Export:new
+    -- note the direction is 'OUT' since, from the viewpoint of inside the system,
+    
+	local ex = self:add_object(Export:new
 	{
 		name = "reset",
-		iface_type = "RESET",
-		iface_dir = "IN"
+        interface = {type = 'RESET', dir = 'OUT'}
 	})
-	
-	-- for the component representing the system, create a reset sink
-	-- interface with one reset signal
-	local comp = self.parent.components[self.name]
-	local iface = comp:add_interface(Interface:new
-	{
-		name = "reset",
-		type = "RESET",
-		dir = "IN"
-	})
-	
-	iface:add_signal(Signal:new
-	{
-		type = "RESET",
-		binding = "reset",
-		width = 1
-	})
+    
+    -- must manually create reset signal, since finalize_exports will not process this export due to
+    -- it not being connected to anything.
+    ex.interface.add_signal(Signal:new
+    {
+        type = 'RESET',
+        binding = 'reset',
+        width = '1'
+    })
 end
 
 function System:componentize()
@@ -240,74 +370,26 @@ function System:componentize()
         new_comp.parameters[k] = v
     end
 	
-	-- to ensure we only visit exports once (for clocks, resets)
-	local visited = {}
-	
-	-- find feeders of all destinations: used to find clock sources
-	local feeder = {}
-	for link in values(self.links) do
-		feeder[link.dest:phys()] = link.src.obj
-	end
-	
-	local function find_clk(obj,iface)
-		if not iface then return nil end
-		return feeder[obj .. "." .. iface]
-	end
-	
-	-- find all exports in this system and the things they are exporting
-	for link in values(self.links) do
-		local ex = link.src
-		local ex_o = self.objects[link.src.obj]
-		local other = link.dest
-		local other_o = self.objects[link.dest.obj]
-		
-		-- swap so that "other" is the exported thing
-		if other_o.type == "EXPORT" then
-			ex_o,other_o,ex,other = other_o,ex_o,other,ex
-		end
-		
-		if ex_o.type == "EXPORT" and not visited[ex_o] then
-			util.assert(other_o.type == "INSTANCE")
-			Set.add(visited, ex_o)
-			local other_if = self.parent.components[other_o.component].interfaces[other.iface]
-			
-			-- create an interface of the same type and direction as the export and exported interface
-			-- it's named after the export, though
-			local new_if = new_comp:add_interface(Interface:new
-			{
-				name = ex_o.name,
-				type = other_if.type,
-				dir = other_if.dir,
-				clock = find_clk(other_o.name, other_if.clock)
-			})
-			
-			-- create signals, whose net names are auto-generated based on exported object, exported interface
-			-- name, and type/role
-			for old_sig in values(other_if.signals) do
-				local newsigname = ex_o.name
-				if new_if.type == "CLOCK" or new_if.type == "RESET" then
-					-- no additional modifications
-				elseif old_sig.usertype then
-					-- data signal with usertype OR a conduit
-					newsigname = newsigname .. "_" .. old_sig.usertype
-				else
-					-- signal in a data interface with no usertype
-					newsigname = newsigname .. "_" .. string.lower(old_sig.type)
-				end
-	
-				-- resolve parameterized widths to a constant, using the exported instance's param bindings
-				local width = ct.eval_expression(old_sig.width, other_o.param_bindings)
-				
-				new_if:add_signal
-				{
-					binding = newsigname,
-					type = old_sig.type,
-					usertype = old_sig.usertype,
-					width = width
-				}
-			end				
-		end
-	end
+    -- gather all exports of the system and add them as interfaces of the new component
+    for ex in values(self.objects) do
+        if ex.type == 'EXPORT' then
+            -- clone the interface attached to the export, except for a change in direction
+            local iface = Interface:new
+            {
+                name = ex.interface.name,
+                type = ex.interface.type,
+                dir = Interface:rev_dir(ex.interface.dir),
+                clock = ex.interface.clock
+            }
+            
+            -- do an alias of the linkpoints and signals tables since they require no modification and
+            -- won't be modified later in the flow
+            iface.linkpoints = ex.interface.linkpoints
+            iface.signals = ex.interface.signals
+            
+            new_comp:add_interface(iface)
+        end
+    end
 end
 
 function System:is_subsystem_of(other)

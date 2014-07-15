@@ -16,9 +16,6 @@ namespace P2P
 		PROP_GET_SET(instance, Spec::Instance*, m_instance);
 	
 	private:
-		void convert_fields(Port* port, Spec::Interface* iface, Spec::Instance* inst);
-		void set_clock(Port* port, Spec::Interface* iface);
-		Port* create_data_port(Port::Dir dir, Spec::Interface* iface, Spec::Instance* inst);
 
 		Spec::Instance* m_instance;
 	};

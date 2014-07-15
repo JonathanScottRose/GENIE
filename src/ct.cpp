@@ -18,83 +18,25 @@ using namespace ct::P2P;
 
 namespace
 {
-	// Creates port for the system node, doesn't quite yet set all the properties yet like clock
-	// and protocol.
-	void create_top_level_port(System* sys, Spec::Export* exp_def)
-	{
-		Port::Dir pdir;
-		Port* port;
-		ExportNode* exp = sys->get_export_node();
-
-		// REVERSE it: an export of dir IN is bringing data into the system, therefore
-		// it acts like an output port when inside the system
-		switch (exp_def->get_iface_dir())
-		{
-			case Spec::Interface::IN: pdir = Port::OUT; break;
-			case Spec::Interface::OUT: pdir = Port::IN; break;
-			default: pdir = (Port::Dir)0; assert(false); break;
-		}
-
-		switch (exp_def->get_iface_type())
-		{
-			case Spec::Interface::CLOCK:
-				port = new ClockResetPort(Port::CLOCK, pdir, exp);
-				break;
-			case Spec::Interface::RESET:
-				port = new ClockResetPort(Port::RESET, pdir, exp);
-				break;
-			case Spec::Interface::DATA:
-				port = new DataPort(exp, pdir);
-				break;
-			case Spec::Interface::CONDUIT:
-				port = new ConduitPort(exp, pdir);
-				break;
-			default:
-				assert(false);
-		}
-
-		port->set_name(exp_def->get_name());
-		exp->add_port(port);
-	}
-
 	P2P::System* init_netlist(Spec::System* sys_spec)
 	{
 		// Create P2P system
 		System* sys = new System(sys_spec->get_name());
 		sys->set_spec(sys_spec);
 
-		// 1: Create instance nodes first
+		// 1: Create export node (and with it, top-level ports)
+		ExportNode* exp_node = new ExportNode(sys, sys_spec);
+		sys->add_node(exp_node);
+
+		// 2: Create instance nodes
 		for (auto& i : sys_spec->objects())
 		{
-			Spec::SysObject* obj = i.second;
+			auto inst = (Spec::Instance*)i.second;
+			if (inst->get_type() != Spec::SysObject::INSTANCE)
+				continue;
 
-			switch (obj->get_type())
-			{
-				case Spec::SysObject::INSTANCE:
-				{
-					InstanceNode* node = new InstanceNode((Spec::Instance*)obj);
-					sys->add_node(node);
-				}
-				break;
-
-				default: 
-					break;
-			}
-		}
-
-		// 2: Create top-level ports
-		for (auto& i : sys_spec->objects())
-		{
-			Spec::SysObject* obj = i.second;
-
-			switch (obj->get_type())
-			{
-				case Spec::SysObject::EXPORT:
-					create_top_level_port(sys, (Spec::Export*)obj);
-					break;
-
-				default: break;
-			}
+			InstanceNode* node = new InstanceNode(inst);
+			sys->add_node(node);
 		}
 
 		// 3 : Process links
@@ -126,7 +68,7 @@ namespace
 			bool dest_is_export = sys_spec->get_object(bin.front()->get_dest().get_inst())->get_type() ==
 				Spec::SysObject::EXPORT;
 
-			Node* src_node = src_is_export ? sys->get_export_node() : sys->get_node(objname);
+			Node* src_node = src_is_export ? exp_node : sys->get_node(objname);
 			Port* src_port = src_is_export ? src_node->get_port(objname) : src_node->get_port(ifname);
 
 			// Broadcast linkpoints : all links constitute one flow (we only have these right now)
@@ -141,7 +83,7 @@ namespace
 			for (auto& link : bin)
 			{
 				const Spec::LinkTarget& dest_target = link->get_dest();
-				Node* dest_node = dest_is_export ? sys->get_export_node() : 
+				Node* dest_node = dest_is_export ? exp_node : 
 					sys->get_node(dest_target.get_inst());
 				Port* dest_port = dest_is_export? dest_node->get_port(dest_target.get_inst()) :
 					dest_node->get_port(dest_target.get_iface());
@@ -358,7 +300,7 @@ namespace
 		std::unordered_map<ClockResetPort*, std::vector<VertexID>> clocksrc_to_vertices;
 		VAttr<ClockResetPort*> vertex_to_clocksrc;
 
-		// First, create the vertices of the graph and identify terminal nodes.
+		// First, create the vertices of the graph from all the clock sinks, and also identify terminal nodes
 		for (auto& i : sys->nodes())
 		{
 			Node* node = i.second;
@@ -401,17 +343,9 @@ namespace
 			ClockResetPort* clock_a = data_a->get_clock();
 			ClockResetPort* clock_b = data_b->get_clock();
 
-			// Ignore data links whose source is driven by a clock source, but make sure
-			// that the data sink is already also driven by that same clock source
-			if (clock_a->get_dir() == Port::OUT)
+			// Ignore data links whose associated clock port is a clock source (this happens in exports)
+			if (clock_a->get_dir() == Port::OUT || clock_b->get_dir() == Port::OUT)
 			{
-				assert(clock_b->get_driver() == clock_a);
-				continue;
-			}
-			else if (clock_b->get_dir() == Port::OUT)
-			{
-				// also the converse
-				assert(clock_a->get_driver() == clock_b);
 				continue;
 			}
 
@@ -426,7 +360,7 @@ namespace
 
 			assert(v_a != v_b);
 
-			// Determine weight based on sum of widths offields common
+			// Determine weight based on sum of widths of fields common
 			// to both ends of the Conn
 			int weight = 0;
 			for (auto& i : data_a->get_proto().fields())
@@ -528,9 +462,6 @@ namespace
 
 			// Splice the node into the existing data connection
 			sys->splice_conn(conn, node->get_inport(), node->get_outport());
-
-			// Do protocol containment
-
 		}
 	}
 
@@ -545,14 +476,19 @@ namespace
 	void insert_converters(System* sys)
 	{
 		// insert flow_id <-> lp_id conversion nodes
-		// modify the actual netlist AFTER traversing it, since we don't want to change
-		// sys->conns while iterating through them
-		std::forward_list<std::pair<Conn*, FlowConvNode*>> to_add;
 
-		for (auto conn : sys->conns())
+		// make a copy since we'll be modifying the actual list of connections during traversal
+		auto conns = sys->conns();
+
+		for (auto conn : conns)
 		{
 			Port* src = conn->get_source();
 			Port* dest = conn->get_sink();
+
+			// Special case: exporting a signal. Both ends already speak LP_ID and (hopefully) have
+			// the same encoding!
+			if (src->get_proto().has_field("lp_id") && dest->get_proto().has_field("lp_id"))
+				continue;
 
 			for (Port* p : {src, dest})
 			{
@@ -565,18 +501,11 @@ namespace
 					bool to_flow = (p == src);
 					
 					auto fc = new FlowConvNode(fcname, to_flow);
-					to_add.emplace_front(conn, fc); // defer until after traversal
+
+					sys->splice_conn(conn, fc->get_inport(), fc->get_outport());
+					sys->add_node(fc);			
 				}
 			}
-		}
-
-		// do netlist modification now
-		for (auto& i : to_add)
-		{
-			auto conn = i.first;
-			auto fc = i.second;
-			sys->splice_conn(conn, fc->get_inport(), fc->get_outport());
-			sys->add_node(fc);
 		}
 	}
 
@@ -710,21 +639,15 @@ namespace
 	{
 		ExportNode* exp = sys->get_export_node();
 
-		// Remove dangling ports from system
-		std::forward_list<Port*> ports_to_delete;
-		for (auto& i : exp->ports())
+		// Make a copy because we delete actual ports during traversal
+		auto ports = exp->ports();
+		for (auto& i : ports)
 		{
 			Port* p = i.second;
 			if (p->get_conn() == nullptr)
 			{
-				ports_to_delete.push_front(p);
+				exp->remove_port(p);
 			}
-		}
-
-		for (Port* p : ports_to_delete)
-		{
-			exp->remove_port(p);
-			delete p;
 		}
 	}
 
@@ -818,6 +741,6 @@ P2P::System* ct::build_system(Spec::System* system)
 	handle_defaults(result);
 	
 	connect_resets(result);
-	//result->dump_graph();
+
 	return result;
 }

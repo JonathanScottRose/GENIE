@@ -36,7 +36,16 @@ namespace
 		lua_error(s_state);
 	}
 
-	Attribs get_table(lua_State* L)
+	void push_member(lua_State* L, const std::string& name, bool allow_nil = false)
+	{
+		lua_pushstring(L, name.c_str());
+		lua_gettable(L, -2);
+
+		if (!allow_nil && lua_isnil(L, -1))
+			lerror("table key not found: " + name);
+	}
+
+	Attribs parse_table(lua_State* L)
 	{
 		Attribs result;
 
@@ -45,8 +54,11 @@ namespace
 		while (lua_next(L, -2))
 		{
 			std::string key = luaL_checkstring(L, -2);
-			std::string val = luaL_checkstring(L, -1);
-			result[key] = val;
+			if (lua_type(L, -1) != LUA_TTABLE)
+			{
+				std::string val = luaL_checkstring(L, -1);
+				result[key] = val;
+			}
 			lua_pop(L, 1);
 		}
 
@@ -62,21 +74,11 @@ namespace
 		while (lua_next(L, -2))
 		{
 			std::string key = luaL_checkstring(L, -2);
-			std::string val = luaL_checkstring(L, -1);
-
-			// Make sure this attribute is valid
-			bool valid = false;
-			for (auto& req : req_attribs)
+			if (lua_type(L, -1) != LUA_TTABLE)
 			{
-				if (req.name == key)
-				{
-					result[key] = val;
-					valid = true;
-				}
+				std::string val = luaL_checkstring(L, -1);
+				result[key] = val;
 			}
-
-			if (!valid) lerror("Invalid property: " + key);
-				
 			lua_pop(L, 1);
 		}
 
@@ -90,110 +92,11 @@ namespace
 		return result;
 	}
 
-	LFUNC(reg_component)
-	{
-		// args: properties table
-
-		RequiredAttribs req;
-		req.emplace_back("name", true);
-		req.emplace_back("hier", true);
-		auto attrs = parse_attribs(L, req);
-
-		auto comp = new Spec::Component(attrs["name"]);
-		comp->set_aspect_val<std::string>(attrs["hier"]);
-		Spec::define_component(comp);
-
-		lua_pop(L, 1);
-		return 0;
-	}
-
-	LFUNC(reg_parameter)
-	{
-		RequiredAttribs req;
-		req.emplace_back("comp", true);
-		req.emplace_back("name", true);
-		auto attrs = parse_attribs(L, req);
-
-		auto comp = Spec::get_component(attrs["comp"]);
-		if (!comp)
-			lerror("Unknown component: " + attrs["comp"]);
-
-		const std::string& param_name = attrs["name"];
-
-		comp->add_parameter(param_name);		
-
-		return 0;
-	}
-
-	LFUNC(inst_defparams)
-	{
-		// args: systemname, instname, { parmname=parmval}, parmname=parmval, ...}
-
-		std::string sysname = luaL_checkstring(L, -3);
-		std::string instname = luaL_checkstring(L, -2);
-		auto attrs = get_table(L);
-		
-		auto sys = Spec::get_system(sysname);
-		auto inst = (Spec::Instance*)sys->get_object(instname);
-		if (inst->get_type() != Spec::SysObject::INSTANCE) lerror("object must be instance");
-
-		for (auto& i : attrs)
-		{
-			inst->set_param_binding(i.first, i.second);
-		}
-
-		lua_pop(L, 3);
-		return 0;
-	}
-
-	LFUNC(reg_interface)
-	{
-		// args: componentname, {name=, type=, clock=}
-		
-		std::string compname = luaL_checkstring(L, -2);
-
-		RequiredAttribs req;
-		req.emplace_back("name", true);
-		req.emplace_back("type", true);
-		req.emplace_back("dir", true);
-		req.emplace_back("clock", false);
-		auto attrs = parse_attribs(L, req);
-
-		auto comp = Spec::get_component(compname);
-
-		Spec::Interface* iface = Spec::Interface::factory
-			(
-			attrs["name"],
-			Spec::Interface::type_from_string(attrs["type"]),
-			Spec::Interface::dir_from_string(attrs["dir"]),
-			comp
-			);
-
-		if (iface->get_type() == Spec::Interface::DATA)
-		{
-			if (attrs.count("clock") == 0)
-				lerror("Missing clock for interface");
-
-			auto dif = (Spec::DataInterface*)iface;
-			dif->set_clock(attrs["clock"]);
-		}
-		
-		comp->add_interface(iface);
-
-		lua_pop(L, 2);
-		return 0;
-	}
-
-	LFUNC(reg_signal)
+	void parse_signal(lua_State* L, Spec::Interface* iface)
 	{
 		using namespace ct::Spec;
 
-		// args: compname, ifacename, {binding=, type=, width=, usertype=}
-
-		std::string compname = luaL_checkstring(L, -3);
-		std::string ifacename = luaL_checkstring(L, -2);
-		auto comp = Spec::get_component(compname);
-		auto iface = comp->get_interface(ifacename);
+		luaL_checktype(L, -1, LUA_TTABLE);
 
 		RequiredAttribs req;
 		req.emplace_back("binding", true);
@@ -240,8 +143,139 @@ namespace
 			sig->set_subtype(attrs["usertype"]);
 
 		iface->add_signal(sig);
+	}
+
+	void parse_linkpoint(lua_State* L, Spec::Interface* iface)
+	{
+		using namespace ct::Spec;
+
+		luaL_checktype(L, -1, LUA_TTABLE);
+
+		RequiredAttribs req;
+		req.emplace_back("name", true);
+		req.emplace_back("type", true);
+		req.emplace_back("encoding", true);
+		auto attrs = parse_attribs(L, req);
+
+		Linkpoint::Type type = Linkpoint::type_from_string(attrs["type"]);
+
+		Linkpoint* lp = new Linkpoint(attrs["name"], type, iface);
+		lp->set_aspect_val<std::string>(attrs["encoding"]);
+
+		iface->add_linkpoint(lp);
+	}
+
+	Spec::Interface* parse_interface(lua_State* L)
+	{
+		luaL_checktype(L, -1, LUA_TTABLE);
+
+		auto attrs = parse_table(L);
+
+		Spec::Interface* iface = Spec::Interface::factory
+			(
+			attrs["name"],
+			Spec::Interface::type_from_string(attrs["type"]),
+			Spec::Interface::dir_from_string(attrs["dir"])
+			);
+
+		if (iface->get_type() == Spec::Interface::DATA)
+		{
+			if (attrs.count("clock") == 0)
+				lerror("Missing clock for interface");
+
+			auto dif = (Spec::DataInterface*)iface;
+			dif->set_clock(attrs["clock"]);
+		}
+
+		push_member(L, "signals");
+		lua_pushnil(L);
+		while (lua_next(L, -2))
+		{
+			parse_signal(L, iface);
+			lua_pop(L, 1);
+		}
+		lua_pop(L, 1);
+
+		push_member(L, "linkpoints");
+		lua_pushnil(L);
+		while (lua_next(L, -2))
+		{
+			parse_linkpoint(L, iface);
+			lua_pop(L, 1);
+		}
+		lua_pop(L, 1);
+
+		return iface;
+	}
+
+	LFUNC(reg_component)
+	{
+		// args: properties table
+
+		RequiredAttribs req;
+		req.emplace_back("name", true);
+		req.emplace_back("hier", true);
+		auto attrs = parse_attribs(L, req);
+
+		auto comp = new Spec::Component(attrs["name"]);
+		comp->set_aspect_val<std::string>(attrs["hier"]);
+		Spec::define_component(comp);
+
+		lua_pop(L, 1);
+		return 0;
+	}
+
+	LFUNC(reg_parameter)
+	{
+		RequiredAttribs req;
+		req.emplace_back("comp", true);
+		req.emplace_back("name", true);
+		auto attrs = parse_attribs(L, req);
+
+		auto comp = Spec::get_component(attrs["comp"]);
+		if (!comp)
+			lerror("Unknown component: " + attrs["comp"]);
+
+		const std::string& param_name = attrs["name"];
+
+		comp->add_parameter(param_name);		
+
+		return 0;
+	}
+
+	LFUNC(inst_defparams)
+	{
+		// args: systemname, instname, { parmname=parmval}, parmname=parmval, ...}
+
+		std::string sysname = luaL_checkstring(L, -3);
+		std::string instname = luaL_checkstring(L, -2);
+		auto attrs = parse_table(L);
+		
+		auto sys = Spec::get_system(sysname);
+		auto inst = (Spec::Instance*)sys->get_object(instname);
+		if (inst->get_type() != Spec::SysObject::INSTANCE) lerror("object must be instance");
+
+		for (auto& i : attrs)
+		{
+			inst->set_param_binding(i.first, i.second);
+		}
 
 		lua_pop(L, 3);
+		return 0;
+	}
+
+	LFUNC(reg_interface)
+	{
+		// args: componentname, table:interface
+		
+		luaL_checktype(L, -1, LUA_TTABLE);
+		std::string compname = luaL_checkstring(L, -2);
+
+		Spec::Interface* iface = parse_interface(L);
+		
+		auto comp = Spec::get_component(compname);
+		comp->add_interface(iface);
+
 		return 0;
 	}
 
@@ -262,7 +296,6 @@ namespace
 		auto inst = new Instance(attrs["name"], attrs["comp"], sys);
 		sys->add_object(inst);
 
-		lua_pop(L, 2);
 		return 0;
 	}
 
@@ -296,18 +329,16 @@ namespace
 
 		RequiredAttribs req;
 		req.emplace_back("name", true);
-		req.emplace_back("type", true);
-		req.emplace_back("dir", true);
 		auto attrs = parse_attribs(L, req);
-
 		const std::string& name = attrs["name"];
-		Interface::Type iftype = Interface::type_from_string(attrs["type"]);
-		Interface::Dir ifdir = Interface::dir_from_string(attrs["dir"]);
+		
+		push_member(L, "interface");
+		Interface* iface = parse_interface(L);
 
-		Export* ex = new Export(name, iftype, ifdir, sys);
+		Export* ex = new Export(name, iface, sys);
 		sys->add_object(ex);
 
-		lua_pop(L, 2);
+		lua_pop(L, 1);
 		return 0;
 	}
 
@@ -327,35 +358,6 @@ namespace
 		return 0;
 	}
 
-	LFUNC(reg_linkpoint)
-	{
-		using namespace ct::Spec;
-
-		// args: compname, ifacename, {name=, type=, encoding=}
-
-		std::string compname = luaL_checkstring(L, -3);
-		std::string ifacename = luaL_checkstring(L, -2);
-
-		auto comp = Spec::get_component(compname);
-		auto iface = comp->get_interface(ifacename);
-
-		RequiredAttribs req;
-		req.emplace_back("name", true);
-		req.emplace_back("type", true);
-		req.emplace_back("encoding", true);
-		auto attrs = parse_attribs(L, req);
-
-		Linkpoint::Type type = Linkpoint::type_from_string(attrs["type"]);
-
-		Linkpoint* lp = new Linkpoint(attrs["name"], type, (DataInterface*)iface);
-		lp->set_aspect_val<std::string>(attrs["encoding"]);
-
-		iface->add_linkpoint(lp);
-
-		lua_pop(L, 3);
-		return 0;
-	}
-
 	LFUNC(eval_expression)
 	{
 		// args: expression (str), param binding (table)
@@ -363,7 +365,7 @@ namespace
 		luaL_checktype(L, 2, LUA_TTABLE);
 
 		// get key/value pairs. recycle "Attribs" for this - not intended purpose
-		Attribs params = get_table(L);
+		Attribs params = parse_table(L);
 
 		Expression expr(expr_str);
 
@@ -455,12 +457,10 @@ namespace
 		REG_LFUNC(reg_parameter);
 		REG_LFUNC(inst_defparams);
 		REG_LFUNC(reg_interface);
-		REG_LFUNC(reg_signal);
 		REG_LFUNC(reg_instance);
 		REG_LFUNC(reg_link);
 		REG_LFUNC(reg_export);
 		REG_LFUNC(reg_system);
-		REG_LFUNC(reg_linkpoint);
 		REG_LFUNC(eval_expression);
 		REG_LFUNC(create_topo_node);
 		REG_LFUNC(create_topo_edge);

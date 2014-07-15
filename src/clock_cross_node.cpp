@@ -23,7 +23,7 @@ ClockCrossNode::ClockCrossNode(const std::string& name)
 	clockinport->set_name("clock_in");
 	add_port(clockinport);
 	
-	DataPort* datainport = new DataPort(this, Port::IN);
+	DataPort* datainport = new DataPort(Port::IN, this);
 	datainport->set_name("data_in");
 	datainport->set_clock(clockinport);
 	datainport->set_proto(proto);
@@ -34,7 +34,7 @@ ClockCrossNode::ClockCrossNode(const std::string& name)
 	clockoutport->set_name("clock_out");
 	add_port(clockoutport);
 
-	DataPort* dataoutport = new DataPort(this, Port::OUT);
+	DataPort* dataoutport = new DataPort(Port::OUT, this);
 	dataoutport->set_name("data_out");
 	dataoutport->set_clock(clockoutport);
 	dataoutport->set_proto(proto);

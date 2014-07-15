@@ -26,17 +26,16 @@ namespace
 		{
 			P2P::InstanceNode* node = (P2P::InstanceNode*) generic_node;
 			assert(node->get_type() == P2P::Node::INSTANCE);
-
+			
 			Spec::Component* comp_def = Spec::get_component(node->get_instance()->get_component());
 
 			Vlog::Module* result = new Vlog::Module();
 			result->set_name(name);
-		
+
 			// Convert parameters
-			Spec::Instance* inst_def = node->get_instance();
-			for (auto& i : inst_def->param_bindings())
+			for (auto& name : comp_def->parameters())
 			{
-				Vlog::Parameter* param = new Vlog::Parameter(i.first, result);
+				Vlog::Parameter* param = new Vlog::Parameter(name, result);
 				result->add_param(param);
 				// derp: add default parameter value?
 			}

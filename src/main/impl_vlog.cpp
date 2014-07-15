@@ -46,13 +46,6 @@ namespace
 	{
 		s_cur_top->set_name(sys->get_name());
 
-		// Copy parameter definitions
-		Spec::Component* syscompspec = Spec::get_component(sys->get_name());
-		for (auto& i : syscompspec->parameters())
-		{
-			s_cur_top->add_param(new Vlog::Parameter(i, s_cur_top));
-		}
-
 		// Visit each child node and implement it
 		for (auto& i : sys->nodes())
 		{
@@ -200,22 +193,6 @@ Vlog::Port::Dir ImplVerilog::conv_port_dir(P2P::Port* port, P2P::PhysField* pf)
 	bool is_out = port->get_dir() == P2P::Port::OUT;
 	is_out ^= pf->sense == P2P::PhysField::REV;
 	return is_out ? Vlog::Port::OUT : Vlog::Port::IN;
-}
-
-std::string ImplVerilog::name_for_p2p_port(P2P::Port* port, P2P::PhysField* pf)
-{
-	std::string result = port->get_name();
-	
-	switch(port->get_type())
-	{
-		case Port::CLOCK:
-		case Port::RESET:
-			break;
-		default:
-			result += "_" + pf->name;
-	}
-
-	return result;
 }
 
 // Generic visitor function for module-like P2P nodes.

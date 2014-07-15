@@ -26,7 +26,7 @@ SplitNode::SplitNode(const std::string& name, int n_outputs)
 	proto.init_field("ready", 1, PhysField::REV);
 	proto.init_physfield("xdata", 0);
 
-	DataPort* port = new DataPort(this, Port::IN);
+	DataPort* port = new DataPort(Port::IN, this);
 	port->set_name("in");
 	port->set_clock(clkport);
 	port->set_proto(proto);
@@ -35,7 +35,7 @@ SplitNode::SplitNode(const std::string& name, int n_outputs)
 	// Create outports
 	for (int i = 0; i < n_outputs; i++)
 	{
-		port = new DataPort(this, Port::OUT);
+		port = new DataPort(Port::OUT, this);
 		port->set_name("out" + std::to_string(i));
 		port->set_clock(clkport);
 		port->set_proto(proto);

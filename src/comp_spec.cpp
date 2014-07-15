@@ -115,8 +115,8 @@ Linkpoint::Type Linkpoint::type_from_string(const std::string& str)
 // Interface
 //
 
-Interface::Interface(const std::string& name, Type type, Dir dir, Component* parent)
-	: m_name(name), m_type(type), m_parent(parent), m_dir(dir)
+Interface::Interface(const std::string& name, Type type, Dir dir)
+	: m_name(name), m_type(type), m_dir(dir)
 {
 }
 
@@ -209,15 +209,15 @@ Interface::Dir Interface::dir_from_string(const std::string& str)
 	return Dir::OUT;
 }
 
-Interface* Interface::factory(const std::string& name, Type type, Dir dir, Component* parent)
+Interface* Interface::factory(const std::string& name, Type type, Dir dir)
 {
 	switch(type)
 	{
-	case CONDUIT: return new ConduitInterface(name, dir, parent);
-	case DATA: return new DataInterface(name, type, dir, parent);
+	case CONDUIT: return new ConduitInterface(name, dir);
+	case DATA: return new DataInterface(name, type, dir);
 	case CLOCK:
 	case RESET:
-		return new ClockResetInterface(name, type, dir, parent);
+		return new ClockResetInterface(name, type, dir);
 	}
 
 	return nullptr;
@@ -238,8 +238,8 @@ Linkpoint* Interface::get_linkpoint(const std::string& name)
 // ClockResetInterface
 //
 
-ClockResetInterface::ClockResetInterface(const std::string& name, Type type, Dir dir, Component* parent)
-	: Interface(name, type, dir, parent)
+ClockResetInterface::ClockResetInterface(const std::string& name, Type type, Dir dir)
+	: Interface(name, type, dir)
 {
 }
 
@@ -256,8 +256,8 @@ Interface* ClockResetInterface::clone()
 // ConduitInterface
 //
 
-ConduitInterface::ConduitInterface(const std::string& name, Dir dir, Component* parent)
-	: Interface(name, CONDUIT, dir, parent)
+ConduitInterface::ConduitInterface(const std::string& name, Dir dir)
+	: Interface(name, CONDUIT, dir)
 {
 }
 
@@ -274,8 +274,8 @@ Interface* ConduitInterface::clone()
 // DataInterface
 //
 
-DataInterface::DataInterface(const std::string& name, Type type, Dir dir, Component* parent)
-	: Interface(name, type, dir, parent)
+DataInterface::DataInterface(const std::string& name, Type type, Dir dir)
+	: Interface(name, type, dir)
 {
 }
 

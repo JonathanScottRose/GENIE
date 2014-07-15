@@ -99,6 +99,7 @@ namespace P2P
 		bool is_connected();
 
 		static Dir rev_dir(Dir dir);
+		static Port* from_interface(Spec::Interface*, const Expressions::NameResolver&);
 
 	protected:
 		Type m_type;
@@ -113,19 +114,19 @@ namespace P2P
 	class ClockResetPort : public Port
 	{
 	public:
-		ClockResetPort(Type type, Dir dir, Node* node);
+		ClockResetPort(Type type, Dir dir, Node* node = nullptr);
 	};
 
 	class ConduitPort : public Port
 	{
 	public:
-		ConduitPort(Node* node, Dir dir);
+		ConduitPort(Dir dir, Node* node = nullptr);
 	};
 
 	class DataPort : public Port
 	{
 	public:
-		DataPort(Node* node, Dir dir);
+		DataPort(Dir dir, Node* node = nullptr);
 
 		PROP_GET_SET(clock, ClockResetPort*, m_clock);
 

@@ -252,5 +252,15 @@ function util.unique_key(t, base)
 	end
 	return k
 end
+
+function util.con_cat(...)
+    local result = ''
+    local args = {...}
+    for i=1,#args do
+        result = result .. args[i]
+        if i ~= #args then result = result .. '_' end
+    end
+    return result
+end
 			
 		

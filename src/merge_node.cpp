@@ -24,7 +24,7 @@ MergeNode::MergeNode(const std::string& name, int n_inputs)
 	proto.init_field("eop", 1);
 	proto.init_physfield("xdata", 0);
 	
-	DataPort* port = new DataPort(this, Port::OUT);
+	DataPort* port = new DataPort(Port::OUT, this);
 	port->set_name("out");
 	port->set_clock(clkport);
 	port->set_proto(proto);
@@ -33,7 +33,7 @@ MergeNode::MergeNode(const std::string& name, int n_inputs)
 	// Create inports
 	for (int i = 0; i < n_inputs; i++)
 	{
-		port = new DataPort(this, Port::IN);
+		port = new DataPort(Port::IN, this);
 		port->set_name("in" + std::to_string(i));
 		port->set_clock(clkport);
 		port->set_proto(proto);

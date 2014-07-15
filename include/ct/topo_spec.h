@@ -34,6 +34,7 @@ namespace Spec
 
 		const Edges& edges() { return m_edges; }
 		void add_edge(TopoEdge* e);
+		void dump_graph(const std::string& filename);
 
 	protected:
 		Edges m_edges;

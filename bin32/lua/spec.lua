@@ -41,14 +41,11 @@ function Spec:builder()
 end
 
 function Spec:post_process()
-	for component in values(self.components) do
-		component:create_default_linkpoints()
-	end
-	
 	for system in svaluesv(self.systems, function(a,b) return a:is_subsystem_of(b) end) do
 		system:create_auto_exports()
-		system:componentize()
 		system:create_default_reset()
+        system:finalize_exports()
+        system:componentize()
 	end
 end
 
@@ -71,32 +68,7 @@ function Spec:submit()
         end
 		
 		for iface in svaluesk(component.interfaces) do
-			ct.reg_interface(component.name,
-			{
-				name = iface.name,
-				type = string.lower(iface.type),
-                dir = string.lower(iface.dir),
-				clock = iface.clock
-			})
-			
-			for sig in svaluesk(iface.signals) do
-				ct.reg_signal(component.name, iface.name,
-				{
-					binding = sig.binding,
-					type = sig.type,
-					width = sig.width,
-					usertype = sig.usertype
-				})
-			end
-			
-			for lp in svaluesk(iface.linkpoints) do
-				ct.reg_linkpoint(component.name, iface.name,
-				{
-					name = lp.name,
-					type = lp.type,
-					encoding = lp.encoding
-				})
-			end
+			ct.reg_interface(component.name, iface)
 		end
 	end
 	
@@ -116,8 +88,7 @@ function Spec:submit()
 				ct.reg_export(sys.name,
 				{
 					name = obj.name,
-					type = string.lower(obj.iface_type),
-                    dir = string.lower(obj.iface_dir)
+                    interface = obj.interface
 				})					
 			end
 		end
@@ -143,19 +114,21 @@ Builder = class
 	cur_spec = nil,
 	cur_comp = nil,
 	cur_iface = nil,
-	cur_lp = nil,
 	cur_sys = nil,
 	cur_inst = nil
 }
 
 function Builder:new(spec)
-	local result = Builder:_init_inst {spec = spec}
+	local result = Builder:_init_inst {cur_spec = spec}
+    result.cur_comp = nil
+    result.cur_sys = nil
+    result.cur_iface = nil
+    result.cur_inst = nil
 	return result
 end
 
 function Builder:component(name, module)
     self.cur_iface = nil
-    self.cur_lp = nil
     self.cur_inst = nil
     self_cur_sys = nil
 	self.cur_comp = Component:new
@@ -178,7 +151,6 @@ function Builder:parameter(name, width, depth)
 end
 
 function Builder:interface(name, type, dir, clock)
-    self.cur_lp = nil
 	if not self.cur_comp then util.error("Unexpected 'interface'") end
 	self.cur_iface = Interface:new
 	{
@@ -234,6 +206,7 @@ end
 
 function Builder:system(name, topofunc)
     self.cur_comp = nil
+    self.cur_iface = nil
 	self.cur_sys = System:new
 	{
 		name = name,
@@ -252,15 +225,25 @@ function Builder:instance(name, comp)
 	self.cur_sys:add_object(self.cur_inst)
 end
 
-function Builder:export(name, type, dir)
+function Builder:export(name, type, dir, clock)
 	if not self.cur_sys then util.error("Unexpected 'export'") end
 	local export = Export:new
 	{
 		name = name,
-		iface_type = string.upper(type),
-		iface_dir = string.upper(dir)
-	}
+        interface = 
+        {
+            type = string.upper(type), 
+            dir = Interface:rev_dir(string.upper(dir)),
+            clock = clock
+        }
+	}    
 	self.cur_sys:add_object(export)
+    self.cur_iface = export.interface
+end
+
+function Builder:export_if(name, target)
+    if not self.cur_sys then util.error("Unexpected 'export_if'") end
+    self.cur_sys:export_iface(name, target)
 end
 
 function Builder:defparam(name, value)

@@ -24,7 +24,7 @@ function topo_ring(sys)
 			local iface = comp.interfaces[targ.iface]
 			return iface.type, inst.type
 		else
-			return inst.iface_type, inst.type
+			return inst.interface.type, inst.type
 		end
 	end
 	

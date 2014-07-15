@@ -60,5 +60,4 @@ namespace ImplVerilog
 
 	// Utility
 	Vlog::Port::Dir conv_port_dir(P2P::Port*, P2P::PhysField*);
-	std::string name_for_p2p_port(P2P::Port*, P2P::PhysField*);
 }

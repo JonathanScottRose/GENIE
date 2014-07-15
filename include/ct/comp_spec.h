@@ -105,7 +105,7 @@ public:
 		OUT
 	};
 
-	Interface(const std::string& name, Type type, Dir dir, Component* parent);
+	Interface(const std::string& name, Type type, Dir dir);
 	Interface(const Interface&);
 	virtual ~Interface();
 	virtual Interface* clone() = 0;
@@ -113,7 +113,6 @@ public:
 	PROP_GET_SET(name, const std::string&, m_name);
 	PROP_GET_SET(type, Type, m_type);
 	PROP_GET_SET(dir, Dir, m_dir);
-	PROP_GET_SET(parent, Component*, m_parent);
 
 	const Signals& signals() { return m_signals; }
 	void add_signal(Signal* sig);
@@ -128,10 +127,9 @@ public:
 
 	static Type type_from_string(const std::string& str);
 	static Dir dir_from_string(const std::string& str);
-	static Interface* factory(const std::string& name, Type type, Dir dir, Component* parent);
+	static Interface* factory(const std::string& name, Type type, Dir dir);
 
 protected:
-	Component* m_parent;
 	std::string m_name;
 	Type m_type;
 	Dir m_dir;
@@ -142,7 +140,7 @@ protected:
 class ClockResetInterface : public Interface
 {
 public:
-	ClockResetInterface(const std::string& name, Type type, Dir dir, Component* parent);
+	ClockResetInterface(const std::string& name, Type type, Dir dir);
 	~ClockResetInterface();
 	Interface* clone();
 };
@@ -150,7 +148,7 @@ public:
 class ConduitInterface : public Interface
 {
 public:
-	ConduitInterface(const std::string& name, Dir dir, Component* parent);
+	ConduitInterface(const std::string& name, Dir dir);
 	~ConduitInterface();
 	Interface* clone();
 };
@@ -158,7 +156,7 @@ public:
 class DataInterface : public Interface
 {
 public:
-	DataInterface(const std::string& name, Type type, Dir dir, Component* parent);
+	DataInterface(const std::string& name, Type type, Dir dir);
 	~DataInterface();
 	Interface* clone();
 

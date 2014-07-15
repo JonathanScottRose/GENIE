@@ -36,7 +36,7 @@ Signal = class
 Interface = class
 {
 	Types = Set.make {"CLOCK", "RESET", "DATA", "CONDUIT"},
-	Dirs = Set.make {"IN", "OUT", "CONDUIT"},
+	Dirs = Set.make {"IN", "OUT"},
 	
 	name = nil,
 	type = nil,
@@ -51,6 +51,15 @@ function Interface:new(o)
 	o = Interface:_init_inst(o)
 	o.signals = {}
 	o.linkpoints = {}
+    
+    -- create default linkpoint. gets deleted if real linkpoints are defined
+    o:add_linkpoint(Linkpoint:new
+    {
+        name = 'lp',
+        type = 'BROADCAST',
+        encoding = ''
+    })
+    
 	return o
 end
 
@@ -60,9 +69,19 @@ function Interface:add_signal(sig)
 end
 
 function Interface:add_linkpoint(lp)
+    -- delete default linkpoint
+    self.linkpoints['lp'] = nil
+
 	lp.parent = self
 	util.insert_unique(lp, self.linkpoints)
 	return lp
+end
+
+function Interface:rev_dir(d)
+    if d == 'OUT' then return 'IN' 
+    elseif d == 'IN' then return 'OUT'
+    else util.error("Unknown direction: " .. d)
+    end
 end
 
 -- Parameter
@@ -101,22 +120,5 @@ end
 function Component:add_parameter(param)
 	param.parent = self
 	util.insert_unique(param, self.parameters)
-end
-
-function Component:create_default_linkpoints()
-	for iface in values(self.interfaces) do
-		local lps = iface.linkpoints
-		
-		if util.empty(lps) then
-			local lp = Linkpoint:new
-			{
-				name = "lp", 
-				type="BROADCAST",
-				encoding=""
-			}
-			
-			util.insert_unique(lp, lps)
-		end
-	end
 end
 		
