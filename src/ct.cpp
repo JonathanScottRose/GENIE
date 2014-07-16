@@ -722,6 +722,8 @@ namespace
 			}
 		}
 	}
+
+	std::unordered_map<std::string, std::string> s_global_params;
 }
 
 P2P::System* ct::build_system(Spec::System* system)

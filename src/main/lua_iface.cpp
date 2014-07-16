@@ -28,6 +28,7 @@ namespace
 	typedef std::unordered_map<std::string, std::string> Attribs;
 
 	const std::string API_TABLE_NAME = "ct";
+	const std::string GLOBALS_TABLE_NAME = "globals";
 	lua_State* s_state;
 
 	void lerror(const std::string& s)
@@ -38,8 +39,7 @@ namespace
 
 	void push_member(lua_State* L, const std::string& name, bool allow_nil = false)
 	{
-		lua_pushstring(L, name.c_str());
-		lua_gettable(L, -2);
+		lua_getfield(L, -1, name.c_str());
 
 		if (!allow_nil && lua_isnil(L, -1))
 			lerror("table key not found: " + name);
@@ -479,8 +479,21 @@ void LuaIface::init()
 	luaL_checkversion(s_state);
 	luaL_openlibs(s_state);
 
+	// create table for API
 	lua_newtable(s_state);
+	lua_pushvalue(s_state, -1); // make copy, because setglobal pops the table off the stack
+	
+	// register table for API (one copy remains on stack)
 	lua_setglobal(s_state, API_TABLE_NAME.c_str());
+
+	// create globals sub-table
+	lua_newtable(s_state);
+
+	// register globals sub-table
+	lua_setfield(s_state, -2, GLOBALS_TABLE_NAME.c_str());
+	
+	// pop second copy of API table
+	lua_pop(s_state, 1);
 
 	register_funcs();
 }
@@ -518,6 +531,15 @@ void LuaIface::register_func(const std::string& name, lua_CFunction fptr)
 	lua_pushcfunction(s_state, fptr);
 	lua_setfield(s_state, -2, name.c_str());
 	lua_pop(s_state, 1);
+}
+
+void LuaIface::set_global_param(const std::string& key, const std::string& value)
+{
+	lua_getglobal(s_state, API_TABLE_NAME.c_str()); // +1
+	lua_getfield(s_state, -1, GLOBALS_TABLE_NAME.c_str()); // +1
+	lua_pushstring(s_state, value.c_str()); // +1
+	lua_setfield(s_state, -2, key.c_str()); // -1
+	lua_pop(s_state, 2); // -2
 }
 
 int LuaIface::make_ref()
