@@ -21,10 +21,12 @@ localparam SYNC_STAGES = 3;
 
 wire rdarst, wrarst;
 reg rdempty;
-wire rdreq = i_ready;
-wire rdpipe_en = rdreq && !rdempty;
+wire rdpipe_en = !(o_valid && !i_ready);
 
-assign o_valid = rdpipe_en;
+always_ff @ (posedge rdclk or posedge arst) begin
+    if (arst) o_valid <= '0;
+    else o_valid <= !rdempty;
+end
 
 //////////////////////////////////////////
 // reset distribution
@@ -52,7 +54,7 @@ reg [RAM_ADDR_WIDTH:0] rdgray = 0 /* synthesis preserve */
 
 reg [RAM_ADDR_WIDTH:0] rdbin = 0 /* synthesis preserve */;
 initial rdempty = 1'b1;
-wire [RAM_ADDR_WIDTH:0] rdbin_next = rdbin + (rdreq & ~rdempty);
+wire [RAM_ADDR_WIDTH:0] rdbin_next = rdbin + (rdpipe_en & ~rdempty);
 wire [RAM_ADDR_WIDTH:0] rdgray_next = (rdbin_next >> 1'b1) ^ rdbin_next;
 wire [RAM_ADDR_WIDTH:0] sync_wrptr;
 
