@@ -186,7 +186,7 @@ always @* begin : dp_comb
 	integer i;
 	for (i = 0; i < NI; i = i + 1) begin
         // Broadcast ready
-		o_ready[i] = i_ready;
+		o_ready[i] = i_ready && (i == cur_input);
     end
 end
 
