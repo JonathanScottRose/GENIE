@@ -22,11 +22,7 @@ localparam SYNC_STAGES = 3;
 wire rdarst, wrarst;
 reg rdempty;
 wire rdpipe_en = !(o_valid && !i_ready);
-
-always_ff @ (posedge rdclk or posedge arst) begin
-    if (arst) o_valid <= '0;
-    else o_valid <= !rdempty;
-end
+assign o_valid = ~rdempty; 
 
 //////////////////////////////////////////
 // reset distribution
