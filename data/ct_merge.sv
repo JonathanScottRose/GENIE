@@ -116,10 +116,13 @@ localparam NIBITS = CLogB2(NI-1);
 // Datapath
 //
 
-// Current input
-reg [NIBITS-1:0] last_input;
-wire [NIBITS-1:0] cur_input;
-wire last_input_load;
+// Cur input: controls the mux, can be fed by either calced_input or last_input
+// Calced input: calculated from valids and last_input by cur_input_calc
+// Last input: last input to hold the grant
+logic [NIBITS-1:0] cur_input;
+logic [NIBITS-1:0] calced_input;
+logic [NIBITS-1:0] last_input;
+logic last_input_load;
 
 // Mux select calculator (arbiter function)
 cur_input_calc #
@@ -130,7 +133,7 @@ cur_input_calc #
 (
 	.i_valid(i_valid),
 	.i_last_input(last_input),
-	.o_cur_input(cur_input)
+	.o_cur_input(calced_input)
 );
 
 // Output muxes
@@ -173,24 +176,54 @@ ct_mux #
 	.result(o_valid)
 );
 
-always @ (posedge clk or posedge reset) begin
+// Controls last_input register
+always_ff @ (posedge clk or posedge reset) begin
 	if (reset) begin
 		last_input <= 'd0;
 	end
 	else begin
-		if (last_input_load) last_input <= cur_input;
+		if (last_input_load) last_input <= calced_input;
 	end
 end
 
-always @* begin : dp_comb
-	integer i;
-	for (i = 0; i < NI; i = i + 1) begin
-        // Broadcast ready
+// Controls the readies of the inputs
+always_comb begin
+	for (integer i = 0; i < NI; i++) begin
 		o_ready[i] = i_ready && (i == cur_input);
     end
 end
 
-assign last_input_load = o_valid && i_ready && o_eop;
+// State machine to control packet handling
+enum int unsigned
+{
+    S_FLOW_THROUGH,
+    S_LOCKED
+} state, nextstate;
+
+always @ (posedge clk or posedge reset) begin
+    if (reset) state <= S_FLOW_THROUGH;
+    else state <= nextstate;
+end
+
+wire data_sent = (i_valid && o_ready);
+
+always_comb begin
+    nextstate = state;
+    last_input_load = '0;
+    
+    case (state)
+        S_FLOW_THROUGH: begin
+            cur_input = calced_input;
+            last_input_load = '1;
+            if (data_sent && !o_eop) nextstate = S_LOCKED;
+        end
+        
+        S_LOCKED: begin
+            cur_input = last_input;
+            if (data_sent && o_eop) nextstate = S_FLOW_THROUGH;
+        end
+    endcase 
+end
 
 endmodule
 
