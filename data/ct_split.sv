@@ -41,7 +41,7 @@ always_comb begin : mux
 		enabled_outputs = enabled_outputs | (ENABLES[NO*i +: NO] & {NO{match[i]}});
 	end
     
-    assert (!i_valid || match) begin
+    assert (reset !== 1'b0 || i_valid !== 1'b1 || match) else begin
         $error("unknown flow_id %u at %0t", i_flow, $time);
     end
 end

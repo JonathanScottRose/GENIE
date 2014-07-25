@@ -34,7 +34,7 @@ always_comb begin : mux
 		o_field = o_field | (OF[WOF*i +: WOF] & {WOF{match[i]}});
 	end
     
-    assert(!i_valid || match) begin
+    assert (reset !== 1'b0 || i_valid !== 1'b1 || match) else begin
         $error("invalid index %d at %0t", i_field, $time);
     end
 end
