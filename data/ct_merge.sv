@@ -99,18 +99,7 @@ module ct_merge #
 	output o_eop
 );
 
-function integer CLogB2;
-	input [31:0] Depth;
-	integer i;
-	begin
-		i = Depth;		
-		for(CLogB2 = 0; i > 0; CLogB2 = CLogB2 + 1)
-			i = i >> 1;
-		if (CLogB2 < 1) CLogB2 = 1;
-	end
-endfunction
-
-localparam NIBITS = CLogB2(NI-1);
+localparam NIBITS = $clog2(NI-1);
 
 //
 // Datapath
