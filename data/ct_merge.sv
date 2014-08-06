@@ -99,7 +99,7 @@ module ct_merge #
 	output o_eop
 );
 
-localparam NIBITS = $clog2(NI-1);
+localparam NIBITS = $clog2(NI);
 
 //
 // Datapath
