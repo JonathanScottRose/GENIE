@@ -10,6 +10,7 @@
 #include "ct/flow_conv_node.h"
 #include "ct/export_node.h"
 #include "ct/clock_cross_node.h"
+#include "ct/reg_node.h"
 
 #include "graph.h"
 
@@ -509,6 +510,34 @@ namespace
 		}
 	}
 
+	void insert_reg_stages(System* sys)
+	{
+		// register outputs of merge nodes
+
+		// make a copy since we'll be modifying the actual list of connections during traversal
+		auto conns = sys->conns();
+
+		for (auto conn : conns)
+		{
+			Port* src = conn->get_source();
+			Port* dest = conn->get_sink();
+
+			// only touch outputs of merge nodes
+			auto mergenode = (MergeNode*)src->get_parent();
+			if (mergenode->get_type() != Node::MERGE)
+				continue;			
+
+			std::string regnode_name = mergenode->get_name() + "_reg";
+			RegNode* regnode = new RegNode(regnode_name);
+
+			sys->splice_conn(conn, regnode->get_inport(), regnode->get_outport());
+			sys->add_node(regnode);
+
+			auto merge_clk_src = (ClockResetPort*)mergenode->get_clock_port()->get_first_connected_port();
+			sys->connect_clock_src(regnode->get_inport(), merge_clk_src);
+		}
+	}
+
 	void do_proto_carriage(System* sys)
 	{
 		// For each flow, work backwards from the ultimate sink and figure out which intermediate
@@ -734,9 +763,11 @@ P2P::System* ct::build_system(Spec::System* system)
 	remove_dangling_ports(result);
 	
 	configure_pre_negotiate(result); // handles clocks on Export node, must precede clock stuff
-
+	
 	connect_clocks(result);
 	insert_clock_crossings(result);
+
+	insert_reg_stages(result);
 
 	do_proto_carriage(result);
 	configure_post_negotiate(result);

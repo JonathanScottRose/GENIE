@@ -23,6 +23,7 @@
     <ClCompile Include="..\..\src\multi_way_cut.cpp" />
     <ClCompile Include="..\..\src\graph.cpp" />
     <ClCompile Include="..\..\src\min_st_cut.cpp" />
+    <ClCompile Include="..\..\src\reg_node.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\ct\p2p.h">
@@ -75,5 +76,8 @@
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\graph.h" />
+    <ClInclude Include="..\..\include\ct\reg_node.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

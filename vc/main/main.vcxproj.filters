@@ -28,6 +28,9 @@
     <ClCompile Include="..\..\src\main\impl\clock_cross.cpp">
       <Filter>impl</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\main\impl\reg_stage.cpp">
+      <Filter>impl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\globals.h" />

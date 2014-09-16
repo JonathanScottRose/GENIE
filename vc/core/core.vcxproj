@@ -32,6 +32,7 @@
     <ClCompile Include="..\..\src\multi_way_cut.cpp" />
     <ClCompile Include="..\..\src\p2p.cpp" />
     <ClCompile Include="..\..\src\protocol.cpp" />
+    <ClCompile Include="..\..\src\reg_node.cpp" />
     <ClCompile Include="..\..\src\spec.cpp" />
     <ClCompile Include="..\..\src\split_node.cpp" />
     <ClCompile Include="..\..\src\sys_spec.cpp" />
@@ -49,6 +50,7 @@
     <ClInclude Include="..\..\include\ct\merge_node.h" />
     <ClInclude Include="..\..\include\ct\p2p.h" />
     <ClInclude Include="..\..\include\ct\protocol.h" />
+    <ClInclude Include="..\..\include\ct\reg_node.h" />
     <ClInclude Include="..\..\include\ct\spec.h" />
     <ClInclude Include="..\..\include\ct\split_node.h" />
     <ClInclude Include="..\..\include\ct\static_init.h" />

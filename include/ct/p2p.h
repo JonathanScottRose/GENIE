@@ -27,7 +27,8 @@ namespace P2P
 			MERGE,
 			FLOW_CONV,
 			EXPORT,
-			CLOCK_CROSS
+			CLOCK_CROSS,
+			REG_STAGE
 		};
 
 		Node(Type type);

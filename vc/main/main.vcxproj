@@ -133,6 +133,7 @@
     <ClCompile Include="..\..\src\main\impl\flow_conv.cpp" />
     <ClCompile Include="..\..\src\main\impl\instance.cpp" />
     <ClCompile Include="..\..\src\main\impl\merge.cpp" />
+    <ClCompile Include="..\..\src\main\impl\reg_stage.cpp" />
     <ClCompile Include="..\..\src\main\impl\split.cpp" />
     <ClCompile Include="..\..\src\main\impl_vlog.cpp" />
     <ClCompile Include="..\..\src\main\io.cpp" />
