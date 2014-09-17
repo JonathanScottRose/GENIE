@@ -22,10 +22,11 @@ module ct_field_conv #
 	input logic i_ready
 );
 
+bit [N_ENTRIES-1:0] match;
+
 always_comb begin : mux
 	// Do a parallel match of the i_field value against the parameter table
 	// and mux in the single correct value of the output field value
-    bit [N_ENTRIES-1:0] match;
 	o_field = 0;
     match = '0;
 		
@@ -33,11 +34,9 @@ always_comb begin : mux
 		match[i] = IF[WIF*i +: WIF] == i_field;
 		o_field = o_field | (OF[WOF*i +: WOF] & {WOF{match[i]}});
 	end
-    
-    assert (reset !== 1'b0 || i_valid !== 1'b1 || match) else begin
-        $error("invalid index %d at %0t", i_field, $time);
-    end
 end
+
+assert property (@(posedge clk) disable iff (reset) !(i_valid && !match));
 
 // Assign outputs
 always @* begin
