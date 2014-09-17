@@ -107,13 +107,14 @@ end
 Link = class
 {
 	src = nil,
-	dest = nil
+	dest = nil,
+    label = nil
 }
 
 function Link:new(o)
 	o = Link:_init_inst(o)
-	self.src = LinkTarget:new()
-	self.dest = LinkTarget:new()
+	o.src = LinkTarget:new()
+	o.dest = LinkTarget:new()
 	return o
 end
 
@@ -126,7 +127,8 @@ System = class
 	links = {},
 	objects = {},
     parameters = {},
-	topo_func = nil
+	topo_func = nil,
+    excl_groups = {}
 }
 
 function System:new(o)
@@ -134,6 +136,7 @@ function System:new(o)
 	o.links = {}
 	o.objects = {}
     o.parameters = {}
+    o.excl_groups = {}
 	return o
 end
 
@@ -150,6 +153,10 @@ end
 function System:add_parameter(param)
 	param.parent = self
 	util.insert_unique(param, self.parameters)
+end
+
+function System:add_exclusion_group(grp)
+    table.insert(self.excl_groups, grp)
 end
 
 function System:export_iface(exname, target)

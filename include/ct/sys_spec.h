@@ -46,12 +46,15 @@ public:
 
 	PROP_GET_SET(src, const LinkTarget&, m_src);
 	PROP_GET_SET(dest, const LinkTarget&, m_dest);
+	PROP_GET_SET(label, const std::string&, m_label);
 
 protected:
+	std::string m_label;
 	LinkTarget m_src;
 	LinkTarget m_dest;
 };
 
+typedef std::list<Link*> Links;
 
 class SysObject
 {
@@ -112,8 +115,10 @@ protected:
 class System
 {
 public:
-	typedef std::list<Link*> Links;
 	typedef std::unordered_map<std::string, SysObject*> Objects;
+	typedef std::unordered_map<std::string, Link*> LinksByLabel;
+	typedef std::vector<std::string> ExclusionGroup;
+	typedef std::vector<ExclusionGroup> ExclusionGroups;
 
 	System();
 	~System();
@@ -123,6 +128,12 @@ public:
 
 	const Links& links() { return m_links; }
 	void add_link(Link* link);
+	Link* get_link(const std::string& label) const;
+	Link* get_link(const LinkTarget&, const LinkTarget&) const;
+
+	const ExclusionGroups& exclusion_groups() const;
+	void add_exclusion_group(const ExclusionGroup&);
+	ExclusionGroups exclusion_groups_for_link(Link* link) const;
 
 	const Objects& objects() { return m_objects; }
 	void add_object(SysObject* inst);
@@ -134,6 +145,8 @@ public:
 protected:
 	std::string m_name;
 	Links m_links;
+	LinksByLabel m_links_by_label;
+	ExclusionGroups m_exclusion_groups;
 	Objects m_objects;
 	TopoGraph* m_topo;
 };

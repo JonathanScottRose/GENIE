@@ -113,6 +113,16 @@ bool Port::has_flow(Flow* flow)
 	return std::find(m_flows.begin(), m_flows.end(), flow) != m_flows.end();
 }
 
+bool Port::has_link(Spec::Link* link) const
+{
+	return std::find(m_links.begin(), m_links.end(), link) != m_links.end();
+}
+
+void Port::add_links(const Spec::Links& links)
+{
+	m_links.insert(m_links.end(), links.begin(), links.end());
+}
+
 Port* Port::get_driver()
 {
 	switch (m_dir)
@@ -546,7 +556,12 @@ void System::splice_conn(Conn* conn, Port* new_in, Port* new_out)
 	connect_ports(new_out, orig_in);
 	
 	// copy flows
-	auto flows = orig_in->flows();
+	const auto& flows = orig_in->flows();
 	new_in->add_flows(flows);
 	new_out->add_flows(flows);
+
+	// copy links
+	const auto& links = orig_in->links();
+	new_in->add_links(links);
+	new_out->add_links(links);
 }

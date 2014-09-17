@@ -1,10 +1,12 @@
 #include "ct/merge_node.h"
+#include "ct/sys_spec.h"
 
 using namespace ct;
 using namespace ct::P2P;
+using namespace ct::Spec;
 
 MergeNode::MergeNode(const std::string& name, int n_inputs)
-	: P2P::Node(MERGE), m_n_inputs(n_inputs)
+	: P2P::Node(MERGE), m_n_inputs(n_inputs), m_exclusive(false)
 {
 	set_name(name);
 
@@ -74,12 +76,6 @@ Port* MergeNode::get_free_inport()
 	return nullptr;
 }
 
-void MergeNode::register_flow(Flow* flow, Port* port)
-{
-	port->add_flow(flow);
-	get_outport()->add_flow(flow);
-}
-
 int MergeNode::get_inport_idx(Port* port)
 {
 	auto val = port->get_aspect<int>("idx");
@@ -106,6 +102,41 @@ Port* MergeNode::rtrace(Port* port, Flow* flow)
 Protocol& MergeNode::get_proto()
 {
 	return get_outport()->get_proto();
+}
+
+void MergeNode::configure_1()
+{
+	Spec::System* sysspec = this->get_parent()->get_spec();
+
+	const auto& links = get_outport()->links();
+	
+	// See if all Links passing through this merge node are a subset of an exclusion group
+	bool all_links_contained = false;
+
+	// Try all groups
+	for (const auto& group : sysspec->exclusion_groups())
+	{
+		// Assume all links belong, and try to contradict
+		all_links_contained = true;
+
+		for (auto link : links)
+		{
+			// Check membership in group by link's label
+			const std::string& label = link->get_label();
+			if (!Util::exists(group, label))
+			{
+				all_links_contained = false;
+				break;
+			}
+		}
+
+		// If we managed to get to here, then all links are contained and we're done
+		if (all_links_contained)
+			break;
+	}
+
+	if (all_links_contained)
+		this->set_exclusive(true);
 }
 
 void MergeNode::carry_fields(const FieldSet& set)

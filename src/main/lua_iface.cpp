@@ -305,16 +305,21 @@ namespace
 
 		// args: sysname, src, dest
 
-		std::string sysname = luaL_checkstring(L, -3);
-		std::string src = luaL_checkstring(L, -2);
-		std::string dest = luaL_checkstring(L, -1);
-
+		std::string sysname = luaL_checkstring(L, 1);
+		std::string src = luaL_checkstring(L, 2);
+		std::string dest = luaL_checkstring(L, 3);
+		
 		auto sys = Spec::get_system(sysname);
 
 		Link* link = new Link(src, dest);
-		sys->add_link(link);
 
-		lua_pop(L, 3);
+		if (!lua_isnoneornil(L, 4))
+		{
+			std::string label = luaL_checkstring(L, 4);
+			link->set_label(label);
+		}
+
+		sys->add_link(link);
 		return 0;
 	}
 
@@ -422,8 +427,12 @@ namespace
 			lua_getfield(L, -1, "src");
 			lua_getfield(L, -2, "dest");
 
-			edge->links.emplace_back(Spec::LinkTarget(luaL_checkstring(L, -2)),
+			Spec::Link* link = sys->get_link(Spec::LinkTarget(luaL_checkstring(L, -2)),
 				Spec::LinkTarget(luaL_checkstring(L, -1)));
+
+			assert(link);
+
+			edge->links.push_back(link);
 
 			lua_pop(L, 3);
 		}
@@ -432,7 +441,32 @@ namespace
 		srcnode->outs.push_back(edge);
 		destnode->ins.push_back(edge);
 
-		lua_pop(L, 4);
+		return 0;
+	}
+
+	LFUNC(create_exclusion_group)
+	{
+		using namespace Spec;
+
+		std::string sysname = luaL_checkstring(L, 1);
+		luaL_checktype(L, 2, LUA_TTABLE);
+
+		System::ExclusionGroup group;
+
+		// table should be a set, with key=label, value=true
+		lua_pushnil(L);
+		while (lua_next(L, 2))
+		{
+			std::string label = luaL_checkstring(L, -2);
+			group.push_back(label);
+
+			// discard value, leave key for iteration
+			lua_pop(L, 1);
+		}
+
+		Spec::System* sys = Spec::get_system(sysname);
+		sys->add_exclusion_group(group);
+
 		return 0;
 	}
 
@@ -464,6 +498,7 @@ namespace
 		REG_LFUNC(eval_expression);
 		REG_LFUNC(create_topo_node);
 		REG_LFUNC(create_topo_edge);
+		REG_LFUNC(create_exclusion_group);
 	}
 }
 

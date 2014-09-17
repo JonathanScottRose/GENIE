@@ -11,7 +11,7 @@ namespace Spec
 	{
 		std::string src;
 		std::string dest;
-		std::vector<Link> links;
+		std::vector<Link*> links;
 	};
 
 	struct TopoNode

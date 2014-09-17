@@ -94,8 +94,12 @@ function Spec:submit()
 		end
 		
 		for link in svaluesk(sys.links) do
-			ct.reg_link(sys.name, link.src:str(), link.dest:str())
+			ct.reg_link(sys.name, link.src:str(), link.dest:str(), link.label)
 		end
+        
+        for group in svaluesk(sys.excl_groups) do
+            ct.create_exclusion_group(sys.name, group)
+        end
 		
 		if not sys.topo_func then
 			util.error("System " .. sys.name .. " missing topology function")
@@ -251,14 +255,20 @@ function Builder:defparam(name, value)
 	self.cur_inst:bind_param(name, value)
 end
 
-function Builder:link(src, dest)
+function Builder:link(src, dest, label)
 	if not self.cur_sys then util.error("Unexpected 'link'") end
 	local link = Link:new
 	{
 		src = LinkTarget:new(),
-		dest = LinkTarget:new()
+		dest = LinkTarget:new(),
+        label = label
 	}
 	link.src:parse(src)
 	link.dest:parse(dest)
 	self.cur_sys:add_link(link)
+end
+
+function Builder:make_exclusive(group)
+    if not self.cur_sys then util.error("Unexpected 'make_exclusive'") end
+    self.cur_sys:add_exclusion_group(Set.make(group))
 end

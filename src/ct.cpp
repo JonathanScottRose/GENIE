@@ -4,6 +4,7 @@
 #include "ct/ct.h"
 #include "ct/spec.h"
 #include "ct/p2p.h"
+#include "ct/static_init.h"
 #include "ct/instance_node.h"
 #include "ct/merge_node.h"
 #include "ct/split_node.h"
@@ -19,6 +20,8 @@ using namespace ct::P2P;
 
 namespace
 {
+	ct::CTOpts s_opts;
+
 	P2P::System* init_netlist(Spec::System* sys_spec)
 	{
 		// Create P2P system
@@ -215,11 +218,11 @@ namespace
 				{
 					Flow* flow = i.second;
 
-					if (flow->get_src()->lt == link.get_src())
+					if (flow->get_src()->lt == link->get_src())
 					{
 						for (auto& dest : flow->sinks())
 						{
-							if (dest->lt == link.get_dest())
+							if (dest->lt == link->get_dest())
 							{
 								f = flow;
 								break;
@@ -232,6 +235,10 @@ namespace
 				// add flow to temporary set
 				assert(f);
 				flows_to_add.insert(f);
+
+				// associate Links directly with the src and dest ports too
+				src_port->add_link(link);
+				dest_port->add_link(link);
 			}
 
 			// after looping through links, set srcport/destport/conn flows to everything in set
@@ -767,7 +774,10 @@ P2P::System* ct::build_system(Spec::System* system)
 	connect_clocks(result);
 	insert_clock_crossings(result);
 
-	insert_reg_stages(result);
+	if (s_opts.register_merge)
+	{
+		insert_reg_stages(result);
+	}
 
 	do_proto_carriage(result);
 	configure_post_negotiate(result);
@@ -777,3 +787,15 @@ P2P::System* ct::build_system(Spec::System* system)
 
 	return result;
 }
+
+
+static Util::InitShutdown s_do_init([]
+{
+	s_opts.register_merge = false;
+});
+
+ct::CTOpts& ct::get_opts()
+{
+	return s_opts;
+}
+	

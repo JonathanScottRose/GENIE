@@ -13,6 +13,7 @@ namespace P2P
 		MergeNode(const std::string& name, int n_inputs);
 
 		PROP_GET(n_inputs, int, m_n_inputs);
+		PROP_GET_SET(exclusive, bool, m_exclusive);
 
 		Port* get_inport(int i);
 		Port* get_outport();
@@ -21,8 +22,9 @@ namespace P2P
 		Port* get_free_inport();
 		Protocol& get_proto();
 
-		void register_flow(Flow* flow, Port* port);
 		int get_inport_idx(Port* port);
+
+		void configure_1();
 		PortList trace(Port* in, Flow* f);
 		Port* rtrace(Port* port, Flow* flow);
 		void carry_fields(const FieldSet& set);
@@ -30,6 +32,7 @@ namespace P2P
 
 	protected:
 		int m_n_inputs;
+		bool m_exclusive;
 	};
 }
 }

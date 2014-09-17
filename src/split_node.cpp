@@ -44,15 +44,6 @@ SplitNode::SplitNode(const std::string& name, int n_outputs)
 	}
 }
 
-void SplitNode::register_flow(Flow* flow, int outport_idx)
-{
-	if (!get_inport()->has_flow(flow))
-		get_inport()->add_flow(flow);
-
-	get_outport(outport_idx)->add_flow(flow);
-	m_route_map[flow->get_id()].push_back(outport_idx);
-}
-
 Port* SplitNode::get_inport()
 {
 	return (DataPort*)get_port("in");

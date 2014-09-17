@@ -7,10 +7,19 @@ namespace
 {
 	class : public ImplVerilog::IModuleImpl
 	{
-		const std::string& get_module_name(ct::P2P::Node* node)
+		const std::string& get_module_name(ct::P2P::Node* generic_node)
 		{
-			static std::string nm = "ct_merge";
-			return nm;
+			// Two different implementations: regular (competition allowed) and
+			// exclusive (guaranteed no competition). Different modules/files.
+
+			using namespace P2P;
+			MergeNode* node = (MergeNode*)generic_node;
+			assert(node->get_type() == Node::MERGE);
+
+			static std::string regular = "ct_merge";
+			static std::string exclusive = "ct_merge_ex";
+			
+			return node->get_exclusive() ? exclusive : regular;
 		}
 
 		Vlog::Module* implement(ct::P2P::Node* generic_node, const std::string& name)

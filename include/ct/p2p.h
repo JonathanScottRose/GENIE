@@ -95,6 +95,11 @@ namespace P2P
 		void clear_flows();
 		void add_flows(const Flows& f);
 
+		const Spec::Links& links() const { return m_links; };
+		void add_link(Spec::Link* link) { m_links.push_back(link); }
+		void add_links(const Spec::Links&);
+		bool has_link(Spec::Link*) const;
+
 		Port* get_driver();
 		Port* get_first_connected_port();
 		bool is_connected();
@@ -110,6 +115,7 @@ namespace P2P
 		Conn* m_conn;
 		Protocol m_proto;
 		Flows m_flows;
+		Spec::Links m_links;
 	};
 
 	class ClockResetPort : public Port

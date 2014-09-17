@@ -36,8 +36,6 @@ namespace P2P
 		void carry_fields(const FieldSet& set);
 	
 	protected:
-		void register_flow(Flow* flow, int outport_idx);
-
 		RouteMap m_route_map;	
 		int m_n_outputs;
 	};

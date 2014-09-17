@@ -47,6 +47,7 @@ namespace
 		
 		args >> GetOpt::OptionPresent("p2pdot", Globals::inst()->dump_p2p_graph);
 		args >> GetOpt::OptionPresent("topodot", Globals::inst()->dump_topo_graph);
+		args >> GetOpt::OptionPresent("reg_merge", Globals::inst()->register_merge);
 
 		std::string params;
 		args >> GetOpt::Option("params", params);
@@ -75,6 +76,8 @@ int main(int argc, char** argv)
 		parse_args(argc, argv);
 		set_global_params();
 		LuaIface::exec_script(s_script);
+
+		ct::get_opts().register_merge = Globals::inst()->register_merge;
 
 		for (auto& i : Spec::systems())
 		{

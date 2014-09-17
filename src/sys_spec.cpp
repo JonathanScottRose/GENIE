@@ -128,6 +128,60 @@ System::~System()
 void System::add_link(Link* link)
 {
 	m_links.push_back(link);
+	const std::string& label = link->get_label();
+	if (!label.empty())
+	{
+		if (m_links_by_label.count(label))
+			throw Exception("Link with label " + label + " already defined");
+
+		m_links_by_label[label] = link;
+	}
+}
+
+Link* System::get_link(const std::string& label) const
+{
+	auto it = m_links_by_label.find(label);
+	if (it == m_links_by_label.end())
+		return nullptr;
+	else
+		return it->second;
+}
+
+Link* System::get_link(const LinkTarget& src, const LinkTarget& dest) const
+{
+	for (auto link : m_links)
+	{
+		if (link->get_src() == src && link->get_dest() == dest)
+			return link;
+	}
+
+	return nullptr;
+}
+
+const System::ExclusionGroups& System::exclusion_groups() const
+{
+	return m_exclusion_groups;
+}
+
+void System::add_exclusion_group(const ExclusionGroup& grp)
+{
+	m_exclusion_groups.push_back(grp);
+}
+
+System::ExclusionGroups System::exclusion_groups_for_link(Link* link) const
+{
+	ExclusionGroups result;
+
+	for (const auto& group : m_exclusion_groups)
+	{
+		for (const std::string& label : group)
+		{
+			if (label == link->get_label())
+				result.push_back(group);
+		}
+	}
+
+	return result;
 }
 
 void System::add_object(SysObject* inst)
