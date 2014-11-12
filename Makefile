@@ -2,11 +2,11 @@ CC=g++
 CFLAGS=-std=c++11 -Iinclude -Isrc/lua -Isrc/main -DLUA_USE_LINUX -g
 LFLAGS=-ldl -lboost_regex
 
-EXE=$(EXEDIR)/connectool
+EXE=$(EXEDIR)/genie
 LIB_LUA=$(LIBDIR)/lua.a
 LIB_CT=$(LIBDIR)/core.a
-EXEDIR=bin32
-LIBDIR=lib32
+EXEDIR=bin
+LIBDIR=lib
 
 .PHONY: clean all
 
@@ -20,11 +20,11 @@ clean:
 #
 
 LUA_SRCDIRS=src/lua
-LUA_CFILES=$(wildcard $(addsuffix /*.c, $(LUA_SRCDIRS)))
+LUA_CFILES=$(wildcard $(addsuffix /*.c*, $(LUA_SRCDIRS)))
 LUA_HFILES=$(wildcard $(addsuffix /*.h, $(LUA_SRCDIRS)))
-LUA_OBJS=$(patsubst %.c,%.o,$(LUA_CFILES))
+LUA_OBJS=$(patsubst %.c*,%.o,$(LUA_CFILES))
 
-$(LUA_OBJS): %.o : %.c $(LUA_HFILES)
+$(LUA_OBJS): %.o : %.c* $(LUA_HFILES)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(LIB_LUA): $(LUA_OBJS)
@@ -32,7 +32,7 @@ $(LIB_LUA): $(LUA_OBJS)
 	@mkdir -p $(LIBDIR)
 	ar rcs $(LIB_LUA) $(LUA_OBJS)
 
-# Core CT library
+# Core library
 
 CT_SRCDIRS=src
 CT_CFILES=$(wildcard $(addsuffix /*.cpp, $(CT_SRCDIRS)))

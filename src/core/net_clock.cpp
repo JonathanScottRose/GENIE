@@ -1,82 +1,155 @@
-#include "ct/net_clock.h"
-#include "ct/ct.h"
+#include "genie/net_clock.h"
+#include "genie/genie.h"
 
-using namespace ct;
+using namespace genie;
 
-//
-// Network registration
-//
-
-static StaticInit<NetworkDef> s_init([]
+namespace
 {
-	ct::get_root()->reg_net_def(new NetClock());
-});
+	// Define network
+	class NetClockDef : public NetTypeDef
+	{
+	public:
+		NetClockDef(NetType id)
+			: NetTypeDef(id)
+		{
+			m_name = "clock";
+			m_desc = "Clock";
+			m_has_port = true;
+			m_src_multibind = true;
+			m_sink_multibind = false;
+			m_ep_asp_id = Aspect::asp_id_of<AClockEndpoint>();
+		}
 
-//
-// Network definition
-//
+		~NetClockDef()
+		{
+		}
 
-const NetworkID NetClock::ID = "clock";
+		Link* create_link()
+		{
+			return new ClockLink();
+		}
 
-NetClock::NetClock()
-: NetworkDef(NetClock::ID)
-{
-	m_name = "Clock";
+		AEndpoint* create_endpoint(Dir dir, HierObject* container)
+		{
+			return new AClockEndpoint(dir, container);
+		}
 
-	// Multiple fanout allowed, either by:
-	// - source having multiple bound connections
-	// - each connection having multiple fanout
-	m_src_multibind = true;
-	m_sink_multibind = false;
-	m_conn_multibind = true;
+		Port* create_port(Dir dir, const std::string& name, HierObject* parent)
+		{
+			return new ClockPort(dir, name, parent);
+		}
+
+		PortDef* create_port_def(Dir dir, const std::string& name, HierObject* parent)
+		{
+			return new ClockPortDef(dir, name, parent);
+		}
+
+		Export* create_export(Dir dir, const std::string& name, System* parent)
+		{
+			return new ClockExport(dir, name, parent);
+		}
+	};
+
+	// For port defs and exports
+	template <class PD_OR_EXP>
+	class AClockInstantiable : public AspectMakeRef<AInstantiable, PD_OR_EXP>
+	{
+	public:
+		AClockInstantiable(PD_OR_EXP* container) : AspectMakeRef(container) { }
+		~AClockInstantiable() = default;
+
+		HierObject* instantiate()
+		{
+			PD_OR_EXP* container = asp_container();
+
+			ClockPort* result = new ClockPort(container->get_dir());
+			result->set_name(container->get_name());
+
+			// The new port is an instance of this port def
+			result->asp_add(new AInstance(container));
+
+			return result;
+		}
+	};
 }
 
+// Register the network type
+const NetType genie::NET_CLOCK = NetTypeDef::add<NetClockDef>();
+
 //
-// Port definition
+// ClockPortDef
 //
 
-ClockPortDef::ClockPortDef(const std::string& name, Dir dir)
+ClockPortDef::ClockPortDef(Dir dir, const std::string& name, HierObject* parent)
+: ClockPortDef(dir)
 {
 	set_name(name);
-	set_dir(dir);
+	set_parent(parent);
+}
+
+ClockPortDef::ClockPortDef(Dir dir)
+: PortDef(dir)
+{
+	asp_add<AInstantiable>(new AClockInstantiable<ClockPortDef>(this));
 }
 
 ClockPortDef::~ClockPortDef()
 {
 }
 
-Port* ClockPortDef::instantiate()
+//
+// ClockPort
+//
+
+ClockPort::ClockPort(Dir dir)
+: Port(dir)
 {
-	return new ClockPort(m_name, this);
+	asp_add(new AClockEndpoint(dir, this));
 }
 
-//
-// Port state
-//
-
-ClockPort::ClockPort(const std::string& name, ClockPortDef* def)
-: Endpoint(this)
+ClockPort::ClockPort(Dir dir, const std::string& name, HierObject* parent)
+: ClockPort(dir)
 {
 	set_name(name);
-	set_port_def(def);
+	set_parent(parent);
 }
 
 ClockPort::~ClockPort()
 {
 }
 
-Endpoint* ClockPort::conn_get_default_ep()
+//
+// ClockExport
+//
+
+ClockExport::ClockExport(Dir dir)
+: Export(dir)
 {
-	// The Port is itself a Clock Network Endpoint
-	return this;
+	asp_add(new AClockEndpoint(dir_rev(dir), this));
+	asp_add<AInstantiable>(new AClockInstantiable<Export>(this));
 }
 
-Dir ClockPort::conn_get_dir() const
+ClockExport::ClockExport(Dir dir, const std::string& name, System* parent)
+: ClockExport(dir)
 {
-	return m_port_def->get_dir();
+	set_name(name);
+	set_parent(parent);
 }
 
-const NetworkID& ClockPort::ep_get_net_type() const
+ClockExport::~ClockExport()
 {
-	return NetClock::ID;
 }
+
+//
+// AClockEndpoint
+//
+
+AClockEndpoint::AClockEndpoint(Dir dir, HierObject* container)
+: AEndpoint(dir, container)
+{
+}
+
+AClockEndpoint::~AClockEndpoint()
+{
+}
+

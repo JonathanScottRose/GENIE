@@ -4,23 +4,42 @@
     <ProjectGuid>{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}</ProjectGuid>
     <RootNamespace>lua</RootNamespace>
   </PropertyGroup>
-  
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
-  
   <Import Project="..\common.props" />
-  
   <PropertyGroup Label="Configuration">
-    <TargetName>lua$(LibSuffix)</TargetName>
+    <TargetName>genie_lua$(LibSuffix)</TargetName>
   </PropertyGroup>
-  
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <CompileAs>CompileAsCpp</CompileAs>
-    </ClCompile>
-  </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\include\genie\lua\genie_lua.h" />
+    <ClInclude Include="..\..\include\genie\lua\lapi.h" />
+    <ClInclude Include="..\..\include\genie\lua\lauxlib.h" />
+    <ClInclude Include="..\..\include\genie\lua\lcode.h" />
+    <ClInclude Include="..\..\include\genie\lua\lctype.h" />
+    <ClInclude Include="..\..\include\genie\lua\ldebug.h" />
+    <ClInclude Include="..\..\include\genie\lua\ldo.h" />
+    <ClInclude Include="..\..\include\genie\lua\lfunc.h" />
+    <ClInclude Include="..\..\include\genie\lua\lgc.h" />
+    <ClInclude Include="..\..\include\genie\lua\llex.h" />
+    <ClInclude Include="..\..\include\genie\lua\llimits.h" />
+    <ClInclude Include="..\..\include\genie\lua\lmem.h" />
+    <ClInclude Include="..\..\include\genie\lua\lobject.h" />
+    <ClInclude Include="..\..\include\genie\lua\lopcodes.h" />
+    <ClInclude Include="..\..\include\genie\lua\lparser.h" />
+    <ClInclude Include="..\..\include\genie\lua\lstate.h" />
+    <ClInclude Include="..\..\include\genie\lua\lstring.h" />
+    <ClInclude Include="..\..\include\genie\lua\ltable.h" />
+    <ClInclude Include="..\..\include\genie\lua\ltm.h" />
+    <ClInclude Include="..\..\include\genie\lua\lua.h" />
+    <ClInclude Include="..\..\include\genie\lua\luaconf.h" />
+    <ClInclude Include="..\..\include\genie\lua\lualib.h" />
+    <ClInclude Include="..\..\include\genie\lua\lundump.h" />
+    <ClInclude Include="..\..\include\genie\lua\lvm.h" />
+    <ClInclude Include="..\..\include\genie\lua\lzio.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\lua\genie_lua.cpp" />
     <ClCompile Include="..\..\src\lua\lapi.c" />
     <ClCompile Include="..\..\src\lua\lauxlib.c" />
     <ClCompile Include="..\..\src\lua\lbaselib.c" />
@@ -54,31 +73,11 @@
     <ClCompile Include="..\..\src\lua\lvm.c" />
     <ClCompile Include="..\..\src\lua\lzio.c" />
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\src\lua\lapi.h" />
-    <ClInclude Include="..\..\src\lua\lauxlib.h" />
-    <ClInclude Include="..\..\src\lua\lcode.h" />
-    <ClInclude Include="..\..\src\lua\lctype.h" />
-    <ClInclude Include="..\..\src\lua\ldebug.h" />
-    <ClInclude Include="..\..\src\lua\ldo.h" />
-    <ClInclude Include="..\..\src\lua\lfunc.h" />
-    <ClInclude Include="..\..\src\lua\lgc.h" />
-    <ClInclude Include="..\..\src\lua\llex.h" />
-    <ClInclude Include="..\..\src\lua\llimits.h" />
-    <ClInclude Include="..\..\src\lua\lmem.h" />
-    <ClInclude Include="..\..\src\lua\lobject.h" />
-    <ClInclude Include="..\..\src\lua\lopcodes.h" />
-    <ClInclude Include="..\..\src\lua\lparser.h" />
-    <ClInclude Include="..\..\src\lua\lstate.h" />
-    <ClInclude Include="..\..\src\lua\lstring.h" />
-    <ClInclude Include="..\..\src\lua\ltable.h" />
-    <ClInclude Include="..\..\src\lua\ltm.h" />
-    <ClInclude Include="..\..\src\lua\lua.h" />
-    <ClInclude Include="..\..\src\lua\luaconf.h" />
-    <ClInclude Include="..\..\src\lua\lualib.h" />
-    <ClInclude Include="..\..\src\lua\lundump.h" />
-    <ClInclude Include="..\..\src\lua\lvm.h" />
-    <ClInclude Include="..\..\src\lua\lzio.h" />
-  </ItemGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)../include;$(SolutionDir)../include/genie/lua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

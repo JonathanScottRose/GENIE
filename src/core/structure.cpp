@@ -1,76 +1,156 @@
-#include "ct/structure.h"
+#include "genie/structure.h"
+#include "genie/instance.h"
 
-using namespace ct;
+using namespace genie;
 
-//
-// NodeDef
-//
-
-const std::string NodeDef::ID = "nodedef";
-
-NodeDef::NodeDef()
+namespace
 {
-}
+	class SystemNode : public Node
+	{
+	public:
+		~SystemNode() { }
+	};
 
-NodeDef::~NodeDef()
-{
-	Util::delete_all_2(m_port_defs);
-}
+	class ASystemInstantiable : public AspectMakeRef<AInstantiable, System>
+	{
+	public:
+		ASystemInstantiable(System* sys) : AspectMakeRef(sys) {	}
+		~ASystemInstantiable() { }
 
-const std::string& NodeDef::hier_name() const
-{
-	return m_name;
-}
+		Object* instantiate()
+		{
+			System* sys = asp_container();
 
-HierNode* NodeDef::hier_parent() const
-{
-	return nullptr;
-}
+			// Create a new Node
+			SystemNode* result = new SystemNode();
+			result->set_name(sys->get_name());
+			
+			// Give it a reference back to the System that instantiated it
+			result->asp_add(new AInstance(sys));
 
-HierNode* NodeDef::hier_child(const std::string& name) const
-{
-	return get_port_def(name);
-}
+			// Go through all the System's exports and Instantiate them in the new SystemNode
+			auto exports = sys->get_exports();
+			for (auto& exp : exports)
+			{
+				auto ai = exp->asp_get<AInstantiable>();
+				auto port = as_a<Port*>(ai->instantiate());
 
-HierNode::Children NodeDef::hier_children() const
-{
-	return Util::values<Children>(m_port_defs);
-}
+				result->add_port(port);
+			}
 
-Node* NodeDef::instantiate()
-{
-	 Node* result = new Node();
-	 result->set_node_def(this);
-
-	 for (auto& it : m_port_defs)
-	 {
-		 PortDef* port_def = it.second;
-		 result->add_port(port_def->instantiate());
-	 }
-
-	 return result;
+			return result;
+		}
+	};
 }
 
 //
 // PortDef
 //
 
-PortDef::PortDef()
+PortDef::PortDef(Dir dir)
+: m_dir(dir)
 {
+	asp_add(new AHierChild());
+	// AInstantiable added by derived classes
+}
+
+PortDef::PortDef(Dir dir, const std::string& name, HierObject* parent)
+: PortDef(dir)
+{
+	set_name(name);
+	set_parent(parent);
 }
 
 PortDef::~PortDef()
 {
 }
 
-const std::string& PortDef::hier_name() const
+//
+// NodeDef
+//
+
+NodeDef::NodeDef()
 {
-	return m_name;
+	asp_add(new AHierChild());
+	asp_add(new AHierParent(this));
 }
 
-HierNode* PortDef::hier_parent() const
+NodeDef::NodeDef(const std::string& name, HierObject* parent)
+: NodeDef()
 {
-	return m_parent;
+	set_name(name);
+	set_parent(parent);
+}
+
+NodeDef::~NodeDef()
+{
+}
+
+NodeDef::PortDefs NodeDef::get_port_defs() const
+{
+	auto ap = asp_get<AHierParent>();
+	return ap->get_children_by_type<PortDef>();
+}
+
+PortDef* NodeDef::get_port_def(const std::string& name) const
+{
+	auto ap = asp_get<AHierParent>();
+	return dynamic_cast<PortDef*>(ap->get_child(name));
+}
+
+void NodeDef::add_port_def(PortDef* def)
+{
+	auto ap = asp_get<AHierParent>();
+	ap->add_child(def);
+}
+
+void NodeDef::remove_port_def(const std::string& name)
+{
+	auto ap = asp_get<AHierParent>();
+	ap->remove_child(name);
+}
+
+//
+// Port
+//
+
+Port::Port(Dir dir)
+: m_dir(dir)
+{
+	asp_add(new AHierChild());
+	// AInstance and AEndpoints added by derived classes
+}
+
+Port::Port(Dir dir, const std::string& name, HierObject* parent)
+: Port(dir)
+{
+	set_name(name);
+	set_parent(parent);
+}
+
+Port::~Port()
+{
+}
+
+//
+// Export
+//
+
+Export::Export(Dir dir)
+: m_dir(dir)
+{
+	asp_add(new AHierChild());
+}
+
+Export::Export(Dir dir, const std::string& name, System* parent)
+: Export(dir)
+{
+	set_name(name);
+	set_parent(parent);
+}
+
+Export::~Export()
+{
 }
 
 //
@@ -79,202 +159,276 @@ HierNode* PortDef::hier_parent() const
 
 Node::Node()
 {
+	asp_add(new AHierChild());
+	asp_add(new AHierParent(this));
+}
+
+Node::Node(const std::string& name, HierObject* parent)
+: Node()
+{
+	set_name(name);
+	set_parent(parent);
 }
 
 Node::~Node()
 {
-	Util::delete_all_2(m_ports);
 }
 
-const std::string& Node::hier_name() const
+Node::Ports Node::get_ports() const
 {
-	return m_name;
+	auto ai = asp_get<AHierParent>();
+	return ai->get_children_by_type<Port>();
 }
 
-HierNode* Node::hier_parent() const
+Port* Node::get_port(const std::string& name) const
 {
-	return m_parent;
+	auto ai = asp_get<AHierParent>();
+	return as_a<Port*>(ai->get_child(name));
 }
 
-HierNode::Children Node::hier_children() const
+void Node::add_port(Port* p)
 {
-	return Util::values<HierNode::Children>(m_ports);
+	auto ai = asp_get<AHierParent>();
+	ai->add_child(p);
 }
 
-//
-// Port
-//
-
-Port::Port()
+void Node::delete_port(const std::string& name)
 {
+	auto ai = asp_get<AHierParent>();
+	HierObject* p = ai->remove_child(name);
+	delete p;
 }
 
-Port::~Port()
-{
-}
-
-const std::string& Port::hier_name() const
-{
-	return m_name;
-}
-
-HierNode* Port::hier_parent() const
-{
-	return m_parent;
-}
 
 //
 // System
 //
 
-const std::string System::ID = "system";
-
 System::System()
 {
+	// A system is a child of the root
+	asp_add(new AHierChild());
+
+	// A system is instantiable
+	asp_add<AInstantiable>(new ASystemInstantiable(this));
+
+	// A system contains things
+	asp_add(new AHierParent(this));
+}
+
+System::System(const std::string& name)
+: System()
+{
+	set_name(name);
 }
 
 System::~System()
 {
-	Util::delete_all_2(m_nodes);
-	Util::delete_all(m_conns);
-}
-
-const std::string& System::hier_name() const
-{
-	return m_name;
-}
-
-HierNode* System::hier_parent() const
-{
-	return nullptr;
-}
-
-HierNode* System::hier_child(const std::string& name) const
-{
-	return get_node(name);
-}
-
-HierNode::Children System::hier_children() const
-{
-	return Util::values<HierNode::Children>(m_nodes);
-}
-
-Conns System::get_conns(const NetworkID& net) const
-{
-	Conns result;
-	std::copy_if(m_conns.begin(), m_conns.end(), result.begin(), [=](Conn* i)
+	// Clean up links
+	for (auto& links : m_links)
 	{
-		return i->get_net_type() == net;
-	});
-	return result;
-}
-
-Conn* System::connect(Endpoint* src, Endpoint* sink)
-{
-	assert(src && sink);
-	return connect(src, Endpoints(1, sink));
-}
-
-Conn* System::connect(Endpoint* src, const Endpoints& sinks)
-{
-	assert(src && !sinks.empty());
-
-	const NetworkID& net = src->ep_get_net_type();
-	
-	// Create new connection with src as the source
-	Conn* c = new Conn(net);
-	c->set_src(src);
-
-	// Register it
-	m_conns.push_back(c);
-
-	// Connect the source to the new connection
-	src->ep_connect(c);
-	
-	// Connect the sinks
-	for (const auto& i : sinks)
-	{
-		const NetworkID& net_d = i->ep_get_net_type();
-		if (net != net_d)
-			throw Exception("Incompatible endpoints: " + net + " and " + net_d);
-
-		i->ep_connect(c);
+		// m_links is a map of Lists. here we delete each List
+		Util::delete_all(links.second);
 	}
-
-	return c;
 }
 
-void System::disconnect(Conn* c)
+System::NetTypes System::get_net_types() const
 {
-	assert(c);
-	Endpoint* src = c->get_src();
+	return Util::keys<NetTypes>(m_links);
+}
 
-	// Remove connection from source
-	assert(src);
-	src->ep_disconnect(c);
+const System::Links& System::get_links(NetType type) const
+{
+	auto it = m_links.find(type);
+	assert(it != m_links.end());
+	return it->second;
+}
 
-	// Remove connection from all sinks
-	for (auto& i : c->sinks())
+void System::get_eps(HierObject* src, HierObject* sink, NetType nettype,
+	AEndpoint*& src_ep, AEndpoint*& sink_ep) const
+{
+	// Get information about the network type we're going to be connecting on
+	NetTypeDef* def = NetTypeDef::get(nettype);
+	AspectID ep_asp_id = def->get_ep_asp_id();
+
+	src_ep = (AEndpoint*)src->asp_get(ep_asp_id);
+	sink_ep = (AEndpoint*)sink->asp_get(ep_asp_id);
+
+	if (!src_ep || !sink_ep)
 	{
-		i->ep_disconnect(c);
+		std::string netname = def->get_name();
+		std::string who = !src_ep ? "Source" : "Sink";
+		throw Exception(who + " object is not a " + netname + " endpoint");
 	}
-
-	// De-register and free the connection
-	Util::erase(m_conns, c);
-	delete c;
 }
 
-void System::disconnect(Endpoint* ep)
+Link* System::connect(HierObject* src, HierObject* sink, NetType net)
 {
-	assert(ep);
+	NetTypeDef* def = NetTypeDef::get(net);
+	AEndpoint* src_ep;
+	AEndpoint* sink_ep;
 
-	Conns conns = ep->ep_conns();
+	get_eps(src, sink, net, src_ep, sink_ep);
 
-	switch(ep->ep_get_dir())
+	// Create link and set its src/sink
+	Link* link = def->create_link();
+	link->set_src(src_ep);
+	link->set_sink(sink_ep);
+
+	// Hook up endpoints to the link
+	src_ep->add_link(link);
+	sink_ep->add_link(link);
+
+	return link;
+}
+
+NetType System::find_auto_net_type(HierObject* src, HierObject* sink) const
+{
+	// Try to figure out the network type based on the endpoints
+	NetType nettype = NET_INVALID;
+
+	for (auto obj : { src, sink })
 	{
-		// Endpoint is source: kill all outgoing connections
-		case Dir::OUT:
+		auto asps = obj->asp_get_all_matching<AEndpoint>();
+
+		// Must have exactly one aspect that derives from AEndpoint
+		if (asps.size() == 1)
 		{
-			for (auto& i : conns)
-			{
-				disconnect(i);
-			}
+			nettype = asps.front()->get_type();
 			break;
 		}
+	}
 
-		// Endpoint is sink: remove self from all incoming connections,
-		// and delete each connection if it is now empty as a result
-		case Dir::IN:
-		{
-			for (auto& i : conns)
-			{
-				// Remove this sink, and delete the connection if no more sinks
-				i->remove_sink(ep);
-				if (i->sinks().empty())
-					disconnect(i);
-			}
-			break;
-		}
-	}	
+	return nettype;
 }
 
-void System::disconnect(Endpoint* src, Endpoint* sink)
+Link* System::connect(HierObject* src, HierObject* sink)
 {
-	assert(src && sink);
+	NetType nettype = find_auto_net_type(src, sink);
 
-	if (src->ep_get_dir() != Dir::OUT ||
-		sink->ep_get_dir() != Dir::IN)
-	{
-		throw Exception("disconnect: bad directions on src/sink");
-	}
+	if (nettype == NET_INVALID)
+		throw Exception("Could not automatically determine network type to connect on");
 
-	// For all outgoing connections, remove the sink from each connection.
-	// If the result leaves the connection with no more sinks, kill it
-	Conns conns = src->ep_conns();
-	for (auto& i : conns)
+	return connect(src, sink, nettype);
+}
+
+void System::disconnect(HierObject* src, HierObject* sink, NetType nettype)
+{
+	AEndpoint* src_ep;
+	AEndpoint* sink_ep;
+
+	get_eps(src, sink, nettype, src_ep, sink_ep);
+
+	// Go through src's links, find the one whose sink is 'sink'
+	for (auto link : src_ep->links())
 	{
-		i->remove_sink(sink);
-		if (i->sinks().empty())
-			disconnect(i);
+		if (link->get_sink() == sink_ep)
+		{
+			// Found it. Disconnect and get out before we break the for loop
+			disconnect(link);
+			break;
+		}
 	}
+}
+
+void System::disconnect(Link* link)
+{
+	AEndpoint* src_ep = link->get_src();
+	AEndpoint* sink_ep = link->get_sink();
+	NetType nettype = src_ep->get_type();
+
+	assert(nettype == sink_ep->get_type());
+
+	// Disconnect the Link from its endpoints
+	src_ep->remove_link(link);
+	sink_ep->remove_link(link);
+
+	// Remove the link from the System and destroy it
+	Util::erase(m_links[nettype], link);
+	delete link;
+}
+
+void System::disconnect(HierObject* src, HierObject* sink)
+{
+	NetType nettype = find_auto_net_type(src, sink);
+
+	if (nettype == NET_INVALID)
+		throw Exception("Could not automatically determine network type to disconnect on");
+
+	disconnect(src, sink, nettype);
+}
+
+System::Objects System::get_objects() const
+{
+	auto ap = asp_get<AHierParent>();
+	return ap->get_children();
+}
+
+System::Nodes System::get_nodes() const
+{
+	auto ap = asp_get<AHierParent>();
+	return ap->get_children_by_type<Node>();
+}
+
+System::Exports System::get_exports() const
+{
+	auto ap = asp_get<AHierParent>();
+	return ap->get_children_by_type<Export>();
+}
+
+void System::add_object(HierObject* obj)
+{
+	// System's Parent aspect
+	auto ap = asp_get<AHierParent>();
+	ap->add_child(obj);
+}
+
+HierObject* System::get_object(const HierPath& path) const
+{
+	auto ap = asp_get<AHierParent>();
+	return ap->get_child(path);
+}
+
+void System::delete_object(const HierPath& path)
+{
+	auto ap = asp_get<AHierParent>();
+	HierObject* obj = ap->remove_child(path);
+	delete obj;
+}
+
+//
+// HierRoot
+//
+
+HierRoot::HierRoot()
+{
+	asp_add(new AHierParent(this));
+}
+
+HierRoot::~HierRoot()
+{
+}
+
+void HierRoot::add_object(HierObject* obj)
+{
+	auto ap = asp_get<AHierParent>();
+	ap->add_child(obj);
+}
+
+HierRoot::Systems HierRoot::get_systems()
+{
+	auto ap = asp_get<AHierParent>();
+	return ap->get_children_by_type<System>();
+}
+
+HierRoot::NodeDefs HierRoot::get_node_defs()
+{
+	auto ap = asp_get<AHierParent>();
+	return ap->get_children_by_type<NodeDef>();
+}
+
+HierRoot::Objects HierRoot::get_objects()
+{
+	auto ap = asp_get<AHierParent>();
+	return ap->get_children();
 }

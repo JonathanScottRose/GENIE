@@ -4,7 +4,7 @@
 #include "vlog.h"
 
 using namespace Vlog;
-using namespace ct;
+using namespace genie;
 
 namespace
 {

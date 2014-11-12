@@ -1,10 +1,13 @@
-#include <stdexcept>
 #include <iostream>
+
 #include "getoptpp/getopt_pp.h"
 #include "globals.h"
 #include "io.h"
 
-#include "ct/static_init.h"
+#include "genie/genie.h"
+#include "genie/net_clock.h"
+
+using namespace genie;
 
 namespace
 {
@@ -21,10 +24,20 @@ namespace
 	}
 }
 
-
-
 int main(int argc, char** argv)
 {
+	try
+	{
+		System* sys = new System(argv[1]);
+		genie::get_root()->add_object(sys);
+	}
+	catch (std::exception& e)
+	{
+		IO::msg_error(e.what());
+	}
+
+
+
 	/*
 	try
 	{
@@ -35,7 +48,7 @@ int main(int argc, char** argv)
 		for (auto& i : Spec::systems())
 		{
 			Spec::System* spec_sys = i.second;
-			P2P::System* p2p_sys = ct::build_system(spec_sys);
+			P2P::System* p2p_sys = genie::build_system(spec_sys);
 			Vlog::SystemModule* sys_mod = ImplVerilog::build_top_module(p2p_sys);
 			WriteVerilog::go(sys_mod);
 			

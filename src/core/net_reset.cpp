@@ -1,82 +1,155 @@
-#include "ct/net_reset.h"
-#include "ct/ct.h"
+#include "genie/net_reset.h"
+#include "genie/genie.h"
 
-using namespace ct;
+using namespace genie;
 
-//
-// Network registration
-//
-
-static StaticInit<NetworkDef> s_init([]
+namespace
 {
-	ct::get_root()->reg_net_def(new NetReset());
-});
+	// Define network
+	class NetResetDef : public NetTypeDef
+	{
+	public:
+		NetResetDef(NetType id)
+			: NetTypeDef(id)
+		{
+			m_name = "reset";
+			m_desc = "Reset";
+			m_has_port = true;
+			m_src_multibind = true;
+			m_sink_multibind = false;
+			m_ep_asp_id = Aspect::asp_id_of<AResetEndpoint>();
+		}
 
-//
-// Network definition
-//
+		~NetResetDef()
+		{
+		}
 
-const NetworkID NetReset::ID = "reset";
+		Link* create_link()
+		{
+			return new ResetLink();
+		}
 
-NetReset::NetReset()
-: NetworkDef(NetReset::ID)
-{
-	m_name = "Reset";
+		AEndpoint* create_endpoint(Dir dir, HierObject* container)
+		{
+			return new AResetEndpoint(dir, container);
+		}
 
-	// Multiple fanout allowed, either by:
-	// - source having multiple bound connections
-	// - each connection having multiple fanout
-	m_src_multibind = true;
-	m_sink_multibind = false;
-	m_conn_multibind = true;
+		Port* create_port(Dir dir, const std::string& name, HierObject* parent)
+		{
+			return new ResetPort(dir, name, parent);
+		}
+
+		PortDef* create_port_def(Dir dir, const std::string& name, HierObject* parent)
+		{
+			return new ResetPortDef(dir, name, parent);
+		}
+
+		Export* create_export(Dir dir, const std::string& name, System* parent)
+		{
+			return new ResetExport(dir, name, parent);
+		}
+	};
+
+	// For port defs and exports
+	template <class PD_OR_EXP>
+	class AResetInstantiable : public AspectMakeRef<AInstantiable, PD_OR_EXP>
+	{
+	public:
+		AResetInstantiable(PD_OR_EXP* container) : AspectMakeRef(container) { }
+		~AResetInstantiable() = default;
+
+		HierObject* instantiate()
+		{
+			PD_OR_EXP* container = asp_container();
+
+			ResetPort* result = new ResetPort(container->get_dir());
+			result->set_name(container->get_name());
+
+			// The new port is an instance of this port def
+			result->asp_add(new AInstance(container));
+
+			return result;
+		}
+	};
 }
 
+// Register the network type
+const NetType genie::NET_RESET = NetTypeDef::add<NetResetDef>();
+
 //
-// Port definition
+// ResetPortDef
 //
 
-ResetPortDef::ResetPortDef(const std::string& name, Dir dir)
+ResetPortDef::ResetPortDef(Dir dir, const std::string& name, HierObject* parent)
+: ResetPortDef(dir)
 {
 	set_name(name);
-	set_dir(dir);
+	set_parent(parent);
+}
+
+ResetPortDef::ResetPortDef(Dir dir)
+: PortDef(dir)
+{
+	asp_add<AInstantiable>(new AResetInstantiable<ResetPortDef>(this));
 }
 
 ResetPortDef::~ResetPortDef()
 {
 }
 
-Port* ResetPortDef::instantiate()
+//
+// ResetPort
+//
+
+ResetPort::ResetPort(Dir dir)
+: Port(dir)
 {
-	return new ResetPort(m_name, this);
+	asp_add(new AResetEndpoint(dir, this));
 }
 
-//
-// Port state
-//
-
-ResetPort::ResetPort(const std::string& name, ResetPortDef* def)
-: Endpoint(this)
+ResetPort::ResetPort(Dir dir, const std::string& name, HierObject* parent)
+: ResetPort(dir)
 {
 	set_name(name);
-	set_port_def(def);
+	set_parent(parent);
 }
 
 ResetPort::~ResetPort()
 {
 }
 
-Endpoint* ResetPort::conn_get_default_ep()
+//
+// ResetExport
+//
+
+ResetExport::ResetExport(Dir dir)
+: Export(dir)
 {
-	// The Port is itself a Reset Network Endpoint
-	return this;
+	asp_add(new AResetEndpoint(dir_rev(dir), this));
+	asp_add<AInstantiable>(new AResetInstantiable<Export>(this));
 }
 
-Dir ResetPort::conn_get_dir() const
+ResetExport::ResetExport(Dir dir, const std::string& name, System* parent)
+: ResetExport(dir)
 {
-	return m_port_def->get_dir();
+	set_name(name);
+	set_parent(parent);
 }
 
-const NetworkID& ResetPort::ep_get_net_type() const
+ResetExport::~ResetExport()
 {
-	return NetReset::ID;
 }
+
+//
+// AResetEndpoint
+//
+
+AResetEndpoint::AResetEndpoint(Dir dir, HierObject* container)
+: AEndpoint(dir, container)
+{
+}
+
+AResetEndpoint::~AResetEndpoint()
+{
+}
+

@@ -1,23 +1,12 @@
-#ifdef _WIN32
-#include <regex>
-using std::regex;
-using std::smatch;
-using std::regex_search;
-#else
-#include <boost/regex.hpp>
-using boost::regex;
-using boost::smatch;
-using boost::regex_search;
-#endif
-
 #include <stack>
 #include <sstream>
-#include "ct/expressions.h"
+#include "genie/expressions.h"
+#include "genie/regex.h"
 #include "expressions_nodes.h"
 
-using namespace ct;
-using namespace ct::Expressions;
-using namespace ct::Expressions::Nodes;
+using namespace genie;
+using namespace genie::Expressions;
+using namespace genie::Expressions::Nodes;
 
 //
 // Node
@@ -368,8 +357,8 @@ Expression& Expression::operator= (Expression&& other)
 Node* Expression::parse(const std::string& str)
 {
 	std::string s = str;
-	smatch mr;
-	regex regex("\\s*(\\d+)|([+-/*])|(%)|([[:alnum:]_]+)");
+	std::smatch mr;
+	std::regex regex("\\s*(\\d+)|([+-/*])|(%)|([[:alnum:]_]+)");
 
 	Node* node = nullptr;
 	Node* last = nullptr;
@@ -377,7 +366,7 @@ Node* Expression::parse(const std::string& str)
 	bool has_op = false;
 	bool has_log = false;
 
-	while (regex_search(s, mr, regex))
+	while (std::regex_search(s, mr, regex))
 	{
 		node = nullptr;
 

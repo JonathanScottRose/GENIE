@@ -1,19 +1,8 @@
-#ifdef _WIN32
-#include <regex>
-using std::regex;
-using std::smatch;
-using std::regex_search;
-#else
-#include <boost/regex.hpp>
-using boost::regex;
-using boost::smatch;
-using boost::regex_search;
-#endif
-
-#include "ct/common.h"
+#include "genie/common.h"
+#include "genie/regex.h"
 #include "vlog.h"
 
-using namespace ct;
+using namespace genie;
 using namespace Vlog;
 
 //
@@ -85,8 +74,8 @@ Module::Module()
 
 Module::~Module()
 {
-	ct::Util::delete_all_2(m_ports);
-	ct::Util::delete_all_2(m_params);
+	genie::Util::delete_all_2(m_ports);
+	genie::Util::delete_all_2(m_params);
 }
 
 //
@@ -101,7 +90,7 @@ PortState::PortState()
 
 PortState::~PortState()
 {
-	ct::Util::delete_all(m_bindings);
+	genie::Util::delete_all(m_bindings);
 }
 
 const std::string& PortState::get_name()
@@ -346,9 +335,9 @@ SystemModule::SystemModule()
 
 SystemModule::~SystemModule()
 {
-	ct::Util::delete_all_2(m_instances);
-	ct::Util::delete_all_2(m_nets);
-	ct::Util::delete_all(m_cont_assigns);
+	genie::Util::delete_all_2(m_instances);
+	genie::Util::delete_all_2(m_nets);
+	genie::Util::delete_all(m_cont_assigns);
 }
 
 
@@ -388,8 +377,8 @@ Instance::Instance(const std::string& name, Module* module)
 
 Instance::~Instance()
 {
-	ct::Util::delete_all_2(m_port_states);
-	ct::Util::delete_all_2(m_param_bindings);
+	genie::Util::delete_all_2(m_port_states);
+	genie::Util::delete_all_2(m_param_bindings);
 }
 
 PortState* Instance::get_port_state(const std::string& name)
@@ -441,7 +430,7 @@ ModuleRegistry::ModuleRegistry()
 
 ModuleRegistry::~ModuleRegistry()
 {
-	ct::Util::delete_all_2(m_modules);
+	genie::Util::delete_all_2(m_modules);
 }
 
 //
@@ -478,10 +467,10 @@ int Vlog::parse_constant(const std::string& val)
 {
 	int base = 10;
 
-	regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
-	smatch mr;
+	std::regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
+	std::smatch mr;
 
-	regex_match(val, mr, regex);
+	std::regex_match(val, mr, regex);
 	int bits = std::stoi(mr[1]);
 	char radix = mr[2].str().at(0);
 	switch (radix)

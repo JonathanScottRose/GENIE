@@ -4,10 +4,31 @@
 #include <fstream>
 #include <algorithm>
 
-namespace ct
+namespace genie
 {
+	// Useful stuff that belongs outside the Util namespace
+	template<class T, class O>
+	T as_a(O ptr)
+	{
+		T result = dynamic_cast<T>(ptr);
+		if (!result)
+		{
+			throw Exception("Failed casting " +
+				std::string(typeid(O).name()) + " to " +
+				std::string(typeid(T).name()));
+		}
+		return result;
+	}
+
+	template<class T, class O>
+	bool is_a(O ptr)
+	{
+		return dynamic_cast<T>(ptr) != nullptr;
+	}
+
 	namespace Util
 	{
+		// Check if file exists
 		static bool fexists(const std::string& filename)
 		{
 			std::ifstream ifile(filename);
@@ -88,17 +109,31 @@ namespace ct
 			return result;
 		}
 
-		// String lowercasing
-		static std::string str_tolower(const char* str)
+		// Extract just the keys
+		template <class DEST, class SRC>
+		DEST keys(const SRC& src)
 		{
-			std::string result(str);
-			std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+			DEST result;
+			for (const auto& i : src)
+			{
+				result.push_back(i.first);
+			}
 			return result;
 		}
 
-		static std::string str_tolower(const std::string& str)
+		// String lowercasing
+		static std::string& str_tolower(std::string& str)
 		{
-			return str_tolower(str.c_str());
+			// Transforms in-place
+			std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+			return str;
+		}
+
+		static std::string str_tolower(const char* str)
+		{
+			// Returns new string
+			std::string result(str);
+			return str_tolower(result);
 		}
 
 		// Log base 2

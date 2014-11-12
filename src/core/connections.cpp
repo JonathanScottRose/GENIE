@@ -1,187 +1,346 @@
-#include "ct/ct.h"
-#include "ct/connections.h"
+#include <stack>
+#include "genie/connections.h"
+#include "genie/networks.h"
+#include "genie/genie.h"
 
-using namespace ct;
+using namespace genie;
 
 //
 // Endpoint
 //
 
-Endpoint::~Endpoint()
+AEndpoint::AEndpoint(Dir dir, HierObject* container)
+: AspectWithRef(container), m_dir(dir)
+{
+}
+
+AEndpoint::~AEndpoint()
 {
 	// Connections are owned by someone else. Don't cleanup.
 }
 
-void Endpoint::ep_connect(Conn* c)
+NetTypeDef* AEndpoint::get_net_def() const
 {
-	NetworkDef* nd = _get_net_def();
+	// Helper method
+	return NetTypeDef::get(this->get_type());
+}
 
-	switch (ep_get_dir())
+void AEndpoint::add_link(Link* link)
+{
+	assert(m_dir != Dir::INVALID);
+	
+	// Already bound to this specific link
+	if (has_link(link))
+		throw Exception("Link is already bound to endpoint");
+
+	// Check connection rules
+	NetTypeDef* def = get_net_def();
+
+	if (is_connected())
 	{
-		case Dir::OUT:
-		{
-			if (ep_is_connected() && !nd->allow_src_multibind())
-				throw Exception("Source endpoint already connected");
-			break;
-		}
-
-		case Dir::IN:
-		{
-			if (ep_is_connected() && !nd->allow_sink_multibind())
-				throw Exception("Sink endpoint already connected");
-			break;
-		}
+		if (m_dir == Dir::OUT && !def->get_src_multibind())
+			throw HierException(asp_container(), "Endpoint does not support multiple source bindings");
+		else if (m_dir == Dir::IN && !def->get_sink_multibind())
+			throw HierException(asp_container(), "Endpoint does not support multiple sink bindings");
 	}
 
-	if (!Util::exists(m_conns, c))
-		m_conns.push_back(c);
+	m_links.push_back(link);
 }
 
-void Endpoint::ep_disconnect()
+void AEndpoint::remove_link(Link* link)
 {
-	m_conns.clear();
+	assert (!has_link(link));
+
+	Util::erase(m_links, link);
 }
 
-void Endpoint::ep_disconnect(Conn* c)
+bool AEndpoint::has_link(Link* link) const
 {
-	assert(c);
-
-	if (!ep_has_conn(c))
-		throw Exception("Connection not found");
-
-	Util::erase(m_conns, c);
+	return Util::exists(m_links, link);
 }
 
-const Conns& Endpoint::ep_conns() const
+void AEndpoint::remove_all_links()
 {
-	return m_conns;
+	m_links.clear();
 }
 
-Conn* Endpoint::ep_conn0() const
+const AEndpoint::Links& AEndpoint::links() const
+{
+	return m_links;
+}
+
+Link* AEndpoint::get_link0() const
 {
 	// Return the first one
-	return m_conns.front();
+	return m_links.empty()? nullptr : m_links.front();
 }
 
-Endpoints Endpoint::ep_get_remotes() const
+AEndpoint::Endpoints AEndpoint::get_remotes() const
 {
 	Endpoints result;
-	Dir my_dir = ep_get_dir();
 
-	// Go through all bound connections and collect the things on the other side
-	for (auto& c : m_conns)
+	// Go through all bound links and collect the things on the other side
+	for (auto& link : m_links)
 	{
-		switch (my_dir)
-		{
-			case Dir::OUT:
-			{
-				auto fanout = c->get_sinks();
-				result.insert(result.end(), fanout.begin(), fanout.end());
-				break;
-			}
-
-			case Dir::IN:
-			{
-				result.push_back(c->get_src());
-				break;
-			}
-		}
+		AEndpoint* ep = link->get_other(this);
+		result.push_back(ep);
 	}
 
 	return result;
 }
 
-Endpoint* Endpoint::ep_get_remote0() const
+AEndpoint* AEndpoint::get_remote0() const
 {
-	if (!ep_is_connected())
+	if (m_links.empty())
 		return nullptr;
 
-	return ep_get_remotes().front();
+	return m_links.front()->get_other(this);
 }
 
-bool Endpoint::ep_has_conn(Conn* c) const
+bool AEndpoint::is_connected() const
 {
-	return Util::exists(m_conns, c);
+	return !m_links.empty();
 }
 
-bool Endpoint::ep_is_connected() const
+HierObject* AEndpoint::get_remote_obj0() const
 {
-	return !m_conns.empty();
+	return get_remote0()->asp_container();
 }
 
-Dir Endpoint::ep_get_dir() const
+AEndpoint::Objects AEndpoint::get_remote_objs() const
 {
-	return m_parent->conn_get_dir();
-}
+	Objects result;
 
-NetworkDef* Endpoint::_get_net_def() const
-{
-	return ct::get_root()->get_net_def(ep_get_net_type());
+	for (auto& link : m_links)
+	{
+		result.push_back(link->get_other(this)->asp_container());
+	}
+
+	return result;
 }
 
 //
-// Conn
+// Link
 //
 
-Conn::Conn(const NetworkID& net)
-: Conn(net, nullptr, nullptr)
+
+
+Link::Link(AEndpoint* src, AEndpoint* sink)
+: m_src(src), m_sink(sink)
 {
 }
 
-Conn::Conn(const NetworkID& net, Endpoint* src, Endpoint* sink)
-: m_net_type(net), m_src(src)
+Link::Link()
+: Link(nullptr, nullptr)
 {
-	if (sink) m_sinks.push_back(sink);
 }
 
-Endpoint* Conn::get_src() const
+Link::~Link()
+{
+}
+
+AEndpoint* Link::get_src() const
 {
 	return m_src;
 }
 
-Endpoint* Conn::get_sink0() const
+AEndpoint* Link::get_sink() const
 {
-	if (m_sinks.empty())
-		return nullptr;
-	else
-		return m_sinks.front();
+	return m_sink;
 }
 
-Endpoints Conn::get_sinks() const
+AEndpoint* Link::get_other(const AEndpoint* ep) const
 {
-	return m_sinks;
+	assert(ep);
+
+	// Validate
+	if (ep == m_src && ep->get_dir() == Dir::OUT)
+	{
+		return m_sink;
+	}
+	else if (ep == m_sink && ep->get_dir() == Dir::IN)
+	{
+		return m_src;
+	}
+	
+	throw Exception("Degenerate link");
+	return nullptr; // not reached
 }
 
-const Endpoints& Conn::sinks() const
-{
-	return m_sinks;
-}
-
-void Conn::set_src(Endpoint* ep)
+void Link::set_src(AEndpoint* ep)
 {
 	if (ep && m_src)
-		throw Exception("Conn already has src");
+		throw Exception("Link src already set");
 
 	m_src = ep;
 }
 
-void Conn::add_sink(Endpoint* ep)
+void Link::set_sink(AEndpoint* ep)
 {
-	NetworkDef* nd = ct::get_root()->get_net_def(m_net_type);
-	if (!m_sinks.empty() && !nd->allow_conn_multibind())
-		throw Exception("Conn already has sink");
+	if (ep && m_sink)
+		throw Exception("Link sink already set");
 
-	if (!has_sink(ep))
-		m_sinks.push_back(ep);
+	m_sink = ep;
 }
 
-void Conn::remove_sink(Endpoint* ep)
+NetType Link::get_type() const
 {
-	Util::erase(m_sinks, ep);
+	// For now, return the network type of one of the endpoints rather than keeping
+	// our own m_type field in the link itself
+	AEndpoint* ep = m_src? m_src : m_sink;
+	if (!ep)
+		throw Exception("Link not connected, can not determine network type");
+
+	return ep->get_type();
 }
 
-bool Conn::has_sink(Endpoint* ep) const
+//
+// ALinkContainment
+//
+
+ALinkContainment::ALinkContainment(Link* container)
+: AspectWithRef(container), m_parent_link(nullptr)
 {
-	return Util::exists(m_sinks, ep);
 }
 
+ALinkContainment::~ALinkContainment()
+{
+}
+
+void ALinkContainment::set_parent_link(Link* parent)
+{
+	// Already has parent?
+	if (m_parent_link)
+	{
+		// Redundant call, just quit
+		if (parent == m_parent_link)
+			return;
+
+		// Disconnect from existing parent (if it cares about containment and has an Aspect for it)
+		auto parent_containment = m_parent_link->asp_get<ALinkContainment>();
+		if (parent_containment)
+		{
+			// Call the 'internal' version which just removes the child link without
+			// also trying to update its parent (us) causing an infinite loop
+			parent_containment->remove_child_link_internal(this->asp_container());
+		}
+	}
+
+	// set our parent to the argument
+	m_parent_link = parent;
+
+	// Update new parent if not null
+	if (parent)
+	{
+		auto parent_containment = parent->asp_get<ALinkContainment>();
+		if (parent_containment)
+		{
+			// Call the version which just adds us and doesn't try to call set_parent on us, causing
+			// an infinite loop
+			parent_containment->add_child_link_internal(this->asp_container());
+		}
+	}
+}
+
+void ALinkContainment::add_child_link(Link* child)
+{
+	assert(child);
+
+	// Add the child to our list if children
+	add_child_link_internal(child);
+	
+	// Tell child of its new parentage if it cares about such things
+	auto child_containment = child->asp_get<ALinkContainment>();
+	if (child_containment)
+	{
+		Link* existing_parent = child_containment->get_parent_link();
+		Link* this_link = this->asp_container();
+
+		if (existing_parent && existing_parent != this_link)
+			throw Exception("Cannot add child link because it already has a parent");
+
+		child_containment->m_parent_link = this_link;
+	}
+}
+
+Link* ALinkContainment::get_child_link0() const
+{
+	return m_child_links.empty() ? nullptr : m_child_links.front();
+}
+
+void ALinkContainment::remove_child_link_internal(Link* child)
+{
+	Util::erase(m_child_links, child);
+}
+
+void ALinkContainment::add_child_link_internal(Link* child)
+{
+	// Only add if it doesn't exist already
+	auto it = m_child_links.begin();
+	auto it_end = m_child_links.end();
+	for ( ; it != it_end; ++it)
+	{
+		if (*it == child)
+			return;
+	}
+
+	// Should insert at the end()
+	m_child_links.insert(it, child);
+}
+
+Link* ALinkContainment::get_parent_link(NetType type) const
+{
+	Link* parent = m_parent_link;
+
+	// Traverse upwards through parents to find one with the requested type, starting
+	// wit this link's parent
+	while (parent)
+	{
+		if (parent->get_type() == type)
+		{
+			// Found it.
+			return parent;
+		}
+
+		// Traverse if applicable
+		auto parent_containment = parent->asp_get<ALinkContainment>();
+		if (parent_containment)
+			parent = parent_containment->get_parent_link();
+	}
+
+	// Did not find
+	return nullptr;
+}
+
+ALinkContainment::ChildLinks ALinkContainment::get_child_links(NetType type) const
+{
+	ChildLinks result;
+
+	// Do a recursive traversal
+	std::stack<Link*> to_visit;
+	to_visit.push(this->asp_container());
+
+	while (!to_visit.empty())
+	{
+		Link* link = to_visit.top();
+		to_visit.pop();
+
+		// Ignore links which lack containment aspect
+		auto containment = link->asp_get<ALinkContainment>();
+		if (!containment)
+			continue;
+
+		// Check children (this is not a recursive call)
+		for (Link* child : containment->get_child_links())
+		{
+			// Matches type - add to final return list
+			if (child->get_type() == type)
+				result.push_back(child);
+
+			// Match or no match, add it to the stack for traversal
+			to_visit.push(child);
+		}
+	}
+
+	return result;
+}

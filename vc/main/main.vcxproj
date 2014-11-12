@@ -4,27 +4,33 @@
     <ProjectGuid>{27962422-932E-4A39-B06D-2A9B38B2A797}</ProjectGuid>
     <RootNamespace>main</RootNamespace>
   </PropertyGroup>
-  
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
   </PropertyGroup>
-  
   <Import Project="..\common.props" />
-  
   <PropertyGroup Label="Configuration">
-    <TargetName>connectool</TargetName>
+    <TargetName>genie</TargetName>
   </PropertyGroup>
- 
   <ItemGroup>
     <ProjectReference Include="..\core\core.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efda}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\hdl\hdl.vcxproj">
+    <ProjectReference Include="..\vlog\vlog.vcxproj">
       <Project>{4133A8C2-E422-411C-B3DF-584094E8EFDF}</Project>
     </ProjectReference>
     <ProjectReference Include="..\lua\lua.vcxproj">
       <Project>{882ec8d5-fd07-43ae-8e50-53cf3c6b9074}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
+    <ClCompile Include="..\..\src\main\io.cpp" />
+    <ClCompile Include="..\..\src\main\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\main\getoptpp\getopt_pp.h" />
+    <ClInclude Include="..\..\src\main\globals.h" />
+    <ClInclude Include="..\..\src\main\io.h" />
   </ItemGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -34,17 +40,5 @@
       <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
-    <ClCompile Include="..\..\src\main\io.cpp" />
-    <ClCompile Include="..\..\src\main\lua_iface.cpp" />
-    <ClCompile Include="..\..\src\main\main.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\src\main\getoptpp\getopt_pp.h" />
-    <ClInclude Include="..\..\src\main\globals.h" />
-    <ClInclude Include="..\..\src\main\io.h" />
-    <ClInclude Include="..\..\src\main\lua_iface.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

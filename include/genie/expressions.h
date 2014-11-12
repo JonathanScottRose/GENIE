@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ct/common.h"
+#include "genie/common.h"
 
-namespace ct
+namespace genie
 {
 	namespace Expressions
 	{

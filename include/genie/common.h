@@ -12,9 +12,9 @@
 #include <type_traits>
 #include <memory>
 
-#include "ct/util.h"
-#include "ct/aspects.h"
-#include "ct/static_init.h"
+#include "genie/util.h"
+#include "genie/aspects.h"
+#include "genie/static_init.h"
 
 
 // These macros create trivial getters and/or setters for a given member variable
@@ -79,7 +79,7 @@
 	name_plur m_##name_sing##s; \
 	public:
 
-namespace ct
+namespace genie
 {
 	// Common typedef of a hashmap keyed by std::string
 	template<class T> using StringMap = std::unordered_map<std::string, T>;
@@ -87,13 +87,13 @@ namespace ct
 	// Wrapper around STL
 	template<class T> using List = std::vector<T>;
 
-	// ConnecTool exception base class
-	class Exception : public std::exception
+	// GENIE exception base class
+	class Exception : public std::runtime_error
 	{
 	public:
 		Exception(const char* what)
-			: std::exception(what) { }
+			: std::runtime_error(what) { }
 		Exception(const std::string& what)
-			: std::exception(what.c_str()) { }
+			: std::runtime_error(what.c_str()) { }
 	};
 }

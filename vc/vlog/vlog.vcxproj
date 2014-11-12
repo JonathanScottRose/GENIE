@@ -2,42 +2,35 @@
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4133A8C2-E422-411C-B3DF-584094E8EFDF}</ProjectGuid>
-    <RootNamespace>hdl</RootNamespace>
+    <RootNamespace>vlog</RootNamespace>
   </PropertyGroup>
-  
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
-  
   <Import Project="..\common.props" />
-  
   <PropertyGroup Label="Configuration">
-    <TargetName>ct_hdl$(LibSuffix)</TargetName>
+    <TargetName>genie_vlog$(LibSuffix)</TargetName>
   </PropertyGroup>
-  
   <ItemGroup>
     <ProjectReference Include="..\core\core.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efda}</Project>
     </ProjectReference>
   </ItemGroup>
-  
+  <ItemGroup>
+    <ClCompile Include="..\..\src\vlog\impl_vlog.cpp" />
+    <ClCompile Include="..\..\src\vlog\vlog.cpp" />
+    <ClCompile Include="..\..\src\vlog\write_vlog.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\vlog\impl_vlog.h" />
+    <ClInclude Include="..\..\src\vlog\vlog.h" />
+    <ClInclude Include="..\..\src\vlog\write_vlog.h" />
+  </ItemGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)../include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
   </ItemDefinitionGroup>
-  
-  <ItemGroup>
-    <ClCompile Include="..\..\src\hdl\impl_vlog.cpp" />
-    <ClCompile Include="..\..\src\hdl\vlog.cpp" />
-    <ClCompile Include="..\..\src\hdl\write_vlog.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\src\hdl\impl_vlog.h" />
-    <ClInclude Include="..\..\src\hdl\vlog.h" />
-    <ClInclude Include="..\..\src\hdl\write_vlog.h" />
-  </ItemGroup>
-  
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

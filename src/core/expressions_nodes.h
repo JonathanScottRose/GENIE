@@ -1,9 +1,9 @@
 #pragma once
 
 #include <forward_list>
-#include "ct/expressions.h"
+#include "genie/expressions.h"
 
-namespace ct
+namespace genie
 {
 	namespace Expressions
 	{

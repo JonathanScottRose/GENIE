@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ct/common.h"
-#include "ct/expressions.h"
+#include "genie/common.h"
+#include "genie/expressions.h"
 
-using namespace ct::Expressions;
+using namespace genie::Expressions;
 
 namespace Vlog
 {

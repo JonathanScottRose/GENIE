@@ -9,13 +9,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\hdl\vlog.cpp" />
-    <ClCompile Include="..\..\src\hdl\write_vlog.cpp" />
-    <ClCompile Include="..\..\src\hdl\impl_vlog.cpp" />
+    <ClCompile Include="..\..\src\vlog\impl_vlog.cpp" />
+    <ClCompile Include="..\..\src\vlog\vlog.cpp" />
+    <ClCompile Include="..\..\src\vlog\write_vlog.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\hdl\impl_vlog.h" />
-    <ClInclude Include="..\..\src\hdl\vlog.h" />
-    <ClInclude Include="..\..\src\hdl\write_vlog.h" />
+    <ClInclude Include="..\..\src\vlog\impl_vlog.h" />
+    <ClInclude Include="..\..\src\vlog\vlog.h" />
+    <ClInclude Include="..\..\src\vlog\write_vlog.h" />
   </ItemGroup>
 </Project>

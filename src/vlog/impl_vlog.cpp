@@ -2,16 +2,16 @@
 #include "vlog.h"
 #include "impl_vlog.h"
 
-#include "ct/p2p.h"
-#include "ct/spec.h"
-#include "ct/ct.h"
-#include "ct/instance_node.h"
-#include "ct/export_node.h"
-#include "ct/static_init.h"
+#include "genie/p2p.h"
+#include "genie/spec.h"
+#include "genie/ct.h"
+#include "genie/instance_node.h"
+#include "genie/export_node.h"
+#include "genie/static_init.h"
 
-using namespace ct;
-using namespace ct::Spec;
-using namespace ct::P2P;
+using namespace genie;
+using namespace genie::Spec;
+using namespace genie::P2P;
 
 using namespace ImplVerilog;
 

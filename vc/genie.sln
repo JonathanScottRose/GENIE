@@ -5,7 +5,7 @@ VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "core", "core\core.vcxproj", "{4133A8C2-E422-411C-B3DF-584094E8EFDA}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hdl", "hdl\hdl.vcxproj", "{4133A8C2-E422-411C-B3DF-584094E8EFDF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vlog", "vlog\vlog.vcxproj", "{4133A8C2-E422-411C-B3DF-584094E8EFDF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "lua\lua.vcxproj", "{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}"
 EndProject

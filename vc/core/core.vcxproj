@@ -4,17 +4,13 @@
     <ProjectGuid>{4133A8C2-E422-411C-B3DF-584094E8EFDA}</ProjectGuid>
     <RootNamespace>core</RootNamespace>
   </PropertyGroup>
-  
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
-  
   <Import Project="..\common.props" />
-  
   <PropertyGroup Label="Configuration">
-    <TargetName>ct_core$(LibSuffix)</TargetName>
+    <TargetName>genie_core$(LibSuffix)</TargetName>
   </PropertyGroup>
-  
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)../include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -22,28 +18,38 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\include\ct\aspects.h" />
-    <ClInclude Include="..\..\include\ct\common.h" />
-    <ClInclude Include="..\..\include\ct\connections.h" />
-    <ClInclude Include="..\..\include\ct\ct.h" />
-    <ClInclude Include="..\..\include\ct\expressions.h" />
-    <ClInclude Include="..\..\include\ct\hierarchy.h" />
-    <ClInclude Include="..\..\include\ct\networks.h" />
-    <ClInclude Include="..\..\include\ct\net_clock.h" />
-    <ClInclude Include="..\..\include\ct\net_reset.h" />
-    <ClInclude Include="..\..\include\ct\static_init.h" />
-    <ClInclude Include="..\..\include\ct\structure.h" />
-    <ClInclude Include="..\..\include\ct\util.h" />
+    <ClInclude Include="..\..\include\genie\aspects.h" />
+    <ClInclude Include="..\..\include\genie\common.h" />
+    <ClInclude Include="..\..\include\genie\connections.h" />
+    <ClInclude Include="..\..\include\genie\expressions.h" />
+    <ClInclude Include="..\..\include\genie\genie.h" />
+    <ClInclude Include="..\..\include\genie\hierarchy.h" />
+    <ClInclude Include="..\..\include\genie\instance.h" />
+    <ClInclude Include="..\..\include\genie\networks.h" />
+    <ClInclude Include="..\..\include\genie\net_clock.h" />
+    <ClInclude Include="..\..\include\genie\net_reset.h" />
+    <ClInclude Include="..\..\include\genie\net_rvd.h" />
+    <ClInclude Include="..\..\include\genie\net_topo.h" />
+    <ClInclude Include="..\..\include\genie\regex.h" />
+    <ClInclude Include="..\..\include\genie\static_init.h" />
+    <ClInclude Include="..\..\include\genie\structure.h" />
+    <ClInclude Include="..\..\include\genie\util.h" />
     <ClInclude Include="..\..\src\core\expressions_nodes.h" />
+    <ClInclude Include="..\..\src\core\graph.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\connections.cpp" />
-    <ClCompile Include="..\..\src\core\ct.cpp" />
     <ClCompile Include="..\..\src\core\expressions.cpp" />
+    <ClCompile Include="..\..\src\core\genie.cpp" />
+    <ClCompile Include="..\..\src\core\graph.cpp" />
     <ClCompile Include="..\..\src\core\hierarchy.cpp" />
+    <ClCompile Include="..\..\src\core\min_st_cut.cpp" />
+    <ClCompile Include="..\..\src\core\multi_way_cut.cpp" />
     <ClCompile Include="..\..\src\core\networks.cpp" />
     <ClCompile Include="..\..\src\core\net_clock.cpp" />
     <ClCompile Include="..\..\src\core\net_reset.cpp" />
+    <ClCompile Include="..\..\src\core\net_rvd.cpp" />
+    <ClCompile Include="..\..\src\core\net_topo.cpp" />
     <ClCompile Include="..\..\src\core\structure.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1,17 +1,122 @@
-/*
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
 
-#include "lua_iface.h"
+#include "genie/lua/genie_lua.h"
+#include "genie/common.h"
 
-#include "ct/common.h"
-#include "ct/spec.h"
-#include "ct/ct.h"
+using namespace genie;
+using namespace lua;
 
-using namespace ct;
-using namespace LuaIface;
+namespace
+{
+	const char* API_TABLE_NAME = "genie";
+	lua_State* s_state;
 
+	int s_panic(lua_State* L)
+	{
+		std::string err = luaL_checkstring(L, -1);
+		lua_pop(L, 1);
+		throw Exception(err);
+		return 0;
+	}
+
+	int s_stacktrace(lua_State* L)
+	{
+		const char* err = luaL_checkstring(L, -1);
+		luaL_traceback(L, L, err, 1);
+		return 1;
+	}
+}
+
+//
+// Public funcs
+//
+
+lua_State* lua::get_state()
+{
+	return s_state;
+}
+
+void lua::init()
+{
+	s_state = luaL_newstate();
+	lua_atpanic(s_state, s_panic);
+	luaL_checkversion(s_state);
+	luaL_openlibs(s_state);
+
+	lua_newtable(s_state);
+	lua_setglobal(s_state, API_TABLE_NAME);
+}
+
+void lua::shutdown()
+{
+	lua_close(s_state);
+}
+
+void lua::exec_script(const std::string& filename)
+{
+	// Error handler functions for lua_pcall(). Push it before
+	// luaL_loadfile pushes the loaded code onto the stack
+	lua_pushcfunction(s_state, s_stacktrace);
+
+	// Load the file. This pushes one entry on the stack.
+	int s = luaL_loadfile(s_state, filename.c_str());
+	if (s != LUA_OK)
+	{
+		std::string err = luaL_checkstring(s_state, -1);
+		lua_pop(s_state, 1);
+		throw Exception(err);
+	}
+
+	// Run the function at the top of the stack (the loaded file), using
+	// the error handler function (which is one stack entry previous) if something
+	// goes wrong.
+	s = lua_pcall(s_state, 0, LUA_MULTRET, lua_absindex(s_state, -2));
+	if (s != LUA_OK)
+	{
+		// Catches super serious errors that the error handler function can't deal with.
+		std::string err = luaL_checkstring(s_state, -1);
+		lua_pop(s_state, 1);
+		throw Exception(err);
+	}
+}
+
+void lua::register_func(const char* name, lua_CFunction fptr)
+{
+	lua_getglobal(s_state, API_TABLE_NAME);
+	lua_pushcfunction(s_state, fptr);
+	lua_setfield(s_state, -2, name);
+	lua_pop(s_state, 1);
+}
+
+void lua::register_funcs(luaL_Reg* entries)
+{
+	lua_getglobal(s_state, API_TABLE_NAME);
+	luaL_setfuncs(s_state, entries, 0);
+	lua_pop(s_state, 1);
+}
+
+int lua::make_ref()
+{
+	return luaL_ref(s_state, LUA_REGISTRYINDEX);
+}
+
+void lua::push_ref(int ref)
+{
+	lua_rawgeti(s_state, LUA_REGISTRYINDEX, ref);
+}
+
+void lua::free_ref(int ref)
+{
+	luaL_unref(s_state, LUA_REGISTRYINDEX, ref);
+}
+
+
+
+
+
+/*
 #define LFUNC(name) int name(lua_State* L)
 #define REG_LFUNC(name) register_func(#name, name)
 
@@ -118,7 +223,7 @@ namespace
 		
 		auto sys = Spec::get_system(sysname);
 		auto inst = (Spec::Instance*)sys->get_object(instname);
-		if (inst->get_type() != Spec::SysObject::INSTANCE) lerror("object must be instance");
+		if (inst->get_type() != Spec::SysObjegenie::INSTANCE) lerror("object must be instance");
 
 		for (auto& i : attrs)
 		{
@@ -169,7 +274,7 @@ namespace
 
 	LFUNC(reg_signal)
 	{
-		using namespace ct::Spec;
+		using namespace genie::Spec;
 
 		// args: compname, ifacename, {binding=, type=, width=, usertype=}
 
@@ -230,7 +335,7 @@ namespace
 
 	LFUNC(reg_instance)
 	{
-		using namespace ct::Spec;
+		using namespace genie::Spec;
 
 		// args: sysname, {name, comp}
 
@@ -251,7 +356,7 @@ namespace
 
 	LFUNC(reg_link)
 	{
-		using namespace ct::Spec;
+		using namespace genie::Spec;
 
 		// args: sysname, src, dest
 
@@ -270,7 +375,7 @@ namespace
 
 	LFUNC(reg_export)
 	{
-		using namespace ct::Spec;
+		using namespace genie::Spec;
 
 		// args: sysname, {name=, type=}
 
@@ -296,7 +401,7 @@ namespace
 
 	LFUNC(reg_system)
 	{
-		using namespace ct::Spec;
+		using namespace genie::Spec;
 
 		// args: sysname
 
@@ -312,7 +417,7 @@ namespace
 
 	LFUNC(reg_linkpoint)
 	{
-		using namespace ct::Spec;
+		using namespace genie::Spec;
 
 		// args: compname, ifacename, {name=, type=, encoding=}
 
@@ -449,12 +554,12 @@ namespace
 	}
 }
 
-lua_State* LuaIface::get_state()
+lua_State* lua::get_state()
 {
 	return s_state;
 }
 
-void LuaIface::init()
+void lua::init()
 {
 	s_state = luaL_newstate();
 	lua_atpanic(s_state, s_panic);
@@ -467,12 +572,12 @@ void LuaIface::init()
 	register_funcs();
 }
 
-void LuaIface::shutdown()
+void lua::shutdown()
 {
 	lua_close(s_state);
 }
 
-void LuaIface::exec_script(const std::string& filename)
+void lua::exec_script(const std::string& filename)
 {
 	lua_pushcfunction(s_state, s_stacktrace);
 
@@ -494,7 +599,7 @@ void LuaIface::exec_script(const std::string& filename)
 	}
 }
 
-void LuaIface::register_func(const std::string& name, lua_CFunction fptr)
+void lua::register_func(const std::string& name, lua_CFunction fptr)
 {
 	lua_getglobal(s_state, API_TABLE_NAME.c_str());
 	lua_pushcfunction(s_state, fptr);
@@ -502,17 +607,17 @@ void LuaIface::register_func(const std::string& name, lua_CFunction fptr)
 	lua_pop(s_state, 1);
 }
 
-int LuaIface::make_ref()
+int lua::make_ref()
 {
 	return luaL_ref(s_state, LUA_REGISTRYINDEX);
 }
 
-void LuaIface::push_ref(int ref)
+void lua::push_ref(int ref)
 {
 	lua_rawgeti(s_state, LUA_REGISTRYINDEX, ref);
 }
 
-void LuaIface::free_ref(int ref)
+void lua::free_ref(int ref)
 {
 	luaL_unref(s_state, LUA_REGISTRYINDEX, ref);
 }
