@@ -52,25 +52,16 @@ namespace
 
 	// For port defs and exports
 	template <class PD_OR_EXP>
-	class AResetInstantiable : public AspectMakeRef<AInstantiable, PD_OR_EXP>
+	HierObject* pd_or_exp_instantiate(PD_OR_EXP* container)
 	{
-	public:
-		AResetInstantiable(PD_OR_EXP* container) : AspectMakeRef(container) { }
-		~AResetInstantiable() = default;
+		ResetPort* result = new ResetPort(container->get_dir());
+		result->set_name(container->get_name());
 
-		HierObject* instantiate()
-		{
-			PD_OR_EXP* container = asp_container();
+		// The new port is an instance of this port def or export
+		result->set_prototype(container);
 
-			ResetPort* result = new ResetPort(container->get_dir());
-			result->set_name(container->get_name());
-
-			// The new port is an instance of this port def
-			result->asp_add(new AInstance(container));
-
-			return result;
-		}
-	};
+		return result;
+	}
 }
 
 // Register the network type
@@ -90,11 +81,15 @@ ResetPortDef::ResetPortDef(Dir dir, const std::string& name, HierObject* parent)
 ResetPortDef::ResetPortDef(Dir dir)
 : PortDef(dir)
 {
-	asp_add<AInstantiable>(new AResetInstantiable<ResetPortDef>(this));
 }
 
 ResetPortDef::~ResetPortDef()
 {
+}
+
+HierObject* ResetPortDef::instantiate()
+{
+	return pd_or_exp_instantiate<ResetPortDef>(this);
 }
 
 //
@@ -126,7 +121,6 @@ ResetExport::ResetExport(Dir dir)
 : Export(dir)
 {
 	asp_add(new AResetEndpoint(dir_rev(dir), this));
-	asp_add<AInstantiable>(new AResetInstantiable<Export>(this));
 }
 
 ResetExport::ResetExport(Dir dir, const std::string& name, System* parent)
@@ -138,6 +132,11 @@ ResetExport::ResetExport(Dir dir, const std::string& name, System* parent)
 
 ResetExport::~ResetExport()
 {
+}
+
+HierObject* ResetExport::instantiate()
+{
+	return pd_or_exp_instantiate<ResetExport>(this);
 }
 
 //

@@ -72,31 +72,49 @@ namespace genie
 	};
 
 	// An aspect that can be attached to links which says:
-	// which (higher abstraction level) link is this link contained in?
+	// which (higher abstraction level) links does this link implement?
 	// which (lower abstraciton level) links does this link contain?
 	class ALinkContainment : public AspectWithRef<Link>
 	{
-		typedef List<Link*> ChildLinks;
+	public:
+		typedef List<Link*> Links;
 
 		ALinkContainment(Link*);
 		~ALinkContainment();
 
-		void set_parent_link(Link*);
-		PROP_GET(parent_link, Link*, m_parent_link);
+		void add_parent_link(Link* other) { add_link(other, PARENT); }
+		void remove_parent_link(Link* other) { remove_link(other, PARENT); }
+		Link* get_parent_link0() const { return get_link0(PARENT); }
+		const Links& get_parent_links() const { return m_links[PARENT]; }
+		bool has_parent_links() const { return !m_links[PARENT].empty(); }
+		Links get_all_parent_links(NetType type) const { return get_all_links(type, PARENT); }
 
-		void add_child_link(Link*);
-		void remove_child_link(Link*);
-		Link* get_child_link0() const;
-		const ChildLinks& get_child_links() const { return m_child_links; }
-
-		Link* get_parent_link(NetType type) const;
-		ChildLinks get_child_links(NetType type) const;
-		
+		void add_child_link(Link* other) { add_link(other, CHILD); }
+		void remove_child_link(Link* other) { remove_link(other, CHILD); }
+		Link* get_child_link0() const { return get_link0(CHILD); }
+		const Links& get_child_links() const { return m_links[CHILD]; }
+		bool has_child_links() const { return !m_links[CHILD].empty(); }
+		Links get_all_child_links(NetType type) const { return get_all_links(type, CHILD); }
+				
 	protected:
-		void remove_child_link_internal(Link*);
-		void add_child_link_internal(Link*);
+		enum PorC
+		{
+			PARENT = 0,
+			CHILD = 1
+		};
 
-		ChildLinks m_child_links;
-		Link* m_parent_link;
+		PorC rev_rel(PorC porc) { return (PorC)(1 - porc); }
+
+		void add_link(Link*, PorC);
+		void remove_link(Link*, PorC);
+		Link* get_link0(PorC) const;
+		const Links& get_links(PorC porc) const { return m_links[porc]; }
+		bool has_links(PorC porc) const { return !m_links[porc].empty(); }
+		Links get_all_links(NetType, PorC) const;
+
+		void remove_link_internal(Link*, PorC);
+		void add_link_internal(Link*, PorC);
+
+		Links m_links[2];
 	};
 }

@@ -27,6 +27,8 @@ namespace genie
 		ClockPortDef(Dir dir, const std::string& name, HierObject* parent);
 		~ClockPortDef();
 
+		HierObject* instantiate();
+
 		NetType get_type() const { return NET_CLOCK; }
 	};
 
@@ -46,6 +48,8 @@ namespace genie
 		ClockExport(Dir dir);
 		ClockExport(Dir dir, const std::string& name, System* parent);
 		~ClockExport();
+
+		HierObject* instantiate();
 
 		NetType get_type() const { return NET_CLOCK; }
 	};

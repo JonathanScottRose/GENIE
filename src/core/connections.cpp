@@ -31,7 +31,7 @@ void AEndpoint::add_link(Link* link)
 	
 	// Already bound to this specific link
 	if (has_link(link))
-		throw Exception("Link is already bound to endpoint");
+		throw Exception("link is already bound to endpoint");
 
 	// Check connection rules
 	NetTypeDef* def = get_net_def();
@@ -39,9 +39,9 @@ void AEndpoint::add_link(Link* link)
 	if (is_connected())
 	{
 		if (m_dir == Dir::OUT && !def->get_src_multibind())
-			throw HierException(asp_container(), "Endpoint does not support multiple source bindings");
+			throw HierException(asp_container(), "source endpoint does not support multiple bindings");
 		else if (m_dir == Dir::IN && !def->get_sink_multibind())
-			throw HierException(asp_container(), "Endpoint does not support multiple sink bindings");
+			throw HierException(asp_container(), "sink endpoint does not support multiple bindings");
 	}
 
 	m_links.push_back(link);
@@ -126,8 +126,9 @@ AEndpoint::Objects AEndpoint::get_remote_objs() const
 
 
 Link::Link(AEndpoint* src, AEndpoint* sink)
-: m_src(src), m_sink(sink)
 {
+	set_src(src);
+	set_sink(sink);
 }
 
 Link::Link()
@@ -169,16 +170,28 @@ AEndpoint* Link::get_other(const AEndpoint* ep) const
 
 void Link::set_src(AEndpoint* ep)
 {
-	if (ep && m_src)
-		throw Exception("Link src already set");
+	if (ep)
+	{
+		if (m_src)
+			throw HierException(ep->asp_container(), "link src already set");
+
+		if (ep->get_dir() != Dir::OUT)
+			throw HierException(ep->asp_container(), "tried to use sink endpoint as a source");
+	}
 
 	m_src = ep;
 }
 
 void Link::set_sink(AEndpoint* ep)
 {
-	if (ep && m_sink)
-		throw Exception("Link sink already set");
+	if (ep)
+	{
+		if (m_sink)
+			throw HierException(ep->asp_container(), "link sink already set");
+
+		if (ep->get_dir() != Dir::IN)
+			throw HierException(ep->asp_container(), "tried to use source endpoint as a sink");
+	}
 
 	m_sink = ep;
 }
@@ -189,7 +202,7 @@ NetType Link::get_type() const
 	// our own m_type field in the link itself
 	AEndpoint* ep = m_src? m_src : m_sink;
 	if (!ep)
-		throw Exception("Link not connected, can not determine network type");
+		throw Exception("link not connected to anything, can not determine network type");
 
 	return ep->get_type();
 }
@@ -199,7 +212,7 @@ NetType Link::get_type() const
 //
 
 ALinkContainment::ALinkContainment(Link* container)
-: AspectWithRef(container), m_parent_link(nullptr)
+: AspectWithRef(container)
 {
 }
 
@@ -207,114 +220,65 @@ ALinkContainment::~ALinkContainment()
 {
 }
 
-void ALinkContainment::set_parent_link(Link* parent)
+
+
+
+void ALinkContainment::add_link(Link* other, PorC porc)
 {
-	// Already has parent?
-	if (m_parent_link)
-	{
-		// Redundant call, just quit
-		if (parent == m_parent_link)
-			return;
+	assert(other);
 
-		// Disconnect from existing parent (if it cares about containment and has an Aspect for it)
-		auto parent_containment = m_parent_link->asp_get<ALinkContainment>();
-		if (parent_containment)
-		{
-			// Call the 'internal' version which just removes the child link without
-			// also trying to update its parent (us) causing an infinite loop
-			parent_containment->remove_child_link_internal(this->asp_container());
-		}
-	}
-
-	// set our parent to the argument
-	m_parent_link = parent;
-
-	// Update new parent if not null
-	if (parent)
-	{
-		auto parent_containment = parent->asp_get<ALinkContainment>();
-		if (parent_containment)
-		{
-			// Call the version which just adds us and doesn't try to call set_parent on us, causing
-			// an infinite loop
-			parent_containment->add_child_link_internal(this->asp_container());
-		}
-	}
-}
-
-void ALinkContainment::add_child_link(Link* child)
-{
-	assert(child);
-
-	// Add the child to our list if children
-	add_child_link_internal(child);
+	// Add to our list
+	this->add_link_internal(other, porc);
 	
-	// Tell child of its new parentage if it cares about such things
-	auto child_containment = child->asp_get<ALinkContainment>();
-	if (child_containment)
+	// Update the other link
+	auto other_containment = other->asp_get<ALinkContainment>();
+	if (other_containment)
 	{
-		Link* existing_parent = child_containment->get_parent_link();
-		Link* this_link = this->asp_container();
-
-		if (existing_parent && existing_parent != this_link)
-			throw Exception("Cannot add child link because it already has a parent");
-
-		child_containment->m_parent_link = this_link;
+		Link* thislink = this->asp_container();
+		other_containment->add_link_internal(thislink, rev_rel(porc));
 	}
 }
 
-Link* ALinkContainment::get_child_link0() const
+Link* ALinkContainment::get_link0(PorC porc) const
 {
-	return m_child_links.empty() ? nullptr : m_child_links.front();
+	const Links& links = get_links(porc);
+	return links.empty() ? nullptr : links.front();
 }
 
-void ALinkContainment::remove_child_link_internal(Link* child)
+void ALinkContainment::remove_link(Link* other, PorC porc)
 {
-	Util::erase(m_child_links, child);
-}
+	assert(other);
 
-void ALinkContainment::add_child_link_internal(Link* child)
-{
-	// Only add if it doesn't exist already
-	auto it = m_child_links.begin();
-	auto it_end = m_child_links.end();
-	for ( ; it != it_end; ++it)
+	// Tell other that we're no longer associated
+	auto other_containment = other->asp_get<ALinkContainment>();
+	if (other_containment)
 	{
-		if (*it == child)
-			return;
+		Link* thislink = this->asp_container();
+		other_containment->remove_link_internal(thislink, rev_rel(porc));
 	}
 
-	// Should insert at the end()
-	m_child_links.insert(it, child);
+	// Now disassociate ourselves from the other link
+	this->remove_link_internal(other, porc);
 }
 
-Link* ALinkContainment::get_parent_link(NetType type) const
+void ALinkContainment::remove_link_internal(Link* other, PorC porc)
 {
-	Link* parent = m_parent_link;
-
-	// Traverse upwards through parents to find one with the requested type, starting
-	// wit this link's parent
-	while (parent)
-	{
-		if (parent->get_type() == type)
-		{
-			// Found it.
-			return parent;
-		}
-
-		// Traverse if applicable
-		auto parent_containment = parent->asp_get<ALinkContainment>();
-		if (parent_containment)
-			parent = parent_containment->get_parent_link();
-	}
-
-	// Did not find
-	return nullptr;
+	Util::erase(m_links[porc], other);
 }
 
-ALinkContainment::ChildLinks ALinkContainment::get_child_links(NetType type) const
+void ALinkContainment::add_link_internal(Link* other, PorC porc)
 {
-	ChildLinks result;
+	Links& links = m_links[porc];
+
+	// Only insert if not existing
+	auto it = std::find(links.begin(), links.end(), other);
+	if (it == links.end())
+		links.insert(it, other);
+}
+
+ALinkContainment::Links ALinkContainment::get_all_links(NetType type, PorC porc) const
+{
+	Links result;
 
 	// Do a recursive traversal
 	std::stack<Link*> to_visit;
@@ -330,15 +294,15 @@ ALinkContainment::ChildLinks ALinkContainment::get_child_links(NetType type) con
 		if (!containment)
 			continue;
 
-		// Check children (this is not a recursive call)
-		for (Link* child : containment->get_child_links())
+		// Iterate over parents (or children) of currently visited link
+		for (Link* other : containment->get_links(porc))
 		{
 			// Matches type - add to final return list
-			if (child->get_type() == type)
-				result.push_back(child);
+			if (other->get_type() == type)
+				result.push_back(other);
 
 			// Match or no match, add it to the stack for traversal
-			to_visit.push(child);
+			to_visit.push(other);
 		}
 	}
 

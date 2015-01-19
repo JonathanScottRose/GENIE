@@ -34,6 +34,29 @@ Dir genie::dir_rev(Dir dir)
 	}
 }
 
+namespace
+{
+	const std::vector<std::pair<Dir, const char*>> s_dir_table =
+	{
+		{ Dir::IN, "IN"},
+		{ Dir::OUT, "OUT" }
+	};
+}
+
+Dir genie::dir_from_str(const std::string& str)
+{
+	
+
+	Dir result = Dir::INVALID;
+	Util::str_to_enum(s_dir_table, str, &result);
+	return result;
+}
+
+const char* genie::dir_to_str(Dir dir)
+{
+	return Util::enum_to_str(s_dir_table, dir);
+}
+
 //
 // Static
 //
@@ -82,6 +105,22 @@ NetTypeDef* NetTypeDef::get(NetType id)
 
 NetTypeDef* NetTypeDef::get(const std::string& name)
 {
+	std::string uname = Util::str_tolower(name);
+
+	// Do a linear search to find a matching network type by name
+	auto loc = s_registry.net_types.begin();
+	auto loc_end = s_registry.net_types.end();
+	for ( ; loc != loc_end; ++loc)
+	{
+		if (loc->second->get_name() == uname)
+			break;
+	}
+
+	return loc == loc_end? nullptr : loc->second;
+}
+
+NetType NetTypeDef::type_from_str(const std::string& name)
+{
 	// Do a linear search to find a matching network type by name
 	auto loc = s_registry.net_types.begin();
 	auto loc_end = s_registry.net_types.end();
@@ -91,7 +130,7 @@ NetTypeDef* NetTypeDef::get(const std::string& name)
 			break;
 	}
 
-	return loc == loc_end? nullptr : loc->second;
+	return loc == loc_end? NET_INVALID : loc->first;
 }
 
 //

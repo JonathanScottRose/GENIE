@@ -52,25 +52,16 @@ namespace
 
 	// For port defs and exports
 	template <class PD_OR_EXP>
-	class ARVDInstantiable : public AspectMakeRef<AInstantiable, PD_OR_EXP>
+	HierObject* pd_or_exp_instantiate(PD_OR_EXP* container)
 	{
-	public:
-		ARVDInstantiable(PD_OR_EXP* container) : AspectMakeRef(container) { }
-		~ARVDInstantiable() = default;
+		RVDPort* result = new RVDPort(container->get_dir());
+		result->set_name(container->get_name());
 
-		HierObject* instantiate()
-		{
-			PD_OR_EXP* container = asp_container();
+		// The new port is an instance of this port def or export
+		result->set_prototype(container);
 
-			RVDPort* result = new RVDPort(container->get_dir());
-			result->set_name(container->get_name());
-
-			// The new port is an instance of this port def
-			result->asp_add(new AInstance(container));
-
-			return result;
-		}
-	};
+		return result;
+	}
 }
 
 // Register the network type
@@ -90,7 +81,11 @@ RVDPortDef::RVDPortDef(Dir dir, const std::string& name, HierObject* parent)
 RVDPortDef::RVDPortDef(Dir dir)
 : PortDef(dir)
 {
-	asp_add<AInstantiable>(new ARVDInstantiable<RVDPortDef>(this));
+}
+
+HierObject* RVDPortDef::instantiate()
+{
+	return pd_or_exp_instantiate<RVDPortDef>(this);
 }
 
 RVDPortDef::~RVDPortDef()
@@ -126,7 +121,6 @@ RVDExport::RVDExport(Dir dir)
 : Export(dir)
 {
 	asp_add(new ARVDEndpoint(dir_rev(dir), this));
-	asp_add<AInstantiable>(new ARVDInstantiable<Export>(this));
 }
 
 RVDExport::RVDExport(Dir dir, const std::string& name, System* parent)
@@ -138,6 +132,11 @@ RVDExport::RVDExport(Dir dir, const std::string& name, System* parent)
 
 RVDExport::~RVDExport()
 {
+}
+
+HierObject* RVDExport::instantiate()
+{
+	return pd_or_exp_instantiate<RVDExport>(this);
 }
 
 //

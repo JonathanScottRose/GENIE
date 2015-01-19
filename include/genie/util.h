@@ -8,7 +8,7 @@ namespace genie
 {
 	// Useful stuff that belongs outside the Util namespace
 	template<class T, class O>
-	T as_a(O ptr)
+	T as_a_check(O ptr)
 	{
 		T result = dynamic_cast<T>(ptr);
 		if (!result)
@@ -18,6 +18,12 @@ namespace genie
 				std::string(typeid(T).name()));
 		}
 		return result;
+	}
+
+	template<class T, class O>
+	T as_a(O ptr)
+	{
+		return dynamic_cast<T>(ptr);
 	}
 
 	template<class T, class O>
@@ -121,19 +127,69 @@ namespace genie
 			return result;
 		}
 
-		// String lowercasing
-		static std::string& str_tolower(std::string& str)
+		// String upper/lowercasing
+		static void str_makelower(std::string& str)
 		{
 			// Transforms in-place
 			std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+		}
+
+		static void str_makeupper(std::string& str)
+		{
+			// Transforms in-place
+			std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+		}
+
+		static std::string str_tolower(std::string str)
+		{
+			// Returns new string
+			str_makelower(str);
 			return str;
 		}
 
-		static std::string str_tolower(const char* str)
+		static std::string str_toupper(std::string str)
 		{
 			// Returns new string
-			std::string result(str);
-			return str_tolower(result);
+			str_makeupper(str);
+			return str;
+		}
+
+		// Parse a string into an enum (case-insensitive)
+		// Return true if successful, result goes in *out
+		// (might change this to map later)
+		template<class E>
+		static bool str_to_enum(const std::vector<std::pair<E, const char*>>& table, 
+			const std::string& str, E* out)
+		{
+			std::string ustr = str_toupper(str);
+			for (const auto& entry : table)
+			{
+				std::string utest = str_toupper(entry.second);
+				if (utest == ustr)
+				{
+					*out = entry.first;
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		// Parse enum to string, returns reference
+		template<class E>
+		static const char* enum_to_str(const std::vector<std::pair<E, const char*>>& table, 
+			E val)
+		{
+			for (const auto& entry : table)
+			{
+				if (entry.first == val)
+				{
+					return entry.second;
+				}
+			}
+
+			assert(false);
+			return nullptr;
 		}
 
 		// Log base 2

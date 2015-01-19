@@ -27,6 +27,8 @@ namespace genie
 		RVDPortDef(Dir dir, const std::string& name, HierObject* parent);
 		~RVDPortDef();
 
+		HierObject* instantiate();
+
 		NetType get_type() const { return NET_RVD; }
 	};
 
@@ -46,6 +48,8 @@ namespace genie
 		RVDExport(Dir dir);
 		RVDExport(Dir dir, const std::string& name, System* parent);
 		~RVDExport();
+
+		HierObject* instantiate();
 
 		NetType get_type() const { return NET_RVD; }
 	};

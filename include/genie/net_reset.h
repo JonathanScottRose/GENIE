@@ -28,9 +28,9 @@ namespace genie
 		ResetPortDef(Dir dir, const std::string& name, HierObject* parent);
 		~ResetPortDef();
 
-		NetType get_type() const {
-			return NET_RESET;
-		}
+		HierObject* instantiate();
+
+		NetType get_type() const { return NET_RESET; }
 	};
 
 	class ResetPort : public Port
@@ -51,6 +51,8 @@ namespace genie
 		ResetExport(Dir dir);
 		ResetExport(Dir dir, const std::string& name, System* parent);
 		~ResetExport();
+
+		HierObject* instantiate();
 
 		NetType get_type() const {
 			return NET_RESET;

@@ -24,12 +24,13 @@
     <ClInclude Include="..\..\include\genie\expressions.h" />
     <ClInclude Include="..\..\include\genie\genie.h" />
     <ClInclude Include="..\..\include\genie\hierarchy.h" />
-    <ClInclude Include="..\..\include\genie\instance.h" />
     <ClInclude Include="..\..\include\genie\networks.h" />
     <ClInclude Include="..\..\include\genie\net_clock.h" />
     <ClInclude Include="..\..\include\genie\net_reset.h" />
     <ClInclude Include="..\..\include\genie\net_rvd.h" />
     <ClInclude Include="..\..\include\genie\net_topo.h" />
+    <ClInclude Include="..\..\include\genie\node_split.h" />
+    <ClInclude Include="..\..\include\genie\port_index.h" />
     <ClInclude Include="..\..\include\genie\regex.h" />
     <ClInclude Include="..\..\include\genie\static_init.h" />
     <ClInclude Include="..\..\include\genie\structure.h" />
@@ -50,6 +51,7 @@
     <ClCompile Include="..\..\src\core\net_reset.cpp" />
     <ClCompile Include="..\..\src\core\net_rvd.cpp" />
     <ClCompile Include="..\..\src\core\net_topo.cpp" />
+    <ClCompile Include="..\..\src\core\node_split.cpp" />
     <ClCompile Include="..\..\src\core\structure.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -3,7 +3,6 @@
 #include "genie/common.h"
 #include "genie/hierarchy.h"
 #include "genie/networks.h"
-#include "genie/instance.h"
 #include "connections.h"
 
 namespace genie
@@ -20,7 +19,7 @@ namespace genie
 	public:
 		PortDef(Dir dir);
 		PortDef(Dir dir, const std::string& name, HierObject* parent = nullptr);
-		virtual ~PortDef() = 0;
+		virtual ~PortDef() = default;
 
 		virtual NetType get_type() const = 0;
 		PROP_GET(dir, Dir, m_dir);
@@ -36,7 +35,7 @@ namespace genie
 
 		NodeDef();
 		NodeDef(const std::string& name, HierObject* parent = nullptr);
-		virtual ~NodeDef() = 0;
+		virtual ~NodeDef() = default;
 
 		PortDefs get_port_defs() const;
 		PortDef* get_port_def(const std::string&) const;
@@ -49,7 +48,7 @@ namespace genie
 	public:
 		Port(Dir);
 		Port(Dir, const std::string& name, HierObject* parent = nullptr);
-		virtual ~Port() = 0;
+		virtual ~Port() = default;
 
 		virtual NetType get_type() const = 0;
 		PROP_GET(dir, Dir, m_dir);
@@ -79,8 +78,9 @@ namespace genie
 
 		Node();
 		Node(const std::string& name, HierObject* parent = nullptr);
-		virtual ~Node() = 0;
+		virtual ~Node() = default;
 
+		Ports get_ports(NetType) const;
 		Ports get_ports() const;
 		Port* get_port(const std::string& name) const;
 		void add_port(Port*);
@@ -100,14 +100,20 @@ namespace genie
 		System(const std::string& name);
 		virtual ~System();
 
+		HierObject* instantiate();
+
 		NetTypes get_net_types() const;
 
-		const Links& get_links(NetType) const;
+		Links get_links() const;
+		Links get_links(NetType) const;
+		Links get_links(HierObject* src, HierObject* sink) const;
+		Links get_links(HierObject* src, HierObject* sink, NetType net) const;
 		Link* connect(HierObject* src, HierObject* sink);
 		Link* connect(HierObject* src, HierObject* sink, NetType net);
 		void disconnect(HierObject* src, HierObject* sink);
 		void disconnect(HierObject* src, HierObject* sink, NetType net);
 		void disconnect(Link*);
+		void splice(Link* orig, HierObject* new_sink, HierObject* new_src);
 
 		Objects get_objects() const;
 		Nodes get_nodes() const;
@@ -135,6 +141,12 @@ namespace genie
 		~HierRoot();
 
 		void add_object(HierObject*);
+		HierObject* get_object(const HierPath&);
+
+		const std::string& get_name() const;
+		void set_name(const std::string&) { }
+		void set_parent(HierObject*) { }
+		void set_prototype(HierObject*) { }
 
 		Systems get_systems();
 		Objects get_objects();

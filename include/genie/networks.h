@@ -30,6 +30,10 @@ namespace genie
 
 	// Returns reverse direction
 	Dir dir_rev(Dir);
+	// Creates a Dir parsed from a string
+	Dir dir_from_str(const std::string&);
+	// Converts a dir to a string
+	const char* dir_to_str(Dir);
 
 	// Network types derive from this abstract class
 	class NetTypeDef
@@ -47,6 +51,7 @@ namespace genie
 		// Call to retrieve information about a network type
 		static NetTypeDef* get(NetType id);
 		static NetTypeDef* get(const std::string& name);
+		static NetType type_from_str(const std::string& name);
 
 		// Create a new definition with the given id
 		NetTypeDef(NetType id);

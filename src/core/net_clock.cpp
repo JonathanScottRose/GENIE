@@ -52,25 +52,16 @@ namespace
 
 	// For port defs and exports
 	template <class PD_OR_EXP>
-	class AClockInstantiable : public AspectMakeRef<AInstantiable, PD_OR_EXP>
+	HierObject* pd_or_exp_instantiate(PD_OR_EXP* container)
 	{
-	public:
-		AClockInstantiable(PD_OR_EXP* container) : AspectMakeRef(container) { }
-		~AClockInstantiable() = default;
+		ClockPort* result = new ClockPort(container->get_dir());
+		result->set_name(container->get_name());
 
-		HierObject* instantiate()
-		{
-			PD_OR_EXP* container = asp_container();
+		// The new port is an instance of this port def or export
+		result->set_prototype(container);
 
-			ClockPort* result = new ClockPort(container->get_dir());
-			result->set_name(container->get_name());
-
-			// The new port is an instance of this port def
-			result->asp_add(new AInstance(container));
-
-			return result;
-		}
-	};
+		return result;
+	}
 }
 
 // Register the network type
@@ -90,11 +81,15 @@ ClockPortDef::ClockPortDef(Dir dir, const std::string& name, HierObject* parent)
 ClockPortDef::ClockPortDef(Dir dir)
 : PortDef(dir)
 {
-	asp_add<AInstantiable>(new AClockInstantiable<ClockPortDef>(this));
 }
 
 ClockPortDef::~ClockPortDef()
 {
+}
+
+HierObject* ClockPortDef::instantiate()
+{
+	return pd_or_exp_instantiate<ClockPortDef>(this);
 }
 
 //
@@ -126,7 +121,6 @@ ClockExport::ClockExport(Dir dir)
 : Export(dir)
 {
 	asp_add(new AClockEndpoint(dir_rev(dir), this));
-	asp_add<AInstantiable>(new AClockInstantiable<Export>(this));
 }
 
 ClockExport::ClockExport(Dir dir, const std::string& name, System* parent)
@@ -138,6 +132,11 @@ ClockExport::ClockExport(Dir dir, const std::string& name, System* parent)
 
 ClockExport::~ClockExport()
 {
+}
+
+HierObject* ClockExport::instantiate()
+{
+	return pd_or_exp_instantiate<ClockExport>(this);
 }
 
 //

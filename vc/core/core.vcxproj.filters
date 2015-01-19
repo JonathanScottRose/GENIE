@@ -25,9 +25,6 @@
     <ClInclude Include="..\..\include\genie\hierarchy.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\genie\instance.h">
-      <Filter>Public</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\genie\networks.h">
       <Filter>Public</Filter>
     </ClInclude>
@@ -56,6 +53,12 @@
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\core\graph.h" />
+    <ClInclude Include="..\..\include\genie\node_split.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\port_index.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />
@@ -71,5 +74,6 @@
     <ClCompile Include="..\..\src\core\graph.cpp" />
     <ClCompile Include="..\..\src\core\min_st_cut.cpp" />
     <ClCompile Include="..\..\src\core\multi_way_cut.cpp" />
+    <ClCompile Include="..\..\src\core\node_split.cpp" />
   </ItemGroup>
 </Project>

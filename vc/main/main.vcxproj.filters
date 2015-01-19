@@ -11,6 +11,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\main\io.cpp" />
     <ClCompile Include="..\..\src\main\main.cpp" />
+    <ClCompile Include="..\..\src\main\lua_api.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\main\getoptpp\getopt_pp.h">

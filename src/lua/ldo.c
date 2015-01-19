@@ -50,9 +50,13 @@
 
 #if defined(__cplusplus) && !defined(LUA_USE_LONGJMP)
 /* C++ exceptions */
+#include <stdexcept>
 #define LUAI_THROW(L,c)		throw(c)
 #define LUAI_TRY(L,c,a) \
-	try { a } catch(...) { if ((c)->status == 0) (c)->status = -1; }
+	try { \
+		try { a } \
+		catch(std::exception& e) { luaG_runerror(L, e.what()); } \
+	} catch(...) { if ((c)->status == 0) (c)->status = -1; }
 #define luai_jmpbuf		int  /* dummy variable */
 
 #elif defined(LUA_USE_ULONGJMP)

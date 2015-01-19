@@ -4,6 +4,33 @@ util = {}
 -- LANGUAGE/OO SUPPORT
 --
 
+--[[
+function class()
+	local result = {}
+    setmetatable(result, result)
+	
+    function result:__call(...)
+        local inst = {}
+        inst.__index = self
+        setmetatable(inst, inst)
+        inst:__ctor(...)
+        return inst
+    end
+    
+    function result:__ctor(...)
+    end
+	
+	return result
+end
+
+function subclass(base)
+    local result = class()
+    result.__index = base
+    return result
+end
+
+]]--
+
 function class(members)
 	local result = members or {}
 	result.__index = result

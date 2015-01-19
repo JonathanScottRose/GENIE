@@ -6,6 +6,7 @@
 
 #include "genie/genie.h"
 #include "genie/net_clock.h"
+#include "genie/lua/genie_lua.h"
 
 using namespace genie;
 
@@ -19,8 +20,8 @@ namespace
 
 		//args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
 
-		//if (!(args >> GetOpt::GlobalOption(s_script)))
-		//	throw Exception("Must specify script");
+		if (!(args >> GetOpt::GlobalOption(s_script)))
+			throw Exception("Must specify Lua script");
 	}
 }
 
@@ -28,15 +29,19 @@ int main(int argc, char** argv)
 {
 	try
 	{
-		System* sys = new System(argv[1]);
-		genie::get_root()->add_object(sys);
+		parse_args(argc, argv);
+
+		genie::init();
+		lua::init();
+		
+		lua::exec_script(s_script);		
 	}
 	catch (std::exception& e)
 	{
 		IO::msg_error(e.what());
 	}
 
-
+	lua::shutdown();
 
 	/*
 	try
