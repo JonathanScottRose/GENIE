@@ -16,49 +16,56 @@ namespace genie
 {
 namespace lua
 {
-	#define LFUNC(name) int name(lua_State* L)
-	#define LM(name,func) {#name, func}
-
 	typedef std::vector<std::pair<const char*, lua_CFunction>> FuncList;
 	typedef std::function<bool(const Object*)> RTTICheckFunc;
+	typedef std::function<void(void)> RTTIThrowFunc;
+	typedef std::function<bool(const RTTIThrowFunc&)> RTTICatchFunc;
 
-	struct ClassRegDB
+	struct ClassRegEntry
 	{
-		struct Entry
-		{
-			const char* name;
-			FuncList methods;
-			FuncList statics;
-			RTTICheckFunc cfunc;
-		};
-		
-		typedef std::forward_list<Entry> Entries;
-
-		static Entries& entries()
-		{
-			static Entries s_entries;
-			return s_entries;
-		}
+		const char* name;
+		FuncList methods;
+		FuncList statics;
+		RTTICheckFunc cfunc;
+		RTTIThrowFunc throwfunc;
+		RTTICatchFunc catchfunc;
 	};
 
 	template<class T>
-	struct ClassReg
+	struct ClassRegEntryT : public ClassRegEntry
 	{
-		ClassReg(const char* name, const FuncList& methods, 
-			const FuncList& statics = FuncList())
+		ClassRegEntryT(const char* _name, const FuncList& _methods, 
+			const FuncList& _statics = FuncList())
 		{
-			ClassRegDB::Entry entry;
-			entry.name = name;
-			entry.methods = methods;
-			entry.statics = statics;
-			entry.cfunc = [](const Object* o)
+			name = _name;
+			methods = _methods;
+			statics = _statics;
+			cfunc = [](const Object* o)
 			{
 				return dynamic_cast<const T*>(o) != nullptr;
 			};
+			throwfunc = []()
+			{
+				throw static_cast<T*>(nullptr);
+			};
+			catchfunc = [](const RTTIThrowFunc& th)
+			{
+				try	{ th();	}
+				catch(T*) { return true; }
+				catch (...) {}
 
-			ClassRegDB::entries().push_front(entry);
+				return false;
+			};
 		}
 	};
+
+	typedef StaticInitBase<ClassRegEntry> ClassReg;
+
+	#define LFUNC(name) int name(lua_State* L)
+	#define LM(name,func) {#name, func}
+	#define LCLASS(cls, ...) ClassReg s_##cls##_reg(ClassRegEntryT<cls>(__VA_ARGS__))
+
+	
 
 	// Init/shutdown
 	void init();

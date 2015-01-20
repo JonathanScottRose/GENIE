@@ -428,7 +428,7 @@ namespace
 		return 1;
 	}
 
-	ClassReg<System> s_system_reg("System",
+	LCLASS(System, "System",
 	{
 		LM(__tostring, hier_get_name),
 		LM(get_name, hier_get_name),
@@ -449,7 +449,7 @@ namespace
 	// Node
 	//
 
-	ClassReg<Node> s_node_reg("Node",
+	LCLASS(Node, "Node",
 	{
 		LM(__tostring, hier_get_name),
 		LM(get_name, hier_get_name),
@@ -501,7 +501,7 @@ namespace
 		return 1;
 	}
 
-	ClassReg<NodeDef> s_nodedef_reg("NodeDef",
+	LCLASS(NodeDef, "NodeDef",
 	{
 		LM(__tostring, hier_get_name),
 		LM(get_name, hier_get_name),
@@ -516,7 +516,7 @@ namespace
 	// Export
 	//
 
-	ClassReg<Export> s_export_reg("Export",
+	LCLASS(Export, "Export",
 	{
 		LM(__tostring, hier_get_name),
 		LM(get_name, hier_get_name),
@@ -589,7 +589,7 @@ namespace
 		return 1;
 	}
 
-	ClassReg<Link> s_link_reg("Link",
+	LCLASS(Link, "Link",
 	{
 		LM(__tostring, link_to_string),
 		LM(get_type, net_get_type<Link>),
@@ -601,7 +601,7 @@ namespace
 	// Port
 	//
 
-	ClassReg<Port> s_port_reg("Port",
+	LCLASS(Port, "Port",
 	{
 		LM(__tostring, hier_get_name),
 		LM(get_name, hier_get_name),
@@ -620,7 +620,7 @@ namespace
 		return 1;
 	}
 
-	ClassReg<PortDef> s_portdef_reg("PortDef",
+	LCLASS(PortDef, "PortDef",
 	{
 		LM(__tostring, hier_get_name),
 		LM(get_name, hier_get_name),
