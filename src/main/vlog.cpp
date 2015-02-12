@@ -342,6 +342,10 @@ int ExportNet::get_width()
 
 SystemModule::SystemModule()
 {
+	m_resolv = [this] (const std::string& name)
+	{
+		return get_localparam(name);
+	};
 }
 
 SystemModule::~SystemModule()
@@ -351,6 +355,15 @@ SystemModule::~SystemModule()
 	ct::Util::delete_all(m_cont_assigns);
 }
 
+Expression& SystemModule::get_localparam(const std::string& name)
+{
+	return m_localparams[name];
+}
+
+void SystemModule::add_localparam(const std::string& name, const Expression& v)
+{
+	m_localparams[name] = v;
+}
 
 //
 // Instance

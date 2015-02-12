@@ -112,6 +112,13 @@ protected:
 };
 
 
+struct LatencyQuery
+{
+	std::string link_label;
+	std::string param_name;
+};
+
+
 class System
 {
 public:
@@ -119,6 +126,7 @@ public:
 	typedef std::unordered_map<std::string, Link*> LinksByLabel;
 	typedef std::vector<std::string> ExclusionGroup;
 	typedef std::vector<ExclusionGroup> ExclusionGroups;
+	typedef std::vector<LatencyQuery> LatencyQueries;
 
 	System();
 	~System();
@@ -135,6 +143,9 @@ public:
 	void add_exclusion_group(const ExclusionGroup&);
 	ExclusionGroups exclusion_groups_for_link(Link* link) const;
 
+	const LatencyQueries& latency_queries() const;
+	void add_latency_query(const LatencyQuery&);
+
 	const Objects& objects() { return m_objects; }
 	void add_object(SysObject* inst);
 	SysObject* get_object(const std::string& name);
@@ -142,13 +153,19 @@ public:
 	Component* get_component_for_instance(const std::string& name);
 	Linkpoint* get_linkpoint(const LinkTarget& path);
 
+	const Instance::ParamBindings& param_bindings() { return m_param_bindings; }
+	const Expression& get_param_binding(const std::string& name);
+	void set_param_binding(const std::string& name, const Expression& expr);
+
 protected:
 	std::string m_name;
 	Links m_links;
 	LinksByLabel m_links_by_label;
 	ExclusionGroups m_exclusion_groups;
+	LatencyQueries m_latency_queries;
 	Objects m_objects;
 	TopoGraph* m_topo;
+	Instance::ParamBindings m_param_bindings;
 };
 
 

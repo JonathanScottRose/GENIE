@@ -24,6 +24,7 @@ namespace
 	void write_sys_nets(SystemModule* mod);
 	void write_sys_file(SystemModule* mod);
 	void write_sys_body(SystemModule* mod);
+	void write_sys_localparams(SystemModule* mod);
 
 	void write_line(const std::string& line, bool indent, bool newline)
 	{
@@ -282,10 +283,19 @@ namespace
 		}
 	}
 
+	void write_sys_localparams(SystemModule* mod)
+	{
+		for (auto& i : mod->localparam_bindings())
+		{
+			write_line("localparam " + i.first + " = " + i.second.to_string() + ";");
+		}
+	}
+
 	void write_sys_body(SystemModule* mod)
 	{
 		s_cur_indent++;
 
+		write_sys_localparams(mod);
 		write_sys_nets(mod);
 		write_sys_insts(mod);
 

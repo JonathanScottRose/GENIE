@@ -22,6 +22,23 @@ namespace
 {
 	ct::CTOpts s_opts;
 
+	void linktarget_to_nodeport(Spec::System* sys_spec, P2P::System* p2psys, const Spec::LinkTarget& lt,
+		P2P::Node** out_node, P2P::Port** out_port)
+	{
+		// Locate source port and source node
+		const std::string& objname = lt.get_inst();
+		const std::string& ifname = lt.get_iface();
+		Spec::SysObject* obj = sys_spec->get_object(objname);
+
+		bool is_export = obj->get_type() == Spec::SysObject::EXPORT;
+
+		P2P::Node* node = is_export ? p2psys->get_export_node() : p2psys->get_node(objname);
+		P2P::Port* port = is_export ? node->get_port(objname) : node->get_port(ifname);
+
+		if (out_node) *out_node = node;
+		if (out_port) *out_port = port;
+	}
+
 	P2P::System* init_netlist(Spec::System* sys_spec)
 	{
 		// Create P2P system
@@ -64,16 +81,11 @@ namespace
 
 			// Locate source port and source node
 			const Spec::LinkTarget& src_target = bin.front()->get_src();
-			const std::string& objname = src_target.get_inst();
-			const std::string& ifname = src_target.get_iface();
-			Spec::SysObject* src_obj = sys_spec->get_object(objname);
 
-			bool src_is_export = src_obj->get_type() == Spec::SysObject::EXPORT;
-			bool dest_is_export = sys_spec->get_object(bin.front()->get_dest().get_inst())->get_type() ==
-				Spec::SysObject::EXPORT;
+			Node* src_node;
+			Port* src_port;
 
-			Node* src_node = src_is_export ? exp_node : sys->get_node(objname);
-			Port* src_port = src_is_export ? src_node->get_port(objname) : src_node->get_port(ifname);
+			linktarget_to_nodeport(sys_spec, sys, src_target, &src_node, &src_port);
 
 			// Broadcast linkpoints : all links constitute one flow (we only have these right now)
 			Flow* flow = new Flow();
@@ -87,13 +99,16 @@ namespace
 			for (auto& link : bin)
 			{
 				const Spec::LinkTarget& dest_target = link->get_dest();
-				Node* dest_node = dest_is_export ? exp_node : 
-					sys->get_node(dest_target.get_inst());
-				Port* dest_port = dest_is_export? dest_node->get_port(dest_target.get_inst()) :
-					dest_node->get_port(dest_target.get_iface());
+				
+				Node* dest_node;
+				Port* dest_port;
+
+				linktarget_to_nodeport(sys_spec, sys, dest_target, &dest_node, &dest_port);
 
 				flow->add_sink(dest_port, dest_target);
 				dest_port->add_flow(flow);
+
+				flow->add_link(link);
 			}
 		} // finish iterating over bins/sources
 
@@ -759,6 +774,80 @@ namespace
 		}
 	}
 
+	void process_queries(P2P::System* p2psys, Spec::System* sys_spec)
+	{
+		for (const auto& query : sys_spec->latency_queries())
+		{
+			Spec::Link* link = sys_spec->get_link(query.link_label);
+			assert(link);
+
+			// Find the src/end Ports of this Link
+			Port* cur_port;
+			Port* dest_port;
+
+			linktarget_to_nodeport(sys_spec, p2psys, link->get_src(), nullptr, &cur_port);
+			linktarget_to_nodeport(sys_spec, p2psys, link->get_dest(), nullptr, &dest_port);
+
+			// Find out which Flow this Link belongs to (ugly)
+			Flow* flow = nullptr;
+			for (Flow* test_flow : cur_port->flows())
+			{
+				for (auto test_link : test_flow->links())
+				{
+					if (test_link == link)
+					{
+						flow = test_flow;
+						break;
+					}
+				}
+
+				if (flow) break;
+			}
+
+			// Initialize result
+			int latency = 0;
+
+			// Traverse from link's source to sink
+			while (true)
+			{
+				// Identify the next point-to-point hop
+				Conn* conn = cur_port->get_conn();
+
+				// Traverse the connection from its source to sink
+				cur_port = conn->get_sink();
+
+				// Reached the end? exit.
+				if (cur_port == dest_port)
+					break;
+
+				// Not reached the end? Request transit through the Node
+				Node* node = cur_port->get_parent();
+
+				// If it's a reg node, add to latency
+				if (node->get_type() == Node::REG_STAGE)
+					latency++;
+
+				// Search all possible outgoing ports and filter to the one containing our Link
+				cur_port = nullptr;
+				auto possible_ports = node->trace(cur_port, flow);
+				
+				for (const auto& test_port : possible_ports)
+				{
+					if (test_port->has_link(link))
+					{
+						cur_port = test_port;
+						break;
+					}
+				}
+
+				assert(cur_port);
+			}
+
+			// Got latency. Create parameter.
+			sys_spec->set_param_binding(query.param_name, latency);
+		}
+	}
+
 	std::unordered_map<std::string, std::string> s_global_params;
 }
 
@@ -784,6 +873,8 @@ P2P::System* ct::build_system(Spec::System* system)
 	handle_defaults(result);
 	
 	connect_resets(result);
+
+	process_queries(result, system);
 
 	return result;
 }

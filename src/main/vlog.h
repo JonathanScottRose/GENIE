@@ -281,6 +281,7 @@ namespace Vlog
 	{
 	public:
 		typedef std::vector<ContinuousAssignment*> ContAssigns;
+		typedef std::unordered_map<std::string, Expression> LocalParams;
 
 		SystemModule();
 		~SystemModule();
@@ -288,8 +289,14 @@ namespace Vlog
 		PROP_DICT(Instances, instance, Instance);
 		PROP_DICT(Nets, net, Net);
 
+		const LocalParams& localparam_bindings() { return m_localparams; }
+		void add_localparam(const std::string& name, const Expression&);
+		Expression& get_localparam(const std::string& name);
+
 	protected:
 		ContAssigns m_cont_assigns;
+		LocalParams m_localparams;
+		NameResolver m_resolv;
 	};
 
 	class ModuleRegistry

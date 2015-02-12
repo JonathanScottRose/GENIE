@@ -1,5 +1,6 @@
 #include "impl_vlog.h"
 #include "ct/export_node.h"
+#include "ct/sys_spec.h"
 
 using namespace ct;
 using namespace ImplVerilog;
@@ -57,6 +58,13 @@ namespace
 					auto net = new Vlog::ExportNet(port);
 					sysmod->add_net(net);
 				}
+			}
+
+			// Convert system-local parameter bindings
+			Spec::System* sys_spec = node->get_parent()->get_spec();
+			for (auto& i : sys_spec->param_bindings())
+			{
+				sysmod->add_localparam(i.first,i.second.to_string());
 			}
 		}
 

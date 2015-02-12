@@ -470,6 +470,24 @@ namespace
 		return 0;
 	}
 
+	LFUNC(create_latency_query)
+	{
+		using namespace Spec;
+
+		std::string sysname = luaL_checkstring(L, 1);
+		std::string label = luaL_checkstring(L, 2);
+		std::string paramname = luaL_checkstring(L, 3);
+
+		LatencyQuery query;
+		query.link_label = label;
+		query.param_name = paramname;
+
+		Spec::System* sys = Spec::get_system(sysname);
+		sys->add_latency_query(query);
+
+		return 0;
+	}
+
 	int s_panic(lua_State* L)
 	{
 		std::string err = luaL_checkstring(L, -1);
@@ -499,6 +517,7 @@ namespace
 		REG_LFUNC(create_topo_node);
 		REG_LFUNC(create_topo_edge);
 		REG_LFUNC(create_exclusion_group);
+		REG_LFUNC(create_latency_query);
 	}
 }
 

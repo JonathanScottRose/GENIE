@@ -184,6 +184,16 @@ System::ExclusionGroups System::exclusion_groups_for_link(Link* link) const
 	return result;
 }
 
+const System::LatencyQueries& System::latency_queries() const
+{
+	return m_latency_queries;
+}
+
+void System::add_latency_query(const LatencyQuery& query)
+{
+	m_latency_queries.push_back(query);
+}
+
 void System::add_object(SysObject* inst)
 {
 	assert(!Util::exists_2(m_objects, inst->get_name()));
@@ -210,3 +220,12 @@ Linkpoint* System::get_linkpoint(const LinkTarget& path)
 	return iface->get_linkpoint(path.get_lp());
 }
 
+const Expression& System::get_param_binding(const std::string& name)
+{
+	return m_param_bindings[name];
+}
+
+void System::set_param_binding(const std::string& name, const Expression& expr)
+{
+	m_param_bindings[name] = expr;
+}

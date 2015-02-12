@@ -180,6 +180,7 @@ namespace P2P
 	{
 	public:
 		typedef std::forward_list<FlowTarget*> Sinks;
+		typedef std::forward_list<Spec::Link*> Links;
 
 		Flow();
 		~Flow();
@@ -198,9 +199,13 @@ namespace P2P
 		void remove_sink(FlowTarget* ft);
 		bool has_sink(Port* port);
 
+		const Links& links() const { return m_links; }
+		void add_link(Spec::Link* l) { m_links.push_front(l); }
+
 	protected:
 		FlowTarget* m_src;
 		Sinks m_sinks;
+		Links m_links;
 		int m_id;
 	};
 

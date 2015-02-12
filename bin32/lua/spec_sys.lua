@@ -128,7 +128,8 @@ System = class
 	objects = {},
     parameters = {},
 	topo_func = nil,
-    excl_groups = {}
+    excl_groups = {},
+    latency_queries = {}
 }
 
 function System:new(o)
@@ -137,6 +138,7 @@ function System:new(o)
 	o.objects = {}
     o.parameters = {}
     o.excl_groups = {}
+    o.latency_queries = {}
 	return o
 end
 
@@ -157,6 +159,15 @@ end
 
 function System:add_exclusion_group(grp)
     table.insert(self.excl_groups, grp)
+end
+
+function System:add_latency_query(label, param)
+    table.insert(self.latency_queries,
+        {
+            label = label,
+            param = param
+        }
+    )
 end
 
 function System:export_iface(exname, target)

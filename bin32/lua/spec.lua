@@ -100,6 +100,10 @@ function Spec:submit()
         for group in svaluesk(sys.excl_groups) do
             ct.create_exclusion_group(sys.name, group)
         end
+        
+        for query in svaluesk(sys.latency_queries) do
+            ct.create_latency_query(sys.name, query.label, query.param)
+        end
 		
 		if not sys.topo_func then
 			util.error("System " .. sys.name .. " missing topology function")
@@ -271,4 +275,9 @@ end
 function Builder:make_exclusive(group)
     if not self.cur_sys then util.error("Unexpected 'make_exclusive'") end
     self.cur_sys:add_exclusion_group(Set.make(group))
+end
+
+function Builder:latency_query(label, paramname)
+    if not self.cur_sys then util.error("Unexpected 'latency_query'") end
+    self.cur_sys:add_latency_query(label, paramname)
 end
