@@ -27,7 +27,7 @@ namespace
 	typedef std::vector<AttribDef> RequiredAttribs;
 	typedef std::unordered_map<std::string, std::string> Attribs;
 
-	const std::string API_TABLE_NAME = "ct";
+	const std::string API_TABLE_NAME = "genie";
 	const std::string GLOBALS_TABLE_NAME = "globals";
 	lua_State* s_state;
 

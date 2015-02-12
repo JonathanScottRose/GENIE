@@ -332,7 +332,7 @@ function System:finalize_exports()
                     -- if the width of the exported thing was parameterized, resolve
                     -- the parameter expression to a concrete value using the instance's parameter
                     -- bindings.
-                    local width = ct.eval_expression(old_sig.width, inst.param_bindings)
+                    local width = genie.eval_expression(old_sig.width, inst.param_bindings)
                     
                     ex.interface:add_signal(Signal:new
                     {

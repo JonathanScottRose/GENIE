@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>$(SolutionDir)../lib$(PlatformArchitecture)/</OutDir>
-    <TargetName>ct_$(Configuration)</TargetName>
+    <OutDir>$(SolutionDir)../lib/</OutDir>
+    <TargetName>genie_$(Configuration)</TargetName>
     <IntDir>$(ProjectDir)$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>

@@ -125,7 +125,7 @@ end
 
 function Graph:submit()
 	for nodename,node in spairsk(self.nodes) do
-		ct.create_topo_node(self.sys.name, nodename, node.type)
+		genie.create_topo_node(self.sys.name, nodename, node.type)
 	end
 	
 	for edge in svaluesk(self.edges) do
@@ -133,7 +133,7 @@ function Graph:submit()
 		for link in svaluesk(edge.links) do
 			table.insert(linkarray, {src = link.src:str(), dest = link.dest:str()})
 		end
-		ct.create_topo_edge(self.sys.name, edge.src, edge.dest, linkarray)
+		genie.create_topo_edge(self.sys.name, edge.src, edge.dest, linkarray)
 	end
 end
 

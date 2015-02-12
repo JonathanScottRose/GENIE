@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>$(SolutionDir)../bin$(PlatformArchitecture)/</OutDir>
-    <TargetName>connectool</TargetName>
+    <OutDir>$(SolutionDir)../bin/</OutDir>
+    <TargetName>genie</TargetName>
     <IntDir>$(ProjectDir)$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
@@ -13,7 +13,7 @@
     </ClCompile>
     <Link>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
-      <AdditionalDependencies>$(SolutionDir)../lib$(PlatformArchitecture)/ct_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)../lib/genie_$(Configuration).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup />

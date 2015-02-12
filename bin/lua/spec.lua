@@ -53,14 +53,14 @@ function Spec:submit()
 	self:post_process()
 	
 	for component in svaluesk(self.components) do
-		ct.reg_component
+		genie.reg_component
 		{
 			name = component.name,
 			hier = component.module
 		}
         
         for param in svaluesk(component.parameters) do
-            ct.reg_parameter
+            genie.reg_parameter
             {
                 comp = component.name,
                 name = param.name
@@ -68,24 +68,24 @@ function Spec:submit()
         end
 		
 		for iface in svaluesk(component.interfaces) do
-			ct.reg_interface(component.name, iface)
+			genie.reg_interface(component.name, iface)
 		end
 	end
 	
 	for sys in svaluesk(self.systems) do
-		ct.reg_system(sys.name)
+		genie.reg_system(sys.name)
 		
 		for obj in svaluesk(sys.objects) do
 			if obj.type == "INSTANCE" then
-				ct.reg_instance(sys.name,
+				genie.reg_instance(sys.name,
 				{
 					name = obj.name,
 					comp = obj.component
 				})
 				
-				ct.inst_defparams(sys.name, obj.name, obj.param_bindings)
+				genie.inst_defparams(sys.name, obj.name, obj.param_bindings)
 			else
-				ct.reg_export(sys.name,
+				genie.reg_export(sys.name,
 				{
 					name = obj.name,
                     interface = obj.interface
@@ -94,15 +94,15 @@ function Spec:submit()
 		end
 		
 		for link in svaluesk(sys.links) do
-			ct.reg_link(sys.name, link.src:str(), link.dest:str(), link.label)
+			genie.reg_link(sys.name, link.src:str(), link.dest:str(), link.label)
 		end
         
         for group in svaluesk(sys.excl_groups) do
-            ct.create_exclusion_group(sys.name, group)
+            genie.create_exclusion_group(sys.name, group)
         end
         
         for query in svaluesk(sys.latency_queries) do
-            ct.create_latency_query(sys.name, query.label, query.param)
+            genie.create_latency_query(sys.name, query.label, query.param)
         end
 		
 		if not sys.topo_func then

@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>$(SolutionDir)../lib$(PlatformArchitecture)/</OutDir>
+    <OutDir>$(SolutionDir)../lib/</OutDir>
     <TargetName>lua_$(Configuration)</TargetName>
     <IntDir>$(ProjectDir)$(Configuration)\</IntDir>
   </PropertyGroup>
