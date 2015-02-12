@@ -1,0 +1,15 @@
+set SRCDIR $::quartus(qip_path)
+
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_standalone.sv] -library lib_system
+set_global_assignment -name VERILOG_FILE [file join $SRCDIR cpu.v] -library lib_system
+set_global_assignment -name QIP_FILE [file join $SRCDIR cpu.qip] -library lib_system
+set_global_assignment -name SDC_FILE [file join $SRCDIR cpu_standalone.sdc] -library lib_system
+
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR ct_merge.sv] -library lib_system
+set_global_assignment -name VERILOG_FILE [file join $SRCDIR ct_mux.v] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR ct_split.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR ct_field_conv.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR ct_clock_cross.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR ct_pipe_stage.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR ct_merge_ex.sv] -library lib_system
+

@@ -38,11 +38,11 @@ local protos =
 	}
 }
 
--- define sender/receivers components for each
-
 local s = spec.Spec:new()
 local b = s:builder()
 
+-- programatically define all the components.
+-- each protocol has gets a sender component and receiver component defined.
 for name,sigs in spairsk(protos) do
 	for dir in Set.mkvalues{"out", "in"} do
 		local comp_name = name .. "_" .. dir
@@ -53,20 +53,25 @@ for name,sigs in spairsk(protos) do
 		b:clock_sink('clk', 'clk')
 		b:reset_sink('reset', 'reset')
 		b:interface(dir, 'data', dir, 'clk')
-		b:signal('valid', pfx_fwd .. 'valid')
-		b:signal('ready', pfx_rev .. 'ready')
-		for sname,swidth in pairs(sigs) do
-			local stype
-			local usertype = nil
-			if sname == 'eop' or sname == 'data' then
-				stype = sname
-			else
-				stype = 'data'
-				usertype = sname
-			end
-				
-			b:signal(stype, pfx_fwd .. sname, swidth, usertype)
-		end
+            -- valid/ready signals come standard
+            b:signal('valid', pfx_fwd .. 'valid')
+            b:signal('ready', pfx_rev .. 'ready')
+            -- create the signals definitions based on the protocol definitions in the big table
+            for sname,swidth in pairs(sigs) do
+                -- signals named anything other than 'eop' or 'data' are considered as 'data' signals with their name
+                -- being the usertype.
+                local stype
+                local usertype
+                if sname == 'eop' or sname == 'data' then
+                    stype = sname
+                    usertype = nil
+                else
+                    stype = 'data'
+                    usertype = sname
+                end
+                    
+                b:signal(stype, pfx_fwd .. sname, swidth, usertype)
+            end
 	end
 end
 
