@@ -35,6 +35,10 @@ function Instance:new(o)
 end
 
 function Instance:bind_param(param, value)
+    if not self.parent.parent.components[self.component].parameters[param] then 
+        util.error("undefined parameter "..param)
+    end
+    
 	self.param_bindings[param] = value
 end
 
@@ -360,7 +364,7 @@ function System:create_default_reset()
     
     -- must manually create reset signal, since finalize_exports will not process this export due to
     -- it not being connected to anything.
-    ex.interface.add_signal(Signal:new
+    ex.interface:add_signal(Signal:new
     {
         type = 'RESET',
         binding = 'reset',

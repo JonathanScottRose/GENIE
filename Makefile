@@ -1,12 +1,14 @@
 CC=g++
-CFLAGS=-std=c++11 -Iinclude -Isrc/lua -Isrc/main -DLUA_USE_LINUX -g
+CFLAGS=-std=c++11 -Iinclude -Isrc/lua -Isrc/main -DLUA_USE_LINUX 
+CFLAGS+=$(if $(DEBUG),-g,-O2)
 LFLAGS=-ldl -lboost_regex
 
-EXE=$(EXEDIR)/connectool
+
+EXE=$(EXEDIR)/genie
 LIB_LUA=$(LIBDIR)/lua.a
 LIB_CT=$(LIBDIR)/core.a
-EXEDIR=bin32
-LIBDIR=lib32
+EXEDIR=bin
+LIBDIR=lib
 
 .PHONY: clean all
 
@@ -58,5 +60,6 @@ $(EXE_OBJS): %.o : %.cpp $(EXE_HFILES) $(CT_HFILES_PUB)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EXE): $(EXE_OBJS) $(LIB_LUA) $(LIB_CT)
+	@mkdir -p $(EXEDIR)
 	$(CC) $(CFLAGS) -o $(EXE) $(EXE_OBJS) $(LIB_LUA) $(LIB_CT) $(LFLAGS)
 

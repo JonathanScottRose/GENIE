@@ -21,7 +21,7 @@ function topo_shared_toob(sys)
 			local iface = comp.interfaces[targ.iface]
 			return iface.type
 		else
-			return inst.iface_type
+			return inst.interface.type
 		end
 	end
 
