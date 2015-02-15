@@ -10,7 +10,7 @@ _ENV = spec
 
 Linkpoint = class
 {
-	Types = Set.make {"broadcast", "unicast"},
+	Types = enum {"broadcast"},
 	
 	name = nil,
 	type = nil,
@@ -22,7 +22,7 @@ Linkpoint = class
 
 Signal = class
 {
-	Types = Set.make {"CLOCK", "RESET", "DATA", "LP_ID", "LINK_ID", "VALID", 
+	Types = enum {"CLOCK", "RESET", "DATA", "LP_ID", "VALID", 
 		"READY", "SOP", "EOP", "IN", "OUT"},
 	
 	type = nil,
@@ -31,12 +31,18 @@ Signal = class
 	width = nil
 }
 
+function Signal:validate()
+    if not self.Types[string.lower(self.type)] then
+        util.error('invalid signal type: ' .. self.type)
+    end    
+end
+
 -- Interface
 
 Interface = class
 {
-	Types = Set.make {"CLOCK", "RESET", "DATA", "CONDUIT"},
-	Dirs = Set.make {"IN", "OUT"},
+	Types = enum {"CLOCK", "RESET", "DATA", "CONDUIT"},
+	Dirs = enum {"IN", "OUT"},
 	
 	name = nil,
 	type = nil,
@@ -46,6 +52,16 @@ Interface = class
 	clock = nil,
 	parent = nil,	-- set automatically
 }
+
+function Interface:validate()   
+    if not self.Types[string.lower(self.type)] then
+        util.error('invalid interface type: ' .. self.type)
+    end
+    
+    if not self.Dirs[string.lower(self.dir)] then
+        util.error('invalid interface direction: ' .. self.dir)
+    end
+end
 
 function Interface:new(o)
 	o = Interface:_init_inst(o)
@@ -64,6 +80,8 @@ function Interface:new(o)
 end
 
 function Interface:add_signal(sig)
+    sig:validate()
+
 	table.insert(self.signals, sig)
 	return sig
 end
@@ -113,6 +131,7 @@ end
 
 function Component:add_interface(iface)
 	iface.parent = self
+    iface:validate()
 	util.insert_unique(iface, self.interfaces)
 	return iface
 end

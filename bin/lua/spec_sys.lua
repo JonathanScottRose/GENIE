@@ -36,10 +36,16 @@ end
 
 function Instance:bind_param(param, value)
     if not self.parent.parent.components[self.component].parameters[param] then 
-        util.error("undefined parameter "..param)
+        util.error("unknown parameter "..param)
     end
     
 	self.param_bindings[param] = value
+end
+
+function Instance:validate()
+    if not self.parent.parent.components[self.component] then
+        util.error(self.name .. ' instantiates unknown component ' .. self.component)
+    end
 end
 
 -- Export
@@ -54,7 +60,7 @@ function Export:new(o)
     o = self:_init_inst(o)
     
     -- make sure the export is already named, so we can name the interface
-    if not o.name then util.error("must provide name") end
+    if not o.name then util.error("must provide name for export") end
     
     -- create internal interface, or co-opt the passed-in one
     o.interface = o.interface or {}
@@ -64,20 +70,25 @@ function Export:new(o)
     return o
 end
 
+function Export:validate()
+    self.interface:validate()
+end
+
 -- LinkTarget
 
 LinkTarget = class
 {
-	obj = nil,
-	iface = "iface",
-	lp = "lp"
 }
 
 function LinkTarget:new(o)
-    if o and not o.obj then o.obj = self.obj end
-    if o and not o.iface then o.iface = self.iface end
-    if o and not o.lp then o.lp = self.lp end
     o = self:_init_inst(o)
+    
+    o.iface_isdefault = o.iface == nil
+    o.lp_isdefault = o.lp == nil
+    
+    o.iface = o.iface or 'iface'
+    o.lp = o.lp or 'lp'
+    
     return o
 end
 
@@ -86,9 +97,18 @@ function LinkTarget:parse(str)
 	for val in string.gmatch(str, "[^.]+") do
 		table.insert(m, val)
 	end
-	self.obj = m[1] or self.obj
-	self.iface = m[2] or self.iface
-	self.lp = m[3] or self.lp
+	
+    self.obj = m[1] or self.obj
+    
+    if m[2] then
+        self.iface = m[2]
+        self.iface_isdefault = false
+    end
+	
+    if m[3] then
+        self.lp = m[3]
+        self.lp_isdefault = false
+    end
 end
 
 function LinkTarget:create_from_parse(str)
@@ -99,6 +119,18 @@ end
 
 function LinkTarget:str()
 	return self.obj .. "." .. self.iface .. "." .. self.lp
+end
+
+function LinkTarget:str_pretty()
+    util.print(self)
+    local result = self.obj
+    if not self.iface_isdefault then
+        result = result .. '.' .. self.iface
+        if not self.lp_isdefault then
+            result = result .. '.' .. self.lp
+        end
+    end
+    return result
 end
 
 function LinkTarget:phys()
@@ -147,11 +179,27 @@ function System:new(o)
 end
 
 function System:add_link(link)
+    for targ in values{link.src, link.dest} do
+        local obj = self.objects[targ.obj]
+        local good = obj ~= nil
+        
+        if good and obj.type == 'INSTANCE' then
+            local comp = self.parent.components[obj.component]
+            local iface = comp.interfaces[targ.iface]
+            good = iface ~= nil
+            good = good and iface.linkpoints[targ.lp] ~= nil
+        end
+        
+        if not good then
+            util.error('invalid link src or dest: ' .. targ:str_pretty())
+        end
+    end
 	table.insert(self.links, link)
 end
 
 function System:add_object(obj)
 	obj.parent = self
+    obj:validate()
 	util.insert_unique(obj, self.objects)
     return obj
 end

@@ -30,8 +30,9 @@ end
 function enum(names)
 	local result = {}
 	for num,name in ipairs(names) do
-		result[name] = num
-		result[num] = name
+        local lname = string.lower(name)
+		result[lname] = num
+		result[num] = lname
 	end
 	return result
 end
