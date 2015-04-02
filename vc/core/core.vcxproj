@@ -23,20 +23,27 @@
     <ClInclude Include="..\..\include\genie\connections.h" />
     <ClInclude Include="..\..\include\genie\expressions.h" />
     <ClInclude Include="..\..\include\genie\genie.h" />
+    <ClInclude Include="..\..\include\genie\graph.h" />
     <ClInclude Include="..\..\include\genie\hierarchy.h" />
     <ClInclude Include="..\..\include\genie\networks.h" />
     <ClInclude Include="..\..\include\genie\net_clock.h" />
+    <ClInclude Include="..\..\include\genie\net_conduit.h" />
     <ClInclude Include="..\..\include\genie\net_reset.h" />
     <ClInclude Include="..\..\include\genie\net_rvd.h" />
     <ClInclude Include="..\..\include\genie\net_topo.h" />
+    <ClInclude Include="..\..\include\genie\node_merge.h" />
     <ClInclude Include="..\..\include\genie\node_split.h" />
-    <ClInclude Include="..\..\include\genie\port_index.h" />
+    <ClInclude Include="..\..\include\genie\parameter.h" />
+    <ClInclude Include="..\..\include\genie\protocol.h" />
     <ClInclude Include="..\..\include\genie\regex.h" />
+    <ClInclude Include="..\..\include\genie\sigroles.h" />
     <ClInclude Include="..\..\include\genie\static_init.h" />
     <ClInclude Include="..\..\include\genie\structure.h" />
     <ClInclude Include="..\..\include\genie\util.h" />
+    <ClInclude Include="..\..\include\genie\value.h" />
+    <ClInclude Include="..\..\include\genie\vlog.h" />
+    <ClInclude Include="..\..\include\genie\vlog_bind.h" />
     <ClInclude Include="..\..\src\core\expressions_nodes.h" />
-    <ClInclude Include="..\..\src\core\graph.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\connections.cpp" />
@@ -44,15 +51,24 @@
     <ClCompile Include="..\..\src\core\genie.cpp" />
     <ClCompile Include="..\..\src\core\graph.cpp" />
     <ClCompile Include="..\..\src\core\hierarchy.cpp" />
+    <ClCompile Include="..\..\src\core\min_color.cpp" />
     <ClCompile Include="..\..\src\core\min_st_cut.cpp" />
     <ClCompile Include="..\..\src\core\multi_way_cut.cpp" />
     <ClCompile Include="..\..\src\core\networks.cpp" />
     <ClCompile Include="..\..\src\core\net_clock.cpp" />
+    <ClCompile Include="..\..\src\core\net_conduit.cpp" />
     <ClCompile Include="..\..\src\core\net_reset.cpp" />
     <ClCompile Include="..\..\src\core\net_rvd.cpp" />
     <ClCompile Include="..\..\src\core\net_topo.cpp" />
+    <ClCompile Include="..\..\src\core\node_merge.cpp" />
     <ClCompile Include="..\..\src\core\node_split.cpp" />
+    <ClCompile Include="..\..\src\core\sigroles.cpp" />
     <ClCompile Include="..\..\src\core\structure.cpp" />
+    <ClCompile Include="..\..\src\core\value.cpp" />
+    <ClCompile Include="..\..\src\core\vlog.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_bind.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_flow.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_write.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -9,115 +9,116 @@ using namespace genie;
 // Endpoint
 //
 
-AEndpoint::AEndpoint(Dir dir, HierObject* container)
-: AspectWithRef(container), m_dir(dir)
+Endpoint::Endpoint(NetType type, Dir dir)
+: m_dir(dir), m_obj(nullptr), m_type(type)
 {
 }
 
-AEndpoint::~AEndpoint()
+Endpoint::~Endpoint()
 {
 	// Connections are owned by someone else. Don't cleanup.
 }
 
-NetTypeDef* AEndpoint::get_net_def() const
+Network* Endpoint::get_network() const
 {
 	// Helper method
-	return NetTypeDef::get(this->get_type());
+	return Network::get(this->get_type());
 }
 
-void AEndpoint::add_link(Link* link)
+void Endpoint::add_link(Link* link)
 {
 	assert(m_dir != Dir::INVALID);
 	
 	// Already bound to this specific link
 	if (has_link(link))
-		throw Exception("link is already bound to endpoint");
+		throw HierException(m_obj, "link is already bound to endpoint");
 
 	// Check connection rules
-	NetTypeDef* def = get_net_def();
+	Network* def = get_network();
 
 	if (is_connected())
 	{
 		if (m_dir == Dir::OUT && !def->get_src_multibind())
-			throw HierException(asp_container(), "source endpoint does not support multiple bindings");
+			throw HierException(m_obj, "source endpoint does not support multiple bindings");
 		else if (m_dir == Dir::IN && !def->get_sink_multibind())
-			throw HierException(asp_container(), "sink endpoint does not support multiple bindings");
+			throw HierException(m_obj, "sink endpoint does not support multiple bindings");
 	}
 
 	m_links.push_back(link);
 }
 
-void AEndpoint::remove_link(Link* link)
+void Endpoint::remove_link(Link* link)
 {
 	assert (!has_link(link));
 
-	Util::erase(m_links, link);
+	util::erase(m_links, link);
 }
 
-bool AEndpoint::has_link(Link* link) const
+bool Endpoint::has_link(Link* link) const
 {
-	return Util::exists(m_links, link);
+	return util::exists(m_links, link);
 }
 
-void AEndpoint::remove_all_links()
+void Endpoint::remove_all_links()
 {
 	m_links.clear();
 }
 
-const AEndpoint::Links& AEndpoint::links() const
+const Endpoint::Links& Endpoint::links() const
 {
 	return m_links;
 }
 
-Link* AEndpoint::get_link0() const
+Link* Endpoint::get_link0() const
 {
 	// Return the first one
 	return m_links.empty()? nullptr : m_links.front();
 }
 
-AEndpoint::Endpoints AEndpoint::get_remotes() const
+Endpoint::Endpoints Endpoint::get_remotes() const
 {
 	Endpoints result;
 
 	// Go through all bound links and collect the things on the other side
 	for (auto& link : m_links)
 	{
-		AEndpoint* ep = link->get_other(this);
+		Endpoint* ep = link->get_other_ep(this);
 		result.push_back(ep);
 	}
 
 	return result;
 }
 
-AEndpoint* AEndpoint::get_remote0() const
+Endpoint* Endpoint::get_remote0() const
 {
 	if (m_links.empty())
 		return nullptr;
 
-	return m_links.front()->get_other(this);
+	return m_links.front()->get_other_ep(this);
 }
 
-bool AEndpoint::is_connected() const
+bool Endpoint::is_connected() const
 {
 	return !m_links.empty();
 }
 
-HierObject* AEndpoint::get_remote_obj0() const
+HierObject* Endpoint::get_remote_obj0() const
 {
-	return get_remote0()->asp_container();
+	return get_remote0()->m_obj;
 }
 
-AEndpoint::Objects AEndpoint::get_remote_objs() const
+Endpoint::Objects Endpoint::get_remote_objs() const
 {
 	Objects result;
 
 	for (auto& link : m_links)
 	{
-		result.push_back(link->get_other(this)->asp_container());
+		result.push_back(link->get_other_ep(this)->m_obj);
 	}
 
 	return result;
 }
+
 
 //
 // Link
@@ -125,7 +126,7 @@ AEndpoint::Objects AEndpoint::get_remote_objs() const
 
 
 
-Link::Link(AEndpoint* src, AEndpoint* sink)
+Link::Link(Endpoint* src, Endpoint* sink)
 {
 	set_src(src);
 	set_sink(sink);
@@ -140,17 +141,27 @@ Link::~Link()
 {
 }
 
-AEndpoint* Link::get_src() const
+HierObject* Link::get_src() const
+{
+	return get_src_ep()->get_obj();
+}
+
+HierObject* Link::get_sink() const
+{
+	return get_sink_ep()->get_obj();
+}
+
+Endpoint* Link::get_src_ep() const
 {
 	return m_src;
 }
 
-AEndpoint* Link::get_sink() const
+Endpoint* Link::get_sink_ep() const
 {
 	return m_sink;
 }
 
-AEndpoint* Link::get_other(const AEndpoint* ep) const
+Endpoint* Link::get_other_ep(const Endpoint* ep) const
 {
 	assert(ep);
 
@@ -164,33 +175,33 @@ AEndpoint* Link::get_other(const AEndpoint* ep) const
 		return m_src;
 	}
 	
-	throw Exception("Degenerate link");
+	throw Exception("degenerate link");
 	return nullptr; // not reached
 }
 
-void Link::set_src(AEndpoint* ep)
+void Link::set_src(Endpoint* ep)
 {
 	if (ep)
 	{
 		if (m_src)
-			throw HierException(ep->asp_container(), "link src already set");
+			throw HierException(ep->get_obj(), "link src already set");
 
 		if (ep->get_dir() != Dir::OUT)
-			throw HierException(ep->asp_container(), "tried to use sink endpoint as a source");
+			throw HierException(ep->get_obj(), "tried to use sink endpoint as a source");
 	}
 
 	m_src = ep;
 }
 
-void Link::set_sink(AEndpoint* ep)
+void Link::set_sink(Endpoint* ep)
 {
 	if (ep)
 	{
 		if (m_sink)
-			throw HierException(ep->asp_container(), "link sink already set");
+			throw HierException(ep->get_obj(), "link sink already set");
 
 		if (ep->get_dir() != Dir::IN)
-			throw HierException(ep->asp_container(), "tried to use source endpoint as a sink");
+			throw HierException(ep->get_obj(), "tried to use source endpoint as a sink");
 	}
 
 	m_sink = ep;
@@ -200,7 +211,7 @@ NetType Link::get_type() const
 {
 	// For now, return the network type of one of the endpoints rather than keeping
 	// our own m_type field in the link itself
-	AEndpoint* ep = m_src? m_src : m_sink;
+	Endpoint* ep = m_src? m_src : m_sink;
 	if (!ep)
 		throw Exception("link not connected to anything, can not determine network type");
 
@@ -211,8 +222,7 @@ NetType Link::get_type() const
 // ALinkContainment
 //
 
-ALinkContainment::ALinkContainment(Link* container)
-: AspectWithRef(container)
+ALinkContainment::ALinkContainment()
 {
 }
 
@@ -220,8 +230,10 @@ ALinkContainment::~ALinkContainment()
 {
 }
 
-
-
+Aspect* ALinkContainment::asp_instantiate()
+{
+	return new ALinkContainment();
+}
 
 void ALinkContainment::add_link(Link* other, PorC porc)
 {
@@ -263,7 +275,7 @@ void ALinkContainment::remove_link(Link* other, PorC porc)
 
 void ALinkContainment::remove_link_internal(Link* other, PorC porc)
 {
-	Util::erase(m_links[porc], other);
+	util::erase(m_links[porc], other);
 }
 
 void ALinkContainment::add_link_internal(Link* other, PorC porc)

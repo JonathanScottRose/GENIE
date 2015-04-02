@@ -1,10 +1,10 @@
 #pragma once
-/*
+
 #include "vlog.h"
 #include "genie/static_init.h"
 #include "genie/p2p.h"
 
-using namespace genie;
+using namespace ct;
 
 namespace ImplVerilog
 {
@@ -48,7 +48,7 @@ namespace ImplVerilog
 		void set_inst_for_node(P2P::Node*, Vlog::Instance*);
 		Vlog::Instance* get_inst_for_node(P2P::Node*);
 
-		virtual const std::string& get_module_name(genie::P2P::Node* node) = 0;
+		virtual const std::string& get_module_name(ct::P2P::Node* node) = 0;
 		virtual Vlog::Module* implement(P2P::Node*, const std::string&) = 0;
 		virtual void parameterize(P2P::Node*, Vlog::Instance*) = 0;
 		virtual void get_port_name(P2P::Port*, P2P::PhysField*, Vlog::Instance*, GPNInfo*) = 0;
@@ -60,6 +60,4 @@ namespace ImplVerilog
 
 	// Utility
 	Vlog::Port::Dir conv_port_dir(P2P::Port*, P2P::PhysField*);
-	std::string name_for_p2p_port(P2P::Port*, P2P::PhysField*);
 }
-*/

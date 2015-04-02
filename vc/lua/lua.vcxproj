@@ -13,30 +13,31 @@
   </PropertyGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\genie\lua\genie_lua.h" />
-    <ClInclude Include="..\..\include\genie\lua\lapi.h" />
+    <ClInclude Include="..\..\include\genie\lua\genie_lua_impl.h" />
     <ClInclude Include="..\..\include\genie\lua\lauxlib.h" />
-    <ClInclude Include="..\..\include\genie\lua\lcode.h" />
-    <ClInclude Include="..\..\include\genie\lua\lctype.h" />
-    <ClInclude Include="..\..\include\genie\lua\ldebug.h" />
-    <ClInclude Include="..\..\include\genie\lua\ldo.h" />
-    <ClInclude Include="..\..\include\genie\lua\lfunc.h" />
-    <ClInclude Include="..\..\include\genie\lua\lgc.h" />
-    <ClInclude Include="..\..\include\genie\lua\llex.h" />
-    <ClInclude Include="..\..\include\genie\lua\llimits.h" />
-    <ClInclude Include="..\..\include\genie\lua\lmem.h" />
-    <ClInclude Include="..\..\include\genie\lua\lobject.h" />
-    <ClInclude Include="..\..\include\genie\lua\lopcodes.h" />
-    <ClInclude Include="..\..\include\genie\lua\lparser.h" />
-    <ClInclude Include="..\..\include\genie\lua\lstate.h" />
-    <ClInclude Include="..\..\include\genie\lua\lstring.h" />
-    <ClInclude Include="..\..\include\genie\lua\ltable.h" />
-    <ClInclude Include="..\..\include\genie\lua\ltm.h" />
     <ClInclude Include="..\..\include\genie\lua\lua.h" />
     <ClInclude Include="..\..\include\genie\lua\luaconf.h" />
-    <ClInclude Include="..\..\include\genie\lua\lualib.h" />
-    <ClInclude Include="..\..\include\genie\lua\lundump.h" />
-    <ClInclude Include="..\..\include\genie\lua\lvm.h" />
-    <ClInclude Include="..\..\include\genie\lua\lzio.h" />
+    <ClInclude Include="..\..\src\lua\lapi.h" />
+    <ClInclude Include="..\..\src\lua\lcode.h" />
+    <ClInclude Include="..\..\src\lua\lctype.h" />
+    <ClInclude Include="..\..\src\lua\ldebug.h" />
+    <ClInclude Include="..\..\src\lua\ldo.h" />
+    <ClInclude Include="..\..\src\lua\lfunc.h" />
+    <ClInclude Include="..\..\src\lua\lgc.h" />
+    <ClInclude Include="..\..\src\lua\llex.h" />
+    <ClInclude Include="..\..\src\lua\llimits.h" />
+    <ClInclude Include="..\..\src\lua\lmem.h" />
+    <ClInclude Include="..\..\src\lua\lobject.h" />
+    <ClInclude Include="..\..\src\lua\lopcodes.h" />
+    <ClInclude Include="..\..\src\lua\lparser.h" />
+    <ClInclude Include="..\..\src\lua\lstate.h" />
+    <ClInclude Include="..\..\src\lua\lstring.h" />
+    <ClInclude Include="..\..\src\lua\ltable.h" />
+    <ClInclude Include="..\..\src\lua\ltm.h" />
+    <ClInclude Include="..\..\src\lua\lualib.h" />
+    <ClInclude Include="..\..\src\lua\lundump.h" />
+    <ClInclude Include="..\..\src\lua\lvm.h" />
+    <ClInclude Include="..\..\src\lua\lzio.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\lua\genie_lua.cpp" />

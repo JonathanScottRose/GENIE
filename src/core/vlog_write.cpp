@@ -1,10 +1,8 @@
 #include <fstream>
-#include "write_vlog.h"
-#include "impl_vlog.h"
-#include "vlog.h"
+#include "genie/vlog.h"
+#include "genie/structure.h"
 
-using namespace Vlog;
-using namespace genie;
+using namespace genie::vlog;
 
 namespace
 {
@@ -14,14 +12,17 @@ namespace
 
 	void write_line(const std::string& line, bool indent = true, bool newline = true);
 	void write_port(Port* port);
+	void write_param(genie::ParamBinding* param);
 	void write_wire(WireNet* net);
 	void write_port_bindings(PortBinding* binding);
-	void write_param_binding(ParamBinding* binding);
+	void write_param_binding(genie::ParamBinding* binding);
 
 	void write_sys_ports(SystemModule* mod);
+	void write_sys_params(SystemModule* mod);
 	void write_sys_nets(SystemModule* mod);
 	void write_sys_file(SystemModule* mod);
 	void write_sys_body(SystemModule* mod);
+	void write_sys_localparams(SystemModule* mod);
 
 	void write_line(const std::string& line, bool indent, bool newline)
 	{
@@ -42,7 +43,7 @@ namespace
 		std::string dir_str = port->get_dir() == Port::OUT ? "output " : "input ";
 		std::string size_str;
 
-		int width = port->get_width();
+		int width = port->get_width().get_value();
 		if (width > 1)
 		{
 			int hi = width - 1;
@@ -51,6 +52,11 @@ namespace
 		}
 
 		write_line(dir_str + size_str + port->get_name(), true, false);
+	}
+
+	void write_param(genie::ParamBinding* param)
+	{
+		write_line("parameter " + param->get_name(), true, false);
 	}
 
 	void write_wire(WireNet* net)
@@ -86,6 +92,41 @@ namespace
 		s_cur_indent--;
 	}
 
+	void write_sys_params(SystemModule* mod)
+	{
+		using genie::Node;
+
+		auto& all_params = mod->get_sysnode()->params();
+		Node::Params params; 
+
+		for (auto& i : mod->get_sysnode()->params())
+		{
+			if (!i.second->is_bound())
+				params.insert(i);
+		}
+		
+		if (!params.empty())
+		{
+			write_line(" #", false, true);
+			write_line("(");
+			s_cur_indent++;
+
+			int parmno = params.size();
+			for (auto& i : params)
+			{
+				write_param(i.second);
+				if (--parmno > 0) write_line(",", false, true);
+			}
+			write_line("", false, true);
+
+			s_cur_indent--;
+			write_line(")", true, false);
+		}
+
+		write_line("", false, true);
+	}
+
+
 	void write_sys_nets(SystemModule* mod)
 	{
 		for (auto& i : mod->nets())
@@ -103,7 +144,7 @@ namespace
 		const std::string& portname = ps->get_name();
 		std::string bindstr = "";
 
-		bool is_input = ps->get_port()->get_dir() == Vlog::Port::IN;
+		bool is_input = ps->get_port()->get_dir() == Port::IN;
 
 		// Keep track of whether or not we wrote multiple comma-separated items
 		bool had_commas = false;
@@ -196,23 +237,32 @@ namespace
 		write_line("." + portname + opener + bindstr + closer, true, false);
 	}
 
-	void write_param_binding(ParamBinding* binding)
+	void write_param_binding(genie::ParamBinding* binding)
 	{
 		const std::string& paramname = binding->get_name();
-		std::string paramval = binding->value().to_string();
+		std::string paramval = binding->get_expr().to_string();
 		write_line("." + paramname + "(" + paramval + ")", true, false);
 	}
 
 	void write_sys_insts(SystemModule* mod)
 	{
 		write_line("");
-
+		
 		for (auto& i : mod->instances())
 		{
 			Instance* inst = i.second;
 			Module* mod = inst->get_module();
+			
+			auto& all_params = inst->get_node()->params();
+			genie::Node::Params bound_params;
 
-			bool has_params = !inst->param_bindings().empty();
+			for (auto& i : all_params)
+			{
+				if (i.second->is_bound())
+					bound_params.insert(i);
+			}
+
+			bool has_params = !bound_params.empty();
 
 			write_line(mod->get_name() + " ", true, false);
 			if (has_params)
@@ -221,10 +271,10 @@ namespace
 				write_line("(");
 				s_cur_indent++;
 
-				int paramno = inst->param_bindings().size();
-				for (auto& j : inst->param_bindings())
+				int paramno = bound_params.size();
+				for (auto& j : bound_params)
 				{
-					ParamBinding* b = j.second;
+					genie::ParamBinding* b = j.second;
 					write_param_binding(b);
 
 					if (--paramno != 0)
@@ -257,10 +307,29 @@ namespace
 		}
 	}
 
+	void write_sys_localparams(SystemModule* mod)
+	{
+		genie::System* sysnode = mod->get_sysnode();
+
+		auto& all_params = sysnode->params();
+		genie::Node::Params bound_params;
+		for (auto& i : all_params)
+		{
+			if (i.second->is_bound())
+				bound_params.insert(i);
+		}
+
+		for (auto& i : bound_params)
+		{
+			write_line("localparam " + i.first + " = " + i.second->get_expr().to_string() + ";");
+		}
+	}
+
 	void write_sys_body(SystemModule* mod)
 	{
 		s_cur_indent++;
 
+		write_sys_localparams(mod);
 		write_sys_nets(mod);
 		write_sys_insts(mod);
 
@@ -271,7 +340,11 @@ namespace
 	{
 		const std::string& mod_name = mod->get_name();
 
-		write_line("module " + mod_name);
+
+		write_line("module " + mod_name, true, false);
+
+		write_sys_params(mod);
+
 		write_line("(");
 		write_sys_ports(mod);
 		write_line(");");
@@ -282,9 +355,9 @@ namespace
 	}
 }
 
-void WriteVerilog::go(Vlog::SystemModule* top)
+void genie::vlog::write_system(SystemModule* top)
 {
-	std::string filename = top->get_name() + ".v";
+	std::string filename = top->get_name() + ".sv";
 
 	s_file.open(filename);
 	write_sys_file(top);

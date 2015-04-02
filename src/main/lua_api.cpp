@@ -1,8 +1,14 @@
-#include "genie/lua/genie_lua.h"
 #include "genie/genie.h"
 #include "genie/structure.h"
 #include "genie/hierarchy.h"
 #include "genie/connections.h"
+#include "genie/node_split.h"
+#include "genie/node_merge.h"
+#include "genie/vlog.h"
+#include "genie/vlog_bind.h"
+#include "genie/lua/genie_lua.h"
+#include "net_rs.h"
+#include "flow.h"
 
 using namespace genie;
 using namespace lua;
@@ -28,12 +34,7 @@ namespace
 		if (lua_isstring(L, narg))
 		{
 			const char* path = lua_tostring(L, narg);
-			
-			auto ap = parent->asp_get<AHierParent>();
-			if (!ap)
-				throw Exception("not a hierarchy parent");
-
-			result = as_a<T*>(ap->get_child(path));
+			result = as_a<T*>(parent->get_child(path));
 		}
 		else
 		{
@@ -79,6 +80,16 @@ namespace
 		return 1;
 	}
 
+	// Gets a HierObject's full name
+	// ARGS: SELF
+	// RETURNS: name <string>
+	LFUNC(hier_get_path)
+	{
+		auto obj = lua::check_object<HierObject>(1);
+		lua_pushstring(L, obj->get_hier_path().c_str());
+		return 1;
+	}
+
 	// Gets a HierObject's parent
 	// ARGS: SELF
 	// RETURNS: parent <userdata>
@@ -101,11 +112,7 @@ namespace
 		auto parent = check_object<HierObject>(1);
 		auto child = check_object<HierObject>(2);
 
-		auto aparent = parent? parent->asp_get<AHierParent>() : nullptr;
-
-		luaL_argcheck(L, aparent != nullptr, 1, "not a hierarchy parent object");
-
-		aparent->add_child(child);
+		parent->add_child(child);
 
 		// return top (child)
 		return 1;
@@ -118,12 +125,8 @@ namespace
 	{
 		auto parent = check_object<HierObject>(1);
 		const char* childname = luaL_checkstring(L, 2);
-
-		auto aparent = parent? parent->asp_get<AHierParent>() : nullptr;
-
-		luaL_argcheck(L, aparent != nullptr, 1, "not a hierarchy parent object");
 		
-		auto result = aparent->get_child(childname);
+		auto result = parent->get_child(childname);
 		push_object(result);
 
 		// return top (child)
@@ -137,15 +140,14 @@ namespace
 	LFUNC(hier_get_children_by_type)
 	{
 		auto parent = check_object<HierObject>(1);
-		auto aparent = parent? parent->asp_get<AHierParent>() : nullptr;
 
 		// Create return table
 		lua_newtable(L);
 
-		if (aparent)
+		if (parent)
 		{
 			// Get children
-			auto children = aparent->get_children_by_type<T>();
+			auto children = parent->get_children_by_type<T>();
 
 			// For each child, create a table entry with the key being the child's name
 			for (auto& obj : children)
@@ -166,15 +168,14 @@ namespace
 	LFUNC(hier_get_children)
 	{
 		auto parent = check_object<HierObject>(1);
-		auto aparent = parent? parent->asp_get<AHierParent>() : nullptr;
 
 		// Create return table
 		lua_newtable(L);
 
-		if (aparent)
+		if (parent)
 		{
 			// Get children
-			auto children = aparent->get_children();
+			auto children = parent->get_children();
 
 			// For each child, create a table entry with the key being the child's name
 			for (auto& obj : children)
@@ -189,16 +190,14 @@ namespace
 		return 1;
 	}
 
-	// Gets the prototype for an AInstantiable, or nil if none exists
-	// ARGS: SELF
-	// RETURNS: the prototype object <userdata>
-	LFUNC(hier_get_prototype)
+	LCLASS(HierObject, "HierObject",
 	{
-		HierObject* obj = lua::check_object<HierObject>(1);
-		lua::push_object(obj->get_prototype());
-
-		return 1;
-	}
+		LM(__tostring, hier_get_path),
+		LM(get_name, hier_get_name),
+		LM(get_hier_path, hier_get_path),
+		LM(get_parent, hier_get_parent),
+		LM(get_children, hier_get_children)
+	});
 
 	//
 	// Network type/direction access (reused for many classes)
@@ -212,7 +211,7 @@ namespace
 	{
 		T* obj = lua::check_object<T>(1);
 		NetType type = obj->get_type();
-		const std::string& type_name = NetTypeDef::get(type)->get_name();
+		const std::string& type_name = Network::get(type)->get_name();
 
 		lua_pushstring(L, type_name.c_str());
 		
@@ -228,7 +227,7 @@ namespace
 		T* obj = lua::check_object<T>(1);
 		const char* dir_name = genie::dir_to_str(obj->get_dir());
 		
-		lua_pushstring(L, Util::str_tolower(dir_name).c_str());
+		lua_pushstring(L, util::str_tolower(dir_name).c_str());
 		return 1;
 	}
 
@@ -246,7 +245,7 @@ namespace
 		// Resolve network type, if provided
 		if (netname)
 		{
-			nettype = NetTypeDef::type_from_str(netname);
+			nettype = Network::type_from_str(netname);
 			luaL_argcheck(L, nettype != NET_INVALID, 2, "unknown network type");
 		}
 		
@@ -256,8 +255,8 @@ namespace
 			unsigned int arrindex = 1;
 
 			// Iterate through all endpoint aspects of the object
-			auto eps = obj->asp_get_all_matching<AEndpoint>();
-			for (AEndpoint* ep : eps)
+			auto eps = obj->asp_get_all_matching<Endpoint>();
+			for (Endpoint* ep : eps)
 			{
 				// Skip all but the given network type, if provided
 				if (nettype != NET_INVALID && ep->get_type() != nettype)
@@ -272,47 +271,191 @@ namespace
 		return 1;
 	}
 
+	//
+	// Globals
+	//
+
+	// Gets a hierarchy object from the root
+
+	LFUNC(glob_get_object)
+	{
+		lua::push_object(genie::get_root());
+		lua_insert(L, 1);
+		return hier_get_child(L);
+	}
+
+	LFUNC(glob_get_objects)
+	{
+		lua::push_object(genie::get_root());
+		lua_insert(L, 1);
+		return hier_get_children(L);
+	}
+
+	LFUNC(glob_get_systems)
+	{
+		lua::push_object(genie::get_root());
+		lua_insert(L, 1);
+		return hier_get_children_by_type<System>(L);
+	}
+
+	LGLOBALS(
+	{
+		LM(get_object, glob_get_object),
+		LM(get_objects, glob_get_objects),
+		LM(get_systems, glob_get_systems)
+	});
+
+	//
+	// Node
+	//
+
+	// CONSTRUCTOR
+	// Creates a new blank Node and registers it with GENIE
+	// ARGS: name <string>, verilog module name <string>
+	// RETURNS: node <userdata>
+	LFUNC(node_new)
+	{
+		const char* name = luaL_checkstring(L, 1);
+		const char* mod_name = luaL_checkstring(L, 2);
+
+		// Create new verilog module definition
+		auto mod = new vlog::Module(mod_name);
+		vlog::register_module(mod);
+
+		// Create and register the node
+		Node* node = new Node();
+		node->set_name(name);
+		genie::get_root()->add_child(node);
+
+		// Attach vlog info to node
+		auto av = new vlog::AVlogInfo();
+		av->set_module(mod);
+		node->asp_add(av);
+
+		lua::push_object(node);
+		
+		return 1;
+	}
+
+	// Creates a new Port of a given network type and direction and adds it to the Node
+	// ARGS: SELF, port name <string>, port nettype <string>, direction <string>
+	LFUNC(node_add_port)
+	{
+		Node* node = lua::check_object<Node>(1);
+		const char* portname = luaL_checkstring(L, 2);
+		const char* netname = luaL_checkstring(L, 3);
+		const char* dirname = luaL_checkstring(L, 4);
+
+		Network* netdef = Network::get(netname);
+		Dir dir = genie::dir_from_str(dirname);
+
+		luaL_argcheck(L, netdef, 3, "unknown network type");
+		luaL_argcheck(L, dir != Dir::INVALID, 4, "unknown direction");
+
+		// Create port
+		auto port = netdef->create_port(dir);
+		port->set_name(portname);
+		node->add_child(port);
+
+		lua::push_object(port);
+
+		return 1;
+	}
+
+	// Defines (and/or sets) a parameter
+	// ARGS: SELF<Node>, param name <string>, [param value <string>]
+	LFUNC(node_def_param)
+	{
+		auto self = lua::check_object<Node>(1);
+		std::string parmname = luaL_checkstring(L, 2);
+		
+		// case-insensitive
+		util::str_makeupper(parmname);
+
+		bool exists = self->has_param(parmname);
+		bool provide_val = !lua_isnoneornil(L, 3);
+
+		ParamBinding* parm = exists? self->get_param(parmname) : 
+			self->add_param(new ParamBinding(parmname));
+		
+		if (exists && !provide_val)
+		{
+			lerror("parameter " + parmname + " already defined");
+		}
+		else if (provide_val)
+		{
+			std::string parmval = luaL_checkstring(L, 3);
+			parm->set_expr(parmval);
+		}
+		
+		return 0;
+	};
+
+	LCLASS(Node, "Node",
+	{
+		LM(__tostring, hier_get_path),
+		LM(get_name, hier_get_name),
+		LM(get_hier_path, hier_get_path),
+		LM(get_parent, hier_get_parent),
+		LM(add_port, node_add_port),
+		LM(get_ports, hier_get_children_by_type<Port>),
+		LM(get_port, hier_get_child),
+		LM(def_param, node_def_param)
+	},
+	{
+		LM(new, node_new)
+	});
 
 	//
 	// System
 	//
 
 	// CONSTRUCTOR: Creates a new System with the given name and registers it in GENIE's Hierarchy
-	// ARGS: system name <string>
+	// ARGS: system name <string>, topology function <functoin>
 	// RETURNS: the system <userdata>
 	LFUNC(system_new)
 	{
 		const char* sysname = luaL_checkstring(L, 1);
+		luaL_checktype(L, 2, LUA_TFUNCTION);
 
-		System* sys = new System(sysname);
-		genie::get_root()->add_object(sys);
+		// Create new verilog module definition
+		auto mod = new vlog::SystemModule(sysname);
+		vlog::register_module(mod);
+
+		// Create the System
+		System* sys = new System();
+		sys->set_name(sysname);
+		genie::get_root()->add_child(sys);
+
+		// Refer module back to System
+		mod->set_sysnode(sys);
+
+		// Makes a ref for topo function, attach to system
+		auto atopo = new ATopoFunc();
+		atopo->func_ref = lua::make_ref();
+		sys->asp_add(atopo);		
+
+		// Attach vlog info to system
+		auto av = new vlog::AVlogInfo();
+		av->set_module(mod);
+		sys->asp_add(av);
 
 		lua::push_object(sys);
 		return 1;
 	}
 
-	// Creates a named Node from a named NodeDef and adds it to the System
-	// ARGS: SELF, node/instance name <string>, NodeDef name <string>
+	// Instantiates a Node (a child of the root) within a System
+	// ARGS: SELF, instance name <string>, prototype path <string/object>
 	// RETURNS: the new node <userdata>
 	LFUNC(system_add_node)
 	{
 		System* sys = check_object<System>(1);
 		std::string instname = luaL_checkstring(L, 2);
-		std::string defname = luaL_checkstring(L, 3);
-		
-		HierObject* def = nullptr;
+		auto prototype = check_obj_or_str_hierpath<Node>(L, 3);
 
-		try
-		{
-			def = genie::get_root()->get_object(defname);
-		}
-		catch (HierNotFoundException&)
-		{
-			lerror("NodeDef not found: " + defname);
-		}
+		luaL_argcheck(L, prototype, 3, "node not found");
 
-		HierObject* newobj = def->instantiate();
-
+		HierObject* newobj = prototype->instantiate();
 
 		newobj->set_name(instname);
 		sys->add_object(newobj);
@@ -322,27 +465,36 @@ namespace
 		return 1;
 	}
 
-	// Manually creates an Export with a given name, network type, and direction
-	// ARGS: SELF, export name <string>, network type <string>, direction(in/out) <string>
-	// RETURNS: the new export <userdata>
-	LFUNC(system_add_export)
+	// Creates split nodes
+	// ARGS: SELF<System>, name<string>
+	// RETURNS: split node
+	LFUNC(system_add_split)
 	{
-		System* sys = check_object<System>(1);
-		std::string exname = luaL_checkstring(L, 2);
-		std::string netname = luaL_checkstring(L, 3);
-		std::string dirname = luaL_checkstring(L, 4);
-		
-		NetTypeDef* ndef = NetTypeDef::get(netname);
-		luaL_argcheck(L, ndef, 3, "not a valid network type");
+		System* self = check_object<System>(1);
+		const char* name = luaL_checkstring(L, 2);
 
-		Dir dir = genie::dir_from_str(dirname);
-		luaL_argcheck(L, dir != Dir::INVALID, 4, "invalid direction");
+		auto node = new NodeSplit();
+		node->set_name(name);
+		self->add_child(node);
 
-		Export* ex = ndef->create_export(dir, exname, sys);
-		assert(ex);
-		sys->add_object(ex);
+		lua::push_object(node);
 
-		lua::push_object(ex);
+		return 1;
+	}
+
+	// Creates merge nodes
+	// ARGS: SELF<System>, name<string>
+	// RETURNS: merge node
+	LFUNC(system_add_merge)
+	{
+		System* self = check_object<System>(1);
+		const char* name = luaL_checkstring(L, 2);
+
+		auto node = new NodeMerge();
+		node->set_name(name);
+		self->add_child(node);
+
+		lua::push_object(node);
 
 		return 1;
 	}
@@ -364,7 +516,7 @@ namespace
 		Link* link;
 		if (netstr)
 		{
-			NetType nettype = NetTypeDef::type_from_str(netstr);
+			NetType nettype = Network::type_from_str(netstr);
 			luaL_argcheck(L, nettype != NET_INVALID, 4, "unknown network type");
 			link = sys->connect(src, sink, nettype);
 		}
@@ -405,7 +557,7 @@ namespace
 
 		if (netstr)
 		{
-			nettype = NetTypeDef::type_from_str(netstr);
+			nettype = Network::type_from_str(netstr);
 			luaL_argcheck(L, nettype != NET_INVALID, nargs, "unknown network type");
 		}
 
@@ -428,102 +580,42 @@ namespace
 		return 1;
 	}
 
+	// Exports a Port of a Node contained inside this System. Gives it a name and creates a link
+	// to it.
+	// ARGS: SELF<System>, port to export<Port>, exported port name<string>
+	// RETURNS: exported port<Port>
+	LFUNC(system_export_interface)
+	{
+		auto self = lua::check_object<System>(1);
+		auto port = lua::check_object<Port>(2);
+		const char* exname = luaL_checkstring(L, 3);
+
+		auto exp = port->instantiate();
+		exp->set_name(exname);
+
+		self->add_child(exp);
+
+		return 1;
+	}
+
 	LCLASS(System, "System",
 	{
-		LM(__tostring, hier_get_name),
+		LM(__tostring, hier_get_path),
 		LM(get_name, hier_get_name),
 		LM(add_node, system_add_node),
-		LM(add_export, system_add_export),
+		LM(add_port, node_add_port),
 		LM(get_object, hier_get_child),
 		LM(get_objects, hier_get_children),
 		LM(get_nodes, hier_get_children_by_type<Node>),
-		LM(get_exports, hier_get_children_by_type<Export>),
+		LM(get_ports, hier_get_children_by_type<Port>),
 		LM(add_link, system_add_link),
-		LM(get_links, system_get_links)
+		LM(get_links, system_get_links),
+		LM(def_param, node_def_param),
+		LM(add_split, system_add_split),
+		LM(add_merge, system_add_merge)
 	},
 	{
 		LM(new, system_new)
-	});
-
-	//
-	// Node
-	//
-
-	LCLASS(Node, "Node",
-	{
-		LM(__tostring, hier_get_name),
-		LM(get_name, hier_get_name),
-		LM(get_parent, hier_get_parent),
-		LM(get_prototype, hier_get_prototype),
-		LM(get_ports, hier_get_children_by_type<Port>)
-	});
-
-	//
-	// NodeDef
-	//
-
-	// CONSTRUCTOR
-	// Creates a new blank NodeDef and registers it with GENIE
-	// ARGS: name <string>
-	// RETURNS: nodedef <userdata>
-	LFUNC(nodedef_new)
-	{
-		const char* sysname = luaL_checkstring(L, 1);
-
-		NodeDef* def = new NodeDef(sysname);
-		genie::get_root()->add_object(def);
-
-		lua::push_object(def);
-		
-		return 1;
-	}
-
-	// Creates a new PortDef of a given network type and direction and adds it to the NodeDef
-	// ARGS: SELF, port name <string>, port nettype <string>, direction <string>
-	LFUNC(nodedef_add_portdef)
-	{
-		NodeDef* ndef = lua::check_object<NodeDef>(1);
-		const char* portname = luaL_checkstring(L, 2);
-		const char* netname = luaL_checkstring(L, 3);
-		const char* dirname = luaL_checkstring(L, 4);
-
-		NetTypeDef* netdef = NetTypeDef::get(netname);
-		Dir dir = genie::dir_from_str(dirname);
-
-		luaL_argcheck(L, netdef, 3, "unknown network type");
-		luaL_argcheck(L, dir != Dir::INVALID, 4, "unknown direction");
-
-		// Create portdef
-		auto portdef = netdef->create_port_def(dir, portname, ndef);
-
-		lua::push_object(portdef);
-
-		return 1;
-	}
-
-	LCLASS(NodeDef, "NodeDef",
-	{
-		LM(__tostring, hier_get_name),
-		LM(get_name, hier_get_name),
-		LM(add_portdef, nodedef_add_portdef),
-		LM(get_portdefs, hier_get_children_by_type<PortDef>)
-	},
-	{
-		LM(new, nodedef_new)
-	});
-
-	//
-	// Export
-	//
-
-	LCLASS(Export, "Export",
-	{
-		LM(__tostring, hier_get_name),
-		LM(get_name, hier_get_name),
-		LM(get_parent, hier_get_parent),
-		LM(get_type, net_get_type<Export>),
-		LM(get_dir, net_get_dir<Export>),
-		LM(get_links, net_get_links)
 	});
 
 	//
@@ -536,11 +628,7 @@ namespace
 	LFUNC(link_get_src)
 	{
 		auto link = lua::check_object<Link>(1);
-		auto ep = link->get_src();
-		if (ep)
-			lua::push_object(ep->asp_container());
-		else
-			lua_pushnil(L);
+		lua::push_object(link->get_src());
 
 		return 1;
 	}
@@ -551,11 +639,7 @@ namespace
 	LFUNC(link_get_sink)
 	{
 		auto link = lua::check_object<Link>(1);
-		auto ep = link->get_sink();
-		if (ep)
-			lua::push_object(ep->asp_container());
-		else
-			lua_pushnil(L);
+		lua::push_object(link->get_sink());
 
 		return 1;
 	}
@@ -572,19 +656,101 @@ namespace
 		std::string sinktext = "<unconnected>";
 
 		// Get endpoints and type
-		auto src_ep = link->get_src();
-		auto sink_ep = link->get_sink();
+		auto src = link->get_src();
+		auto sink = link->get_sink();
 		NetType type = link->get_type();
 
 		// Get network type string
-		const std::string& typetext = NetTypeDef::get(type)->get_name();
+		const std::string& typetext = Network::get(type)->get_name();
 		
 		// If endpoints are connected, get their full path strings
-		if (src_ep) srctext = src_ep->asp_container()->get_full_name();
-		if (sink_ep) sinktext = sink_ep->asp_container()->get_full_name();
+		if (src) srctext = src->get_hier_path();
+		if (sink) sinktext = sink->get_hier_path();
 
 		// Push result
 		lua_pushstring(L, (srctext + " -> " + sinktext + " (" + typetext + ")").c_str());
+
+		return 1;
+	}
+
+	// Adds a direct parent link
+	// ARGS: SELF, other link <userdata>
+	// RETURNS: SELF
+	LFUNC(link_add_parent)
+	{
+		Link* self = lua::check_object<Link>(1);
+		Link* other = lua::check_object<Link>(2);
+
+		auto cont = self->asp_get<ALinkContainment>();
+		if (cont)
+		{
+			cont->add_parent_link(other);
+		}
+
+		lua_pushvalue(L, 1);
+		return 1;
+	}
+
+	// Adds a direct child link
+	// ARGS: SELF, other link <userdata>
+	// RETURNS: SELF
+	LFUNC(link_add_child)
+	{
+		Link* self = lua::check_object<Link>(1);
+		Link* other = lua::check_object<Link>(2);
+
+		auto cont = self->asp_get<ALinkContainment>();
+		if (cont)
+		{
+			cont->add_child_link(other);
+		}
+
+		lua_pushvalue(L, 1);
+		return 1;
+	}
+
+	// Gets all child links of a certain type
+	// ARGS: SELF, nettype <string>
+	// RETURNS: child links <array<userdata>>
+	LFUNC(link_get_children)
+	{
+		Link* self = lua::check_object<Link>(1);
+		const char* netname = luaL_checkstring(L, 2);
+
+		NetType nettype = Network::type_from_str(netname);
+		luaL_argcheck(L, nettype != NET_INVALID, 2, "unknown network type");
+
+		lua_newtable(L);
+
+		auto cont = self->asp_get<ALinkContainment>();
+		if (cont)
+		{
+			auto result = cont->get_all_child_links(nettype);
+			push_array(L, result);
+		}
+
+		return 1;
+	}
+
+	// Gets all parent links of a certain type
+	// ARGS: SELF, nettype <string>
+	// RETURNS: parent links <array<userdata>>
+	LFUNC(link_get_parents)
+	{
+		Link* self = lua::check_object<Link>(1);
+		const char* netname = luaL_checkstring(L, 2);
+
+		NetType nettype = Network::type_from_str(netname);
+		luaL_argcheck(L, nettype != NET_INVALID, 2, "unknown network type");
+
+		lua_newtable(L);
+
+		auto cont = self->asp_get<ALinkContainment>();
+		if (cont)
+		{
+			auto result = cont->get_all_parent_links(nettype);
+			push_array(L, result);
+		}
 
 		return 1;
 	}
@@ -594,43 +760,172 @@ namespace
 		LM(__tostring, link_to_string),
 		LM(get_type, net_get_type<Link>),
 		LM(get_src, link_get_src),
-		LM(get_sink, link_get_sink)
+		LM(get_sink, link_get_sink),
+		LM(add_parent, link_add_parent),
+		LM(add_child, link_add_child),
+		LM(get_all_parents, link_get_parents),
+		LM(get_all_children, link_get_children)
 	});
 
 	//
 	// Port
 	//
 
+	// ARGS: SELF<Port>, role<string>, tag<string>, verilog name<string>, width<number/string>
+	//  or
+	// ARGS: SELF<Port>, role<string>, verilog name<string>, width<number/string>
+	LFUNC(port_add_signal)
+	{
+		// Two function signatures: one with tag, one without
+		int nargs = lua_gettop(L);
+		bool has_tag;
+
+		if (nargs == 5) has_tag = true;
+		else if (nargs == 4) has_tag = false;
+		else lerror("invalid number of arguments");
+
+		Port* self = lua::check_object<Port>(1);
+		std::string sigrole_str = luaL_checkstring(L, 2);
+		std::string tag = has_tag? luaL_checkstring(L, 3) : "";
+		std::string vlog_portname = luaL_checkstring(L, has_tag? 4 : 3);
+		std::string widthexpr = luaL_checkstring(L, has_tag? 5 : 4);
+
+		// Get Role ID and Role Definition
+		Network* netdef = Network::get(self->get_type());
+		
+		SigRoleID sigrole_id = netdef->role_id_from_name(sigrole_str);
+		if (sigrole_id == ROLE_INVALID)
+			throw HierException(self, "invalid signal role: " + sigrole_str);
+
+		auto& sigrole = netdef->get_sig_role(sigrole_id);
+
+		// Access Port's Node's vlog module and create a new vlog port if it does not exist yet
+		Node* node = self->get_node();
+		vlog::Module* vmod = node->asp_get<vlog::AVlogInfo>()->get_module();
+		vlog::Port* vport = vmod->get_port(vlog_portname);
+
+		if (!vport)
+		{
+			auto vpdir = vlog::Port::make_dir(self->get_dir(), sigrole.get_sense());
+			vport = new vlog::Port(vlog_portname, widthexpr, vpdir);
+			vmod->add_port(vport);
+		}
+
+		// Add a new signal role binding, bound to the entire verilog port
+		self->add_role_binding(sigrole_id, tag, new vlog::VlogStaticBinding(vport));
+
+		return 0;
+	}
+
 	LCLASS(Port, "Port",
 	{
-		LM(__tostring, hier_get_name),
+		LM(__tostring, hier_get_path),
 		LM(get_name, hier_get_name),
-		LM(get_prototype, hier_get_prototype),
+		LM(get_parent, hier_get_parent),
+		LM(get_hier_path, hier_get_path),
 		LM(get_type, net_get_type<Port>),
 		LM(get_dir, net_get_dir<Port>),
-		LM(get_links, net_get_links)
+		LM(get_links, net_get_links),
+		LM(add_signal, port_add_signal)
 	});
 
 	//
-	// PortDef
+	// RSPort
 	//
 
-	LFUNC(portdef_new)
+	// Creates and adds a new linkpoint to a RS portdef
+	// ARGS: SELF, lp name <string>, lp encoding <string>, lp type <string>
+	LFUNC(rsport_add_linkpoint)
 	{
+		RSPort* self = lua::check_object<RSPort>(1);
+		const char* lpname = luaL_checkstring(L, 2);
+		const char* encstr = luaL_checkstring(L, 3);
+		const char* typestr = luaL_checkstring(L, 4);
+
+		RSLinkpoint::Type type = RSLinkpoint::type_from_str(typestr);
+		luaL_argcheck(L, type != RSLinkpoint::INVALID, 4, "bad linkpoint type");
+
+		auto lpdef = new RSLinkpoint(self->get_dir(), type);
+		lpdef->set_name(lpname);
+		self->add_child(lpdef);
+
+		lua::push_object(lpdef);		
+
+		return 1;
+	};
+
+	// Gets this RS port's associated TOPO port
+	// ARGS: SELF
+	// RETURNS: Topo port
+	LFUNC(rsport_get_topo_port)
+	{
+		// Use -1 to mean 'top of stack' because we may be
+		// called directly (through C) from rslp_get_topo_port
+		auto self = lua::check_object<RSPort>(-1);
+
+		lua::push_object(self->get_topo_port());
 		return 1;
 	}
 
-	LCLASS(PortDef, "PortDef",
+	// Gets this RS port's associated RS port (= itself)
+	// ARGS: SELF
+	// RETURNS: SELF
+	LFUNC(rsport_get_rs_port)
 	{
-		LM(__tostring, hier_get_name),
+		auto self = lua::check_object<RSPort>(1);
+		(void)self;
+		return 1;
+	}
+
+	LCLASS(RSPort, "RSPort",
+	{
+		LM(__tostring, hier_get_path),
 		LM(get_name, hier_get_name),
 		LM(get_parent, hier_get_parent),
-		LM(get_prototype, hier_get_prototype),
-		LM(get_type, net_get_type<PortDef>),
-		LM(get_dir, net_get_dir<PortDef>)
-	},
+		LM(get_type, net_get_type<Port>),
+		LM(get_dir, net_get_dir<Port>),
+		LM(get_links, net_get_links),
+
+		LM(add_linkpoint, rsport_add_linkpoint),
+		LM(get_rs_port, rsport_get_rs_port),
+		LM(get_topo_port, rsport_get_topo_port),
+		LM(add_signal, port_add_signal)
+	});
+
+	//
+	// RSLinkpoint
+	//
+
+	// Gets the linkpoint's associated Topo port, which belongs to
+	// the parent RS port of this linkpoint.
+	// ARGS: SELF
+	// RETURNS: TOPO port <userdata>
+	LFUNC(rslp_get_topo_port)
 	{
-		LM(new, portdef_new)
+		auto self = lua::check_object<RSLinkpoint>(1);
+		lua::push_object(self->get_rs_port()->get_topo_port());
+		return 1;
+	}
+
+	// Gets the linkpoint's parent RS port
+	// ARGS: SELF
+	// RETURNS: RS port <userdata>
+	LFUNC(rslp_get_rs_port)
+	{
+		auto self = lua::check_object<RSLinkpoint>(1);
+		lua::push_object(self->get_rs_port());
+		return 1;
+	}
+
+	LCLASS(RSLinkpoint, "RSLinkpoint",
+	{
+		LM(__tostring, hier_get_path),
+		LM(get_name, hier_get_name),
+		LM(get_hier_path, hier_get_path),
+		LM(get_links, net_get_links),
+
+		LM(get_rs_port, rslp_get_rs_port),
+		LM(get_topo_port, rslp_get_topo_port)
 	});
 }
 

@@ -15,23 +15,24 @@
     <ProjectReference Include="..\core\core.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efda}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\vlog\vlog.vcxproj">
-      <Project>{4133A8C2-E422-411C-B3DF-584094E8EFDF}</Project>
-    </ProjectReference>
     <ProjectReference Include="..\lua\lua.vcxproj">
       <Project>{882ec8d5-fd07-43ae-8e50-53cf3c6b9074}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\main\flow.cpp" />
     <ClCompile Include="..\..\src\main\getoptpp\getopt_pp.cpp" />
     <ClCompile Include="..\..\src\main\io.cpp" />
     <ClCompile Include="..\..\src\main\lua_api.cpp" />
     <ClCompile Include="..\..\src\main\main.cpp" />
+    <ClCompile Include="..\..\src\main\net_rs.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\main\flow.h" />
     <ClInclude Include="..\..\src\main\getoptpp\getopt_pp.h" />
     <ClInclude Include="..\..\src\main\globals.h" />
     <ClInclude Include="..\..\src\main\io.h" />
+    <ClInclude Include="..\..\src\main\net_rs.h" />
   </ItemGroup>
   <ItemDefinitionGroup>
     <ClCompile>

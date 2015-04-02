@@ -5,8 +5,8 @@
 #include "expressions_nodes.h"
 
 using namespace genie;
-using namespace genie::Expressions;
-using namespace genie::Expressions::Nodes;
+using namespace genie::expressions;
+using namespace genie::expressions::nodes;
 
 //
 // Node
@@ -221,7 +221,7 @@ Node* LogNode::clone() const
 int LogNode::get_value(const NameResolver& r)
 {
 	int v = m_child->get_value(r);
-	return Util::log2(v);
+	return util::log2(v);
 }
 
 std::string LogNode::to_string() const

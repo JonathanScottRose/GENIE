@@ -5,7 +5,9 @@
 #include "genie/net_reset.h"
 #include "genie/net_rvd.h"
 #include "genie/net_topo.h"
+#include "genie/net_conduit.h"
 #include "genie/node_split.h"
+#include "genie/node_merge.h"
 
 using namespace genie;
 
@@ -21,19 +23,18 @@ namespace
 
 void genie::init()
 {
-	// Instantiate all the NodeDefs for built-in modules like split and merge
-	typedef StaticRegistry<NodeDef> RegisteredBuiltins;
-	for (auto& reg_func : RegisteredBuiltins::entries())
-	{
-		NodeDef* def = reg_func();
-		s_hier_root.add_object(def);
-	}
+	// Register all network types
+	Network::init();
+
+	// Register builtin modules
+	NodeMerge::init();
+	NodeSplit::init();
 
 	{ auto foo = NET_CLOCK ; }
 	{ auto foo = NET_RVD; }
 	{ auto foo = NET_RESET; }
 	{ auto foo = NET_TOPO; }
-	{ SplitNode::prototype(); }
+	{ auto foo = NET_CONDUIT; }
 }
 	
 HierRoot* genie::get_root()

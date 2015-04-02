@@ -1,16 +1,23 @@
 #pragma once
 
 #include "genie/common.h"
+#include "genie/networks.h"
 
 namespace genie
 {
 	class HierObject;
-	class HierFolder;
-	class HierRoot;
-	class AHierParent;	
+	class Endpoint;
 
 	// Represents a hierarchy path. Just a string for now.
 	typedef std::string HierPath;
+
+	// Global namespace functions.
+
+	// Make reserved name
+	std::string make_reserved_name(const std::string&);
+
+	// Combine two paths together (TODO: make HierPath a class)
+	HierPath hier_path_append(const HierPath&, const HierPath&);
 
 	// A concrete, aspect-enabled base class for all Hierarchy members.
 	// Has a name, and optionally also a parent and prototype.
@@ -19,65 +26,53 @@ namespace genie
 	class HierObject : public Object
 	{
 	public:
-		HierObject();
-		HierObject(const std::string& name);
-		virtual ~HierObject() = default;
-		HierObject(const HierObject&) = delete; // until we figure out how to do this properly
-
-		// Name
-		virtual const std::string& get_name() const;
-		virtual void set_name(const std::string&);
-		
-		// Gets full hierarchical name of this object.
-		std::string get_full_name() const;
-
-		// Gets full hierarchical path as a HierPath
-		HierPath get_full_path() const;
-
-		// Parent
-		virtual HierObject* get_parent() const;
-		virtual void set_parent(HierObject*);
-
-		// Prototype
-		virtual HierObject* get_prototype() const;
-		virtual void set_prototype(HierObject*);
-		virtual HierObject* instantiate();
-
-	protected:
-		std::string m_name;
-		HierObject* m_parent;
-		HierObject* m_prototype;
-
-		// Checks m_prototype for aspect if aspect not found here
-		Aspect* asp_not_found_handler(const AspectID&) const;
-	};
-
-	// An Aspect that allows a HierObject to be a parent of other HierObjects in the Hierarchy.
-	class AHierParent : public Aspect
-	{
-	public:
-		AHierParent(HierObject* container);
-		~AHierParent();
-
 		// Used by the filtered version of get_children() to choose specific children
 		// that satisfy some criteria.
 		typedef std::function<bool(const HierObject*)> FilterFunc;
 
-		// Add an object as as child (must implement HierChild)
-		void add_child(HierObject*);
+		HierObject();
+		virtual ~HierObject();
+		HierObject(const HierObject&);
+
+		// Name
+		virtual const std::string& get_name() const;
+		virtual void set_name(const std::string&, bool allow_reserved = false);
+
+		// Gets hierarchy path, relative to another parent (default is root)
+		HierPath get_hier_path(const HierObject* rel_to = nullptr) const;
+
+		// Parent
+		virtual HierObject* get_parent() const;
+
+		// Prototype
+		virtual HierObject* instantiate() = 0;
+
+		// Connectivity
+		typedef List<NetType> NetTypes;
+		NetTypes get_connectable_networks() const;
+		bool is_connectable(NetType) const;
+		bool is_connected(NetType) const;
+		Endpoint* get_endpoint(NetType, LinkFace) const;
+		Endpoint* get_endpoint(NetType, HierObject*) const;
+
+		// Network refinement
+		virtual void refine(NetType target);
+
+		// Add a child object
+		virtual void add_child(HierObject*);
 
 		// Get or query existence of an existing child, by hierarchical path.
 		HierObject* get_child(const HierPath&) const;
 		bool has_child(const HierPath&) const;
 
-		// Remove child but do not destroy (return it too if you want to delete it)
-		HierObject* remove_child(const HierPath&);
+		// Remove child but do not destroy (returns removed thing)
+		virtual HierObject* remove_child(const HierPath&);
 
 		// Get all children as HierObjects put into whatever container you like
 		template<class Container = List<HierObject*>>
 		Container get_children() const
 		{
-			return Util::values<Container>(m_children);
+			return util::values<Container>(m_children);
 		}
 
 		// Get children satisfying a filter condition
@@ -116,16 +111,20 @@ namespace genie
 		}
 
 	protected:
-		StringMap<HierObject*> m_children;
-		HierObject* m_container;
-	};
+		typedef std::pair<Endpoint*, Endpoint*> EndpointsEntry;
+		typedef std::unordered_map<NetType, EndpointsEntry> EndpointsMap;
 
-	// A named container for other hierarchical objects
-	class HierFolder : public HierObject
-	{
-	public:
-		HierFolder();
-		~HierFolder();
+		void set_parent(HierObject*);
+
+		void set_connectable(NetType, Dir);
+		void set_unconnectable(NetType);
+		static Endpoint* get_ep_by_face(const EndpointsEntry&, LinkFace);
+		static void set_ep_by_face(EndpointsEntry&, LinkFace, Endpoint*);
+
+		std::string m_name;
+		HierObject* m_parent;
+		StringMap<HierObject*> m_children;
+		EndpointsMap m_endpoints;
 	};
 
 	// Exceptions
@@ -133,14 +132,14 @@ namespace genie
 	{
 	public:
 		HierException(const HierObject* obj, const std::string& what)
-			: Exception(obj->get_full_name() + ": " + what) { }
+			: Exception(obj->get_hier_path() + ": " + what) { }
 	};
 
 	class HierNotFoundException : public HierException
 	{
 	public:
 		HierNotFoundException(const HierObject* parent, const HierPath& path)
-			: HierException(parent, "Hierarchy path " + path + " not found.") { }
+			: HierException(parent, "child object '" + path + "' not found.") { }
 	};
 
 	class HierDupException : public HierException

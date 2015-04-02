@@ -6,7 +6,7 @@
 
 namespace genie
 {
-	// Useful stuff that belongs outside the Util namespace
+	// Useful stuff that belongs outside the util namespace
 	template<class T, class O>
 	T as_a_check(O ptr)
 	{
@@ -32,7 +32,7 @@ namespace genie
 		return dynamic_cast<T>(ptr) != nullptr;
 	}
 
-	namespace Util
+	namespace util
 	{
 		// Check if file exists
 		static bool fexists(const std::string& filename)
@@ -45,7 +45,7 @@ namespace genie
 		// is for containers that hold pointers. The second one is for
 		// containers that hold pairs, the second members of which are pointers.
 		template<class T>
-		void delete_all(T& container)
+		static void delete_all(T& container)
 		{
 			for (auto& i : container)
 			{
@@ -54,7 +54,7 @@ namespace genie
 		}
 
 		template<class T>
-		void delete_all_2(T& container)
+		static void delete_all_2(T& container)
 		{
 			for (auto& i : container)
 			{
@@ -64,7 +64,7 @@ namespace genie
 
 		// Do deep copy on container
 		template<class T>
-		void copy_all(const T& src, T& dest)
+		static void copy_all(const T& src, T& dest)
 		{
 			for (auto i : src)
 			{
@@ -74,7 +74,7 @@ namespace genie
 		}
 
 		template<class T>
-		void copy_all_2(const T& src, T& dest)
+		static void copy_all_2(const T& src, T& dest)
 		{
 			for (auto i : src)
 			{
@@ -85,27 +85,27 @@ namespace genie
 
 		// Check for existence of items in containers
 		template <class T, class V>
-		bool exists(T& container, const V& elem)
+		static bool exists(T& container, const V& elem)
 		{
 			return std::find(container.begin(), container.end(), elem) != container.end();
 		}
 
 		template <class T, class V>
-		bool exists_2(T& container, const V& elem)
+		static bool exists_2(T& container, const V& elem)
 		{
 			return container.count(elem) != 0;
 		}
 
 		// Erase from container
 		template <class T, class V>
-		void erase(T& container, const V& elem)
+		static void erase(T& container, const V& elem)
 		{
 			container.erase(std::find(container.begin(), container.end(), elem));
 		}
 
 		// Take a key/value type and return just the values
 		template <class DEST, class SRC>
-		DEST values(const SRC& src)
+		static DEST values(const SRC& src)
 		{
 			DEST result;
 			for (const auto& i : src)
@@ -117,7 +117,7 @@ namespace genie
 
 		// Extract just the keys
 		template <class DEST, class SRC>
-		DEST keys(const SRC& src)
+		static DEST keys(const SRC& src)
 		{
 			DEST result;
 			for (const auto& i : src)
@@ -125,6 +125,27 @@ namespace genie
 				result.push_back(i.first);
 			}
 			return result;
+		}
+
+		// Wrapper for std::find that takes just the container and assumes begin()/end() for range
+		template<class IT, class CONT, class V>
+		static IT find(const CONT& cont, const V& v)
+		{
+			return std::find(cont.begin(), cont.end(), v);
+		}
+
+		// Create a reverse-mapping.
+		// Take an associative container K->V
+		// And create a new one, mapping V->list(K)
+		template <class K, class V>
+		static std::unordered_map<V, std::vector<K>> reverse_map(const std::unordered_map<K,V>& in)
+		{
+			std::unordered_map<V, std::vector<K>> out;
+			for (const auto& p : in)
+			{
+				out[p.second].push_back(p.first);
+			}
+			return out;
 		}
 
 		// String upper/lowercasing

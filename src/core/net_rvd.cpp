@@ -1,4 +1,4 @@
-#include "genie/net_Rvd.h"
+#include "genie/net_rvd.h"
 #include "genie/genie.h"
 
 using namespace genie;
@@ -6,149 +6,70 @@ using namespace genie;
 namespace
 {
 	// Define network
-	class NetRVDDef : public NetTypeDef
+	class NetRVD : public Network
 	{
 	public:
-		NetRVDDef(NetType id)
-			: NetTypeDef(id)
+		NetRVD(NetType id)
+			: Network(id)
 		{
 			m_name = "rvd";
 			m_desc = "Point-to-Point Ready/Valid/Data";
-			m_has_port = true;
 			m_src_multibind = false;
 			m_sink_multibind = false;
-			m_ep_asp_id = Aspect::asp_id_of<ARVDEndpoint>();
+
+			RVDPort::ROLE_READY = add_sig_role(SigRole("ready", SigRole::REV, false));
+			RVDPort::ROLE_VALID = add_sig_role(SigRole("valid", SigRole::FWD, false));
+			RVDPort::ROLE_DATA = add_sig_role(SigRole("data", SigRole::FWD, true));
+			RVDPort::ROLE_DATA_CARRIER = add_sig_role(SigRole("xdata", SigRole::FWD, false));
 		}
 
-		~NetRVDDef()
+		~NetRVD()
 		{
 		}
 
 		Link* create_link()
 		{
-			return new RVDLink();
+			auto result = new Link();
+			result->asp_add(new ALinkContainment());
+			return result;
 		}
 
-		AEndpoint* create_endpoint(Dir dir, HierObject* container)
+		Port* create_port(Dir dir)
 		{
-			return new ARVDEndpoint(dir, container);
-		}
-
-		Port* create_port(Dir dir, const std::string& name, HierObject* parent)
-		{
-			return new RVDPort(dir, name, parent);
-		}
-
-		PortDef* create_port_def(Dir dir, const std::string& name, HierObject* parent)
-		{
-			return new RVDPortDef(dir, name, parent);
-		}
-
-		Export* create_export(Dir dir, const std::string& name, System* parent)
-		{
-			return new RVDExport(dir, name, parent);
+			return new RVDPort(dir);
 		}
 	};
-
-	// For port defs and exports
-	template <class PD_OR_EXP>
-	HierObject* pd_or_exp_instantiate(PD_OR_EXP* container)
-	{
-		RVDPort* result = new RVDPort(container->get_dir());
-		result->set_name(container->get_name());
-
-		// The new port is an instance of this port def or export
-		result->set_prototype(container);
-
-		return result;
-	}
 }
 
 // Register the network type
-const NetType genie::NET_RVD = NetTypeDef::add<NetRVDDef>();
-
-//
-// RVDPortDef
-//
-
-RVDPortDef::RVDPortDef(Dir dir, const std::string& name, HierObject* parent)
-: RVDPortDef(dir)
-{
-	set_name(name);
-	set_parent(parent);
-}
-
-RVDPortDef::RVDPortDef(Dir dir)
-: PortDef(dir)
-{
-}
-
-HierObject* RVDPortDef::instantiate()
-{
-	return pd_or_exp_instantiate<RVDPortDef>(this);
-}
-
-RVDPortDef::~RVDPortDef()
-{
-}
+const NetType genie::NET_RVD = Network::add<NetRVD>();
+SigRoleID genie::RVDPort::ROLE_DATA;
+SigRoleID genie::RVDPort::ROLE_DATA_CARRIER;
+SigRoleID genie::RVDPort::ROLE_VALID;
+SigRoleID genie::RVDPort::ROLE_READY;
 
 //
 // RVDPort
 //
 
 RVDPort::RVDPort(Dir dir)
-: Port(dir)
+: Port(dir, NET_RVD)
 {
-	asp_add(new ARVDEndpoint(dir, this));
+	set_connectable(NET_RVD, dir);
 }
 
-RVDPort::RVDPort(Dir dir, const std::string& name, HierObject* parent)
-: RVDPort(dir)
+RVDPort::RVDPort(Dir dir, const std::string& name)
+	: RVDPort(dir)
 {
 	set_name(name);
-	set_parent(parent);
 }
 
 RVDPort::~RVDPort()
 {
 }
 
-//
-// RVDExport
-//
-
-RVDExport::RVDExport(Dir dir)
-: Export(dir)
+HierObject* RVDPort::instantiate()
 {
-	asp_add(new ARVDEndpoint(dir_rev(dir), this));
-}
-
-RVDExport::RVDExport(Dir dir, const std::string& name, System* parent)
-: RVDExport(dir)
-{
-	set_name(name);
-	set_parent(parent);
-}
-
-RVDExport::~RVDExport()
-{
-}
-
-HierObject* RVDExport::instantiate()
-{
-	return pd_or_exp_instantiate<RVDExport>(this);
-}
-
-//
-// ARVDEndpoint
-//
-
-ARVDEndpoint::ARVDEndpoint(Dir dir, HierObject* container)
-: AEndpoint(dir, container)
-{
-}
-
-ARVDEndpoint::~ARVDEndpoint()
-{
+	return new RVDPort(*this);
 }
 

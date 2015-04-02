@@ -3,14 +3,14 @@
 #include <string>
 #include <fstream>
 #include <stack>
-#include "graph.h"
+#include "genie/graph.h"
 
 using namespace genie;
-using namespace genie::Graphs;
+using namespace genie::graphs;
 
 namespace genie
 {
-namespace Graphs
+namespace graphs
 {
 	template<class C, class T>
 	bool Graph::IterContainer<C, T>::iterator::operator!= (const iterator& other) const
@@ -295,7 +295,9 @@ Graph::IterContainer<Graph::EContType, EdgeID> Graph::edges()
 	return IterContainer<EContType, EdgeID>(*this);
 }
 
-void Graph::dump(const std::string& filename, const std::function<std::string(EdgeID)>& efunc)
+void Graph::dump(const std::string& filename, 
+	const std::function<std::string(VertexID)>& vfunc,
+	const std::function<std::string(EdgeID)>& efunc)
 {
 	std::ofstream out(filename + ".dot");
 
@@ -315,6 +317,15 @@ void Graph::dump(const std::string& filename, const std::function<std::string(Ed
 		out << std::to_string(e.v1) << " -> " << std::to_string(e.v2)
 			<< ltxt << ";"
 			<< std::endl;
+	}
+
+	if (vfunc)
+	{
+		for (auto& v : V)
+		{
+			VertexID vid = v.first;
+			out << std::to_string(vid) + " [label=\"" + vfunc(vid) + "\"];";
+		}
 	}
 
 	out << "}" << std::endl;

@@ -2,10 +2,10 @@
 #include <algorithm>
 #include <stack>
 #include <string>
-#include "graph.h"
+#include "genie/graph.h"
 
 using namespace genie;
-using namespace genie::Graphs;
+using namespace genie::graphs;
 
 // Given a graph G with weights for the edges, and a set of terminal vertices T, 
 // find the minimum-weight graph cut that partitions G, with each partition containing
@@ -13,7 +13,7 @@ using namespace genie::Graphs;
 //
 // The return value is a map which associates each vertex in G with the partition it's in, 
 // specified by the ID of the vertex from T associated with that partition.
-VAttr<VertexID> Graphs::multi_way_cut(Graph G, const EAttr<int>& weights, VList T)
+VAttr<VertexID> graphs::multi_way_cut(Graph G, const EAttr<int>& weights, VList T)
 {
 	VAttr<VertexID> result;
 

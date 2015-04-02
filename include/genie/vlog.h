@@ -2,26 +2,27 @@
 
 #include "genie/common.h"
 #include "genie/expressions.h"
+#include "genie/networks.h"
 
-using namespace genie::Expressions;
-
-namespace Vlog
+namespace genie
 {
+	class Node;
+namespace vlog
+{
+	using expressions::Expression;
+	using expressions::NameResolver;
+
 	class Module;
 	class Port;
-	class Parameter;
 	class Instance;
 	class PortBinding;
 	class PortState;
-	class ParamBinding;
 	class Bindable;
 	class ConstValue;
 	class Net;
 	class WireNet;
 	class ExportNet;
 	class SystemModule;
-	class ModuleRegistry;
-	class ContinuousAssignment;
 
 	class Port
 	{
@@ -33,20 +34,25 @@ namespace Vlog
 			INOUT
 		};
 
-		Port(const std::string& m_name, Module* parent);
-		Port(const std::string& m_name, Module* parent, const Expression& width, Dir dir);
+		Port(const std::string& m_name);
+		Port(const std::string& m_name, const Expression& width, Dir dir);
 		virtual ~Port();
 
-		PROP_GET_SET(name, const std::string&, m_name);
+		PROP_GET_SET(name, std::string&, m_name);
 		PROP_GET_SET(dir, Dir, m_dir);
 		PROP_GET_SET(parent, Module*, m_parent);
 
+		PROP_GET_SET(width, Expression&, m_width);
+
+		/*
 		Expression& width() { return m_width; }
 		void set_width(int i);
 		void set_width(const std::string& expr);
 		int get_width();
+		*/
 
 		static Dir rev_dir(Dir in);
+		static Dir make_dir(genie::Dir, genie::SigRole::Sense);
 
 	protected:
 		Module* m_parent;
@@ -55,31 +61,16 @@ namespace Vlog
 		Dir m_dir;
 	};
 
-	class Parameter
-	{
-	public:
-		Parameter(const std::string& name, Module* parent);
-		virtual ~Parameter();
-
-		PROP_GET_SET(name, const std::string&, m_name);
-		PROP_GET_SET(def_val, int, m_def_val);
-		PROP_GET_SET(parent, Module*, m_parent);
-
-	protected:
-		Module* m_parent;
-		std::string m_name;
-		int m_def_val;
-	};
-
 	class Module
 	{
 	public:
-		Module();
+		Module(const std::string&);
 		virtual ~Module();
 
-		PROP_GET_SET(name, const std::string&, m_name);
-		PROP_DICT(Params, param, Parameter);
-		PROP_DICT(Ports, port, Port);
+		PROP_GET(name, std::string&, m_name);
+		PROP_DICT_NOSET(Ports, port, Port);
+
+		Port* add_port(Port*);
 
 	protected:
 		std::string m_name;
@@ -156,27 +147,6 @@ namespace Vlog
 		int m_width;
 	};
 
-	class ParamBinding
-	{
-	public:
-		ParamBinding();
-		~ParamBinding();
-
-		PROP_GET_SET(parent, Instance*, m_parent);
-		PROP_GET_SET(param, Parameter*, m_param);
-
-		const std::string& get_name();
-		Expression& value() { return m_value; }
-		void set_value(int val);
-		void set_hack_value(const std::string& val);
-		int get_value();
-
-	protected:
-		Expression m_value;
-		Instance* m_parent;
-		Parameter* m_param;
-	};
-
 	class ConstValue : public Bindable
 	{
 	public:
@@ -247,58 +217,40 @@ namespace Vlog
 	{
 	public:
 		typedef std::unordered_map<std::string, PortState*> PortStates;
-		typedef std::unordered_map<std::string, ParamBinding*> ParamBindings;
 
 		Instance(const std::string& name, Module* module);
 		virtual ~Instance();
 	
-		PROP_GET_SET(name, const std::string&, m_name);
+		PROP_GET_SET(name, std::string&, m_name);
 		PROP_GET_SET(module, Module*, m_module);
-	
+		PROP_GET_SET(node, genie::Node*, m_node);
+
 		const PortStates& port_states() { return m_port_states; }
 		PortState* get_port_state(const std::string& name);
 		
 		void bind_port(const std::string& portname, Bindable*, int port_lo = 0, int target_lo = 0);
 		void bind_port(const std::string& portname, Bindable*, int width, int port_lo, int target_lo);
 
-		const ParamBindings& param_bindings() { return m_param_bindings; }
-		ParamBinding* get_param_binding(const std::string& name);
-		int get_param_value(const std::string& name);
-		void set_param_value(const std::string& name, int val);
-		void set_param_value(const std::string& name, const std::string& val);
-
-		const NameResolver& get_param_resolver() { return m_resolv; }
 
 	protected:
-		NameResolver m_resolv;
+		genie::Node* m_node;
 		std::string m_name;
 		Module* m_module;
 		PortStates m_port_states;
-		ParamBindings m_param_bindings;
 	};
 
 	class SystemModule : public Module
 	{
 	public:
-		typedef std::vector<ContinuousAssignment*> ContAssigns;
-
-		SystemModule();
+		SystemModule(const std::string&);
 		~SystemModule();
 
 		PROP_DICT(Instances, instance, Instance);
 		PROP_DICT(Nets, net, Net);
+		PROP_GET_SET(sysnode, genie::System*, m_sysnode);
 
 	protected:
-		ContAssigns m_cont_assigns;
-	};
-
-	class ModuleRegistry
-	{
-	public:
-		ModuleRegistry();
-		~ModuleRegistry();
-
-		PROP_DICT(Modules, module, Module);
+		genie::System* m_sysnode;
 	};
 
 	class ContinuousAssignment
@@ -315,5 +267,11 @@ namespace Vlog
 		Net* m_sink;
 	};
 
-	int parse_constant(const std::string&);
+	void register_module(Module*);
+	Module* get_module(const std::string&);
+
+	void write_system(SystemModule*);
+	void flow_process_system(System*);
+	std::string make_default_port_name(RoleBinding*);
+}
 }

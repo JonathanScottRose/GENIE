@@ -52,11 +52,34 @@
     <ClInclude Include="..\..\include\genie\net_rvd.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\core\graph.h" />
     <ClInclude Include="..\..\include\genie\node_split.h">
       <Filter>Public</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\genie\port_index.h">
+    <ClInclude Include="..\..\include\genie\net_conduit.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_merge.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\graph.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\value.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\sigroles.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\protocol.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\vlog.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\vlog_bind.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\parameter.h">
       <Filter>Public</Filter>
     </ClInclude>
   </ItemGroup>
@@ -75,5 +98,14 @@
     <ClCompile Include="..\..\src\core\min_st_cut.cpp" />
     <ClCompile Include="..\..\src\core\multi_way_cut.cpp" />
     <ClCompile Include="..\..\src\core\node_split.cpp" />
+    <ClCompile Include="..\..\src\core\net_conduit.cpp" />
+    <ClCompile Include="..\..\src\core\node_merge.cpp" />
+    <ClCompile Include="..\..\src\core\min_color.cpp" />
+    <ClCompile Include="..\..\src\core\value.cpp" />
+    <ClCompile Include="..\..\src\core\vlog.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_bind.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_flow.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_write.cpp" />
+    <ClCompile Include="..\..\src\core\sigroles.cpp" />
   </ItemGroup>
 </Project>

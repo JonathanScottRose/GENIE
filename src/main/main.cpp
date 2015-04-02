@@ -7,6 +7,8 @@
 #include "genie/genie.h"
 #include "genie/net_clock.h"
 #include "genie/lua/genie_lua.h"
+#include "genie/vlog.h"
+#include "flow.h"
 
 using namespace genie;
 
@@ -19,9 +21,33 @@ namespace
 		GetOpt::GetOpt_pp args(argc, argv);
 
 		//args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
+		
+		args >> GetOpt::OptionPresent("dump_dot", Globals::inst()->dump_dot);
+		args >> GetOpt::Option("dump_dot", Globals::inst()->dump_dot_network);
 
 		if (!(args >> GetOpt::GlobalOption(s_script)))
 			throw Exception("Must specify Lua script");
+	}
+
+	void do_flow()
+	{
+		auto systems = genie::get_root()->get_systems();
+
+		for (auto sys : systems)
+		{
+			flow_refine_rs(sys);
+			flow_refine_topo(sys);
+			vlog::flow_process_system(sys);
+
+			if (Globals::inst()->dump_dot)
+			{
+				auto network = Network::get(Globals::inst()->dump_dot_network);
+				if (!network)
+					throw Exception("Unknown network " + Globals::inst()->dump_dot_network);
+
+				sys->write_dot(sys->get_name() + "." + network->get_name(), network->get_id());
+			}
+		}
 	}
 }
 
@@ -35,10 +61,12 @@ int main(int argc, char** argv)
 		lua::init();
 		
 		lua::exec_script(s_script);		
+
+		do_flow();
 	}
 	catch (std::exception& e)
 	{
-		IO::msg_error(e.what());
+		io::msg_error(e.what());
 	}
 
 	lua::shutdown();

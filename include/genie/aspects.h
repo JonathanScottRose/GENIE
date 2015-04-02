@@ -38,6 +38,9 @@ namespace genie
 			return std::type_index(typeid(*this));
 		}
 
+		// Used to make copies of an Aspect, for instantiation of Objects
+		virtual Aspect* asp_instantiate() = 0;
+
 	protected:
 		virtual ~Aspect() = 0 { };
 		
@@ -51,6 +54,13 @@ namespace genie
 			delete this;
 		}
 
+		// Overridden by Aspects who care when they're attached/moved to a different containing
+		// Object
+		virtual void asp_set_container(Object*)
+		{
+		}
+
+		// Object needs to be able to call asp_dispose()
 		friend class Object;
 	};
 
@@ -66,15 +76,21 @@ namespace genie
 		// Make private so that an object O can derive from AspectSelf<A1>, and
 		// AspectSelf<A2>, and so on and have multiple versions of this method that do
 		// not conflict with each other
-		virtual void asp_dispose()
+		virtual void asp_dispose() override
 		{
+		}
+
+		Aspect* asp_instantiate() override
+		{
+			// this is not handled properly yet
+			return nullptr;
 		}
 	};
 
 	// An Aspect that knows about its containing Object.
 	// It's templated for convenience, to allow subclasses of Object to
 	// be the container without casting.
-	template<class Obj = Object>
+	template<class OBJ = Object>
 	class AspectWithRef : public Aspect
 	{
 	public:
@@ -83,48 +99,23 @@ namespace genie
 		{
 		}
 
-		AspectWithRef(Obj* container)
-			: m_container(container)
-		{
-		}
-
-		Obj* asp_container() const
+		OBJ* asp_container() const
 		{
 			return m_container;
 		}
 		
-		void asp_set_container(Obj* container)
+	protected:
+		void asp_set_container(Object* container) override
 		{
-			m_container = container;
+			m_container = static_cast<OBJ*>(container);
+			if (!m_container)
+				throw Exception("bad attachment");
 		}
+
+		friend class Object;
 
 	private:
-		Obj* m_container;
-	};
-
-	// Same as above, but injects container-referencing ability
-	// into an existing Aspect subclass.
-	template<class Asp, class Obj = Object>
-	class AspectMakeRef : public Asp
-	{
-	public:
-		AspectMakeRef(Obj* container)
-			: m_container(container)
-		{
-		}
-
-		Obj* asp_container() const
-		{
-			return m_container;
-		}
-
-		void asp_set_container(Obj* container)
-		{
-			m_container = container;
-		}
-
-	private:
-		Obj* m_container;
+		OBJ* m_container;
 	};
 
 	// Base class for all objects that have aspects
@@ -152,7 +143,19 @@ namespace genie
 			}
 		}
 
-		Object(const Object&) = delete; // disable copying, need to call a future clone() function
+		Object(const Object& o)
+			: m_aspects(nullptr)
+		{
+			// Clone all Aspects
+			if (o.m_aspects)
+			{
+				m_aspects = new Aspects();
+				for (auto& i : *o.m_aspects)
+				{
+					asp_add(i.second->asp_instantiate(), i.first);
+				}
+			}
+		}
 		
 		// Get an Aspect by id
 		Aspect* asp_get(AspectID id) const
@@ -163,7 +166,7 @@ namespace genie
 			// Return the aspect pointer. If it's missing, call the
 			// not-found handler, the default implementation of which
 			// returns nullptr.
-			auto where = m_aspects->find(id);
+			auto where = asp_find(id);
 			return where == m_aspects->end()? 
 				asp_not_found_handler(id) : 
 				where->second;
@@ -176,68 +179,68 @@ namespace genie
 			return (T*)asp_get(Aspect::asp_id_of<T>());
 		}
 
-		// Add an Aspect
+		// Add an Aspect to this Object
 		template<class T>
 		T* asp_add(T* asp)
+		{
+			// Use templated type T, instead of asp object's run-time type, as the key
+			// for insertion. Allowing these to differ gives fun possibilities!
+			auto id = Aspect::asp_id_of<T>();
+			
+			return static_cast<T*>(asp_add(asp, id));
+		}
+
+		Aspect* asp_add(Aspect* asp, AspectID id)
 		{
 			// Lazy initialization, to save memory
 			if (!m_aspects)
 				m_aspects = new Aspects();
 
-			Aspects& aspects = *m_aspects;
+			// Ensure no existing entry
+			assert(asp_find(id) == m_aspects->end());
 
-			auto id = Aspect::asp_id_of<T>();
-			assert(aspects.count(id) == 0);
-			aspects[id] = asp;
+			// Insert
+			m_aspects->emplace_back(id, asp);
 
-			return asp;
-		}
+			// Inform Aspect of its new container (if it cares)
+			asp->asp_set_container(this);
 
-		// Add or replace an Aspect
-		template<class T>
-		T* asp_replace(T* asp)
-		{
-			if (!m_aspects)
-				m_aspects = new Aspects();
-
-			Aspects& aspects = *m_aspects;
-
-			// same as add but without the assert. 
-			// replaced aspect gets refcount decreased and possibly gets deleted
-			auto asp_base = (Aspect*)asp;
-			aspects[Aspect::asp_id_of<T>()] = asp;
 			return asp;
 		}
 		
 		// Remove an Aspect
 		template<class T>
-		void asp_remove()
+		T* asp_remove()
 		{
+			T* result = nullptr;
+
 			if (m_aspects)
 			{
-				auto it = m_aspects->find(Aspect::asp_id_of<T>());
+				auto it = asp_find(Aspect::asp_id_of<T>());
 				if (it != m_aspects->end())
 				{
-					Aspect* asp = it->second;
-					asp->asp_dispose();
+					Aspect* result = it->second;
+					result->asp_dispose();
 					m_aspects->erase(it);
 
 					// Free up memory if this is the last one removed
 					// Hopefully this won't cause thrashing of any kind
-					if (m_aspects.empty())
+					if (m_aspects->empty())
 					{
 						delete m_aspects;
 						m_aspects = nullptr;
 					}
 				}
 			}
+
+			return result;
 		}
 
 		// Does this object implement a specific aspect?
 		template<class T>
 		bool asp_has() const
 		{
-			return m_aspects && m_aspects->count(Aspect::asp_id_of<T>()) > 0;
+			return m_aspects && asp_find(Aspect::asp_id_of<T>()) != m_aspects->end();
 		}
 
 		// Return all aspects that are derivable/convertable from type T
@@ -261,27 +264,26 @@ namespace genie
 
 	protected:
 		// This is called when aspect_get can't find an aspect. It can be overridden
-		// by subclasses to do something clever, like inheritance of apsects.
+		// by subclasses to do something clever, like inheritance of apsects from other objects.
 		virtual Aspect* asp_not_found_handler(const AspectID& id) const
 		{
 			return nullptr;
 		}
 		
 	private:
-		// The map holding this object's Aspects. Done with shared_ptrs to allow ref counting, but
-		// this can be changed later transparently.
+		// The map holding this object's Aspects. 
 		// It's allocated dynamically only when needed (once first apsect is added) to save memory.
-		typedef std::unordered_map<AspectID, Aspect*> Aspects;
+		typedef std::vector<std::pair<AspectID, Aspect*>> Aspects;
 		mutable Aspects* m_aspects;
 
-		// Needed to override how the shared_ptrs stored in the map destroy things.
-		static void asp_deleter(Aspect* asp)
+		// Utility function
+		Aspects::iterator asp_find(AspectID id) const
 		{
-			// Ask the aspect to destroy itself. This can be a simiple
-			// "delete this" in most cases, but can be overridden.
-			// For example, if asp actually points to ths containing object,
-			// we definitely want to do nothing, instead of "delete this".
-			asp->asp_dispose();
+			return std::find_if(m_aspects->begin(), m_aspects->end(), 
+				[=](const Aspects::value_type& e)
+			{
+				return e.first == id;
+			});
 		}
 	};
 }

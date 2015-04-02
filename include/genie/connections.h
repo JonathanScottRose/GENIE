@@ -10,23 +10,23 @@ namespace genie
 
 	// Defined here
 	class Link;
-	class AEndpoint;
+	class Endpoint;
 	class ALinkContainment;
-	
 
 	// Allows connections to be made of a certain network type
-	class AEndpoint : public AspectWithRef<HierObject>
+	class Endpoint
 	{
 	public:
 		typedef std::vector<HierObject*> Objects;
-		typedef std::vector<AEndpoint*> Endpoints;
+		typedef std::vector<Endpoint*> Endpoints;
 		typedef std::vector<Link*> Links;
 
-		AEndpoint(Dir dir, HierObject* container);
-		virtual ~AEndpoint() = 0;
+		Endpoint(NetType type, Dir dir);
+		virtual ~Endpoint();
 		
-		virtual NetType get_type() const = 0;
+		PROP_GET(type, NetType, m_type);
 		PROP_GET(dir, Dir, m_dir);
+		PROP_GET_SET(obj, HierObject*, m_obj);
 
 		virtual void add_link(Link*);
 		virtual void remove_link(Link*);
@@ -35,18 +35,20 @@ namespace genie
 		virtual const Links& links() const;
 		virtual Link* get_link0() const;
 
-		virtual AEndpoint* get_remote0() const;
+		virtual Endpoint* get_remote0() const;
 		virtual Endpoints get_remotes() const;
 		virtual HierObject* get_remote_obj0() const;
 		virtual Objects get_remote_objs() const;
 		
 		virtual bool is_connected() const;
-	
+
 	protected:
+		HierObject* m_obj;
 		Dir m_dir;
+		NetType m_type;
 		Links m_links;
 
-		NetTypeDef* get_net_def() const;
+		Network* get_network() const;
 	};
 
 	// A connection for a particular network type.
@@ -54,21 +56,24 @@ namespace genie
 	{
 	public:
 		Link();
-		Link(AEndpoint* src, AEndpoint* sink);
+		Link(Endpoint* src, Endpoint* sink);
 		virtual ~Link();
 		
-		AEndpoint* get_src() const;
-		AEndpoint* get_sink() const;
-		AEndpoint* get_other(const AEndpoint*) const;
+		Endpoint* get_src_ep() const;
+		Endpoint* get_sink_ep() const;
+		Endpoint* get_other_ep(const Endpoint*) const;
 
-		void set_src(AEndpoint*);
-		void set_sink(AEndpoint*);
+		HierObject* get_src() const;
+		HierObject* get_sink() const;
+
+		void set_src(Endpoint*);
+		void set_sink(Endpoint*);
 
 		NetType get_type() const;
 
 	protected:
-		AEndpoint* m_src;
-		AEndpoint* m_sink;
+		Endpoint* m_src;
+		Endpoint* m_sink;
 	};
 
 	// An aspect that can be attached to links which says:
@@ -79,7 +84,7 @@ namespace genie
 	public:
 		typedef List<Link*> Links;
 
-		ALinkContainment(Link*);
+		ALinkContainment();
 		~ALinkContainment();
 
 		void add_parent_link(Link* other) { add_link(other, PARENT); }
@@ -114,6 +119,8 @@ namespace genie
 
 		void remove_link_internal(Link*, PorC);
 		void add_link_internal(Link*, PorC);
+
+		Aspect* asp_instantiate() override;
 
 		Links m_links[2];
 	};

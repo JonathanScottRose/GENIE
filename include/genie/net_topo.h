@@ -2,19 +2,26 @@
 
 #include "genie/networks.h"
 #include "genie/structure.h"
+#include "genie/net_rvd.h"
 
 namespace genie
 {
 	extern const NetType NET_TOPO;
 
-	class ATopoEndpoint : public AEndpoint
+	class TopoPort : public Port
 	{
 	public:
-		ATopoEndpoint(Dir, HierObject*);
-		~ATopoEndpoint();
+		TopoPort(Dir dir);
+		TopoPort(Dir dir, const std::string& name);
+		~TopoPort();
 
-		NetType get_type() const { return NET_TOPO;	}
+		void refine(NetType);
+		int get_n_rvd_ports() const;
+		RVDPort* get_rvd_port(int = 0) const;
+
+		HierObject* instantiate() override;
+
+	protected:
+		int m_n_rvd;
 	};
-
-	typedef Link TopoLink;
 }

@@ -7,10 +7,7 @@
 
 namespace genie
 {
-	// Registration of builtins (temporary)
-	template<class T> using RegisterBuiltin = StaticRegistryEntry<T, NodeDef>;
-
-	// Initialize library (temporary)
+	// Initialize library
 	void init();
 
 	// Hierarchy root

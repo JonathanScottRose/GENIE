@@ -1,10 +1,10 @@
 #include <cassert>
 #include <algorithm>
 #include <stack>
-#include "graph.h"
+#include "genie/graph.h"
 
 using namespace genie;
-using namespace genie::Graphs;
+using namespace genie::graphs;
 
 // Given an undirected graph G with edge weights stored in 'cap', this finds the minimal-weight
 // graph cut between vertices s and t.
@@ -12,7 +12,7 @@ using namespace genie::Graphs;
 // Graph G is modified to remove the edges of the cut, and the total weight of the cut (sum of the
 // weights of the removed edges) is returned.
 
-int Graphs::min_st_cut(Graph& G, EAttr<int> cap, VertexID s, VertexID t)
+int graphs::min_st_cut(Graph& G, EAttr<int> cap, VertexID s, VertexID t)
 {
 	// R is G but with each undirected edge {u,v} converted into two directed edges (u,v) and (v,u).
 	// It is the 'residual' graph that gets continually updated by the algorithm as edges get removed.

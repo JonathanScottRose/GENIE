@@ -1,5 +1,7 @@
 #include "genie/hierarchy.h"
 #include "genie/regex.h"
+#include "genie/connections.h"
+#include "genie/structure.h"
 
 using namespace genie;
 
@@ -10,57 +12,164 @@ static const char PATH_SEP = '.';
 static const std::string UNNAMED_OBJECT = "<unnamed object>";
 
 // Regex pattern for legal object names
-// Alphanumeric characters plus underscore. First character can't be a number.
-static const std::string LEGAL_NAME = "[a-zA-Z_][0-9a-zA-Z_]*";
+// Alphanumeric characters plus underscore. First character can't be a number or underscore,
+// except for internal reserved names.
+static const std::string LEGAL_NAME = "[a-zA-Z][0-9a-zA-Z_]*";
+static const std::string LEGAL_NAME_RESERVED = "(_|[a-zA-Z])[0-9a-zA-Z_]*";
+
+//
+// Globals
+//
+
+std::string genie::make_reserved_name(const std::string& name)
+{
+	return "_" + name;
+}
+
+HierPath genie::hier_path_append(const HierPath& a, const HierPath& b)
+{
+	return a + PATH_SEP + b;
+}
 
 //
 // HierObject
 //
 
 HierObject::HierObject()
-	: m_name(UNNAMED_OBJECT), m_prototype(nullptr), m_parent(nullptr)
+	: m_name(UNNAMED_OBJECT), m_parent(nullptr)
 {
 }
 
-HierObject::HierObject(const std::string& name)
+HierObject::~HierObject()
 {
-	set_name(name);
+	util::delete_all_2(m_children);
 }
 
-Aspect* HierObject::asp_not_found_handler(const AspectID& id) const
+HierObject::HierObject(const HierObject& o)
+	: Object(o), m_parent(nullptr)
 {
-	Aspect* result = nullptr;
-
-	// Called when asp_get() fails on a HierObject. Try and look up the aspect in the
-	// HierObject's prototype HierObject, if one exists.
-	
-	// are we an instance of some prototype object? 
-	if (m_prototype)
+	// Retain connectivity
+	for (const auto& i : o.m_endpoints)
 	{
-		return m_prototype->asp_get(id);
+		NetType type = i.first;
+		Endpoint* ep_outer = get_ep_by_face(i.second, LinkFace::OUTER);
+		
+		set_connectable(type, ep_outer->get_dir());
+	}
+}
+
+Endpoint* HierObject::get_ep_by_face(const EndpointsEntry& p, LinkFace f)
+{
+	switch (f)
+	{
+	case LinkFace::OUTER: return p.first; break;
+	case LinkFace::INNER: return p.second; break;
+	default: assert(false);
+	}
+
+	return nullptr;
+}
+
+void HierObject::set_ep_by_face(EndpointsEntry& p, LinkFace f, Endpoint* ep)
+{
+	switch (f)
+	{
+	case LinkFace::OUTER: p.first = ep; break;
+	case LinkFace::INNER: p.second = ep; break;
+	default: assert(false);
+	}
+}
+
+HierObject::NetTypes HierObject::get_connectable_networks() const
+{
+	return util::keys<NetTypes, EndpointsMap>(m_endpoints);
+}
+
+bool HierObject::is_connectable(NetType type) const
+{
+	return m_endpoints.count(type) > 0;
+}
+
+bool HierObject::is_connected(NetType type) const
+{
+	return is_connectable(type) &&
+	(
+		m_endpoints.at(type).first->is_connected() ||
+		m_endpoints.at(type).second->is_connected()
+	);
+}
+
+Endpoint* HierObject::get_endpoint(NetType type, LinkFace face) const
+{
+	Endpoint* result = nullptr;
+
+	auto it = m_endpoints.find(type);
+	if (it != m_endpoints.end())
+	{
+		return get_ep_by_face(it->second, face);
 	}
 
 	return result;
 }
 
-void HierObject::set_name(const std::string& name)
+Endpoint* HierObject::get_endpoint(NetType type, HierObject* boundary) const
+{
+	// Find out whether to use inner or outer face
+	const HierObject* obj = this;
+
+	while (obj && !is_a<const Node*>(obj))
+		obj = obj->get_parent();
+
+	LinkFace face = (obj == boundary)? LinkFace::INNER : LinkFace::OUTER;
+	return get_endpoint(type, face);
+}
+
+void HierObject::set_connectable(NetType type, Dir dir)
+{
+	Network* ndef = Network::get(type);
+	assert(type != NET_INVALID);
+
+	if (is_connectable(type))
+		throw HierException(this, "already connectable for nettype " + ndef->get_name());
+
+	Endpoint* outer = ndef->create_endpoint(dir);
+	Endpoint* inner = ndef->create_endpoint(dir_rev(dir));
+
+	outer->set_obj(this);
+	inner->set_obj(this);
+
+	EndpointsEntry entry;
+	set_ep_by_face(entry, LinkFace::OUTER, outer);
+	set_ep_by_face(entry, LinkFace::INNER, inner);
+
+	m_endpoints.emplace(type, entry);
+}
+
+void HierObject::set_unconnectable(NetType type)
+{
+	m_endpoints.erase(type);
+}
+
+void HierObject::set_name(const std::string& name, bool allow_reserved)
 {
 	// Static to improve performance?
 	static std::regex rgx(LEGAL_NAME);
+	static std::regex rgxint(LEGAL_NAME_RESERVED);
 
 	if (!std::regex_match(name, rgx))
-		throw Exception("invalid object name: '" + name + "'");
+	{
+		if (!allow_reserved || !std::regex_match(name, rgxint))
+			throw Exception("invalid object name: '" + name + "'");
+	}
 
 	// Remove ourselves from parent
-	auto ap = m_parent? m_parent->asp_get<AHierParent>() : nullptr;
-
-	if (ap) ap->remove_child(m_name);
-
+	if (m_parent) m_parent->remove_child(m_name);
+	
 	// Rename ourselves
 	m_name = name;
 
 	// Add back to parent with new name
-	if (ap) ap->add_child(this);
+	if (m_parent) m_parent->add_child(this);
 }
 
 const std::string& HierObject::get_name() const
@@ -78,30 +187,17 @@ HierObject* HierObject::get_parent() const
 	return m_parent;
 }
 
-void HierObject::set_prototype(HierObject* prototype)
-{
-	m_prototype = prototype;
-}
-
-HierObject* HierObject::get_prototype() const
-{
-	return m_prototype;
-}
-
-HierObject* HierObject::instantiate()
+void HierObject::refine(NetType target)
 {
 	// Default implementation
-	return nullptr;
+	auto children = get_children();
+	for (auto i : children)
+	{
+		i->refine(target);
+	}
 }
 
-std::string HierObject::get_full_name() const
-{
-	// Until HierPath becomes a beefier object and not just an alias for string, we
-	// just forward this call to get_full_path.
-	return get_full_path();
-}
-
-HierPath HierObject::get_full_path() const
+HierPath HierObject::get_hier_path(const HierObject* rel_to) const
 {
 	// For now, HierPath is just a string.
 	std::string result = get_name();
@@ -112,8 +208,9 @@ HierPath HierObject::get_full_path() const
 	{
 		HierObject* cur_parent = cur_obj->get_parent();
 
-		// This object is parentless? We've reached the root. Don't append its name.
-		if (!cur_parent)
+		// If we've hit the 'relative-to' object, or we've hit a root node, then
+		// don't append the current object's name, and stop.
+		if (cur_obj == rel_to || cur_parent == nullptr)
 			break;
 
 		// Append name
@@ -126,52 +223,31 @@ HierPath HierObject::get_full_path() const
 	return result;
 }
 
-//
-// HierFolder
-//
-
-HierFolder::HierFolder()
-{
-	asp_add(new AHierParent(this));
-}
-
-HierFolder::~HierFolder()
-{
-}
-
-//
-// AHierParent
-//
-
-AHierParent::AHierParent(HierObject* container)
-: m_container(container)
-{
-}
-
-AHierParent::~AHierParent()
-{
-	Util::delete_all_2(m_children);
-}
-
-void AHierParent::add_child(HierObject* child_obj)
+void HierObject::add_child(HierObject* child_obj)
 {
 	// Get the child's name, which should have been set by this point.
 	const std::string& name = child_obj->get_name();
 	if (name == UNNAMED_OBJECT)
-		throw HierException(m_container, "tried to add an unnamed child object");
+		throw HierException(this, "tried to add an unnamed child object");
 
 	// The name should also be unique
 	if (m_children.count(name) > 0)
-		throw HierDupException(m_container, "a child object called " + name +  " already exists");
+		throw HierDupException(this, "a child object called " + name +  " already exists");
 
 	// Add the child to our map of children objects
 	m_children[name] = child_obj;
 
-	// Point the child back to us (our container object, that is) as a parent
-	child_obj->set_parent(m_container);
+	// Remove the object from an existing parent, if it has one
+	if (auto old_parent = child_obj->get_parent())
+	{
+		old_parent->m_children.erase(child_obj->get_name());
+	}
+
+	// Point the child back to us as a parent
+	child_obj->set_parent(this);
 }
 
-HierObject* AHierParent::get_child(const HierPath& path) const
+HierObject* HierObject::get_child(const HierPath& path) const
 {
 	// Find hierarchy separator and get first name fragment
 	size_t spos = path.find_first_of(PATH_SEP);
@@ -180,7 +256,7 @@ HierObject* AHierParent::get_child(const HierPath& path) const
 	// Find direct child
 	auto itr = m_children.find(frag);
 	if (itr == m_children.end())
-		throw HierNotFoundException(this->m_container, frag);
+		throw HierNotFoundException(this, frag);
 
 	HierObject* child = itr->second;
 	assert(child); // shouldn't have an extant but null entry
@@ -188,32 +264,22 @@ HierObject* AHierParent::get_child(const HierPath& path) const
 	// If this isn't the last name fragment in the hierarchy, recurse
 	if (spos != std::string::npos)
 	{
-		auto aparent = child->asp_get<AHierParent>();
-		if (!aparent)
-		{
-			throw HierException(this->m_container, 
-				"path " + path + " --  intermediate child " + frag + " is not a parent.");
-		}
-
-		child = aparent->get_child(frag.substr(spos));
+		child = child->get_child(path.substr(spos+1));
 	}
 
 	return child;
 }
 
-HierObject* AHierParent::remove_child(const HierPath& path)
+HierObject* HierObject::remove_child(const HierPath& path)
 {
-	// First get the object
+	// First get the object (which could be several layers down below us in the hierarchy)
 	HierObject* obj = get_child(path);
 
-	// Next, find its direct parent (not necessarily _this_)
+	// Next, find its direct parent (not necessarily _this_, but could be lower down in the hierarchy)
 	HierObject* parent_obj = obj->get_parent();
 
-	// Now access the parent object's parent aspect
-	auto parent_ap = parent_obj->asp_get<AHierParent>();
-
 	// Remove entry from child map
-	parent_ap->m_children.erase(obj->get_name());
+	parent_obj->m_children.erase(obj->get_name());
 
 	// Let child now it no longer has parent
 	obj->set_parent(nullptr);

@@ -4,104 +4,87 @@
 #include "genie/net_reset.h"
 #include "genie/net_topo.h"
 #include "genie/genie.h"
+#include "genie/vlog_bind.h"
 
 using namespace genie;
 
 namespace
 {
-	const std::string BUILTIN_NAME = "genie_split";
+	const std::string MODULE = "genie_split";
+
 	const std::string INPORT_NAME = "in";
 	const std::string OUTPORT_NAME = "out";
 	const std::string CLOCKPORT_NAME = "clock";
 	const std::string RESETPORT_NAME = "reset";
-
-	class SplitNodeDef : public NodeDef
-	{
-	public:
-		SplitNodeDef()
-			: NodeDef(BUILTIN_NAME)
-		{
-			add_port_def(new ClockPortDef(Dir::IN, CLOCKPORT_NAME, this));
-			add_port_def(new ResetPortDef(Dir::IN, RESETPORT_NAME, this));
-			add_port_def(new RVDPortDef(Dir::IN, INPORT_NAME, this));
-			add_port_def(new RVDPortDef(Dir::OUT, OUTPORT_NAME, this));
-		}
-
-		~SplitNodeDef() = default;
-
-		HierObject* instantiate()
-		{
-			return new SplitNode();
-		}
-	};
-
-	RegisterBuiltin<SplitNodeDef> s_reg;
 }
 
-NodeDef* SplitNode::prototype()
+void NodeSplit::init()
 {
-	return (SplitNodeDef*)genie::get_root()->get_object(BUILTIN_NAME);
+	using namespace vlog;
+
+	auto mod = new Module(MODULE);
+
+	mod->add_port(new vlog::Port("clk",  1, vlog::Port::IN));
+	mod->add_port(new vlog::Port("reset",  1, vlog::Port::IN));
+	mod->add_port(new vlog::Port("i_data",  "WO", vlog::Port::IN));
+	mod->add_port(new vlog::Port("i_flow",  "WF", vlog::Port::IN));
+	mod->add_port(new vlog::Port("i_valid",  1, vlog::Port::IN));
+	mod->add_port(new vlog::Port("o_ready",  1, vlog::Port::OUT));
+	mod->add_port(new vlog::Port("o_valid",  "NO", vlog::Port::OUT));
+	mod->add_port(new vlog::Port("o_data",  "WO", vlog::Port::OUT));
+	mod->add_port(new vlog::Port("o_flow",  "WF", vlog::Port::OUT));
+	mod->add_port(new vlog::Port("i_ready",  "NO", vlog::Port::IN));
+
+	vlog::register_module(mod);
 }
 
-
-SplitNode::SplitNode()
-: m_topo_finalized(false), m_outputs(nullptr)
+NodeSplit::NodeSplit()
 {
-	auto ndef = (SplitNodeDef*)prototype();
-	set_prototype(ndef);	
+	using namespace vlog;
 
-	Port* p;
-	
+	asp_add(new AVlogInfo())->set_module(vlog::get_module(MODULE));
+
 	// Clock and reset ports are straightforward
-	p = new ClockPort(Dir::IN, CLOCKPORT_NAME, this);
-	p->set_prototype(ndef->get_port_def(CLOCKPORT_NAME));
-	add_port(p);
+	add_port(new ClockPort(Dir::IN, CLOCKPORT_NAME));
+	add_port(new ResetPort(Dir::IN, RESETPORT_NAME));
 
-	p = new ResetPort(Dir::IN, RESETPORT_NAME, this);
-	p->set_prototype(ndef->get_port_def(RESETPORT_NAME));
-	add_port(p);
-
-	// Input port
-	p = new RVDPort(Dir::IN, INPORT_NAME, this);
-	p->set_prototype(ndef->get_port_def(INPORT_NAME));
-	p->asp_add(new ATopoEndpoint(Dir::IN, p));
-
-	// Output port is not a real port yet - just a topo endpoint
-	HierObject* q = new HierObject(OUTPORT_NAME);
-	q->asp_add(new ATopoEndpoint(Dir::OUT, q));
-
-	asp_get<AHierParent>()->add_child(q);	
+	// Input port and output port start out as Topo ports
+	add_port(new TopoPort(Dir::IN, INPORT_NAME));
+	add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
 }
 
-SplitNode::SplitNode(const std::string& name, System* parent)
-: SplitNode()
+NodeSplit::~NodeSplit()
 {
-	set_name(name);
-	set_parent(parent);
 }
 
-SplitNode::~SplitNode()
+TopoPort* NodeSplit::get_topo_input() const
 {
-	delete[] m_outputs;
+	return as_a<TopoPort*>(get_port(INPORT_NAME));
 }
 
-int SplitNode::get_n_outputs() const
+TopoPort* NodeSplit::get_topo_output() const
 {
-	if (!m_topo_finalized)
-		throw HierException(this, "Split Node not elaborated yet");
-
-	return m_n_outputs;
+	return as_a<TopoPort*>(get_port(OUTPORT_NAME));
 }
 
-Port* SplitNode::get_input() const
+
+int NodeSplit::get_n_outputs() const
 {
-	return get_port(INPORT_NAME);
+	return get_topo_output()->get_n_rvd_ports();
 }
 
-Port* SplitNode::get_output(int idx) const
+RVDPort* NodeSplit::get_rvd_input() const
 {
-	if (!m_topo_finalized)
-		throw HierException(this, "Split Node not elaborated yet");
+	return get_topo_input()->get_rvd_port();
+}
 
-	return m_outputs[idx];
+RVDPort* NodeSplit::get_rvd_output(int idx) const
+{
+	return get_topo_output()->get_rvd_port(idx);
+}
+
+void NodeSplit::refine(NetType target)
+{
+	// Do the default. TOPO ports will get the correct number of RVD subports.
+	HierObject::refine(target);
 }

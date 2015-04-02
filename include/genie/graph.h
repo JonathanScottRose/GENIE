@@ -7,12 +7,14 @@
 
 namespace genie
 {
-namespace Graphs
+namespace graphs
 {
 	typedef unsigned int VertexID;
 	typedef unsigned int EdgeID;
 	template<class T> using VAttr = std::unordered_map<VertexID, T>;
 	template<class T> using EAttr = std::unordered_map<EdgeID, T>;
+	template<class T> using RVAttr = std::unordered_map<T, VertexID>;
+	template<class T> using REAttr = std::unordered_map<T, EdgeID>;
 	typedef std::vector<VertexID> VList;
 	typedef std::vector<EdgeID> EList;
 	typedef std::pair<VertexID, VertexID> VPair;
@@ -116,8 +118,10 @@ namespace Graphs
 		VList connected_verts(VertexID t);
 
 		// Dump the graph to a .dot file, with an optional edge annotation function
-		void dump(const std::string& filename, 
-			const std::function<std::string(EdgeID)>& efunc = std::function<std::string(EdgeID)>());
+		void dump(const std::string& filename,
+			const std::function<std::string(VertexID)>& vfunc = nullptr,
+			const std::function<std::string(EdgeID)>& efunc = nullptr
+		);
 
 	protected:
 		friend class IterContainer<VContType, VertexID>;
@@ -137,5 +141,6 @@ namespace Graphs
 	// Algorithm declarations go here for now
 	VAttr<VertexID> multi_way_cut(Graph g, const EAttr<int>& weights, VList T);
 	int min_st_cut(Graph& g, EAttr<int> weights, VertexID s, VertexID t);
+	int connected_comp(Graph& g, VAttr<int>* vcolor, EAttr<int>* ecolor);
 }
 }

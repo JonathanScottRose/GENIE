@@ -1,4 +1,3 @@
-/*
 #include "vlog.h"
 #include "impl_vlog.h"
 
@@ -9,9 +8,9 @@
 #include "genie/export_node.h"
 #include "genie/static_init.h"
 
-using namespace genie;
-using namespace genie::Spec;
-using namespace genie::P2P;
+using namespace ct;
+using namespace ct::Spec;
+using namespace ct::P2P;
 
 using namespace ImplVerilog;
 
@@ -196,22 +195,6 @@ Vlog::Port::Dir ImplVerilog::conv_port_dir(P2P::Port* port, P2P::PhysField* pf)
 	return is_out ? Vlog::Port::OUT : Vlog::Port::IN;
 }
 
-std::string ImplVerilog::name_for_p2p_port(P2P::Port* port, P2P::PhysField* pf)
-{
-	std::string result = port->get_name();
-	
-	switch(port->get_type())
-	{
-		case Port::CLOCK:
-		case Port::RESET:
-			break;
-		default:
-			result += "_" + pf->name;
-	}
-
-	return result;
-}
-
 // Generic visitor function for module-like P2P nodes.
 // Grab a Module, instantiate it, parameterize it, and add it to the netlist.
 void IModuleImpl::visit(INetlist* netlist, P2P::Node* node)
@@ -309,4 +292,3 @@ Vlog::Instance* IModuleImpl::get_inst_for_node(P2P::Node* node)
 	return result;
 }
 
-*/

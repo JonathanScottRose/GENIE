@@ -1,19 +1,18 @@
 #pragma once
 
 #include "genie/common.h"
+#include "genie/sigroles.h"
 
 namespace genie
 {
 	// Defined here
-	class NetTypeDef;
+	class Network;
 
 	// Defined elsewhere
 	class Port;
-	class PortDef;
-	class Export;
 	class System;
 	class Link;
-	class AEndpoint;
+	class Endpoint;
 	class HierObject;
 
 	// Lightweight identifier to refer to a Network Type.
@@ -28,6 +27,12 @@ namespace genie
 		OUT
 	};
 
+	enum class LinkFace
+	{
+		INNER,
+		OUTER
+	};
+
 	// Returns reverse direction
 	Dir dir_rev(Dir);
 	// Creates a Dir parsed from a string
@@ -35,8 +40,9 @@ namespace genie
 	// Converts a dir to a string
 	const char* dir_to_str(Dir);
 
-	// Network types derive from this abstract class
-	class NetTypeDef
+	// Network types derive from this abstract class. Being an Object allows backend-specific things to be
+	// attached.
+	class Network : public Object
 	{
 	public:
 		// Call this in a static initializer to register a network type
@@ -44,36 +50,48 @@ namespace genie
 		static NetType add()
 		{
 			NetType id = alloc_def_internal();
-			add_def_internal(new NET_DEF(id));
+			NetTypeRegistry::entries().emplace_front([=]()
+			{ 
+				return new NET_DEF(id);
+			});
+
 			return id;
 		}
 
+		// Called by genie::init() to do business
+		static void init();
+
 		// Call to retrieve information about a network type
-		static NetTypeDef* get(NetType id);
-		static NetTypeDef* get(const std::string& name);
+		static Network* get(NetType id);
+		static Network* get(const std::string& name);
 		static NetType type_from_str(const std::string& name);
+		static const std::string& to_string(NetType);
 
 		// Create a new definition with the given id
-		NetTypeDef(NetType id);
-		virtual ~NetTypeDef();
+		Network(NetType id);
+		virtual ~Network();
 
 		// Read-only properties
 		PROP_GET(id, NetType, m_id);
-		PROP_GET(name, const std::string&, m_name);
-		PROP_GET(desc, const std::string&, m_desc);
-		PROP_GET(has_port, bool, m_has_port);
+		PROP_GET(name, std::string&, m_name);
+		PROP_GET(desc, std::string&, m_desc);
 		PROP_GET(src_multibind, bool, m_src_multibind);
 		PROP_GET(sink_multibind, bool, m_sink_multibind);
 
-		// Gets the AspectID for the AEndpoint subclass for this network type
-		PROP_GET(ep_asp_id, AspectID, m_ep_asp_id);
+		// Get allowed signal roles. Role conversion functions.
+		typedef std::vector<SigRole> SigRoles;
+		const SigRoles& get_sig_roles() const { return m_sig_roles; }
+		bool has_sig_role(SigRoleID) const;
+		bool has_sig_role(const std::string&) const;
+		const SigRole& get_sig_role(SigRoleID) const;
+		const SigRole& get_sig_role(const std::string&) const;
+		SigRoleID role_id_from_name(const std::string&) const;
+		const std::string& role_name_from_id(SigRoleID) const;
 
 		// Factory methods
-		virtual Link* create_link() = 0;
-		virtual AEndpoint* create_endpoint(Dir, HierObject*) = 0;
-		virtual Port* create_port(Dir, const std::string&, HierObject*);
-		virtual PortDef* create_port_def(Dir, const std::string&, HierObject*);
-		virtual Export* create_export(Dir, const std::string&, System*);
+		virtual Link* create_link();
+		virtual Endpoint* create_endpoint(Dir);
+		virtual Port* create_port(Dir);
 
 	protected:
 		// Descriptive
@@ -81,13 +99,14 @@ namespace genie
 		std::string m_desc;
 		
 		// Network properties
-		bool m_has_port;
 		bool m_src_multibind;
 		bool m_sink_multibind;
-		AspectID m_ep_asp_id;
+
+		// Register a signal role and get its ID
+		SigRoleID add_sig_role(const SigRole&);
 
 		// Network type registration
-		static void add_def_internal(NetTypeDef* def);
+		typedef StaticRegistry<Network> NetTypeRegistry;
 		static NetType alloc_def_internal();
 
 	private:
@@ -96,5 +115,8 @@ namespace genie
 		// via add().
 		// If you want its value, just call get_id().
 		NetType m_id;
+
+		// Allowable signal roles for ports of this network type
+		SigRoles m_sig_roles;
 	};
 }

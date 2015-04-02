@@ -1,7 +1,6 @@
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
-
 #include "genie/lua/genie_lua.h"
 #include "genie/common.h"
 
@@ -16,24 +15,33 @@ namespace
 	lua_State* s_state = nullptr;
 	std::vector<ClassRegEntry> s_reg_classes;
 
-	int s_panic(lua_State* L)
+	LFUNC(s_panic)
 	{
 		std::string err = luaL_checkstring(L, -1);
-		lua_pop(L, 1);
 		throw Exception(err);
 		return 0;
 	}
 
-	int s_stacktrace(lua_State* L)
+	LFUNC(s_stacktrace)
 	{
 		const char* err = luaL_checkstring(L, -1);
 		luaL_traceback(L, L, err, 1);
 		return 1;
 	}
 
-	int s_printclass(lua_State* L)
+	LFUNC(s_compareobj)
 	{
-		lua_pushliteral(L, "userdata");
+		auto pa = (const void**)lua_topointer(L, 1);
+		auto pb = (const void**)lua_topointer(L, 2);
+		lua_pushboolean(L, *pa < *pb? 1 : 0);
+		return 1;
+	}
+
+	LFUNC(s_equalobj)
+	{
+		auto pa = (const void**)lua_topointer(L, 1);
+		auto pb = (const void**)lua_topointer(L, 2);
+		lua_pushboolean(L, *pa == *pb? 1 : 0);
 		return 1;
 	}
 
@@ -63,14 +71,14 @@ namespace
 
 		// Find out where to insert the new entry.
 		// It should be inserted before the first class that is a superclass
-		/*
+		
 		auto it = std::find_if(s_reg_classes.begin(), s_reg_classes.end(),
 			[&](const ClassRegEntry& other)
 		{
 			return other.catchfunc(entry.throwfunc);
-		});*/
+		});
 
-		auto it = s_reg_classes.end();
+		//auto it = s_reg_classes.end();
 
 		s_reg_classes.emplace(it, entry);
 	}
@@ -99,6 +107,17 @@ namespace
 		// Set metatable's __index to point to the metatable itself.
 		lua_pushvalue(s_state, -1);
 		lua_setfield(s_state, -2, "__index");
+
+		// Add a __classname string with the class's name, which might be useful somehow
+		lua_pushstring(s_state, entry.name);
+		lua_setfield(s_state, -2, "__classname");
+
+		// Add __lt and __eq metafunctions to enable ordering/comparison
+		lua_pushcfunction(s_state, s_compareobj);
+		lua_setfield(s_state, -2, "__lt");
+
+		lua_pushcfunction(s_state, s_equalobj);
+		lua_setfield(s_state, -2, "__eq");
 
 		// Now add the instance methods
 		s_register_funclist(entry.methods);
@@ -132,6 +151,16 @@ void lua::init()
 		s_register_class_lua(entry);
 		s_register_class_cpp(entry);
 	}
+
+	// Push API table on the stack
+	lua_getglobal(s_state, API_TABLE_NAME);
+
+	for (auto& entry : GlobalsReg::entries())
+	{
+		s_register_funclist(entry);
+	}
+
+	lua_pop(s_state, 1);
 }
 
 void lua::shutdown()
@@ -139,12 +168,32 @@ void lua::shutdown()
 	if (s_state) lua_close(s_state);
 }
 
+void lua::pcall_top(int nargs, int nret)
+{
+	// Calls the function at the top of the stack.
+	
+	// First, we insert an element at the bottom of the stack,
+	// that element being a reference to the stacktrace function.
+	lua_pushcfunction(s_state, s_stacktrace);
+	lua_insert(s_state, 1);
+
+	// Top of stack now has function plus args like before.
+	// Call the function at the top. Error handler function is at index 1.
+	int s = lua_pcall(s_state, nargs, nret, 1);
+	if (s != LUA_OK)
+	{
+		std::string err = luaL_checkstring(s_state, -1);
+		lua_pop(s_state, 1);
+		lua_remove(s_state, 1);
+		throw Exception(err);
+	}
+
+	// Remove stacktrace function.
+	lua_remove(s_state, 1);
+}
+
 void lua::exec_script(const std::string& filename)
 {
-	// Error handler functions for lua_pcall(). Push it before
-	// luaL_loadfile pushes the loaded code onto the stack
-	lua_pushcfunction(s_state, s_stacktrace);
-
 	// Load the file. This pushes one entry on the stack.
 	int s = luaL_loadfile(s_state, filename.c_str());
 	if (s != LUA_OK)
@@ -154,32 +203,10 @@ void lua::exec_script(const std::string& filename)
 		throw Exception(err);
 	}
 
-	// Run the function at the top of the stack (the loaded file), using
-	// the error handler function (which is one stack entry previous) if something
-	// goes wrong.
-	s = lua_pcall(s_state, 0, LUA_MULTRET, lua_absindex(s_state, -2));
-	if (s != LUA_OK)
-	{
-		std::string err = luaL_checkstring(s_state, -1);
-		lua_pop(s_state, 1);
-		throw Exception(err);
-	}
+	// Run the function at the top of the stack (the loaded file)
+	pcall_top(0, 0);	
 }
 
-void lua::register_func(const char* name, lua_CFunction fptr)
-{
-	lua_getglobal(s_state, API_TABLE_NAME);
-	lua_pushcfunction(s_state, fptr);
-	lua_setfield(s_state, -2, name);
-	lua_pop(s_state, 1);
-}
-
-void lua::register_funcs(luaL_Reg* entries)
-{
-	lua_getglobal(s_state, API_TABLE_NAME);
-	luaL_setfuncs(s_state, entries, 0);
-	lua_pop(s_state, 1);
-}
 
 int lua::make_ref()
 {
@@ -204,6 +231,13 @@ void lua::lerror(const std::string& what)
 
 void lua::push_object(Object* inst)
 {
+	// If null, push nil
+	if (!inst)
+	{
+		lua_pushnil(s_state);
+		return;
+	}
+
 	// Associate correct metatable with it, based on RTTI type
 	auto it = s_reg_classes.begin();
 	auto it_end = s_reg_classes.end();
@@ -219,7 +253,7 @@ void lua::push_object(Object* inst)
 			std::string(typeid(*inst).name()));
 	}
 
-	auto ud = (Object**)lua_newuserdata(s_state, sizeof(Object*));
+	auto ud = (Object**)lua_newuserdata(s_state, sizeof(Object*), 1);
 	*ud = inst;
 
 	luaL_setmetatable(s_state, it->name);
@@ -227,7 +261,7 @@ void lua::push_object(Object* inst)
 	// leaves userdata on stack
 }
 
-Object* lua::check_object_internal(int narg)
+Object* lua::priv::check_object(int narg)
 {
 	auto ud = (Object**)lua_touserdata(s_state, narg);
 	if (!ud)

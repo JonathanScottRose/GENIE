@@ -4,9 +4,9 @@
 
 namespace genie
 {
-	namespace Expressions
+	namespace expressions
 	{
-		namespace Nodes { class Node; }
+		namespace nodes { class Node; }
 
 		class Expression;
 		typedef std::function<Expression(const std::string&)> NameResolver;
@@ -31,16 +31,15 @@ namespace genie
 			operator std::string() const;
 
 			static const NameResolver& get_const_resolver();
-
 			static Expression build_hack_expression(const std::string&);
 
 		protected:
-			static Nodes::Node* parse(const std::string& str);
+			static nodes::Node* parse(const std::string& str);
 
-			Nodes::Node* get_root() const {	return m_root; }
-			void set_root(Nodes::Node* root);
+			nodes::Node* get_root() const {	return m_root; }
+			void set_root(nodes::Node* root);
 
-			Nodes::Node* m_root;
+			nodes::Node* m_root;
 		};
 	}
 }

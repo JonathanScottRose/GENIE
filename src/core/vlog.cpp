@@ -1,41 +1,25 @@
 #include "genie/common.h"
-#include "genie/regex.h"
-#include "vlog.h"
+#include "genie/vlog.h"
+#include "genie/structure.h"
 
-using namespace genie;
-using namespace Vlog;
+using namespace genie::vlog;
 
 //
 // Port
 //
 
-Port::Port(const std::string& name, Module* parent)
-	: m_parent(parent), m_name(name)
+Port::Port(const std::string& name)
+	: m_parent(nullptr), m_name(name)
 {
 }
 
-Port::Port(const std::string& name, Module* parent, const Expression& width, Dir dir)
-	: m_parent(parent), m_name(name), m_width(width), m_dir(dir)
+Port::Port(const std::string& name, const Expression& width, Dir dir)
+	: m_parent(nullptr), m_name(name), m_width(width), m_dir(dir)
 {
 }
 
 Port::~Port()
 {
-}
-
-void Port::set_width(int i)
-{
-	m_width = i;
-}
-
-void Port::set_width(const std::string& expr)
-{
-	m_width = expr;
-}
-
-int Port::get_width()
-{
-	return m_width.get_value();
 }
 
 Port::Dir Port::rev_dir(Port::Dir in)
@@ -51,31 +35,52 @@ Port::Dir Port::rev_dir(Port::Dir in)
 	return INOUT;
 }
 
-//
-// Parameter
-//
-
-Parameter::Parameter(const std::string& name, Module* parent)
-	: m_parent(parent), m_name(name), m_def_val(0)
+Port::Dir Port::make_dir(genie::Dir pdir, genie::SigRole::Sense sense)
 {
-}
+	// Convert a Port's direction (IN or OUT) plus a Signal Role's sense (FWD, REV, IN, OUT, INOUT)
+	// into a concrete Verilog port direction.
+	Port::Dir result;
 
-Parameter::~Parameter()
-{
+	switch (pdir)
+	{
+	case genie::Dir::IN: result = Port::IN; break;
+	case genie::Dir::OUT: result = Port::OUT; break;
+	default: assert(false);
+	}
+
+	switch (sense)
+	{
+	case SigRole::FWD: break;
+	case SigRole::REV: result = rev_dir(result); break;
+	case SigRole::IN: result = Port::IN; break;
+	case SigRole::OUT: result = Port::OUT; break;
+	case SigRole::INOUT: result = Port::INOUT; break;
+	default: assert(false);
+	}
+
+	return result;
 }
 
 //
 // Module
 //
 
-Module::Module()
+Module::Module(const std::string& name)
+	: m_name(name)
 {
 }
 
 Module::~Module()
 {
-	genie::Util::delete_all_2(m_ports);
-	genie::Util::delete_all_2(m_params);
+	util::delete_all_2(m_ports);
+}
+
+Port* Module::add_port(Port* p)
+{
+	assert(!util::exists_2(m_ports, p->get_name()));
+	m_ports[p->get_name()] = p;
+	p->set_parent(this);
+	return p;
 }
 
 //
@@ -90,7 +95,7 @@ PortState::PortState()
 
 PortState::~PortState()
 {
-	genie::Util::delete_all(m_bindings);
+	util::delete_all(m_bindings);
 }
 
 const std::string& PortState::get_name()
@@ -100,7 +105,7 @@ const std::string& PortState::get_name()
 
 int PortState::get_width()
 {
-	return m_port->width().get_value(m_parent->get_param_resolver());
+	return m_port->get_width().get_value(m_parent->get_node()->get_exp_resolver());
 }
 
 bool PortState::has_multiple_bindings()
@@ -216,40 +221,6 @@ void ConstValue::dispose()
 }
 
 //
-// ParamBinding
-//
-
-ParamBinding::ParamBinding()
-	: m_parent(nullptr), m_param(nullptr)
-{
-}
-
-ParamBinding::~ParamBinding()
-{
-}
-
-const std::string& ParamBinding::get_name()
-{
-	return m_param->get_name();
-}
-
-void ParamBinding::set_value(int val)
-{
-	m_value = val;
-}
-
-void ParamBinding::set_hack_value(const std::string& val)
-{
-	m_value = Expression::build_hack_expression(val);
-}
-
-int ParamBinding::get_value()
-{
-	return m_value.get_value();
-}
-
-
-//
 // Net
 //
 
@@ -321,7 +292,7 @@ const std::string& ExportNet::get_name()
 
 int ExportNet::get_width()
 {
-	return m_port->get_width();
+	return m_port->get_width().get_value();
 }
 
 
@@ -329,24 +300,23 @@ int ExportNet::get_width()
 // SystemModule
 //
 
-SystemModule::SystemModule()
+SystemModule::SystemModule(const std::string& name)
+	: Module(name), m_sysnode(nullptr)
 {
 }
 
 SystemModule::~SystemModule()
 {
-	genie::Util::delete_all_2(m_instances);
-	genie::Util::delete_all_2(m_nets);
-	genie::Util::delete_all(m_cont_assigns);
+	util::delete_all_2(m_instances);
+	util::delete_all_2(m_nets);
 }
-
 
 //
 // Instance
 //
 
 Instance::Instance(const std::string& name, Module* module)
-	: m_name(name), m_module(module)
+	: m_name(name), m_module(module), m_node(nullptr)
 {
 	for (auto& i : module->ports())
 	{
@@ -357,28 +327,11 @@ Instance::Instance(const std::string& name, Module* module)
 		st->set_port(port);
 		m_port_states[port->get_name()] = st;
 	}
-
-	for (auto& i : module->params())
-	{
-		Parameter* param = i.second;
-
-		ParamBinding* binding = new ParamBinding();
-		binding->set_param(param);
-		binding->set_parent(this);
-		binding->set_value(param->get_def_val());
-		m_param_bindings[binding->get_name()] = binding;
-	}
-
-	m_resolv = [this] (const std::string& name)
-	{
-		return get_param_binding(name)->value();
-	};
 }
 
 Instance::~Instance()
 {
-	genie::Util::delete_all_2(m_port_states);
-	genie::Util::delete_all_2(m_param_bindings);
+	util::delete_all_2(m_port_states);
 }
 
 PortState* Instance::get_port_state(const std::string& name)
@@ -398,39 +351,6 @@ void Instance::bind_port(const std::string& portname, Bindable* targ, int width,
 	PortState* ps = get_port_state(portname);
 	assert(ps);
 	ps->bind(targ, width, port_lo, targ_lo);
-}
-
-ParamBinding* Instance::get_param_binding(const std::string& name)
-{
-	return m_param_bindings[name];
-}
-
-int Instance::get_param_value(const std::string& name)
-{
-	return get_param_binding(name)->get_value();
-}
-
-void Instance::set_param_value(const std::string& name, int val)
-{
-	get_param_binding(name)->set_value(val);
-}
-
-void Instance::set_param_value(const std::string& name, const std::string& val)
-{
-	get_param_binding(name)->set_hack_value(val);
-}
-
-//
-// ModuleRegistry
-//
-
-ModuleRegistry::ModuleRegistry()
-{
-}
-
-ModuleRegistry::~ModuleRegistry()
-{
-	genie::Util::delete_all_2(m_modules);
 }
 
 //
@@ -460,27 +380,31 @@ ContinuousAssignment::~ContinuousAssignment()
 }
 
 //
+// Module Registry
+//
+
+namespace
+{
+	class
+	{
+	public:
+		PROP_DICT(Modules, module, Module);
+	} s_module_registry;
+}
+
+//
 // Globals
 //
 
-int Vlog::parse_constant(const std::string& val)
+void genie::vlog::register_module(Module* mod)
 {
-	int base = 10;
+	if (s_module_registry.has_module(mod->get_name()))
+		throw Exception("duplicate Verilog module " + mod->get_name());
 
-	std::regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
-	std::smatch mr;
+	s_module_registry.add_module(mod);	
+}
 
-	std::regex_match(val, mr, regex);
-	int bits = std::stoi(mr[1]);
-	char radix = mr[2].str().at(0);
-	switch (radix)
-	{
-	case 'd': base = 10; break;
-	case 'h': base = 16; break;
-	case 'o': base = 8; break;
-	case 'b': base = 2; break;
-	default: assert(false);
-	}
-	
-	return std::stoi(mr[3], 0, base);
+Module* genie::vlog::get_module(const std::string& name)
+{
+	return s_module_registry.get_module(name);
 }

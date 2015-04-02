@@ -19,7 +19,8 @@
 
 // These macros create trivial getters and/or setters for a given member variable
 #define PROP_GET(name,type,field) \
-	type get_##name () const { return field ; }
+	const type get_##name () const { return field ; } \
+	type get_##name () { return field ; }
 
 #define PROP_SET(name,type,field) \
 	void set_##name (type name) { field = name ; }
@@ -50,17 +51,19 @@
 //
 // The class destructor should iterate over things() and call delete on the pointers.
 //
-#define PROP_DICT(name_plur,name_sing,vtype) PROP_DICT_BASE(name_plur,name_sing,vtype,std::unordered_map)
-#define PROP_SDICT(name_plur,name_sing,vtype) PROP_DICT_BASE(name_plur,name_sing,vtype,std::map)
 
-#define PROP_DICT_BASE(name_plur,name_sing,vtype,container) \
-	typedef container<std::string, vtype*> name_plur; \
-	const name_plur& name_sing##s() const { return m_##name_sing##s; } \
-	void add_##name_sing(vtype* v) \
+#define PROP_DICT(name_plur,name_sing,vtype) \
+	PROP_DICT_NOSET(name_plur,name_sing,vtype) \
+	vtype* add_##name_sing(vtype* v) \
 	{ \
 	assert (m_##name_sing##s.count(v->get_name()) == 0); \
 	m_##name_sing##s[v->get_name()] = v; \
+	return v; \
 	} \
+
+#define PROP_DICT_NOSET(name_plur,name_sing,vtype) \
+	typedef std::unordered_map<std::string, vtype*> name_plur; \
+	const name_plur& name_sing##s() const { return m_##name_sing##s; } \
 	vtype* get_##name_sing(const std::string& name) const \
 	{ \
 	if (m_##name_sing##s.count(name) == 0) return nullptr; \
