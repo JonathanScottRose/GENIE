@@ -38,11 +38,11 @@ namespace vlog
 		Port(const std::string& m_name, const Expression& width, Dir dir);
 		virtual ~Port();
 
-		PROP_GET_SET(name, std::string&, m_name);
+		PROP_GET_SET(name, const std::string&, m_name);
 		PROP_GET_SET(dir, Dir, m_dir);
 		PROP_GET_SET(parent, Module*, m_parent);
 
-		PROP_GET_SET(width, Expression&, m_width);
+		PROP_GET_SET(width, const Expression&, m_width);
 
 		/*
 		Expression& width() { return m_width; }
@@ -67,7 +67,7 @@ namespace vlog
 		Module(const std::string&);
 		virtual ~Module();
 
-		PROP_GET(name, std::string&, m_name);
+		PROP_GET(name, const std::string&, m_name);
 		PROP_DICT_NOSET(Ports, port, Port);
 
 		Port* add_port(Port*);
@@ -221,7 +221,7 @@ namespace vlog
 		Instance(const std::string& name, Module* module);
 		virtual ~Instance();
 	
-		PROP_GET_SET(name, std::string&, m_name);
+		PROP_GET_SET(name, const std::string&, m_name);
 		PROP_GET_SET(module, Module*, m_module);
 		PROP_GET_SET(node, genie::Node*, m_node);
 

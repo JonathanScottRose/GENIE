@@ -270,6 +270,20 @@ HierObject* HierObject::get_child(const HierPath& path) const
 	return child;
 }
 
+bool HierObject::has_child(const HierPath& path) const
+{
+	try
+	{
+		auto c = get_child(path);
+	}
+	catch (HierNotFoundException&)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 HierObject* HierObject::remove_child(const HierPath& path)
 {
 	// First get the object (which could be several layers down below us in the hierarchy)

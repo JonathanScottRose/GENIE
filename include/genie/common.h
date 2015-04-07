@@ -19,7 +19,9 @@
 
 // These macros create trivial getters and/or setters for a given member variable
 #define PROP_GET(name,type,field) \
-	const type get_##name () const { return field ; } \
+	type get_##name () const { return field ; }
+
+#define PROP_GETR(name,type,field) \
 	type get_##name () { return field ; }
 
 #define PROP_SET(name,type,field) \
@@ -27,6 +29,10 @@
 
 #define PROP_GET_SET(name,type,field) \
 	PROP_GET(name,type,field) \
+	PROP_SET(name,type,field)
+
+#define PROP_GET_SETR(name,type,field) \
+	PROP_GETR(name,type,field) \
 	PROP_SET(name,type,field)
 
 // Defines a dictionary type which maps strings to a given pointer type.

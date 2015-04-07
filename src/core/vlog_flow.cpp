@@ -45,35 +45,6 @@ namespace
 	{
 		auto sysmod = get_sysmod(sys);
 
-		// Figure out which port is actually the source and which is actually the sink.
-		// This depends on the genie::Port direction (IN, OUT) as well as the sense of the
-		// signal role (eg, ready signals travel backwards).
-		//
-		// We will swap src/sink if it turns out that src is an input
-		genie::Port* src_port = src_rb->get_parent();
-		genie::Port* sink_port = sink_rb->get_parent();
-
-		{
-			auto& src_roledef = src_rb->get_role_def();
-			auto& sink_roledef = sink_rb->get_role_def();
-
-			auto src_dir = vlog::Port::make_dir(src_port->get_dir(), src_roledef.get_sense());
-			auto sink_dir = vlog::Port::make_dir(sink_port->get_dir(), sink_roledef.get_sense());
-
-			if (src_dir == vlog::Port::IN)
-			{
-				std::swap(src_rb, sink_rb);
-				std::swap(src_lo, sink_lo);
-				std::swap(src_port, sink_port);
-				std::swap(src_dir, sink_dir);
-			}
-
-			// After the swap, the sink can not be an output port (only IN or INOUT, which are the
-			// other two possibilities)
-			if (sink_dir == vlog::Port::OUT)
-				throw HierException(sink_port, "can't use output port as a sink");
-		}
-
 		// Find or create a Verilog net to connect src to sink. Depends on whether src or sink
 		// belong to a top-level port (export) or not:
 		//
@@ -84,6 +55,8 @@ namespace
 
 		Net* net = nullptr;
 
+		genie::Port* src_port = src_rb->get_parent();
+		genie::Port* sink_port = sink_rb->get_parent();
 		Node* src_node = src_port->get_node();
 		Node* sink_node = sink_port->get_node();
 
@@ -128,6 +101,23 @@ namespace
 		}
 		else
 		{
+			// Connecting two instances: it matters that src is actually an OUT and sink is
+			// actually an IN (or both are inout). Swap if needed and validate.
+
+			if (src_vport->get_dir() == vlog::Port::IN)
+			{
+				std::swap(src_vport, sink_vport);
+				std::swap(src_node, sink_node);
+				std::swap(src_b, sink_b);
+				std::swap(src_is_export, sink_is_export);
+				std::swap(src_lo, sink_lo);
+				std::swap(src_port, sink_port);
+				std::swap(src_rb, sink_rb);
+			}
+
+			if (sink_vport->get_dir() == vlog::Port::OUT)
+				throw Exception("can't use output port as a sink " + sink_rb->to_string());
+
 			Instance* src_inst = src_node->asp_get<AVlogInfo>()->get_instance();
 			assert(src_inst);
 

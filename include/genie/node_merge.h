@@ -21,6 +21,6 @@ namespace genie
 		RVDPort* get_rvd_input(int i) const;
 		RVDPort* get_rvd_output() const;
 
-		void refine(NetType);
+		void refine(NetType) override;
 	};
 }

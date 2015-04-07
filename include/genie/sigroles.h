@@ -30,7 +30,7 @@ namespace genie
 		SigRole(const std::string& name, Sense sense, bool tags = false)
 			: m_name(name), m_sense(sense), m_uses_tags(tags), m_id(ROLE_INVALID) {}
 
-		PROP_GET_SET(name, std::string&, m_name);
+		PROP_GET_SET(name, const std::string&, m_name);
 		PROP_GET_SET(id, SigRoleID, m_id);
 		PROP_GET_SET(uses_tags, bool, m_uses_tags);
 		PROP_GET_SET(sense, Sense, m_sense);
@@ -49,6 +49,8 @@ namespace genie
 		virtual HDLBinding* clone() = 0;
 		virtual int get_width() const = 0;
 		virtual std::string to_string() const = 0;
+		virtual HDLBinding* export_pre() = 0;
+		virtual void export_post() = 0;
 
 		PROP_GET_SET(parent, RoleBinding*, m_parent);
 

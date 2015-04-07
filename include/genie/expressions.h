@@ -9,7 +9,7 @@ namespace genie
 		namespace nodes { class Node; }
 
 		class Expression;
-		typedef std::function<Expression(const std::string&)> NameResolver;
+		typedef std::function<int(const std::string&)> NameResolver;
 
 		class Expression
 		{

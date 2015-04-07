@@ -14,7 +14,7 @@ namespace genie
 		NodeSplit();
 		~NodeSplit();
 
-		void refine(NetType);
+		void refine(NetType) override;
 
 		TopoPort* get_topo_input() const;
 		TopoPort* get_topo_output() const;

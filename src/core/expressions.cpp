@@ -191,8 +191,7 @@ Node* NameNode::clone() const
 
 int NameNode::get_value(const NameResolver& r)
 {
-	Expression expr = r(m_ref);
-	return expr.get_value(r);
+	return r(m_ref);
 }
 
 std::string NameNode::to_string() const
@@ -315,7 +314,7 @@ auto Expression::get_const_resolver() -> const NameResolver&
 		[](const std::string& name)
 		{
 			throw Exception("Subexpression not constant: " + name);
-			return Expression();
+			return 0;
 		};
 
 	return s_null_resolv;

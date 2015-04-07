@@ -81,3 +81,38 @@ std::string VlogStaticBinding::to_string() const
 	else
 		return m_port->get_name();
 }
+
+genie::HDLBinding* VlogStaticBinding::export_pre()
+{
+	// Create a new binding, with a concrete width and a 0 lobase.
+	// Keep the port the same as the old one, it will be used in post()
+	auto result = new VlogStaticBinding();
+	result->set_lo(0);
+	result->set_width(this->get_width());
+	result->set_port(this->get_port());
+
+	return result;
+}
+
+void VlogStaticBinding::export_post()
+{
+	// We should be attached by now
+	assert(m_parent);
+
+	// Get our (new) parent node's Vlog module
+	RoleBinding* rb = get_parent();
+	Node* node = rb->get_parent()->get_node();
+
+	auto av = node->asp_get<AVlogInfo>();
+	assert(av);
+	Module* mod = av->get_module();
+
+	// This was set in _pre(). Create a new port, but keep the old one's direction.
+	Port* oldport = get_port();
+	Port* newport = new Port(vlog::make_default_port_name(rb), 
+		get_width(), oldport->get_dir());
+	set_port(newport);
+
+	// Add the port to the module
+	mod->add_port(newport);
+}

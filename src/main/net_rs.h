@@ -8,6 +8,8 @@
 namespace genie
 {
 	class RSPort;
+	class RSLinkpoint;
+	class ClockPort;
 
 	extern const NetType NET_RS;
 
@@ -27,7 +29,7 @@ namespace genie
 		RSLink() = default;
 		~RSLink() = default;
 
-		PROP_GET_SET(flow_id, Value&, m_flow_id);
+		PROP_GET_SETR(flow_id, Value&, m_flow_id);
 
 	protected:
 		Value m_flow_id;
@@ -48,14 +50,18 @@ namespace genie
 		RSPort(Dir dir, const std::string& name);
 		~RSPort();
 
-		void refine(NetType);
 		TopoPort* get_topo_port() const;
+		ClockPort* get_clock_port() const;
+		List<RSLinkpoint*> get_linkpoints() const;
 		PROP_GET_SET(domain_id, int, m_domain_id);
+		PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
 
+		void refine(NetType) override;
 		HierObject* instantiate() override;
 
 	protected:
 		int m_domain_id;
+		std::string m_clk_port_name;
 
 		void refine_topo();
 		void refine_rvd();
@@ -79,7 +85,7 @@ namespace genie
 
 		PROP_GET(type, Type, m_type);
 		PROP_GET(dir, Dir, m_dir);
-		PROP_GET_SET(encoding, Value&, m_encoding);
+		PROP_GET_SET(encoding, const Value&, m_encoding);
 
 		HierObject* instantiate() override;
 		RSPort* get_rs_port() const;

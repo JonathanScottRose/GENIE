@@ -49,8 +49,7 @@ void Endpoint::add_link(Link* link)
 
 void Endpoint::remove_link(Link* link)
 {
-	assert (!has_link(link));
-
+	assert (has_link(link));
 	util::erase(m_links, link);
 }
 
@@ -104,7 +103,8 @@ bool Endpoint::is_connected() const
 
 HierObject* Endpoint::get_remote_obj0() const
 {
-	return get_remote0()->m_obj;
+	auto other_ep = get_remote0();
+	return other_ep? other_ep->m_obj : nullptr;
 }
 
 Endpoint::Objects Endpoint::get_remote_objs() const

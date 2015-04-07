@@ -19,8 +19,8 @@ namespace
 
 			ConduitPort::ROLE_FWD = add_sig_role(SigRole("fwd", SigRole::FWD, true));
 			ConduitPort::ROLE_REV = add_sig_role(SigRole("rev", SigRole::REV, true));
-			ConduitPort::ROLE_OUT = add_sig_role(SigRole("out", SigRole::OUT, true));
-			ConduitPort::ROLE_IN = add_sig_role(SigRole("in", SigRole::IN, true));
+			//ConduitPort::ROLE_OUT = add_sig_role(SigRole("out", SigRole::OUT, true));
+			//ConduitPort::ROLE_IN = add_sig_role(SigRole("in", SigRole::IN, true));
 			ConduitPort::ROLE_INOUT= add_sig_role(SigRole("inout", SigRole::INOUT, true));
 		}
 
@@ -39,8 +39,8 @@ namespace
 const NetType genie::NET_CONDUIT = Network::add<NetConduit>();
 SigRoleID genie::ConduitPort::ROLE_FWD;
 SigRoleID genie::ConduitPort::ROLE_REV;
-SigRoleID genie::ConduitPort::ROLE_OUT;
-SigRoleID genie::ConduitPort::ROLE_IN;
+//SigRoleID genie::ConduitPort::ROLE_OUT;
+//SigRoleID genie::ConduitPort::ROLE_IN;
 SigRoleID genie::ConduitPort::ROLE_INOUT;
 
 //

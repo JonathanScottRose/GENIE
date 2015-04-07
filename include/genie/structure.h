@@ -71,7 +71,7 @@ namespace genie
 		HierObject* instantiate() override;
 
 		PROP_DICT(Params, param, ParamBinding);
-		PROP_GET(exp_resolver, expressions::NameResolver&, m_resolv);
+		PROP_GET(exp_resolver, const expressions::NameResolver&, m_resolv);
 
 	protected:
 		expressions::NameResolver m_resolv;
@@ -120,7 +120,7 @@ namespace genie
 		
 	protected:
 		NetType find_auto_net_type(HierObject*, HierObject*) const;
-		void get_eps(HierObject*, HierObject*, NetType, Endpoint*&, Endpoint*&) const;
+		void get_eps(HierObject*&, HierObject*&, NetType, Endpoint*&, Endpoint*&) const;
 		bool verify_common_parent(HierObject*, HierObject*, bool&, bool&) const;
 
 		std::unordered_map<NetType, Links> m_links;

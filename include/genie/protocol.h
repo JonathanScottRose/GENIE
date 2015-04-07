@@ -8,7 +8,7 @@ namespace genie
 	class PhysField
 	{
 	public:
-		PROP_GET_SET(name, std::string&, m_name);
+		PROP_GET_SET(name, const std::string&, m_name);
 
 	protected:
 		std::string m_name;

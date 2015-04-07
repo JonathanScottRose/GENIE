@@ -74,7 +74,7 @@ void TopoPort::refine(NetType nettype)
 		return;
 
 	// Make an RVD for each connected TOPO link
-	auto ep = get_endpoint(NET_TOPO, LinkFace::OUTER);
+	auto ep = get_endpoint(NET_TOPO, is_export()? LinkFace::INNER : LinkFace::OUTER);
 	
 	m_n_rvd = ep->links().size();
 	for (int i = 0; i < m_n_rvd; i++)

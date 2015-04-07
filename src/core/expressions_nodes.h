@@ -80,7 +80,7 @@ namespace genie
 				int get_value(const NameResolver& r);
 				std::string to_string() const;
 
-				PROP_GET_SET(ref, std::string&, m_ref);
+				PROP_GET_SET(ref, const std::string&, m_ref);
 
 			protected:
 				std::string m_ref;

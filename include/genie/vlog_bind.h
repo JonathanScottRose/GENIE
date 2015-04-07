@@ -46,14 +46,16 @@ namespace vlog
 		VlogStaticBinding(Port*, const Expression&, const Expression&);
 
 		PROP_SET(port, Port*, m_port);
-		PROP_SET(lo, Expression&, m_lo);
-		PROP_SET(width, Expression&, m_width);
+		PROP_SET(lo, const Expression&, m_lo);
+		PROP_SET(width, const Expression&, m_width);
 
 		HDLBinding* clone() override;
 		int get_lo() const override;
 		int get_width() const override;
 		Port* get_port() const override;
 		std::string to_string() const override;
+		HDLBinding* export_pre() override;
+		void export_post() override;
 
 	protected:
 		Port* m_port;

@@ -1,5 +1,6 @@
 #include "genie/networks.h"
 #include "genie/connections.h"
+#include "genie/structure.h"
 
 using namespace genie;
 
@@ -263,4 +264,36 @@ const SigRole& Network::get_sig_role(const std::string& name) const
 		throw Exception("invalid signal role: " + name);
 
 	return get_sig_role(id);
+}
+
+Port* Network::make_export(System* sys, Port* port, const std::string& name)
+{
+	// Duplicate the port via instantiation but give it a new name
+	Port* result = static_cast<Port*>(port->instantiate());
+	result->set_name(name);
+
+	// Attach it to the System
+	sys->add_port(result);
+
+	// Go through all of its HDL Bindings and replace all of them with default bindings based on the
+	// system they are now attached to.
+	for (auto& i : result->get_role_bindings())
+	{
+		auto old = port->get_matching_role_binding(i);
+		assert(old);
+
+		auto new_hdlb = old->get_hdl_binding()->export_pre();
+		i->set_hdl_binding(new_hdlb);
+		new_hdlb->export_post();
+	}
+
+	// Make a Link between the old port and the new one
+	Port* link_src = port;
+	Port* link_sink = result;
+	if (result->get_dir() != Dir::OUT)
+		std::swap(link_src, link_sink);
+
+	sys->connect(link_src, link_sink, port->get_type());
+
+	return result;
 }

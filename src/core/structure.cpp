@@ -193,20 +193,28 @@ void Node::init_resolv()
 	m_resolv = [this](const std::string& name)
 	{
 		auto param = get_param(name);
-
+		auto sys = as_a<System*>(get_parent());
+	
+		// Does a parameter definition exist for this node?
 		if (param)
 		{
+			// Must have a value
 			if (!param->is_bound())
 				throw HierException(this, "parameter " + name + " is not bound");
 
-			return param->get_expr();
+			// If this Node is not a System: the parameter's value may be an expression that
+			// references other parameters defined within the Node's parent System.
+			// If this Node is a System: the parameter's value must evaluate to a constant.
+			const auto& second_resolv = sys? sys->get_exp_resolver() : 
+				Expression::get_const_resolver();
+
+			return param->get_expr().get_value(second_resolv);
 		}
 		else
 		{
-			auto sys = as_a<System*>(get_parent());
-
+			// Non-existent parameter? Well if we have a parent System, try looking it up there.
 			if (sys) return sys->get_exp_resolver()(name);
-			else throw Exception("undefined parameter " + name);
+			else throw HierException(this, "can't resolve parameter " + name);
 		}
 	};
 }
@@ -391,7 +399,7 @@ bool System::verify_common_parent(HierObject* a, HierObject* b, bool& a_boundary
 	return result;
 }
 
-void System::get_eps(HierObject* src, HierObject* sink, NetType nettype,
+void System::get_eps(HierObject*& src, HierObject*& sink, NetType nettype,
 	Endpoint*& src_ep, Endpoint*& sink_ep) const
 {
 	// Ensure src/sink are somewhere within this System
@@ -409,12 +417,20 @@ void System::get_eps(HierObject* src, HierObject* sink, NetType nettype,
 	src_ep = src->get_endpoint(nettype, src_boundary? LinkFace::INNER : LinkFace::OUTER);
 	sink_ep = sink->get_endpoint(nettype, sink_boundary? LinkFace::INNER : LinkFace::OUTER);
 
+	// Validate that both src/sink eps exist are connectable with the given nettype
 	if (!src_ep || !sink_ep)
 	{
 		std::string netname = Network::to_string(nettype);
 		std::string who_role = !src_ep ? " source" : " sink";
 		HierObject* who_obj = !src_ep ? src : sink;
 		throw HierException(who_obj, "not a " + netname + who_role);
+	}
+
+	// Finally, swap src/sink if they were given in the wrong order
+	if (src_ep->get_dir() == Dir::IN && sink_ep->get_dir() == Dir::OUT)
+	{
+		std::swap(src, sink);
+		std::swap(src_ep, sink_ep);
 	}
 }
 
@@ -503,6 +519,10 @@ void System::disconnect(Link* link)
 	// Remove the link from the System and destroy it
 	util::erase(m_links[nettype], link);
 	delete link;
+
+	// Don't leave zero-size vectors around
+	if (m_links[nettype].empty())
+		m_links.erase(nettype);
 }
 
 void System::disconnect(HierObject* src, HierObject* sink)

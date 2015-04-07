@@ -584,16 +584,18 @@ namespace
 	// to it.
 	// ARGS: SELF<System>, port to export<Port>, exported port name<string>
 	// RETURNS: exported port<Port>
-	LFUNC(system_export_interface)
+	LFUNC(system_make_export)
 	{
 		auto self = lua::check_object<System>(1);
-		auto port = lua::check_object<Port>(2);
+		auto port = check_obj_or_str_hierpath<Port>(L, 2, self);
 		const char* exname = luaL_checkstring(L, 3);
 
-		auto exp = port->instantiate();
-		exp->set_name(exname);
+		// Get network def for port type
+		auto ndef = Network::get(port->get_type());
 
-		self->add_child(exp);
+		// Call the thing
+		auto result = ndef->make_export(self, port, exname);
+		lua::push_object(result);
 
 		return 1;
 	}
@@ -612,7 +614,8 @@ namespace
 		LM(get_links, system_get_links),
 		LM(def_param, node_def_param),
 		LM(add_split, system_add_split),
-		LM(add_merge, system_add_merge)
+		LM(add_merge, system_add_merge),
+		LM(make_export, system_make_export)
 	},
 	{
 		LM(new, system_new)
@@ -877,6 +880,19 @@ namespace
 		return 1;
 	}
 
+	// Sets this RS port's associated clock port name
+	// ARGS: SELF, portname <string>
+	// RETURNS: nil
+	LFUNC(rsport_set_clock_port_name)
+	{
+		auto self = lua::check_object<RSPort>(1);
+		const char* clkportnm = luaL_checkstring(L, 2);
+
+		self->set_clock_port_name(clkportnm);
+
+		return 0;
+	}
+
 	LCLASS(RSPort, "RSPort",
 	{
 		LM(__tostring, hier_get_path),
@@ -889,7 +905,8 @@ namespace
 		LM(add_linkpoint, rsport_add_linkpoint),
 		LM(get_rs_port, rsport_get_rs_port),
 		LM(get_topo_port, rsport_get_topo_port),
-		LM(add_signal, port_add_signal)
+		LM(add_signal, port_add_signal),
+		LM(set_clock_port_name, rsport_set_clock_port_name)
 	});
 
 	//

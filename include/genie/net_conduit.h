@@ -13,8 +13,8 @@ namespace genie
 	public:
 		static SigRoleID ROLE_FWD;
 		static SigRoleID ROLE_REV;
-		static SigRoleID ROLE_IN;
-		static SigRoleID ROLE_OUT;
+		//static SigRoleID ROLE_IN;
+		//static SigRoleID ROLE_OUT;
 		static SigRoleID ROLE_INOUT;
 
 		ConduitPort(Dir dir);

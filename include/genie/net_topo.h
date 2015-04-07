@@ -15,10 +15,10 @@ namespace genie
 		TopoPort(Dir dir, const std::string& name);
 		~TopoPort();
 
-		void refine(NetType);
 		int get_n_rvd_ports() const;
 		RVDPort* get_rvd_port(int = 0) const;
 
+		void refine(NetType) override;
 		HierObject* instantiate() override;
 
 	protected:

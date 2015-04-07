@@ -73,8 +73,8 @@ namespace genie
 
 		// Read-only properties
 		PROP_GET(id, NetType, m_id);
-		PROP_GET(name, std::string&, m_name);
-		PROP_GET(desc, std::string&, m_desc);
+		PROP_GET(name, const std::string&, m_name);
+		PROP_GET(desc, const std::string&, m_desc);
 		PROP_GET(src_multibind, bool, m_src_multibind);
 		PROP_GET(sink_multibind, bool, m_sink_multibind);
 
@@ -92,6 +92,9 @@ namespace genie
 		virtual Link* create_link();
 		virtual Endpoint* create_endpoint(Dir);
 		virtual Port* create_port(Dir);
+
+		// Network-specific tasks
+		virtual Port* make_export(System*, Port*, const std::string&);
 
 	protected:
 		// Descriptive
