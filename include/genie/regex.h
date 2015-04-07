@@ -3,7 +3,7 @@
 // Fix for GCC's piss-poor handling of std::regex. Uses boost's instead and injects into std namespace.
 // Visual C++ has the upper hand standards-wise, for once
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <regex>
 #else
 #include <boost/regex.hpp>
