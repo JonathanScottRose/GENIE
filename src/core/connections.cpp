@@ -101,7 +101,7 @@ bool Endpoint::is_connected() const
 	return !m_links.empty();
 }
 
-HierObject* Endpoint::get_remote_obj0() const
+Port* Endpoint::get_remote_obj0() const
 {
 	auto other_ep = get_remote0();
 	return other_ep? other_ep->m_obj : nullptr;
@@ -141,12 +141,12 @@ Link::~Link()
 {
 }
 
-HierObject* Link::get_src() const
+Port* Link::get_src() const
 {
 	return get_src_ep()->get_obj();
 }
 
-HierObject* Link::get_sink() const
+Port* Link::get_sink() const
 {
 	return get_sink_ep()->get_obj();
 }

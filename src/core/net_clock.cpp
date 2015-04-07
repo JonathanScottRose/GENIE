@@ -43,7 +43,6 @@ SigRoleID genie::ClockPort::ROLE_CLOCK;
 ClockPort::ClockPort(Dir dir)
 : Port(dir, NET_CLOCK)
 {
-	set_connectable(NET_CLOCK, dir);
 }
 
 ClockPort::ClockPort(Dir dir, const std::string& name)

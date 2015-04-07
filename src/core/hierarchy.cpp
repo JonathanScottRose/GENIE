@@ -1,7 +1,5 @@
 #include "genie/hierarchy.h"
 #include "genie/regex.h"
-#include "genie/connections.h"
-#include "genie/structure.h"
 
 using namespace genie;
 
@@ -48,106 +46,6 @@ HierObject::~HierObject()
 HierObject::HierObject(const HierObject& o)
 	: Object(o), m_parent(nullptr)
 {
-	// Retain connectivity
-	for (const auto& i : o.m_endpoints)
-	{
-		NetType type = i.first;
-		Endpoint* ep_outer = get_ep_by_face(i.second, LinkFace::OUTER);
-		
-		set_connectable(type, ep_outer->get_dir());
-	}
-}
-
-Endpoint* HierObject::get_ep_by_face(const EndpointsEntry& p, LinkFace f)
-{
-	switch (f)
-	{
-	case LinkFace::OUTER: return p.first; break;
-	case LinkFace::INNER: return p.second; break;
-	default: assert(false);
-	}
-
-	return nullptr;
-}
-
-void HierObject::set_ep_by_face(EndpointsEntry& p, LinkFace f, Endpoint* ep)
-{
-	switch (f)
-	{
-	case LinkFace::OUTER: p.first = ep; break;
-	case LinkFace::INNER: p.second = ep; break;
-	default: assert(false);
-	}
-}
-
-HierObject::NetTypes HierObject::get_connectable_networks() const
-{
-	return util::keys<NetTypes, EndpointsMap>(m_endpoints);
-}
-
-bool HierObject::is_connectable(NetType type) const
-{
-	return m_endpoints.count(type) > 0;
-}
-
-bool HierObject::is_connected(NetType type) const
-{
-	return is_connectable(type) &&
-	(
-		m_endpoints.at(type).first->is_connected() ||
-		m_endpoints.at(type).second->is_connected()
-	);
-}
-
-Endpoint* HierObject::get_endpoint(NetType type, LinkFace face) const
-{
-	Endpoint* result = nullptr;
-
-	auto it = m_endpoints.find(type);
-	if (it != m_endpoints.end())
-	{
-		return get_ep_by_face(it->second, face);
-	}
-
-	return result;
-}
-
-Endpoint* HierObject::get_endpoint(NetType type, HierObject* boundary) const
-{
-	// Find out whether to use inner or outer face
-	const HierObject* obj = this;
-
-	while (obj && !is_a<const Node*>(obj))
-		obj = obj->get_parent();
-
-	LinkFace face = (obj == boundary)? LinkFace::INNER : LinkFace::OUTER;
-	return get_endpoint(type, face);
-}
-
-void HierObject::set_connectable(NetType type, Dir dir)
-{
-	Network* ndef = Network::get(type);
-	assert(type != NET_INVALID);
-
-	if (is_connectable(type))
-		throw HierException(this, "already connectable for nettype " + ndef->get_name());
-
-	Endpoint* outer = ndef->create_endpoint(dir);
-	Endpoint* inner = ndef->create_endpoint(dir_rev(dir));
-
-	outer->set_obj(this);
-	inner->set_obj(this);
-
-	EndpointsEntry entry;
-	set_ep_by_face(entry, LinkFace::OUTER, outer);
-	set_ep_by_face(entry, LinkFace::INNER, inner);
-
-	m_endpoints.emplace(type, entry);
-}
-
-void HierObject::set_unconnectable(NetType type)
-{
-	m_endpoints.erase(type);
 }
 
 void HierObject::set_name(const std::string& name, bool allow_reserved)

@@ -29,6 +29,14 @@ namespace genie
 		PROP_GET(type, NetType, m_type);
 		PROP_GET(dir, Dir, m_dir);
 
+		// Connectivity
+		typedef List<NetType> NetTypes;
+		NetTypes get_connectable_networks() const;
+		bool is_connectable(NetType) const;
+		bool is_connected(NetType) const;
+		Endpoint* get_endpoint(NetType, LinkFace) const;
+		Endpoint* get_endpoint(NetType, HierObject*) const;
+
 		// Manage signal role bindings
 		const RoleBindings& get_role_bindings() { return m_role_bindings; }
 		RoleBinding* add_role_binding(SigRoleID, const std::string&, HDLBinding*);
@@ -46,11 +54,20 @@ namespace genie
 		HierObject* instantiate() override;
 
 	protected:
+		typedef std::pair<Endpoint*, Endpoint*> EndpointsEntry;
+		typedef std::unordered_map<NetType, EndpointsEntry> EndpointsMap;
+
+		void set_connectable(NetType, Dir);
+		void set_unconnectable(NetType);
+		static Endpoint* get_ep_by_face(const EndpointsEntry&, LinkFace);
+		static void set_ep_by_face(EndpointsEntry&, LinkFace, Endpoint*);
+
 		const SigRole& get_role_def(SigRoleID) const;
 
 		Dir m_dir;
 		NetType m_type;
 		RoleBindings m_role_bindings;
+		EndpointsMap m_endpoints;
 	};
 
 	class Node : public HierObject
@@ -97,14 +114,14 @@ namespace genie
 
 		Links get_links() const;
 		Links get_links(NetType) const;
-		Links get_links(HierObject* src, HierObject* sink) const;
-		Links get_links(HierObject* src, HierObject* sink, NetType net) const;
-		Link* connect(HierObject* src, HierObject* sink);
-		Link* connect(HierObject* src, HierObject* sink, NetType net);
-		void disconnect(HierObject* src, HierObject* sink);
-		void disconnect(HierObject* src, HierObject* sink, NetType net);
+		Links get_links(Port* src, Port* sink) const;
+		Links get_links(Port* src, Port* sink, NetType net) const;
+		Link* connect(Port* src, Port* sink);
+		Link* connect(Port* src, Port* sink, NetType net);
+		void disconnect(Port* src, Port* sink);
+		void disconnect(Port* src, Port* sink, NetType net);
 		void disconnect(Link*);
-		void splice(Link* orig, HierObject* new_sink, HierObject* new_src);
+		void splice(Link* orig, Port* new_sink, Port* new_src);
 
 		// Access children
 		Objects get_objects() const;
@@ -119,8 +136,8 @@ namespace genie
 		void write_dot(const std::string& filename, NetType nettype);
 		
 	protected:
-		NetType find_auto_net_type(HierObject*, HierObject*) const;
-		void get_eps(HierObject*&, HierObject*&, NetType, Endpoint*&, Endpoint*&) const;
+		NetType find_auto_net_type(Port*, Port*) const;
+		void get_eps(Port*&, Port*&, NetType, Endpoint*&, Endpoint*&) const;
 		bool verify_common_parent(HierObject*, HierObject*, bool&, bool&) const;
 
 		std::unordered_map<NetType, Links> m_links;

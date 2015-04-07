@@ -55,7 +55,6 @@ SigRoleID genie::RVDPort::ROLE_READY;
 RVDPort::RVDPort(Dir dir)
 : Port(dir, NET_RVD)
 {
-	set_connectable(NET_RVD, dir);
 }
 
 RVDPort::RVDPort(Dir dir, const std::string& name)

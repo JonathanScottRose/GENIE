@@ -13,16 +13,6 @@ namespace genie
 
 	extern const NetType NET_RS;
 
-	class RSEndpoint : public Endpoint
-	{
-	public:
-		RSEndpoint(Dir);
-		~RSEndpoint();
-
-		NetType get_type() const { return NET_RS; }
-		RSPort* get_phys_rs_port();
-	};
-
 	class RSLink : public Link
 	{
 	public:
@@ -67,7 +57,7 @@ namespace genie
 		void refine_rvd();
 	};
 
-	class RSLinkpoint : public HierObject
+	class RSLinkpoint : public Port
 	{
 	public:
 		enum Type
@@ -84,14 +74,12 @@ namespace genie
 		~RSLinkpoint();
 
 		PROP_GET(type, Type, m_type);
-		PROP_GET(dir, Dir, m_dir);
 		PROP_GET_SET(encoding, const Value&, m_encoding);
 
 		HierObject* instantiate() override;
 		RSPort* get_rs_port() const;
 
 	protected:
-		Dir m_dir;
 		Type m_type;
 		Value m_encoding;
 	};

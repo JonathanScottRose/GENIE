@@ -50,10 +50,10 @@ namespace
 	}
 
 	// Convert a network into a Graph
-	typedef std::function<HierObject*(HierObject*)> N2GRemapFunc;
+	typedef std::function<Port*(Port*)> N2GRemapFunc;
 	Graph net_to_graph(System* sys, NetType ntype, 
-		VAttr<HierObject*>* v_to_obj,
-		RVAttr<HierObject*>* obj_to_v,
+		VAttr<Port*>* v_to_obj,
+		RVAttr<Port*>* obj_to_v,
 		EAttr<Link*>* e_to_link,
 		REAttr<Link*>* link_to_e,
 		const N2GRemapFunc& remap = N2GRemapFunc())
@@ -67,13 +67,13 @@ namespace
 		// If the caller doesn't provide one, allocate (and then later free) a local one.
 		bool local_map = !obj_to_v;
 		if (local_map)
-			obj_to_v = new RVAttr<HierObject*>;
+			obj_to_v = new RVAttr<Port*>;
 
 		for (auto link : links)
 		{
 			// Get link's endpoints
-			HierObject* src = link->get_src();
-			HierObject* sink = link->get_sink();
+			Port* src = link->get_src();
+			Port* sink = link->get_sink();
 
 			// Remap if a remap function was provided
 			if (remap)
@@ -91,7 +91,7 @@ namespace
 				// src_v or sink_v
 				VertexID* pv = p.first;
 				// src or sink
-				HierObject* obj = p.second;
+				Port* obj = p.second;
 
 				auto it = obj_to_v->find(obj);
 				if (it == obj_to_v->end())
@@ -123,15 +123,14 @@ namespace
 	{
 		// Turn RS network into a graph.
 		// Pass in a remap function which effectively treats all linkpoints as their parent ports.
-		N2GRemapFunc remap = [=] (HierObject* o)
+		N2GRemapFunc remap = [=] (Port* o)
 		{
-			auto ae = as_a<RSEndpoint*>(o->get_endpoint(NET_RS, sys));
-			assert(ae);
-			return ae->get_phys_rs_port();
+			auto lp = as_a<RSLinkpoint*>(o);
+			return lp? lp->get_rs_port() : o;
 		};
 
 		// We care about port->vid mapping
-		RVAttr<HierObject*> port_to_vid;
+		RVAttr<Port*> port_to_vid;
 		Graph rs_g = net_to_graph(sys, NET_RS, nullptr, &port_to_vid, nullptr, nullptr, remap);
 
 		// Identify connected components (domains).
@@ -159,7 +158,7 @@ namespace
 	{
 		// Turn TOPO network into a graph. Merge together the input/output ports of split and merge
 		// nodes for the purposes of graph construction.
-		N2GRemapFunc remap = [] (HierObject* o) -> HierObject*
+		N2GRemapFunc remap = [] (Port* o) -> Port*
 		{
 			auto sp_node = as_a<NodeSplit*>(o->get_parent());
 			if (sp_node) return sp_node->get_topo_input();
@@ -173,7 +172,7 @@ namespace
 
 		// Get TOPO network as graph. We need link->eid and HObj->vid
 		EAttr<Link*> topo_eid_to_link;
-		RVAttr<HierObject*> topo_port_to_vid;
+		RVAttr<Port*> topo_port_to_vid;
 		Graph topo_g = net_to_graph(sys, NET_TOPO, nullptr, &topo_port_to_vid, &topo_eid_to_link, nullptr,
 			remap);
 
@@ -198,10 +197,10 @@ namespace
 			}
 
 			// Next, gather all the sources of the RS links
-			std::unordered_set<RSEndpoint*> rs_sources;
+			std::unordered_set<Endpoint*> rs_sources;
 			for (Link* rs_link : rs_links)
 			{
-				auto src = as_a<RSEndpoint*>(rs_link->get_src_ep());
+				auto src = rs_link->get_src_ep();
 				assert(src);
 				rs_sources.insert(src);
 			}

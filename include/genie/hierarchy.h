@@ -6,7 +6,6 @@
 namespace genie
 {
 	class HierObject;
-	class Endpoint;
 
 	// Represents a hierarchy path. Just a string for now.
 	typedef std::string HierPath;
@@ -47,14 +46,6 @@ namespace genie
 		// Prototype
 		virtual HierObject* instantiate() = 0;
 
-		// Connectivity
-		typedef List<NetType> NetTypes;
-		NetTypes get_connectable_networks() const;
-		bool is_connectable(NetType) const;
-		bool is_connected(NetType) const;
-		Endpoint* get_endpoint(NetType, LinkFace) const;
-		Endpoint* get_endpoint(NetType, HierObject*) const;
-
 		// Network refinement
 		virtual void refine(NetType target);
 
@@ -64,6 +55,15 @@ namespace genie
 		// Get or query existence of an existing child, by hierarchical path.
 		HierObject* get_child(const HierPath&) const;
 		bool has_child(const HierPath&) const;
+		template<class T>
+		T* get_child_as(const HierPath& p) const
+		{
+			auto result = as_a<T*>(get_child(p));
+			if (!result)
+				throw HierNotFoundException(this, p);
+
+			return result;
+		}
 
 		// Remove child but do not destroy (returns removed thing)
 		virtual HierObject* remove_child(const HierPath&);
@@ -111,20 +111,12 @@ namespace genie
 		}
 
 	protected:
-		typedef std::pair<Endpoint*, Endpoint*> EndpointsEntry;
-		typedef std::unordered_map<NetType, EndpointsEntry> EndpointsMap;
-
 		void set_parent(HierObject*);
-
-		void set_connectable(NetType, Dir);
-		void set_unconnectable(NetType);
-		static Endpoint* get_ep_by_face(const EndpointsEntry&, LinkFace);
-		static void set_ep_by_face(EndpointsEntry&, LinkFace, Endpoint*);
 
 		std::string m_name;
 		HierObject* m_parent;
 		StringMap<HierObject*> m_children;
-		EndpointsMap m_endpoints;
+		
 	};
 
 	// Exceptions

@@ -39,11 +39,6 @@ namespace
 			return result;
 		}
 
-		Endpoint* create_endpoint(Dir dir) override
-		{
-			return new RSEndpoint(dir);
-		}
-
 		Port* create_port(Dir dir) override
 		{
 			return new RSPort(dir);
@@ -51,7 +46,6 @@ namespace
 
 		Port* make_export(System* sys, Port* port, const std::string& name) override
 		{
-
 			auto orig_port = as_a<RSPort*>(port);
 			assert(orig_port);
 
@@ -68,7 +62,7 @@ namespace
 				for (auto& orig_lp : lps)
 				{
 					// find the corresponding linkpoint in the exported port, make connection
-					auto result_lp = result->get_child(orig_lp->get_name());
+					auto result_lp = result->get_child_as<RSLinkpoint>(orig_lp->get_name());
 					assert(result_lp);
 
 					sys->connect(orig_lp, result_lp, NET_RS);
@@ -113,7 +107,6 @@ SigRoleID genie::RSPort::ROLE_LPID;
 RSPort::RSPort(Dir dir)
 : Port(dir, NET_RS)
 {
-	set_connectable(NET_RS, dir);
 }
 
 RSPort::RSPort(Dir dir, const std::string& name)
@@ -203,38 +196,13 @@ ClockPort* RSPort::get_clock_port() const
 	return result;
 }
 
-
-//
-// RSEndpoint
-//
-
-RSEndpoint::RSEndpoint(Dir dir)
-: Endpoint(NET_RS, dir)
-{
-}
-
-RSEndpoint::~RSEndpoint()
-{
-}
-
-RSPort* RSEndpoint::get_phys_rs_port()
-{
-	RSPort* result = as_a<RSPort*>(get_obj());
-	if (!result)
-		result = as_a<RSPort*>(get_obj()->get_parent());
-
-	assert(result);
-	return result;
-}
-
 //
 // RSLinkpoint
 //
 
 RSLinkpoint::RSLinkpoint(Dir dir, Type type)
-	: m_type(type), m_dir(dir)
+	: Port(dir, NET_RS), m_type(type)
 {
-	set_connectable(NET_RS, dir);
 }
 
 RSLinkpoint::~RSLinkpoint()

@@ -43,7 +43,6 @@ SigRoleID genie::ResetPort::ROLE_RESET;
 ResetPort::ResetPort(Dir dir)
 : Port(dir, NET_RESET)
 {
-	set_connectable(NET_RESET, dir);
 }
 
 ResetPort::ResetPort(Dir dir, const std::string& name)

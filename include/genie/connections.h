@@ -6,7 +6,7 @@
 namespace genie
 {
 	// Defined elsewhere
-	class HierObject;
+	class Port;
 
 	// Defined here
 	class Link;
@@ -17,7 +17,7 @@ namespace genie
 	class Endpoint
 	{
 	public:
-		typedef std::vector<HierObject*> Objects;
+		typedef std::vector<Port*> Objects;
 		typedef std::vector<Endpoint*> Endpoints;
 		typedef std::vector<Link*> Links;
 
@@ -26,7 +26,7 @@ namespace genie
 		
 		PROP_GET(type, NetType, m_type);
 		PROP_GET(dir, Dir, m_dir);
-		PROP_GET_SET(obj, HierObject*, m_obj);
+		PROP_GET_SET(obj, Port*, m_obj);
 
 		virtual void add_link(Link*);
 		virtual void remove_link(Link*);
@@ -37,13 +37,13 @@ namespace genie
 
 		virtual Endpoint* get_remote0() const;
 		virtual Endpoints get_remotes() const;
-		virtual HierObject* get_remote_obj0() const;
+		virtual Port* get_remote_obj0() const;
 		virtual Objects get_remote_objs() const;
 		
 		virtual bool is_connected() const;
 
 	protected:
-		HierObject* m_obj;
+		Port* m_obj;
 		Dir m_dir;
 		NetType m_type;
 		Links m_links;
@@ -63,8 +63,8 @@ namespace genie
 		Endpoint* get_sink_ep() const;
 		Endpoint* get_other_ep(const Endpoint*) const;
 
-		HierObject* get_src() const;
-		HierObject* get_sink() const;
+		Port* get_src() const;
+		Port* get_sink() const;
 
 		void set_src(Endpoint*);
 		void set_sink(Endpoint*);

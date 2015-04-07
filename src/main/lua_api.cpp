@@ -34,7 +34,7 @@ namespace
 		if (lua_isstring(L, narg))
 		{
 			const char* path = lua_tostring(L, narg);
-			result = as_a<T*>(parent->get_child(path));
+			result = parent->get_child_as<T>(path);
 		}
 		else
 		{
@@ -509,8 +509,8 @@ namespace
 	LFUNC(system_add_link)
 	{
 		System* sys = lua::check_object<System>(1);
-		auto src = check_obj_or_str_hierpath(L, 2, sys);
-		auto sink = check_obj_or_str_hierpath(L, 3, sys);
+		auto src = check_obj_or_str_hierpath<Port>(L, 2, sys);
+		auto sink = check_obj_or_str_hierpath<Port>(L, 3, sys);
 		auto netstr = luaL_optstring(L, 4, nullptr);
 
 		Link* link;
@@ -545,8 +545,8 @@ namespace
 		System* sys = lua::check_object<System>(1);
 
 		// Get src/sink, if applicable
-		HierObject* src = nargs >= 3 ? check_obj_or_str_hierpath(L, 2, sys) : nullptr;
-		HierObject* sink = nargs >= 3 ? check_obj_or_str_hierpath(L, 3, sys) : nullptr;
+		Port* src = nargs >= 3 ? check_obj_or_str_hierpath<Port>(L, 2, sys) : nullptr;
+		Port* sink = nargs >= 3 ? check_obj_or_str_hierpath<Port>(L, 3, sys) : nullptr;
 
 		// Get and check nettype, if applicable
 		NetType nettype = NET_INVALID;

@@ -50,7 +50,6 @@ SigRoleID genie::ConduitPort::ROLE_INOUT;
 ConduitPort::ConduitPort(Dir dir)
 : Port(dir, NET_CONDUIT)
 {
-	set_connectable(NET_CONDUIT, dir);
 }
 
 ConduitPort::ConduitPort(Dir dir, const std::string& name)

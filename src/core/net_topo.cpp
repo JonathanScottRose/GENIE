@@ -47,7 +47,6 @@ const NetType genie::NET_TOPO = Network::add<NetTopo>();
 TopoPort::TopoPort(Dir dir)
 	: Port(dir, NET_TOPO), m_n_rvd(0)
 {
-	set_connectable(NET_TOPO, dir);
 }
 
 TopoPort::TopoPort(Dir dir, const std::string& name)
