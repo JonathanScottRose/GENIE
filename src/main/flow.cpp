@@ -33,14 +33,14 @@ namespace
 			for (int i = 0; i < src->get_n_rvd_ports(); i++)
 			{
 				src_rvd = src->get_rvd_port(i);
-				if (!src_rvd->get_endpoint(NET_RVD, sys)->is_connected())
+				if (!src_rvd->get_endpoint_sysface(NET_RVD)->is_connected())
 					break;
 			}
 
 			for (int i = 0; i < sink->get_n_rvd_ports(); i++)
 			{
 				sink_rvd = sink->get_rvd_port(i);
-				if (!sink_rvd->get_endpoint(NET_RVD, sys)->is_connected())
+				if (!sink_rvd->get_endpoint_sysface(NET_RVD)->is_connected())
 					break;
 			}
 

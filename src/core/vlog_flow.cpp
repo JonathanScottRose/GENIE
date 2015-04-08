@@ -4,6 +4,7 @@
 #include "genie/net_clock.h"
 #include "genie/net_reset.h"
 #include "genie/net_conduit.h"
+#include "genie/net_rvd.h"
 
 using namespace genie;
 using namespace genie::vlog;

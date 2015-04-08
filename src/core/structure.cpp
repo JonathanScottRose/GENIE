@@ -83,6 +83,12 @@ bool Port::is_connected(NetType type) const
 	);
 }
 
+Endpoint* Port::get_endpoint_sysface(NetType type) const
+{
+	auto face = is_export()? LinkFace::INNER : LinkFace::OUTER;
+	return get_endpoint(type, face);
+}
+
 Endpoint* Port::get_endpoint(NetType type, LinkFace face) const
 {
 	Endpoint* result = nullptr;
@@ -94,18 +100,6 @@ Endpoint* Port::get_endpoint(NetType type, LinkFace face) const
 	}
 
 	return result;
-}
-
-Endpoint* Port::get_endpoint(NetType type, HierObject* boundary) const
-{
-	// Find out whether to use inner or outer face
-	const HierObject* obj = this;
-
-	while (obj && !is_a<const Node*>(obj))
-		obj = obj->get_parent();
-
-	LinkFace face = (obj == boundary)? LinkFace::INNER : LinkFace::OUTER;
-	return get_endpoint(type, face);
 }
 
 void Port::set_connectable(NetType type, Dir dir)

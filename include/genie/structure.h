@@ -35,7 +35,7 @@ namespace genie
 		bool is_connectable(NetType) const;
 		bool is_connected(NetType) const;
 		Endpoint* get_endpoint(NetType, LinkFace) const;
-		Endpoint* get_endpoint(NetType, HierObject*) const;
+		Endpoint* get_endpoint_sysface(NetType) const;
 
 		// Manage signal role bindings
 		const RoleBindings& get_role_bindings() { return m_role_bindings; }
