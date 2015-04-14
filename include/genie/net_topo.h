@@ -19,6 +19,7 @@ namespace genie
 		RVDPort* get_rvd_port(int = 0) const;
 
 		void refine(NetType) override;
+
 		HierObject* instantiate() override;
 
 	protected:

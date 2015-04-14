@@ -38,6 +38,7 @@ namespace genie
 
 		RSPort(Dir dir);
 		RSPort(Dir dir, const std::string& name);
+		RSPort(const RSPort&);
 		~RSPort();
 
 		TopoPort* get_topo_port() const;

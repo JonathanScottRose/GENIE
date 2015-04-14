@@ -2,6 +2,8 @@
 #include "genie/connections.h"
 #include "genie/structure.h"
 
+#include "genie/vlog.h" // uuugly
+
 using namespace genie;
 
 //
@@ -66,8 +68,8 @@ const char* genie::dir_to_str(Dir dir)
 NetType Network::alloc_def_internal()
 {
 	// Allocates a new, unique network ID
-	static NetType last_net = NET_INVALID;
-	return ++last_net;
+	static NetType last_net = 0;
+	return last_net++;
 }
 
 void Network::init()
@@ -146,7 +148,7 @@ const std::string& Network::to_string(NetType type)
 	static std::string INV = "<invalid network>";
 	auto def = get(type);
 
-	return def == NET_INVALID? INV : def->get_name();
+	return def? INV : def->get_name();
 }
 
 //
@@ -167,12 +169,6 @@ Port* Network::create_port(Dir dir)
 	// Default implementation. Should be overridden if your network supports Ports.
 	throw Exception("Network " + m_name + " has no instantiable ports");
 	return nullptr;
-}
-
-Endpoint* Network::create_endpoint(Dir dir)
-{
-	// Generic endpoint
-	return new Endpoint(m_id, dir);
 }
 
 Link* Network::create_link()
@@ -266,34 +262,31 @@ const SigRole& Network::get_sig_role(const std::string& name) const
 	return get_sig_role(id);
 }
 
-Port* Network::make_export(System* sys, Port* port, const std::string& name)
+Port* Network::export_port(System* sys, Port* port, const std::string& name)
 {
-	// Duplicate the port via instantiation but give it a new name
-	Port* result = static_cast<Port*>(port->instantiate());
+	// Generic exporting behaviour. Start with a fresh new port of the same dir as the old one.
+	Port* result = create_port(port->get_dir());
 	result->set_name(name);
 
 	// Attach it to the System
 	sys->add_port(result);
 
-	// Go through all of its HDL Bindings and replace all of them with default bindings based on the
-	// system they are now attached to.
-	for (auto& i : result->get_role_bindings())
+	// Export the old port's role bindings
+	for (auto& old_rb : port->get_role_bindings())
 	{
-		auto old = port->get_matching_role_binding(i);
-		assert(old);
+		// Create a RoleBinding of same role/tag but no hdl binding yet.
+		auto new_rb = new RoleBinding(old_rb->get_id(), old_rb->get_tag());
 
-		auto new_hdlb = old->get_hdl_binding()->export_pre();
-		i->set_hdl_binding(new_hdlb);
-		new_hdlb->export_post();
+		// Export the HDL binding (need to abstract this...)
+		auto new_hdlb = vlog::export_binding(sys, result, old_rb->get_hdl_binding());
+		new_rb->set_hdl_binding(new_hdlb);
+
+		// Add to the exported port
+		result->add_role_binding(new_rb);
 	}
 
 	// Make a Link between the old port and the new one
-	Port* link_src = port;
-	Port* link_sink = result;
-	if (result->get_dir() != Dir::OUT)
-		std::swap(link_src, link_sink);
-
-	sys->connect(link_src, link_sink, port->get_type());
+	sys->connect(port, result, port->get_type());
 
 	return result;
 }

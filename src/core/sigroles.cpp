@@ -5,25 +5,20 @@
 using namespace genie;
 
 RoleBinding::RoleBinding(SigRoleID id, const std::string& tag, HDLBinding* hdl)
-	: m_id(id), m_tag(tag), m_binding(hdl) 
+	: m_id(id), m_tag(tag), m_parent(nullptr)
 {
-	if (m_binding) m_binding->set_parent(this);
+	set_hdl_binding(hdl);
 }
 
 RoleBinding::RoleBinding(SigRoleID id, HDLBinding* hdl)
-	: m_id(id), m_binding(hdl)
+	: RoleBinding(id, "", hdl)
 {
-	if (m_binding) m_binding->set_parent(this);
 }
 
 RoleBinding::RoleBinding(const RoleBinding& o)
-	: m_id(o.m_id), m_tag(o.m_tag), m_binding(o.m_binding)
+	: RoleBinding(o.m_id, o.m_tag)
 { 
-	if (m_binding)
-	{
-		m_binding = m_binding->clone();
-		m_binding->set_parent(this);
-	}
+	set_hdl_binding(o.m_binding? o.m_binding->clone() : nullptr);
 }
 
 RoleBinding::~RoleBinding()

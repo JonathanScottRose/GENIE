@@ -30,6 +30,8 @@ namespace genie
 		PROP_GET(depth, int, m_depth);
 		void set_depth(int);
 
+		std::string to_string() const;
+
 	protected:
 		std::vector<int> m_vals;
 		int m_width;

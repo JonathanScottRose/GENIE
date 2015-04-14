@@ -2,50 +2,29 @@
 
 using namespace genie::vlog;
 
-//
-// AVlogInfo
-//
-
-AVlogInfo::AVlogInfo()
-	: m_module(nullptr), m_instance(nullptr)
-{
-}
-
-AVlogInfo::~AVlogInfo()
-{
-	// we do not own m_module, don't delete it
-	delete m_instance;
-}
-
-genie::Aspect* AVlogInfo::asp_instantiate()
-{
-	auto result = new AVlogInfo();
-	result->set_module(m_module);
-	
-	return result;
-}
 
 //
 // VlogStaticBinding
 //
 
 VlogStaticBinding::VlogStaticBinding()
-	: m_port(nullptr)
+	: m_full_width(true)
 {
 }
 
-VlogStaticBinding::VlogStaticBinding(Port* port, const Expression& width, const Expression& lo)
-	: m_port(port), m_width(width), m_lo(lo)
+VlogStaticBinding::VlogStaticBinding(const std::string& portname, 
+	const Expression& width, const Expression& lsb)
+	: m_port_name(portname), m_width(width), m_lsb(lsb), m_full_width(false)
 {
 }
 
-VlogStaticBinding::VlogStaticBinding(Port* port, const Expression& width)
-	: VlogStaticBinding(port, width, 0)
+VlogStaticBinding::VlogStaticBinding(const std::string& portname, const Expression& width)
+	: VlogStaticBinding(portname, width, 0)
 {
 }
 
-VlogStaticBinding::VlogStaticBinding(Port* port)
-	: VlogStaticBinding(port, port->get_width())
+VlogStaticBinding::VlogStaticBinding(const std::string& portname)
+	: m_port_name(portname), m_full_width(true), m_lsb(0)
 {
 }
 
@@ -54,65 +33,50 @@ genie::HDLBinding* VlogStaticBinding::clone()
 	return new VlogStaticBinding(*this);
 }
 
-int VlogStaticBinding::get_lo() const
+int VlogStaticBinding::get_lsb() const
 {
-	// evaluate expression using parent Node
+	// evaluate expression using parent Node to plug-in parameter values
 	Node* node = get_parent()->get_parent()->get_node();
 	assert(node);
-	return m_lo.get_value(node->get_exp_resolver());
+	return m_lsb.get_value(node->get_exp_resolver());
 }
 
 int VlogStaticBinding::get_width() const
 {
+	// If we're a full-width binding, our m_width is useless and we need to query the port.
+	const Expression& widthexpr = m_full_width? get_port()->get_width() : m_width;
+
 	Node* node = get_parent()->get_parent()->get_node();
 	assert(node);
-	return m_width.get_value(node->get_exp_resolver());
+	return widthexpr.get_value(node->get_exp_resolver());
 }
 
 Port* VlogStaticBinding::get_port() const
 {
-	return m_port;
+	// We have the port's name, so we just need to look up the actual Port in the Node's
+	// NodeHDLInfo thingy.
+	Node* node = get_parent()->get_parent()->get_node();
+	assert(node);
+
+	auto vinfo = as_a<NodeVlogInfo*>(node->get_hdl_info());
+	assert(vinfo);
+
+	return vinfo->get_port(m_port_name);
 }
 
 std::string VlogStaticBinding::to_string() const
 {
-	if (!m_port)
-		return "(unbound)";
-	else
-		return m_port->get_name();
+	return m_port_name;
 }
 
-genie::HDLBinding* VlogStaticBinding::export_pre()
+void VlogStaticBinding::set_lsb(const Expression& e)
 {
-	// Create a new binding, with a concrete width and a 0 lobase.
-	// Keep the port the same as the old one, it will be used in post()
-	auto result = new VlogStaticBinding();
-	result->set_lo(0);
-	result->set_width(this->get_width());
-	result->set_port(this->get_port());
-
-	return result;
+	m_lsb = e;
+	m_full_width = false;
 }
 
-void VlogStaticBinding::export_post()
+void VlogStaticBinding::set_width(const Expression& e)
 {
-	// We should be attached by now
-	assert(m_parent);
-
-	// Get our (new) parent node's Vlog module
-	RoleBinding* rb = get_parent();
-	Node* node = rb->get_parent()->get_node();
-
-	auto av = node->asp_get<AVlogInfo>();
-	assert(av);
-	Module* mod = av->get_module();
-
-	// This was set in _pre(). Create a new port, but keep the old one's direction.
-	Port* oldport = get_port();
-	Port* newport = new Port(vlog::make_default_port_name(rb), 
-		get_width(), oldport->get_dir());
-	set_port(newport);
-
-	// Add the port to the module
-	mod->add_port(newport);
+	m_width = e;
+	m_full_width = false;
 }

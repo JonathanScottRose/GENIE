@@ -59,5 +59,3 @@ HierObject* ClockPort::instantiate()
 {
 	return new ClockPort(*this);
 }
-
-

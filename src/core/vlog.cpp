@@ -1,6 +1,7 @@
 #include "genie/common.h"
 #include "genie/vlog.h"
 #include "genie/structure.h"
+#include "genie/value.h"
 
 using namespace genie::vlog;
 
@@ -18,8 +19,14 @@ Port::Port(const std::string& name, const Expression& width, Dir dir)
 {
 }
 
+Port* Port::instantiate() const
+{
+	return new Port(m_name, m_width, m_dir);
+}
+
 Port::~Port()
 {
+	util::delete_all(m_bindings);
 }
 
 Port::Dir Port::rev_dir(Port::Dir in)
@@ -61,21 +68,66 @@ Port::Dir Port::make_dir(genie::Dir pdir, genie::SigRole::Sense sense)
 	return result;
 }
 
+bool Port::is_bound()
+{
+	return !m_bindings.empty();
+}
+
+int Port::eval_width()
+{
+	// Concrete-ize our width by plugging in parameter definitions from the parent genie::Node
+	Node* node = get_parent()->get_node();
+	assert(node);
+
+	return m_width.get_value(node->get_exp_resolver());
+}
+
+void Port::bind(Bindable* target, int width, int port_lsb, int targ_lsb)
+{
+	// Check if this binding will overlap with existing bindings (at the port binding site)
+	for (auto& b : m_bindings)
+	{
+		assert(port_lsb + width <= b->get_port_lsb() ||
+			port_lsb >= b->get_port_lsb() + b->get_width());
+	}
+
+	int port_width = eval_width();
+	int targ_width = target->get_width();
+	int port_hi = port_lsb + width - 1;
+	int targ_hi = targ_lsb + width - 1;
+	
+	assert(port_hi < port_lsb + port_width);
+	assert(targ_hi < targ_lsb + targ_width);
+
+	// Create the binding and add it to our list of bindings
+	PortBinding* binding = new PortBinding(this, target);
+	binding->set_port_lsb(port_lsb);
+	binding->set_target_lsb(targ_lsb);
+	binding->set_width(width);
+	m_bindings.push_back(binding);
+}
+
+void Port::bind(Bindable* target, int port_lsb, int targ_lsb)
+{
+	// Bind the full width of the target. 
+	bind(target, target->get_width(), port_lsb, targ_lsb);
+}
+
 //
-// Module
+// NodeVlogInfo
 //
 
-Module::Module(const std::string& name)
-	: m_name(name)
+NodeVlogInfo::NodeVlogInfo(const std::string& name)
+	: m_mod_name(name)
 {
 }
 
-Module::~Module()
+NodeVlogInfo::~NodeVlogInfo()
 {
 	util::delete_all_2(m_ports);
 }
 
-Port* Module::add_port(Port* p)
+Port* NodeVlogInfo::add_port(Port* p)
 {
 	assert(!util::exists_2(m_ports, p->get_name()));
 	m_ports[p->get_name()] = p;
@@ -83,109 +135,39 @@ Port* Module::add_port(Port* p)
 	return p;
 }
 
-//
-// PortState
-//
 
-PortState::PortState()
-	: m_parent(nullptr), m_port(nullptr)
+genie::NodeHDLInfo* NodeVlogInfo::instantiate()
 {
-	
-}
+	// Use same module name
+	auto result = new NodeVlogInfo(m_mod_name);
 
-PortState::~PortState()
-{
-	util::delete_all(m_bindings);
-}
-
-const std::string& PortState::get_name()
-{
-	return m_port->get_name();
-}
-
-int PortState::get_width()
-{
-	return m_port->get_width().get_value(m_parent->get_node()->get_exp_resolver());
-}
-
-bool PortState::has_multiple_bindings()
-{
-	bool result = is_empty();
-	if (!result)
+	// Copy all Ports
+	for (auto& i : ports())
 	{
-		result = !m_bindings.front()->is_full_port_binding();
+		result->add_port(i.second->instantiate());
 	}
 
 	return result;
 }
 
-bool PortState::is_empty()
-{
-	return m_bindings.empty();
-}
-
-void PortState::bind(Bindable* target, int width, int port_lo, int targ_lo)
-{
-	// Check if this binding will overlap with existing bindings (at the port binding site)
-	for (auto& b : m_bindings)
-	{
-		assert(port_lo + width <= b->get_port_lo() ||
-			port_lo >= b->get_port_lo() + b->get_width());
-	}
-
-	Port* port = get_port();
-
-	int port_width = get_width();
-	int targ_width = target->get_width();
-	int port_hi = port_lo + width - 1;
-	int targ_hi = targ_lo + width - 1;
-
-	
-	assert(port_hi < port_lo + port_width);
-	assert(targ_hi < targ_lo + targ_width);
-
-	// Create the binding and add it to our list of bindings
-	PortBinding* binding = new PortBinding(this, target);
-	binding->set_port_lo(port_lo);
-	binding->set_target_lo(targ_lo);
-	binding->set_width(width);
-	m_bindings.push_back(binding);
-}
-
-void PortState::bind(Bindable* target, int port_lo, int targ_lo)
-{
-	// This version of bind automatically calculates the maximum possible width that can be bound
-	int width = std::min(
-		target->get_width() - targ_lo,
-		this->get_width() - port_lo
-	);
-
-	bind(target, width, port_lo, targ_lo);
-}
-
-
 //
 // PortBinding
 //
 
-PortBinding::PortBinding(PortState* parent, Bindable* target)
+PortBinding::PortBinding(Port* parent, Bindable* target)
 	: m_parent(parent), m_target(target)
 {
 }
 
 PortBinding::~PortBinding()
 {
-	// Some targets like nets are owned by the netlist and will be cleaned up when the netlist dies,
-	// but some like constant value drivers are not kept track by the netlist and are effectively owned
-	// by the bindings. This handles destruction in a polymorphic way.
-	if (m_target) m_target->dispose();
 }
 
 bool PortBinding::is_full_port_binding()
 {
 	bool result = 
-		(m_port_lo == 0) &&
-		(m_width == m_parent->get_width());
+		(m_port_lsb == 0) &&
+		(m_width == m_parent->eval_width());
 
 	return result;
 }
@@ -193,7 +175,7 @@ bool PortBinding::is_full_port_binding()
 bool PortBinding::is_full_target_binding()
 {
 	bool result =
-		(m_target_lo == 0) &&
+		(m_target_lsb == 0) &&
 		(m_width == m_target->get_width());
 
 	return result;
@@ -203,29 +185,31 @@ bool PortBinding::is_full_target_binding()
 // ConstValue
 //
 
-ConstValue::ConstValue(int value, int width)
-	: Bindable(CONST), m_value(value), m_width(width)
+ConstValue::ConstValue()
+{
+}
+
+ConstValue::ConstValue(const genie::Value& v)
+	: m_value(v)
 {
 }
 
 int ConstValue::get_width()
 {
-	return m_width;
+	return m_value.get_width();
 }
 
-void ConstValue::dispose()
+std::string ConstValue::to_string()
 {
-	// consts are bound to only one thing, so that thing effectively owns the memory
-	// for the const and the const should die when it gets its single call to dispose()
-	delete this;
+	return m_value.to_string();
 }
 
 //
 // Net
 //
 
-Net::Net(Type type)
-	: Bindable(NET), m_type(type)
+Net::Net(Type type, const std::string& name)
+	: m_type(type), m_name(name)
 {
 }
 
@@ -233,178 +217,90 @@ Net::~Net()
 {
 }
 
-void Net::dispose()
-{
-	// do nothing, since nets are owned and deleted by the SystemModule netlist
-}
-
-//
-// WireNet
-//
-
-WireNet::WireNet(const std::string& name, int width)
-	: Net(Net::WIRE), m_width(width), m_name(name)
-{
-}
-
-WireNet::~WireNet()
-{
-}
-
-const std::string& WireNet::get_name()
+std::string Net::to_string()
 {
 	return m_name;
 }
 
-void WireNet::set_name(const std::string& name)
-{
-	m_name = name;
-}
-
-int WireNet::get_width()
+int Net::get_width()
 {
 	return m_width;
 }
 
-void WireNet::set_width(int width)
+void Net::set_width(int width)
 {
 	m_width = width;
 }
 
-//
-// ExportNet
-//
-
-ExportNet::ExportNet(Port* port)
-	: Net(Net::EXPORT), m_port(port)
-{
-}
-
-ExportNet::~ExportNet()
-{
-}
-
-const std::string& ExportNet::get_name()
-{
-	assert(m_port != nullptr);
-	return m_port->get_name();
-}
-
-int ExportNet::get_width()
-{
-	return m_port->get_width().get_value();
-}
-
 
 //
-// SystemModule
+// SystemVlogInfo
 //
 
-SystemModule::SystemModule(const std::string& name)
-	: Module(name), m_sysnode(nullptr)
+SystemVlogInfo::SystemVlogInfo(const std::string& name)
+	: NodeVlogInfo(name)
 {
 }
 
-SystemModule::~SystemModule()
+SystemVlogInfo::~SystemVlogInfo()
 {
-	util::delete_all_2(m_instances);
+	util::delete_all(m_const_values);
 	util::delete_all_2(m_nets);
 }
 
-//
-// Instance
-//
-
-Instance::Instance(const std::string& name, Module* module)
-	: m_name(name), m_module(module), m_node(nullptr)
+void SystemVlogInfo::connect(Port* src, Port* sink, int src_lsb, int sink_lsb, int width)
 {
-	for (auto& i : module->ports())
+	// Create or grab a net that's bound to the entire src.
+	// This process depends on whether the Port is top-level to this System or not.
+	bool src_is_export = src->get_parent() == this;
+	bool sink_is_export = sink->get_parent() == this;
+
+	// Validate directions of src/sink
+	auto src_effective_dir = src->get_dir();
+	auto sink_effective_dir = sink->get_dir();
+
+	if (src_is_export) src_effective_dir = Port::rev_dir(src_effective_dir);
+	if (sink_is_export) sink_effective_dir = Port::rev_dir(sink_effective_dir);
+
+	assert(src_effective_dir != Port::IN);
+	assert(sink_effective_dir != Port::OUT);
+
+	// This is the name of the net. Non-export nets are named nodename_portname and exports are
+	// just named exactly after the portname.
+	std::string src_netname = src_is_export? 
+		src->get_name() : src->get_parent()->get_node()->get_name() + "_" + src->get_name();
+
+	// Try to find existing one
+	Net* net = get_net(src_netname);
+	if (!net)
 	{
-		Port* port = i.second;
-		
-		PortState* st = new PortState();
-		st->set_parent(this);
-		st->set_port(port);
-		m_port_states[port->get_name()] = st;
+		// Not found? Create and bind to src.
+		int src_width = src->eval_width();
+
+		auto nettype = src_is_export? Net::EXPORT : Net::WIRE;
+		net = new Net(nettype, src_netname);
+		net->set_width(src_width);
+		this->add_net(net);
+
+		// Bind net to entire src.
+		src->bind(net, src_width, 0, 0); 
 	}
+
+	// Now bind the net to the sink.
+	// Specifically, bind [src_lsb+width-1, src_lsb] of the net to [sink_lsb+width-1, sink_lsb] of sink.
+	sink->bind(net, width, sink_lsb, src_lsb);
 }
 
-Instance::~Instance()
+void SystemVlogInfo::connect(Port* sink, const genie::Value& val, int sink_lsb)
 {
-	util::delete_all_2(m_port_states);
+	// Wrap the value in a ConstValue Bindable object and bind it to :
+	//   sink[val.width + sink_lsb - 1 : sink_lsb]
+	auto cv = new ConstValue(val);
+	sink->bind(cv, sink_lsb, 0);
+
+	// Keep track of it for memory cleanup later
+	m_const_values.push_back(cv);
 }
 
-PortState* Instance::get_port_state(const std::string& name)
-{
-	return m_port_states[name];
-}
 
-void Instance::bind_port(const std::string& portname, Bindable* targ, int port_lo, int targ_lo)
-{
-	PortState* ps = get_port_state(portname);
-	assert(ps);
-	ps->bind(targ, port_lo, targ_lo);
-}
 
-void Instance::bind_port(const std::string& portname, Bindable* targ, int width, int port_lo, int targ_lo)
-{
-	PortState* ps = get_port_state(portname);
-	assert(ps);
-	ps->bind(targ, width, port_lo, targ_lo);
-}
-
-//
-// Bindable
-//
-
-Bindable::Bindable(Type type)
-	: m_type(type)
-{
-}
-
-Bindable::~Bindable()
-{
-}
-
-//
-// ContinuousAssignment
-//
-
-ContinuousAssignment::ContinuousAssignment(Bindable* src, Net* sink)
-: m_src(src), m_sink(sink)
-{
-}
-
-ContinuousAssignment::~ContinuousAssignment()
-{
-}
-
-//
-// Module Registry
-//
-
-namespace
-{
-	class
-	{
-	public:
-		PROP_DICT(Modules, module, Module);
-	} s_module_registry;
-}
-
-//
-// Globals
-//
-
-void genie::vlog::register_module(Module* mod)
-{
-	if (s_module_registry.has_module(mod->get_name()))
-		throw Exception("duplicate Verilog module " + mod->get_name());
-
-	s_module_registry.add_module(mod);	
-}
-
-Module* genie::vlog::get_module(const std::string& name)
-{
-	return s_module_registry.get_module(name);
-}

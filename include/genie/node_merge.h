@@ -9,8 +9,6 @@ namespace genie
 	class NodeMerge : public Node
 	{
 	public:
-		static void init();
-
 		NodeMerge();
 		~NodeMerge();
 
@@ -22,5 +20,9 @@ namespace genie
 		RVDPort* get_rvd_output() const;
 
 		void refine(NetType) override;
+
+	protected:
+		bool m_exclusive;
+		void init_vlog();
 	};
 }

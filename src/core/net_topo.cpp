@@ -55,11 +55,6 @@ TopoPort::TopoPort(Dir dir, const std::string& name)
 	set_name(name);
 }
 
-HierObject* TopoPort::instantiate()
-{
-	return new TopoPort(*this);
-}
-
 TopoPort::~TopoPort()
 {
 }
@@ -103,3 +98,7 @@ RVDPort* TopoPort::get_rvd_port(int i) const
 	return as_a<RVDPort*>(get_child(subp_name));
 }
 
+HierObject* TopoPort::instantiate()
+{
+	return new TopoPort(*this);
+}

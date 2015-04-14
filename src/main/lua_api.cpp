@@ -319,18 +319,13 @@ namespace
 		const char* mod_name = luaL_checkstring(L, 2);
 
 		// Create new verilog module definition
-		auto mod = new vlog::Module(mod_name);
-		vlog::register_module(mod);
+		auto vinfo = new vlog::NodeVlogInfo(mod_name);
 
 		// Create and register the node
 		Node* node = new Node();
 		node->set_name(name);
+		node->set_hdl_info(vinfo);
 		genie::get_root()->add_child(node);
-
-		// Attach vlog info to node
-		auto av = new vlog::AVlogInfo();
-		av->set_module(mod);
-		node->asp_add(av);
 
 		lua::push_object(node);
 		
@@ -419,26 +414,18 @@ namespace
 		luaL_checktype(L, 2, LUA_TFUNCTION);
 
 		// Create new verilog module definition
-		auto mod = new vlog::SystemModule(sysname);
-		vlog::register_module(mod);
+		auto vinfo = new vlog::SystemVlogInfo(sysname);
 
 		// Create the System
 		System* sys = new System();
 		sys->set_name(sysname);
+		sys->set_hdl_info(vinfo);
 		genie::get_root()->add_child(sys);
-
-		// Refer module back to System
-		mod->set_sysnode(sys);
 
 		// Makes a ref for topo function, attach to system
 		auto atopo = new ATopoFunc();
 		atopo->func_ref = lua::make_ref();
 		sys->asp_add(atopo);		
-
-		// Attach vlog info to system
-		auto av = new vlog::AVlogInfo();
-		av->set_module(mod);
-		sys->asp_add(av);
 
 		lua::push_object(sys);
 		return 1;
@@ -594,7 +581,7 @@ namespace
 		auto ndef = Network::get(port->get_type());
 
 		// Call the thing
-		auto result = ndef->make_export(self, port, exname);
+		auto result = ndef->export_port(self, port, exname);
 		lua::push_object(result);
 
 		return 1;
@@ -804,18 +791,18 @@ namespace
 
 		// Access Port's Node's vlog module and create a new vlog port if it does not exist yet
 		Node* node = self->get_node();
-		vlog::Module* vmod = node->asp_get<vlog::AVlogInfo>()->get_module();
-		vlog::Port* vport = vmod->get_port(vlog_portname);
+		auto vinfo = as_a<vlog::NodeVlogInfo*>(node->get_hdl_info());
+		vlog::Port* vport = vinfo->get_port(vlog_portname);
 
 		if (!vport)
 		{
 			auto vpdir = vlog::Port::make_dir(self->get_dir(), sigrole.get_sense());
 			vport = new vlog::Port(vlog_portname, widthexpr, vpdir);
-			vmod->add_port(vport);
+			vinfo->add_port(vport);
 		}
 
 		// Add a new signal role binding, bound to the entire verilog port
-		self->add_role_binding(sigrole_id, tag, new vlog::VlogStaticBinding(vport));
+		self->add_role_binding(sigrole_id, tag, new vlog::VlogStaticBinding(vlog_portname));
 
 		return 0;
 	}

@@ -99,3 +99,15 @@ Value Value::parse(const std::string& val)
 	return Value(val);
 }
 
+std::string Value::to_string() const
+{
+	// We don't support anything else yet
+	assert(m_depth == 1);
+
+	// Format for Verilog
+	std::string result = std::to_string(m_width);
+	result += "'d";
+	result += std::to_string(m_vals[0]);
+
+	return result;
+}

@@ -17,7 +17,7 @@ namespace genie
 
 	// Lightweight identifier to refer to a Network Type.
 	typedef unsigned int NetType;
-	const NetType NET_INVALID = 0;
+	const NetType NET_INVALID = std::numeric_limits<NetType>::max();
 
 	// Directionality enum for endpoints and ports
 	enum class Dir
@@ -90,11 +90,10 @@ namespace genie
 
 		// Factory methods
 		virtual Link* create_link();
-		virtual Endpoint* create_endpoint(Dir);
 		virtual Port* create_port(Dir);
 
 		// Network-specific tasks
-		virtual Port* make_export(System*, Port*, const std::string&);
+		virtual Port* export_port(System*, Port*, const std::string&);
 
 	protected:
 		// Descriptive

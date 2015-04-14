@@ -7,6 +7,7 @@
 #include "genie/vlog_bind.h"
 
 using namespace genie;
+using namespace vlog;
 
 namespace
 {
@@ -19,39 +20,36 @@ namespace
 	const std::string RESETPORT_NAME = "reset";
 }
 
-void NodeMerge::init()
+void NodeMerge::init_vlog()
 {
 	using namespace vlog;
 
-	// Register vlog modules
-	for (auto& name : {MODULE, MODULE_EX})
-	{
-		auto mod = new Module(name);
+	auto vinfo = new NodeVlogInfo(m_exclusive? MODULE_EX : MODULE);
 
-		mod->add_port(new vlog::Port("clk", 1, vlog::Port::IN));
-		mod->add_port(new vlog::Port("reset", 1, vlog::Port::IN));
-		mod->add_port(new vlog::Port("i_data", "NI*WIDTH", vlog::Port::IN));
-		mod->add_port(new vlog::Port("i_valid", "NI", vlog::Port::IN));
-		mod->add_port(new vlog::Port("i_eop", "NI", vlog::Port::IN));
-		mod->add_port(new vlog::Port("o_ready", "NI", vlog::Port::OUT));
-		mod->add_port(new vlog::Port("o_valid", 1, vlog::Port::OUT));
-		mod->add_port(new vlog::Port("o_eop", 1, vlog::Port::OUT));
-		mod->add_port(new vlog::Port("o_data", "WIDTH", vlog::Port::OUT));
-		mod->add_port(new vlog::Port("i_ready", 1, vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("clk", 1, vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("reset", 1, vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("i_data", "NI*WIDTH", vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("i_valid", "NI", vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("i_eop", "NI", vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("o_ready", "NI", vlog::Port::OUT));
+	vinfo->add_port(new vlog::Port("o_valid", 1, vlog::Port::OUT));
+	vinfo->add_port(new vlog::Port("o_eop", 1, vlog::Port::OUT));
+	vinfo->add_port(new vlog::Port("o_data", "WIDTH", vlog::Port::OUT));
+	vinfo->add_port(new vlog::Port("i_ready", 1, vlog::Port::IN));
 
-		vlog::register_module(mod);
-	}
+	set_hdl_info(vinfo);
 }
 
 NodeMerge::NodeMerge()
 {	
-	using namespace vlog;
-
-	asp_add(new AVlogInfo())->set_module(vlog::get_module(MODULE));
+	init_vlog();
 
 	// Clock and reset ports are straightforward
-	add_port(new ClockPort(Dir::IN, CLOCKPORT_NAME));
-	add_port(new ResetPort(Dir::IN, RESETPORT_NAME));
+	auto port = add_port(new ClockPort(Dir::IN, CLOCKPORT_NAME));
+	port->add_role_binding(ClockPort::ROLE_CLOCK, new VlogStaticBinding("clk"));
+
+	port = add_port(new ResetPort(Dir::IN, RESETPORT_NAME));
+	port->add_role_binding(ResetPort::ROLE_RESET, new VlogStaticBinding("reset"));
 
 	// Input port and output port start out as Topo ports
 	add_port(new TopoPort(Dir::IN, INPORT_NAME));
@@ -84,11 +82,30 @@ RVDPort* NodeMerge::get_rvd_output() const
 
 RVDPort* NodeMerge::get_rvd_input(int idx) const
 {
-	return get_topo_output()->get_rvd_port(idx);
+	return get_topo_input()->get_rvd_port(idx);
 }
 
 void NodeMerge::refine(NetType target)
 {
 	// Default
 	HierObject::refine(target);
+
+	if (target == NET_RVD)
+	{
+		// Make bindings for the RVD ports
+		auto port = get_rvd_output();
+		port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
+		port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
+	
+		int n = get_n_inputs();
+		add_param(new ParamBinding("NI", n));
+
+		for (int i = 0; i < get_n_inputs(); i++)
+		{
+			auto port = get_rvd_input(i);
+
+			port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid", 1, i));
+			port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
+		}
+	}
 }

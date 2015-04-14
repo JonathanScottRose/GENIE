@@ -8,8 +8,6 @@ class ATopoFunc : public genie::Aspect
 {
 public:
 	int func_ref;
-protected:
-	Aspect* asp_instantiate() override { return new ATopoFunc(*this); }
 };
 
 // RS->TOPO

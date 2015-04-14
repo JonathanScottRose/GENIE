@@ -44,8 +44,9 @@ HierObject::~HierObject()
 }
 
 HierObject::HierObject(const HierObject& o)
-	: Object(o), m_parent(nullptr)
+	: Object(o), m_name(UNNAMED_OBJECT), m_parent(nullptr)
 {
+	// Do not copy over the children -- let subclasses decide whether or not to do that.
 }
 
 void HierObject::set_name(const std::string& name, bool allow_reserved)

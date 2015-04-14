@@ -17,28 +17,10 @@ Port::Port(Dir dir, NetType type)
 Port::~Port()
 {
 	util::delete_all(m_role_bindings);
-}
-
-Port::Port(const Port& o)
-	: HierObject(o), m_dir(o.m_dir), m_type(o.m_type)
-{
-	set_name(o.get_name());
-
-	// Copy role bindings
-	for (auto& b : o.m_role_bindings)
+	for (auto& i : m_endpoints)
 	{
-		auto nb = new RoleBinding(*b);
-		nb->set_parent(this);
-		add_role_binding(nb);
-	}
-
-	// Copy endpoints
-	for (const auto& i : o.m_endpoints)
-	{
-		NetType type = i.first;
-		Endpoint* ep_outer = get_ep_by_face(i.second, LinkFace::OUTER);
-		
-		set_connectable(type, ep_outer->get_dir());
+		delete i.second.first;
+		delete i.second.second;
 	}
 }
 
@@ -110,8 +92,8 @@ void Port::set_connectable(NetType type, Dir dir)
 	if (is_connectable(type))
 		throw HierException(this, "already connectable for nettype " + ndef->get_name());
 
-	Endpoint* outer = ndef->create_endpoint(dir);
-	Endpoint* inner = ndef->create_endpoint(dir_rev(dir));
+	Endpoint* outer = new Endpoint(type, dir);
+	Endpoint* inner = new Endpoint(type, dir_rev(dir));
 
 	outer->set_obj(this);
 	inner->set_obj(this);
@@ -259,14 +241,32 @@ bool Port::has_role_binding(SigRoleID id, const std::string& tag)
 	return get_role_binding(id, tag) != nullptr;
 }
 
+void Port::clear_role_bindings()
+{
+	util::delete_all(m_role_bindings);
+}
+
 bool Port::is_export() const
 {
 	return is_a<System*>(get_node());
 }
 
-HierObject* Port::instantiate()
+Port::Port(const Port& o)
+	: HierObject(o), m_type(o.m_type), m_dir(o.m_dir)
 {
-	return new Port(*this);
+	// Instantiated ports have the same name, dir, type as the thing they are instantiating
+	set_name(o.get_name());
+
+	// Copy connectivity
+	for (const auto& i : o.m_endpoints)
+	{
+		NetType type = i.first;
+		set_connectable(type, m_dir);
+	}
+
+	// Copy the role bindings
+	for (auto& b : o.m_role_bindings)
+		add_role_binding(new RoleBinding(*b));
 }
 
 //
@@ -274,13 +274,35 @@ HierObject* Port::instantiate()
 //
 
 Node::Node()
+	: m_hdl_info(nullptr)
 {
-	init_resolv();
 }
 
-void Node::init_resolv()
+Node::Node(const Node& o)
+	: HierObject(o)
 {
-	m_resolv = [this](const std::string& name)
+	// Copy parameters
+	util::copy_all_2(o.m_params, m_params);
+	
+	// Copy HDL info
+	set_hdl_info(o.m_hdl_info->instantiate());
+
+	// Instantiate all ports
+	auto ports = o.get_ports();
+	for (auto& p : ports)
+	{
+		add_child(p->instantiate());
+	}  
+}
+
+Node::~Node()
+{
+	delete m_hdl_info;
+}
+
+expressions::NameResolver Node::get_exp_resolver()
+{
+	return [this](const std::string& name)
 	{
 		auto param = get_param(name);
 		auto sys = as_a<System*>(get_parent());
@@ -309,12 +331,17 @@ void Node::init_resolv()
 	};
 }
 
-Node::Node(const Node& o)
-	: HierObject(o)
+List<ParamBinding*> Node::get_params(bool are_bound)
 {
-	init_resolv();
+	List<ParamBinding*> result;
+	for (auto& i : m_params)
+	{
+		auto param = i.second;
+		if (param->is_bound() == are_bound)
+			result.push_back(param);
+	}
 
-	util::copy_all_2(o.m_params, m_params);
+	return result;
 }
 
 Node::Ports Node::get_ports(NetType net) const
@@ -350,15 +377,14 @@ void Node::delete_port(const std::string& name)
 
 HierObject* Node::instantiate()
 {
-	auto result = new Node(*this);
+	return new Node(*this);
+}
 
-	for (auto child : m_children)
-	{
-		auto inst = child.second->instantiate();
-		result->add_child(inst);
-	}
-
-	return result;
+void Node::set_hdl_info(NodeHDLInfo* info)
+{
+	delete m_hdl_info;
+	m_hdl_info = info;
+	info->set_node(this);
 }
 
 
@@ -832,4 +858,13 @@ List<Node*> HierRoot::get_non_systems()
 	{
 		return as_a<const System*>(o) == nullptr;
 	});
+}
+
+//
+// NodeHDLInfo
+//
+
+NodeHDLInfo::NodeHDLInfo()
+	: m_node(nullptr)
+{
 }

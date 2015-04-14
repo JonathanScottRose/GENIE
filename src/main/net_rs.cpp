@@ -44,27 +44,31 @@ namespace
 			return new RSPort(dir);
 		}
 
-		Port* make_export(System* sys, Port* port, const std::string& name) override
+		Port* export_port(System* sys, Port* port, const std::string& name) override
 		{
 			auto orig_port = as_a<RSPort*>(port);
 			assert(orig_port);
 
 			// First do the default actions for creating an export
-			RSPort* result = static_cast<RSPort*>(Network::make_export(sys, port, name));
+			RSPort* result = static_cast<RSPort*>(Network::export_port(sys, port, name));
 
-			// If the original port had linkpoints, undo the orig->result Link that was created
-			// by make_export, and instead create many Links between the original/exported Linkpoints
+			// If the original port had linkpoints, we need to export those as well. This was not done
+			// automatically by the generic export_port().
+			// Additionally, we'll need to undo the Link made by export_port and instead make links between
+			// the individual origina/exported linkpoints.
 			auto lps = orig_port->get_linkpoints();
 			if (lps.size() > 0)
 			{
 				sys->disconnect(orig_port, result);
 
+				// For each of the original linkpoints...
 				for (auto& orig_lp : lps)
 				{
-					// find the corresponding linkpoint in the exported port, make connection
-					auto result_lp = result->get_child_as<RSLinkpoint>(orig_lp->get_name());
-					assert(result_lp);
+					// Create a copy for the exported RSPort.
+					auto result_lp = as_a<RSLinkpoint*>(orig_lp->instantiate());
+					result->add_child(result_lp);
 
+					// Connect the original/new linkpoints together
 					sys->connect(orig_lp, result_lp, NET_RS);
 				}
 			}
@@ -109,10 +113,14 @@ RSPort::RSPort(Dir dir)
 {
 }
 
-RSPort::RSPort(Dir dir, const std::string& name)
-: RSPort(dir)
+RSPort::RSPort(const RSPort& o)
+	: Port(o), m_clk_port_name(o.m_clk_port_name)
 {
-	set_name(name);
+	// Only copy linkpoints upon instantiation
+	for (auto& c : o.get_children_by_type<RSLinkpoint>())
+	{
+		add_child(c->instantiate());
+	}
 }
 
 RSPort::~RSPort()
@@ -121,20 +129,43 @@ RSPort::~RSPort()
 
 HierObject* RSPort::instantiate()
 {
-	auto result = new RSPort(*this);
-
-	// Only copy linkpoints upon instantiation
-	for (auto& c : get_children_by_type<RSLinkpoint>())
-	{
-		result->add_child(c->instantiate());
-	}
-
-	return result;
+	return new RSPort(*this);
 }
 
 void RSPort::refine_rvd()
 {
-	// T
+	RVDPort* rvd_port = get_topo_port()->get_rvd_port();
+	if (!rvd_port)
+		return;
+
+	// Set up role bindings on RVD port, by copying ours
+	for (auto& rs_rb : get_role_bindings())
+	{
+		auto rs_role = rs_rb->get_id();
+		auto rs_tag = rs_rb->get_tag();
+		const auto& rs_rdef = rs_rb->get_role_def();
+
+		// Clone the HDL binding
+		auto rvd_hdlb = rs_rb->get_hdl_binding()->clone();
+
+		// Ready/valid get special treatment, everything else is DATA
+		if (rs_role == RSPort::ROLE_VALID)
+		{
+			rvd_port->add_role_binding(RVDPort::ROLE_VALID, rvd_hdlb);
+		}
+		else if (rs_role == RSPort::ROLE_READY)
+		{
+			rvd_port->add_role_binding(RVDPort::ROLE_READY, rvd_hdlb);
+		}
+		else
+		{
+			std::string rvd_tag = rs_rdef.get_name();
+			if (rs_rdef.get_uses_tags())
+				rvd_tag += "_" + rs_tag;
+
+			rvd_port->add_role_binding(RVDPort::ROLE_DATA, rvd_tag, rvd_hdlb);
+		}
+	}
 }
 
 void RSPort::refine_topo()
@@ -211,9 +242,7 @@ RSLinkpoint::~RSLinkpoint()
 
 HierObject* RSLinkpoint::instantiate()
 {
-	auto result = new RSLinkpoint(get_dir(), get_type());
-	result->set_name(get_name());
-	return result;
+	return new RSLinkpoint(*this);
 }
 
 namespace

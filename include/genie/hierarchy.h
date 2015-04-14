@@ -30,8 +30,8 @@ namespace genie
 		typedef std::function<bool(const HierObject*)> FilterFunc;
 
 		HierObject();
-		virtual ~HierObject();
 		HierObject(const HierObject&);
+		virtual ~HierObject();
 
 		// Name
 		virtual const std::string& get_name() const;
@@ -43,7 +43,7 @@ namespace genie
 		// Parent
 		virtual HierObject* get_parent() const;
 
-		// Prototype
+		// Instantiation
 		virtual HierObject* instantiate() = 0;
 
 		// Network refinement
@@ -116,7 +116,6 @@ namespace genie
 		std::string m_name;
 		HierObject* m_parent;
 		StringMap<HierObject*> m_children;
-		
 	};
 
 	// Exceptions

@@ -71,4 +71,3 @@ HierObject* RVDPort::instantiate()
 {
 	return new RVDPort(*this);
 }
-

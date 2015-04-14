@@ -26,10 +26,6 @@ void genie::init()
 	// Register all network types
 	Network::init();
 
-	// Register builtin modules
-	NodeMerge::init();
-	NodeSplit::init();
-
 	{ auto foo = NET_CLOCK ; }
 	{ auto foo = NET_RVD; }
 	{ auto foo = NET_RESET; }

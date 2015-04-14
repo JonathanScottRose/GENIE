@@ -12,7 +12,8 @@ namespace genie
 	class Port;
 	class System;
 	class HierRoot;
-
+	class NodeHDLInfo;
+	
 	class Port : public HierObject
 	{
 	public:
@@ -22,7 +23,10 @@ namespace genie
 		Port(const Port&);
 		virtual ~Port();
 
+		// Get the parent node (may not be direct parent, as this port could be a sub-port)
 		Node* get_node() const;
+
+		// Is this node's parent a System (ie, is this node an Export)?
 		bool is_export() const;
 
 		// Get port type and direction
@@ -34,10 +38,12 @@ namespace genie
 		NetTypes get_connectable_networks() const;
 		bool is_connectable(NetType) const;
 		bool is_connected(NetType) const;
-		Endpoint* get_endpoint(NetType, LinkFace) const;
-		Endpoint* get_endpoint_sysface(NetType) const;
+		Endpoint* get_endpoint(NetType, LinkFace) const;	// Explicit inner/outer-facing endpoint
+		Endpoint* get_endpoint_sysface(NetType) const;		// Get endpoint that faces inside the system
 
 		// Manage signal role bindings
+		void clear_role_bindings();
+		RoleBinding* get_matching_role_binding(RoleBinding*);
 		const RoleBindings& get_role_bindings() { return m_role_bindings; }
 		RoleBinding* add_role_binding(SigRoleID, const std::string&, HDLBinding*);
 		RoleBinding* add_role_binding(SigRoleID, HDLBinding*);
@@ -47,18 +53,17 @@ namespace genie
 		RoleBindings get_role_bindings(SigRoleID);
 		RoleBinding* get_role_binding(SigRoleID, const std::string&);
 		RoleBinding* get_role_binding(SigRoleID);
-		RoleBinding* get_matching_role_binding(RoleBinding*);
 		bool has_role_binding(SigRoleID);
 		bool has_role_binding(SigRoleID, const std::string&);
-
-		HierObject* instantiate() override;
 
 	protected:
 		typedef std::pair<Endpoint*, Endpoint*> EndpointsEntry;
 		typedef std::unordered_map<NetType, EndpointsEntry> EndpointsMap;
 
+		// Can be called by Port implementation code
 		void set_connectable(NetType, Dir);
 		void set_unconnectable(NetType);
+
 		static Endpoint* get_ep_by_face(const EndpointsEntry&, LinkFace);
 		static void set_ep_by_face(EndpointsEntry&, LinkFace, Endpoint*);
 
@@ -70,6 +75,20 @@ namespace genie
 		EndpointsMap m_endpoints;
 	};
 
+	class NodeHDLInfo
+	{
+	public:
+		NodeHDLInfo();
+		virtual ~NodeHDLInfo() = 0 {}
+
+		virtual NodeHDLInfo* instantiate() = 0;
+
+		PROP_GET_SET(node, Node*, m_node);
+
+	protected:
+		Node* m_node;
+	};
+
 	class Node : public HierObject
 	{
 	public:
@@ -77,7 +96,7 @@ namespace genie
 
 		Node();
 		Node(const Node&);
-		virtual ~Node() = default;
+		virtual ~Node();
 
 		Ports get_ports(NetType) const;
 		Ports get_ports() const;
@@ -88,11 +107,15 @@ namespace genie
 		HierObject* instantiate() override;
 
 		PROP_DICT(Params, param, ParamBinding);
-		PROP_GET(exp_resolver, const expressions::NameResolver&, m_resolv);
+		List<ParamBinding*> get_params(bool are_bound);
+
+		PROP_GET(hdl_info, NodeHDLInfo*, m_hdl_info);
+		void set_hdl_info(NodeHDLInfo*);
+
+		expressions::NameResolver get_exp_resolver();
 
 	protected:
-		expressions::NameResolver m_resolv;
-		void init_resolv();
+		NodeHDLInfo* m_hdl_info;	
 	};
 
 	class System : public Node
@@ -105,9 +128,8 @@ namespace genie
 		typedef List<HierObject*> Objects;
 
 		System();
-		virtual ~System();
-
-		//HierObject* instantiate() override;
+		System(const System&) = delete;
+		~System();
 
 		// Link-related
 		NetTypes get_net_types() const;

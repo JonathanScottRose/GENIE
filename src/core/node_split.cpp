@@ -7,6 +7,7 @@
 #include "genie/vlog_bind.h"
 
 using namespace genie;
+using namespace vlog;
 
 namespace
 {
@@ -18,35 +19,34 @@ namespace
 	const std::string RESETPORT_NAME = "reset";
 }
 
-void NodeSplit::init()
+void NodeSplit::init_vlog()
 {
-	using namespace vlog;
+	auto vinfo = new NodeVlogInfo(MODULE);
 
-	auto mod = new Module(MODULE);
+	vinfo->add_port(new vlog::Port("clk",  1, vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("reset",  1, vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("i_data",  "WO", vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("i_flow",  "WF", vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("i_valid",  1, vlog::Port::IN));
+	vinfo->add_port(new vlog::Port("o_ready",  1, vlog::Port::OUT));
+	vinfo->add_port(new vlog::Port("o_valid",  "NO", vlog::Port::OUT));
+	vinfo->add_port(new vlog::Port("o_data",  "WO", vlog::Port::OUT));
+	vinfo->add_port(new vlog::Port("o_flow",  "WF", vlog::Port::OUT));
+	vinfo->add_port(new vlog::Port("i_ready",  "NO", vlog::Port::IN));
 
-	mod->add_port(new vlog::Port("clk",  1, vlog::Port::IN));
-	mod->add_port(new vlog::Port("reset",  1, vlog::Port::IN));
-	mod->add_port(new vlog::Port("i_data",  "WO", vlog::Port::IN));
-	mod->add_port(new vlog::Port("i_flow",  "WF", vlog::Port::IN));
-	mod->add_port(new vlog::Port("i_valid",  1, vlog::Port::IN));
-	mod->add_port(new vlog::Port("o_ready",  1, vlog::Port::OUT));
-	mod->add_port(new vlog::Port("o_valid",  "NO", vlog::Port::OUT));
-	mod->add_port(new vlog::Port("o_data",  "WO", vlog::Port::OUT));
-	mod->add_port(new vlog::Port("o_flow",  "WF", vlog::Port::OUT));
-	mod->add_port(new vlog::Port("i_ready",  "NO", vlog::Port::IN));
-
-	vlog::register_module(mod);
+	set_hdl_info(vinfo);
 }
 
 NodeSplit::NodeSplit()
 {
-	using namespace vlog;
-
-	asp_add(new AVlogInfo())->set_module(vlog::get_module(MODULE));
+	init_vlog();
 
 	// Clock and reset ports are straightforward
-	add_port(new ClockPort(Dir::IN, CLOCKPORT_NAME));
-	add_port(new ResetPort(Dir::IN, RESETPORT_NAME));
+	auto port = add_port(new ClockPort(Dir::IN, CLOCKPORT_NAME));
+	port->add_role_binding(ClockPort::ROLE_CLOCK, new VlogStaticBinding("clk"));
+
+	port = add_port(new ResetPort(Dir::IN, RESETPORT_NAME));
+	port->add_role_binding(ResetPort::ROLE_RESET, new VlogStaticBinding("reset"));
 
 	// Input port and output port start out as Topo ports
 	add_port(new TopoPort(Dir::IN, INPORT_NAME));
@@ -87,4 +87,23 @@ void NodeSplit::refine(NetType target)
 {
 	// Do the default. TOPO ports will get the correct number of RVD subports.
 	HierObject::refine(target);
+
+	if (target == NET_RVD)
+	{
+		// Make bindings for the RVD ports
+		auto port = get_rvd_input();
+		port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
+		port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
+	
+		int n = get_n_outputs();
+		add_param(new ParamBinding("NO", n));
+
+		for (int i = 0; i < n; i++)
+		{
+			auto port = get_rvd_output(i);
+
+			port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid", 1, i));
+			port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready", 1, i));
+		}
+	}
 }

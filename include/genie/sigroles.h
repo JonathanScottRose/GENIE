@@ -49,8 +49,6 @@ namespace genie
 		virtual HDLBinding* clone() = 0;
 		virtual int get_width() const = 0;
 		virtual std::string to_string() const = 0;
-		virtual HDLBinding* export_pre() = 0;
-		virtual void export_post() = 0;
 
 		PROP_GET_SET(parent, RoleBinding*, m_parent);
 
@@ -61,8 +59,8 @@ namespace genie
 	class RoleBinding
 	{
 	public:
-		RoleBinding(SigRoleID, const std::string&, HDLBinding*);
-		RoleBinding(SigRoleID, HDLBinding*);
+		RoleBinding(SigRoleID, const std::string&, HDLBinding* = nullptr);
+		RoleBinding(SigRoleID, HDLBinding* = nullptr);
 		RoleBinding(const RoleBinding&);
 		~RoleBinding();
 
@@ -77,8 +75,8 @@ namespace genie
 
 	protected:
 		Port* m_parent;
-		SigRoleID m_id = ROLE_INVALID;
-		std::string m_tag = "";
-		HDLBinding* m_binding = nullptr;
+		SigRoleID m_id;
+		std::string m_tag;
+		HDLBinding* m_binding;
 	};
 }

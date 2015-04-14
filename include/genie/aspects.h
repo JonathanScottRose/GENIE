@@ -38,9 +38,6 @@ namespace genie
 			return std::type_index(typeid(*this));
 		}
 
-		// Used to make copies of an Aspect, for instantiation of Objects
-		virtual Aspect* asp_instantiate() = 0;
-
 	protected:
 		virtual ~Aspect() = 0 { };
 		
@@ -79,12 +76,6 @@ namespace genie
 		virtual void asp_dispose() override
 		{
 		}
-
-		Aspect* asp_instantiate() override
-		{
-			// this is not handled properly yet
-			return nullptr;
-		}
 	};
 
 	// An Aspect that knows about its containing Object.
@@ -96,6 +87,11 @@ namespace genie
 	public:
 		AspectWithRef()
 			: m_container(nullptr)
+		{
+		}
+
+		AspectWithRef(const AspectWithRef& o, OBJ* newcont)
+			: m_container(newcont)
 		{
 		}
 
@@ -143,18 +139,10 @@ namespace genie
 			}
 		}
 
+		// The copy will NOT have its aspects preserved
 		Object(const Object& o)
-			: m_aspects(nullptr)
+			: Object()
 		{
-			// Clone all Aspects
-			if (o.m_aspects)
-			{
-				m_aspects = new Aspects();
-				for (auto& i : *o.m_aspects)
-				{
-					asp_add(i.second->asp_instantiate(), i.first);
-				}
-			}
 		}
 		
 		// Get an Aspect by id

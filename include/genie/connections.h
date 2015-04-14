@@ -22,25 +22,25 @@ namespace genie
 		typedef std::vector<Link*> Links;
 
 		Endpoint(NetType type, Dir dir);
-		virtual ~Endpoint();
+		~Endpoint();
 		
 		PROP_GET(type, NetType, m_type);
 		PROP_GET(dir, Dir, m_dir);
 		PROP_GET_SET(obj, Port*, m_obj);
 
-		virtual void add_link(Link*);
-		virtual void remove_link(Link*);
-		virtual void remove_all_links();
-		virtual bool has_link(Link*) const;
-		virtual const Links& links() const;
-		virtual Link* get_link0() const;
+		void add_link(Link*);
+		void remove_link(Link*);
+		void remove_all_links();
+		bool has_link(Link*) const;
+		const Links& links() const;
+		Link* get_link0() const;
 
-		virtual Endpoint* get_remote0() const;
-		virtual Endpoints get_remotes() const;
-		virtual Port* get_remote_obj0() const;
-		virtual Objects get_remote_objs() const;
+		Endpoint* get_remote0() const;
+		Endpoints get_remotes() const;
+		Port* get_remote_obj0() const;
+		Objects get_remote_objs() const;
 		
-		virtual bool is_connected() const;
+		bool is_connected() const;
 
 	protected:
 		Port* m_obj;
@@ -119,8 +119,6 @@ namespace genie
 
 		void remove_link_internal(Link*, PorC);
 		void add_link_internal(Link*, PorC);
-
-		Aspect* asp_instantiate() override;
 
 		Links m_links[2];
 	};

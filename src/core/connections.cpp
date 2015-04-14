@@ -230,11 +230,6 @@ ALinkContainment::~ALinkContainment()
 {
 }
 
-Aspect* ALinkContainment::asp_instantiate()
-{
-	return new ALinkContainment();
-}
-
 void ALinkContainment::add_link(Link* other, PorC porc)
 {
 	assert(other);

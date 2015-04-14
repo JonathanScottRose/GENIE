@@ -11,149 +11,35 @@ using namespace genie::vlog;
 
 namespace
 {
-	SystemModule* get_sysmod(System* sys)
+	SystemVlogInfo* get_sysinfo(System* sys)
 	{
-		return static_cast<SystemModule*>(sys->asp_get<AVlogInfo>()->get_module());
-	}
-
-	void flow_init_instances(System* sys)
-	{
-		auto sysmod = get_sysmod(sys);
-
-		// Iterate over all Nodes and create an Instance
-		for (auto& node : sys->get_nodes())
-		{
-			auto av = node->asp_get<AVlogInfo>();
-			assert(av->get_instance() == nullptr);
-			assert(av->get_module() != nullptr);
-
-			// Create Instance
-			auto inst = new Instance(node->get_name(), av->get_module());
-
-			// Connect Instance to Node
-			inst->set_node(node);
-
-			// Connect Node to Instance
-			av->set_instance(inst);
-
-			// Add Instance fo vlog SystemModule
-			sysmod->add_instance(inst);
-		}
+		return static_cast<SystemVlogInfo*>(sys->get_hdl_info());
 	}
 
 	void flow_connect_rb(System* sys, 
-		RoleBinding* src_rb, int src_lo, RoleBinding* sink_rb, int sink_lo, int width)
+		RoleBinding* src_rb, int src_lsb, RoleBinding* sink_rb, int sink_lsb, int width)
 	{
-		auto sysmod = get_sysmod(sys);
+		auto sysinfo = get_sysinfo(sys);
 
-		// Find or create a Verilog net to connect src to sink. Depends on whether src or sink
-		// belong to a top-level port (export) or not:
-		//
-		// Instance -> Instance : create/use net named after src port
-		// Instance -> Export or
-		// Export -> Instance : create/use net belonging to the export
-		// Export -> Export : unsupported for now
+		// Obtain the Verilog Port objects associated with each RoleBinding
+		auto src_hdlb = as_a<VlogBinding*>(src_rb->get_hdl_binding());
+		auto sink_hdlb = as_a<VlogBinding*>(sink_rb->get_hdl_binding());
+		assert(src_hdlb && sink_hdlb);
 
-		Net* net = nullptr;
+		auto src_vport = src_hdlb->get_port();
+		auto sink_vport = sink_hdlb->get_port();
 
-		genie::Port* src_port = src_rb->get_parent();
-		genie::Port* sink_port = sink_rb->get_parent();
-		Node* src_node = src_port->get_node();
-		Node* sink_node = sink_port->get_node();
-
-		bool src_is_export = src_node == sys;
-		bool sink_is_export = sink_node == sys;
-
-		if (src_is_export && sink_is_export)
-		{
-			throw HierException(sys, "can not directly connect two top-level ports");
-		}
-		else if (sink_is_export)
-		{
-			// Canonicalize: if one of {src, sink} is an export, make it so that the 'src' refers
-			// to the export, regardless of data flow direction
-			std::swap(src_rb, sink_rb);
-			std::swap(src_lo, sink_lo);
-			std::swap(src_is_export, sink_is_export);
-			std::swap(src_node, sink_node);
-		}
-
-		// Grab verilog-specific port bindings from signal role bindings
-		auto src_b = as_a<VlogBinding*>(src_rb->get_hdl_binding());
-		auto sink_b = as_a<VlogBinding*>(sink_rb->get_hdl_binding());
-		assert(src_b && sink_b);
-
-		auto src_vport = src_b->get_port();
-		auto sink_vport = sink_b->get_port();
-		
-		// Two cases now: 
-		// src_is_export=true: connecting src (an export) to sink (an instance port)
-		// src_is_export=false: connecting src (an instance port) to sink (an instance port)
-		// (sink_is_export is irrelevant and is false)
-		if (src_is_export)
-		{
-			// Grab or create an ExportNet representing the top-level port.
-			// Its width will be the full width of the port.
-			net = sysmod->get_net(src_vport->get_name());
-			if (!net)
-			{
-				net = sysmod->add_net(new ExportNet(src_vport));
-			}
-		}
-		else
-		{
-			// Connecting two instances: it matters that src is actually an OUT and sink is
-			// actually an IN (or both are inout). Swap if needed and validate.
-
-			if (src_vport->get_dir() == vlog::Port::IN)
-			{
-				std::swap(src_vport, sink_vport);
-				std::swap(src_node, sink_node);
-				std::swap(src_b, sink_b);
-				std::swap(src_is_export, sink_is_export);
-				std::swap(src_lo, sink_lo);
-				std::swap(src_port, sink_port);
-				std::swap(src_rb, sink_rb);
-			}
-
-			if (sink_vport->get_dir() == vlog::Port::OUT)
-				throw Exception("can't use output port as a sink " + sink_rb->to_string());
-
-			Instance* src_inst = src_node->asp_get<AVlogInfo>()->get_instance();
-			assert(src_inst);
-
-			// Grab or create a WireNet connected to the source instance port.
-			// Use full width of the port.
-			std::string netname = src_inst->get_name() + "_" + src_vport->get_name();
-			net = sysmod->get_net(netname);
-			if (!net)
-			{
-				// Create it
-				int port_width = src_vport->get_width().get_value(src_node->get_exp_resolver());
-				net = sysmod->add_net(new WireNet(netname, port_width));
-
-				// Also bind it to src, completely
-				src_inst->bind_port(src_vport->get_name(), net);
-			}
-		}
-
-		// We have a net that is now bound to all bits of its source. What's left is to
-		// bind it to the correct bits of the sink instance port.
-		//
-		// The net represents the entire source port width, so lo-bit offsets on the net
-		// refer to lo-bit offsets on the source port.
-		Instance* sink_inst = sink_node->asp_get<AVlogInfo>()->get_instance();
-		assert(sink_inst);
-
-		sink_inst->bind_port(sink_vport->get_name(), net, width, 
-			sink_b->get_lo() + sink_lo,
-			src_b->get_lo() + src_lo);
+		// Connect them. Take into account the RoleBinding's LSB offset into the Port as well
+		// as the extra offsets passed into this function.
+		sysinfo->connect(src_vport, sink_vport, 
+			src_hdlb->get_lsb() + src_lsb,
+			sink_hdlb->get_lsb() + sink_lsb,
+			width);
 	}
 
 	void flow_connect_rb(System* sys, RoleBinding* src_rb, RoleBinding* sink_rb)
 	{
 		// Connect the entire width starting at the LSB
-
 		int src_width = src_rb->get_hdl_binding()->get_width();
 		int sink_width = sink_rb->get_hdl_binding()->get_width();
 
@@ -166,9 +52,66 @@ namespace
 		flow_connect_rb(sys, src_rb, 0, sink_rb, 0, src_width);		
 	}
 
+	void flow_tie_rb(System* sys, RoleBinding* sink, const Value& val, int lsb)
+	{
+		auto sysinfo = get_sysinfo(sys);
+
+		auto sink_hdlb = as_a<VlogBinding*>(sink->get_hdl_binding());
+		assert(sink_hdlb);
+
+		auto sink_vport = sink_hdlb->get_port();
+
+		sysinfo->connect(sink_vport, val, lsb);
+	}
+
+	void flow_do_rvd_readyvalid(System* sys)
+	{
+		auto links = sys->get_links(NET_RVD);
+
+		// For each link, try to connect valids and readies if both src/sink have them.
+		// If not, try and insert defaulted signals
+		for (auto link : links)
+		{
+			genie::Port* src = link->get_src();
+			genie::Port* sink = link->get_sink();
+
+			for (auto role : {RVDPort::ROLE_VALID, RVDPort::ROLE_READY})
+			{
+				RoleBinding* src_rb = src->get_role_binding(role);
+				RoleBinding* sink_rb = sink->get_role_binding(role);
+
+				// Ready travels backwards
+				if (role == RVDPort::ROLE_READY)
+					std::swap(src_rb, sink_rb);
+
+				if (src_rb && sink_rb)
+				{
+					// Both present - everything good
+					flow_connect_rb(sys, src_rb, sink_rb);
+				}
+				else if (!src_rb && sink_rb)
+				{
+					// Connect a constant high value to the sink.
+					flow_tie_rb(sys, sink_rb, Value(1, 1), 0);
+				}
+				else if (src_rb && !sink_rb)
+				{
+					// Bad news, this is logically wrong
+					throw Exception("can't connect " + src->get_hier_path() + " to " +
+						sink->get_hier_path() + " because " + src_rb->to_string() + 
+						" has no counterpart to connect to");
+				}
+				else
+				{
+					// Neither present? Ok, do nothing.
+				}
+			}
+		}
+	}
+
 	void flow_do_easy_links(System* sys)
 	{
-		auto sysmod = get_sysmod(sys);
+		auto sysmod = get_sysinfo(sys);
 
 		// Gather links
 		System::Links links;
@@ -185,11 +128,16 @@ namespace
 			assert(src);
 			assert(sink);
 
-			for (auto& rb1 : src->get_role_bindings())
+			for (auto src_rb : src->get_role_bindings())
 			{
-				auto rb2 = sink->get_matching_role_binding(rb1);
-				if (rb2)
-					flow_connect_rb(sys, rb1, rb2);
+				auto sink_rb = sink->get_matching_role_binding(src_rb);
+				if (sink_rb)
+				{
+					if (src_rb->get_role_def().get_sense() == SigRole::REV)
+						std::swap(src_rb, sink_rb);
+
+					flow_connect_rb(sys, src_rb, sink_rb);
+				}
 			}
 		}
 	}
@@ -197,38 +145,42 @@ namespace
 
 void vlog::flow_process_system(System* sys)
 {
-	flow_init_instances(sys);
 	flow_do_easy_links(sys);
-
-	write_system(get_sysmod(sys));
+	flow_do_rvd_readyvalid(sys);
+	flow_write_system(sys);
 }
 
-std::string vlog::make_default_port_name(RoleBinding* b)
+HDLBinding* vlog::export_binding(System* sys, genie::Port* new_port, HDLBinding* b)
 {
-	genie::Port* port = b->get_parent();
-	Node* node = port->get_node();
-
-	// Base name: name after port
-	std::string result = port->get_name();
-
-	// Get network and role definitions
-	Network* netdef = Network::get(port->get_type());
-	auto roledef = netdef->get_sig_role(b->get_id());
+	auto old_b = as_a<VlogBinding*>(b);
+	auto sysinfo = as_a<SystemVlogInfo*>(sys->get_hdl_info());
+	
+	// Create automatic name for exported signal
+	auto old_rb = b->get_parent();
+	const auto& roledef = old_rb->get_role_def();
+	auto netdef = Network::get(new_port->get_type());
 
 	bool net_has_roles = netdef->get_sig_roles().size() > 1;
 	bool role_has_tags = roledef.get_uses_tags();
 
-	// Next, add role name if the network has more than one role defined.
+	std::string new_vportname = new_port->get_name();
 	if (net_has_roles)
 	{
-		result += "_" + roledef.get_name();
+		new_vportname += "_" + roledef.get_name();
 	}
-
-	// Then, add tag name if the role has tag differentiation.
 	if (role_has_tags)
 	{
-		result += "_" + b->get_tag();
+		new_vportname += "_" + old_rb->get_tag();
 	}
 
+	// Create new verilog port on the system. Auto name, same dir, concrete-ized width.
+	auto old_vport = old_b->get_port();
+	int width = old_vport->eval_width();
+	auto new_vport = new Port(new_vportname, width, old_vport->get_dir());
+
+	sysinfo->add_port(new_vport);
+	
+	// Create new binding to the entire verilog port
+	auto result = new VlogStaticBinding(new_vportname, width, 0);
 	return result;
 }

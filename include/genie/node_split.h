@@ -22,5 +22,8 @@ namespace genie
 		int get_n_outputs() const;
 		RVDPort* get_rvd_input() const;
 		RVDPort* get_rvd_output(int idx) const;
+
+	protected:
+		void init_vlog();
 	};
 }
