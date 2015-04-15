@@ -29,21 +29,23 @@ int graphs::connected_comp(Graph& g, VAttr<int>* vcolor, EAttr<int>* ecolor)
 
 		while (!to_visit.empty())
 		{
-			VertexID v = to_visit.top();
+			VertexID u = to_visit.top();
 			to_visit.pop();
 
 			// Only spread to uncolored vertices
-			if (vcolor->count(v))
+			if (vcolor->count(u))
 				continue;
 
 			// Paint vertex
-			vcolor->emplace(v, colors);
+			vcolor->emplace(u, colors);
 
-			// Spread. Color edges if requested.
-			for (auto e : g.edges(v))
+			// Spread. 
+			for (auto e : g.edges(u))
 			{
-				VertexID neigh = g.otherv(e, v);
+				VertexID neigh = g.otherv(e, u);
 				to_visit.push(neigh);
+
+				// Also color edges if requested by the caller
 				if (ecolor) ecolor->emplace(e, colors);
 			}
 		}
