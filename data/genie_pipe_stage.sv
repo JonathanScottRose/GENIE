@@ -1,4 +1,4 @@
-module ct_pipe_stage #
+module genie_pipe_stage #
 (
 	parameter WIDTH = 1,
 	parameter MLAB = 0,

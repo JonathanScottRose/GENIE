@@ -837,6 +837,7 @@ namespace
 
 		auto lpdef = new RSLinkpoint(self->get_dir(), type);
 		lpdef->set_name(lpname);
+		lpdef->set_encoding(std::string(encstr));
 		self->add_child(lpdef);
 
 		lua::push_object(lpdef);		
@@ -907,7 +908,7 @@ namespace
 	LFUNC(rslp_get_topo_port)
 	{
 		auto self = lua::check_object<RSLinkpoint>(1);
-		lua::push_object(self->get_rs_port()->get_topo_port());
+		lua::push_object(RSPort::get_rs_port(self)->get_topo_port());
 		return 1;
 	}
 
@@ -917,7 +918,7 @@ namespace
 	LFUNC(rslp_get_rs_port)
 	{
 		auto self = lua::check_object<RSLinkpoint>(1);
-		lua::push_object(self->get_rs_port());
+		lua::push_object(self->get_parent());
 		return 1;
 	}
 

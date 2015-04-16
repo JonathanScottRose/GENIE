@@ -96,7 +96,7 @@ endmodule
 
 
 
-module ct_clock_cross #
+module genie_clockx #
 (
 	integer WIDTH = 256
 )

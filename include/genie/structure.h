@@ -26,6 +26,9 @@ namespace genie
 		// Get the parent node (may not be direct parent, as this port could be a sub-port)
 		Node* get_node() const;
 
+		// Get the most-ancestral parent Port
+		Port* get_primary_port() const;
+
 		// Is this node's parent a System (ie, is this node an Export)?
 		bool is_export() const;
 
@@ -108,6 +111,8 @@ namespace genie
 
 		PROP_DICT(Params, param, ParamBinding);
 		List<ParamBinding*> get_params(bool are_bound);
+		void define_param(const std::string&);
+		void define_param(const std::string&, const Expression&);
 
 		PROP_GET(hdl_info, NodeHDLInfo*, m_hdl_info);
 		void set_hdl_info(NodeHDLInfo*);
@@ -143,7 +148,7 @@ namespace genie
 		void disconnect(Port* src, Port* sink);
 		void disconnect(Port* src, Port* sink, NetType net);
 		void disconnect(Link*);
-		void splice(Link* orig, Port* new_sink, Port* new_src);
+		Link* splice(Link* orig, Port* new_sink, Port* new_src);
 
 		// Access children
 		Objects get_objects() const;
@@ -160,7 +165,6 @@ namespace genie
 	protected:
 		NetType find_auto_net_type(Port*, Port*) const;
 		void get_eps(Port*&, Port*&, NetType, Endpoint*&, Endpoint*&) const;
-		bool verify_common_parent(HierObject*, HierObject*, bool&, bool&) const;
 
 		std::unordered_map<NetType, Links> m_links;
 	};

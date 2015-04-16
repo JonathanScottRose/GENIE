@@ -19,7 +19,7 @@ static const std::string LEGAL_NAME_RESERVED = "(_|[a-zA-Z])[0-9a-zA-Z_]*";
 // Globals
 //
 
-std::string genie::make_reserved_name(const std::string& name)
+std::string genie::hier_make_reserved_name(const std::string& name)
 {
 	return "_" + name;
 }
@@ -27,6 +27,13 @@ std::string genie::make_reserved_name(const std::string& name)
 HierPath genie::hier_path_append(const HierPath& a, const HierPath& b)
 {
 	return a + PATH_SEP + b;
+}
+
+std::string genie::hier_path_collapse(const HierPath& path)
+{
+	std::string result = path;
+	std::replace(result.begin(), result.end(), PATH_SEP, '_');
+	return result;
 }
 
 //

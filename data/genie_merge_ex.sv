@@ -1,4 +1,4 @@
-module ct_merge_ex #
+module genie_merge_ex #
 (
 	parameter NI = 1,
 	parameter WIDTH = 1

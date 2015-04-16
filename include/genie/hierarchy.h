@@ -13,10 +13,13 @@ namespace genie
 	// Global namespace functions.
 
 	// Make reserved name
-	std::string make_reserved_name(const std::string&);
+	std::string hier_make_reserved_name(const std::string&);
 
 	// Combine two paths together (TODO: make HierPath a class)
 	HierPath hier_path_append(const HierPath&, const HierPath&);
+
+	// Create a single name with hierarchy separators replaced by underscores
+	std::string hier_path_collapse(const HierPath&);
 
 	// A concrete, aspect-enabled base class for all Hierarchy members.
 	// Has a name, and optionally also a parent and prototype.

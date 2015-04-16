@@ -90,6 +90,7 @@ Value::Value(const std::string& val)
 	}
 	
 	set_width(bits);
+	set_depth(1);
 	set(std::stoi(mr[3], 0, base));
 	m_width = bits;
 }

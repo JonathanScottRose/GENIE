@@ -251,6 +251,16 @@ bool Port::is_export() const
 	return is_a<System*>(get_node());
 }
 
+Port* Port::get_primary_port() const
+{
+	Port* result = const_cast<Port*>(this);
+	while (Port* parent = as_a<Port*>(result->get_parent()))
+	{
+		result = parent;		
+	}
+	return result;
+}
+
 Port::Port(const Port& o)
 	: HierObject(o), m_type(o.m_type), m_dir(o.m_dir)
 {
@@ -342,6 +352,16 @@ List<ParamBinding*> Node::get_params(bool are_bound)
 	}
 
 	return result;
+}
+
+void Node::define_param(const std::string& nm)
+{
+	add_param(new ParamBinding(nm));
+}
+
+void Node::define_param(const std::string& nm, const Expression& exp)
+{
+	add_param(new ParamBinding(nm, exp));
 }
 
 Node::Ports Node::get_ports(NetType net) const
@@ -458,80 +478,26 @@ System::Links System::get_links(Port* src, Port* sink) const
 	return get_links(src, sink, nettype);
 }
 
-bool System::verify_common_parent(HierObject* a, HierObject* b, bool& a_boundary,
-	bool& b_boundary) const
-{
-	// Populate ancestries of a and b
-	std::vector<HierObject*> a_line, b_line;
-
-	while (a)
-	{
-		a_line.push_back(a);
-		a = a->get_parent();
-	}
-
-	while (b)
-	{
-		b_line.push_back(b);
-		b = b->get_parent();
-	}
-
-	// Find the last last parent (from the root) before lineages diverge.
-	HierObject* common = nullptr;
-	while (!a_line.empty() && !b_line.empty())
-	{
-		HierObject* cur_a = a_line.back();
-		HierObject* cur_b = b_line.back();
-
-		if (cur_a == cur_b)
-		{
-			// Ancestry still shared at this node? Advance result
-			common = cur_a;
-		}
-		else
-		{
-			// Divergence. Last-updated result was the common parent.
-			break;
-		}
-
-		// Pop shared ancestor from both lineages
-		a_line.pop_back();
-		b_line.pop_back();
-	}
-
-	// Whether the common ancestor is this System or not.
-	bool result = (common == this);
-
-	// The first remaining entry in a_line and b_line are the children of the common parent.
-	// If either of them is a Port, then they are a top-level exported Port of this System, or one
-	// of its decendants, and we return that fact.
-
-	if (result)
-	{
-		a_boundary = !a_line.empty() && is_a<Port*>(a_line.back());
-		b_boundary = !b_line.empty() && is_a<Port*>(b_line.back());
-	}
-	
-	return result;
-}
-
 void System::get_eps(Port*& src, Port*& sink, NetType nettype,
 	Endpoint*& src_ep, Endpoint*& sink_ep) const
 {
 	// Ensure src/sink are somewhere within this System
-	bool src_boundary, sink_boundary;
-	bool valid = verify_common_parent(src, sink, src_boundary, sink_boundary);
-
-	if (!valid)
+	for (auto port : {src, sink})
 	{
-		throw HierException(this, src->get_hier_path() + " and " + sink->get_hier_path() + 
-		" are not children of this system");
+		// Find the first parent System, make sure it's us.
+		bool in_sys = false;
+		HierObject* sys = port;
+		while (sys && !(in_sys = is_a<System*>(sys)))
+			sys = sys->get_parent();
+
+		if (!in_sys || sys != this)
+			throw HierException(port, "can't connect, not a member of system " + get_name());
 	}
 
 	// If src or sink is a (or is a child of) a System boundary port, then we need to use
 	// its inward-facing Endpoint rather than its outward-facing one
-	src_ep = src->get_endpoint(nettype, src_boundary? LinkFace::INNER : LinkFace::OUTER);
-	sink_ep = sink->get_endpoint(nettype, sink_boundary? LinkFace::INNER : LinkFace::OUTER);
+	src_ep = src->get_endpoint_sysface(nettype);
+	sink_ep = sink->get_endpoint_sysface(nettype);
 
 	// Validate that both src/sink eps exist are connectable with the given nettype
 	if (!src_ep || !sink_ep)
@@ -660,7 +626,7 @@ void System::disconnect(Port* src, Port* sink)
 	disconnect(src, sink, nettype);
 }
 
-void System::splice(Link* orig, Port* new_sink, Port* new_src)
+Link* System::splice(Link* orig, Port* new_sink, Port* new_src)
 {
 	//
 	// orig_src --> orig --> orig_sink
@@ -681,7 +647,7 @@ void System::splice(Link* orig, Port* new_sink, Port* new_src)
 
 	Endpoint* new_sink_ep;
 	Endpoint* new_src_ep;
-	get_eps(new_sink, new_src, net, new_sink_ep, new_src_ep);
+	get_eps(new_src, new_sink, net, new_src_ep, new_sink_ep);
 
 	// Disconnect old link from its sink and attach it to new sink
 	orig->set_sink(new_sink_ep);
@@ -689,22 +655,13 @@ void System::splice(Link* orig, Port* new_sink, Port* new_src)
 	new_sink_ep->add_link(orig);
 
 	// Create a link from new src to old sink
-	Link* new_link = Network::get(net)->create_link();
+	Link* new_link = orig->clone();
 	new_link->set_src(new_src_ep);
-	new_link->set_sink(new_sink_ep);
+	new_link->set_sink(orig_sink_ep);
 	new_src_ep->add_link(new_link);
-	new_sink_ep->add_link(new_link);
+	orig_sink_ep->add_link(new_link);
 
-	// Copy parent containment
-	if (acont)
-	{
-		auto newcont = new_link->asp_add(new ALinkContainment());
-		auto parents = acont->get_parent_links();
-		for (auto parent : parents)
-		{
-			newcont->add_parent_link(parent);
-		}
-	}
+	return new_link;
 }
 
 System::Objects System::get_objects() const
@@ -842,7 +799,7 @@ HierRoot::~HierRoot()
 
 const std::string& HierRoot::get_name() const
 {
-	static std::string NAME(genie::make_reserved_name("root"));
+	static std::string NAME(genie::hier_make_reserved_name("root"));
 	return NAME;
 }
 

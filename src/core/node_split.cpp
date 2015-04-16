@@ -107,3 +107,8 @@ void NodeSplit::refine(NetType target)
 		}
 	}
 }
+
+HierObject* NodeSplit::instantiate()
+{
+	throw HierException(this, "not instantiable");
+}

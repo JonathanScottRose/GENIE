@@ -1,4 +1,4 @@
-module ct_field_conv #
+module genie_conv #
 (
 	parameter WD = 0,	// width of passthrough data (excluding the input and output fields!)
 	parameter WIF = 0,	// width of input field

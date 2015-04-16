@@ -47,7 +47,7 @@ module cur_input_calc #
 			end
 			
 			// Do the sorting 
-			ct_mux #
+			genie_mux #
 			(
 				.lpm_width(1 + NIBITS),
 				.lpm_size(NI),
@@ -79,7 +79,7 @@ endmodule
 	
 	
 
-module ct_merge #
+module genie_merge #
 (
 	parameter NI = 1,
 	parameter WIDTH = 1
@@ -126,7 +126,7 @@ cur_input_calc #
 );
 
 // Output muxes
-ct_mux #
+genie_mux #
 (
 	.lpm_width(WIDTH),
 	.lpm_size(NI),
@@ -139,7 +139,7 @@ ct_mux #
 	.result(o_data)
 );
 
-ct_mux #
+genie_mux #
 (
 	.lpm_width(1),
 	.lpm_size(NI),
@@ -152,7 +152,7 @@ ct_mux #
 	.result(o_eop)
 );
 
-ct_mux #
+genie_mux #
 (
 	.lpm_width(1),
 	.lpm_size(NI),

@@ -1,4 +1,4 @@
-module ct_split #
+module genie_split #
 (
 	parameter NO = 1, // Number of outputs
 	parameter WO = 1, // Width of data input/output

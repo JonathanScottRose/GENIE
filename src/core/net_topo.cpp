@@ -74,7 +74,7 @@ void TopoPort::refine(NetType nettype)
 	for (int i = 0; i < m_n_rvd; i++)
 	{
 		RVDPort* subp = new RVDPort(this->get_dir());
-		std::string subp_name = genie::make_reserved_name("rvd");
+		std::string subp_name = genie::hier_make_reserved_name("rvd");
 		subp_name += std::to_string(i);
 		subp->set_name(subp_name, true);
 
@@ -92,7 +92,7 @@ RVDPort* TopoPort::get_rvd_port(int i) const
 	if (i < 0 || i >= m_n_rvd)
 		throw HierException(this, "subport out of range: " + i);
 
-	std::string subp_name = genie::make_reserved_name("rvd");
+	std::string subp_name = genie::hier_make_reserved_name("rvd");
 	subp_name += std::to_string(i);
 
 	return as_a<RVDPort*>(get_child(subp_name));

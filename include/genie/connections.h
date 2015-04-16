@@ -71,7 +71,12 @@ namespace genie
 
 		NetType get_type() const;
 
+		// Duplicate link.
+		virtual Link* clone() const;
+
 	protected:
+		void copy_containment(const Link&);
+
 		Endpoint* m_src;
 		Endpoint* m_sink;
 	};
@@ -86,7 +91,7 @@ namespace genie
 
 		ALinkContainment();
 		~ALinkContainment();
-
+		
 		void add_parent_link(Link* other) { add_link(other, PARENT); }
 		void remove_parent_link(Link* other) { remove_link(other, PARENT); }
 		Link* get_parent_link0() const { return get_link0(PARENT); }

@@ -1,6 +1,6 @@
 // Vendor-neutral implementation of Altera's LPM_MUX megafunction
 
-module ct_mux #
+module genie_mux #
 (
 	parameter lpm_widths = 0,
 	parameter lpm_size = 0,

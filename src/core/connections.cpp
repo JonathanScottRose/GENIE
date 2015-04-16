@@ -183,9 +183,6 @@ void Link::set_src(Endpoint* ep)
 {
 	if (ep)
 	{
-		if (m_src)
-			throw HierException(ep->get_obj(), "link src already set");
-
 		if (ep->get_dir() != Dir::OUT)
 			throw HierException(ep->get_obj(), "tried to use sink endpoint as a source");
 	}
@@ -197,9 +194,6 @@ void Link::set_sink(Endpoint* ep)
 {
 	if (ep)
 	{
-		if (m_sink)
-			throw HierException(ep->get_obj(), "link sink already set");
-
 		if (ep->get_dir() != Dir::IN)
 			throw HierException(ep->get_obj(), "tried to use source endpoint as a sink");
 	}
@@ -216,6 +210,24 @@ NetType Link::get_type() const
 		throw Exception("link not connected to anything, can not determine network type");
 
 	return ep->get_type();
+}
+
+void Link::copy_containment(const Link& other)
+{
+	auto ac = other.asp_get<ALinkContainment>();
+	if (!ac)
+		return;
+
+	auto new_ac = new ALinkContainment(*ac);
+	asp_add(new_ac);
+}
+
+Link* Link::clone() const
+{
+	// Default clone function for generic Links
+	auto result = new Link();
+	result->copy_containment(*this);
+	return result;
 }
 
 //

@@ -1,3 +1,5 @@
+require 'util'
+
 -- 
 -- Builds a simple crossbar-like topology with up to 1 layer of split nodes
 -- and up to 1 layer of merge nodes

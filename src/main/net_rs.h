@@ -16,12 +16,15 @@ namespace genie
 	class RSLink : public Link
 	{
 	public:
-		RSLink() = default;
-		~RSLink() = default;
+		RSLink();
 
 		PROP_GET_SETR(flow_id, Value&, m_flow_id);
+		PROP_GET_SET(domain_id, int, m_domain_id);
+
+		Link* clone() const override;
 
 	protected:
+		int m_domain_id;
 		Value m_flow_id;
 	};
 
@@ -41,7 +44,10 @@ namespace genie
 		RSPort(const RSPort&);
 		~RSPort();
 
+		static RSPort* get_rs_port(Port*);
+
 		TopoPort* get_topo_port() const;
+		RVDPort* get_rvd_port() const;
 		ClockPort* get_clock_port() const;
 		List<RSLinkpoint*> get_linkpoints() const;
 		PROP_GET_SET(domain_id, int, m_domain_id);
@@ -78,7 +84,6 @@ namespace genie
 		PROP_GET_SET(encoding, const Value&, m_encoding);
 
 		HierObject* instantiate() override;
-		RSPort* get_rs_port() const;
 
 	protected:
 		Type m_type;

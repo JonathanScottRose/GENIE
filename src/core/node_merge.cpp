@@ -109,3 +109,8 @@ void NodeMerge::refine(NetType target)
 		}
 	}
 }
+
+HierObject* NodeMerge::instantiate()
+{
+	throw HierException(this, "node not instantiable");
+}

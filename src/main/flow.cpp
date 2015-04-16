@@ -7,48 +7,17 @@
 #include "genie/lua/genie_lua.h"
 #include "genie/graph.h"
 #include "genie/value.h"
+#include "genie/vlog.h"
 #include "flow.h"
 #include "net_rs.h"
+#include "globals.h"
+#include "node_flowconv.h"
 
 using namespace genie;
 using namespace genie::graphs;
 
 namespace
 {
-	// Make initial RVD links from TOPO links
-	void rvd_make_initial_links(System* sys)
-	{
-		auto topo_links = sys->get_links(NET_TOPO);
-		for (auto link : topo_links)
-		{
-			auto src = as_a<TopoPort*>(link->get_src());
-			auto sink = as_a<TopoPort*>(link->get_sink());
-
-			assert(src);
-			assert(sink);
-
-			RVDPort* src_rvd = nullptr;
-			RVDPort* sink_rvd = nullptr;
-
-			for (int i = 0; i < src->get_n_rvd_ports(); i++)
-			{
-				src_rvd = src->get_rvd_port(i);
-				if (!src_rvd->get_endpoint_sysface(NET_RVD)->is_connected())
-					break;
-			}
-
-			for (int i = 0; i < sink->get_n_rvd_ports(); i++)
-			{
-				sink_rvd = sink->get_rvd_port(i);
-				if (!sink_rvd->get_endpoint_sysface(NET_RVD)->is_connected())
-					break;
-			}
-
-			auto rvdlink = sys->connect(src_rvd, sink_rvd, NET_RVD);
-			rvdlink->asp_get<ALinkContainment>()->add_parent_link(link);
-		}
-	}
-
 	// Convert a network into a Graph
 	typedef std::function<Port*(Port*)> N2GRemapFunc;
 	Graph net_to_graph(System* sys, NetType ntype, 
@@ -125,18 +94,19 @@ namespace
 		// Pass in a remap function which effectively treats all linkpoints as their parent ports.
 		N2GRemapFunc remap = [=] (Port* o)
 		{
-			auto lp = as_a<RSLinkpoint*>(o);
-			return lp? lp->get_rs_port() : o;
+			return RSPort::get_rs_port(o);
 		};
 
-		// We care about port->vid mapping
+		// We care about port->vid mapping and link->eid mapping
+		REAttr<Link*> link_to_eid;
 		RVAttr<Port*> port_to_vid;
-		Graph rs_g = net_to_graph(sys, NET_RS, nullptr, &port_to_vid, nullptr, nullptr, remap);
+		Graph rs_g = net_to_graph(sys, NET_RS, nullptr, &port_to_vid, nullptr, &link_to_eid, remap);
 
 		// Identify connected components (domains).
-		// Capture vid->domainid mapping
+		// Capture vid->domainid mapping and eid->domainid mapping
 		VAttr<int> vid_to_domain;
-		connected_comp(rs_g, &vid_to_domain, nullptr);
+		EAttr<int> eid_to_domain;
+		connected_comp(rs_g, &vid_to_domain, &eid_to_domain);
 
 		// Now assign each port its domain ID.
 		for (auto& it : port_to_vid)
@@ -151,10 +121,23 @@ namespace
 
 			port->set_domain_id(domain);
 		}
+
+		// Assign each RSLink its domain ID
+		for (auto& it : link_to_eid)
+		{
+			auto link = as_a<RSLink*>(it.first);
+			assert(link);
+			auto eid = it.second;
+
+			assert(eid_to_domain.count(eid));
+			int domain = eid_to_domain[eid];
+
+			link->set_domain_id(domain);
+		}
 	}
 
 	// Assign Flow IDs to RS links
-	void rs_assign_flow_id(System* sys)
+	void rs_assign_flow_ids(System* sys)
 	{
 		// Turn TOPO network into a graph. Merge together the input/output ports of split and merge
 		// nodes for the purposes of graph construction.
@@ -254,46 +237,164 @@ namespace
 			return label;
 		});
 		*/
+	}
+
+
+	void rs_refine_to_topo(System* sys)
+	{
+		// Create system contents ready for TOPO connectivity
+		sys->refine(NET_TOPO);
+
+		// Get the aspect that contains a reference to the System's Lua topology function
+		auto atopo = sys->asp_get<ATopoFunc>();
+		if (!atopo)
+			throw HierException(sys, "no topology function defined for system");
+
+		// Call topology function, passing the system as the first and only argument
+		lua::push_ref(atopo->func_ref);
+		lua::push_object(sys);
+		lua::pcall_top(1, 0);
+
+		// Unref topology function, and remove Aspect
+		lua::free_ref(atopo->func_ref);
+		sys->asp_remove<ATopoFunc>();
+	}
+
+	void topo_refine_to_rvd(System* sys)
+	{
+		// Refine all System contents such that they are RVD-connectable
+		sys->refine(NET_RVD);
+
+		// Go through all TOPO links in the system and create an RVD link for each.
+		auto topo_links = sys->get_links(NET_TOPO);
+		for (auto link : topo_links)
+		{
+			// These are the TOPO endpoints of the TOPO link
+			auto src = as_a<TopoPort*>(link->get_src());
+			auto sink = as_a<TopoPort*>(link->get_sink());
+			assert(src);
+			assert(sink);
+
+			// We need to find corresponding RVD endpoints for the RVD link we're about to make.
+			RVDPort* src_rvd = nullptr;
+			RVDPort* sink_rvd = nullptr;
+
+			// TOPO ports support multiple connections.
+			// Each TOPO port contains an RVD port for each of those connections.
+			// Here we find the first such unconnected RVD sub-port and use it as an endpoint
+			// for our RVD link.
+			for (int i = 0; i < src->get_n_rvd_ports(); i++)
+			{
+				src_rvd = src->get_rvd_port(i);
+				if (!src_rvd->get_endpoint_sysface(NET_RVD)->is_connected())
+					break;
+			}
+
+			for (int i = 0; i < sink->get_n_rvd_ports(); i++)
+			{
+				sink_rvd = sink->get_rvd_port(i);
+				if (!sink_rvd->get_endpoint_sysface(NET_RVD)->is_connected())
+					break;
+			}
+
+			// Connect RVD ports
+			auto rvdlink = sys->connect(src_rvd, sink_rvd, NET_RVD);
+			rvdlink->asp_get<ALinkContainment>()->add_parent_link(link);
+		}
+	}
+
+	void rvd_insert_flow_convs(System* sys)
+	{
+		// Insert flow-converter nodes into the RVD network to convert lp_id<->flow_id.
+		// This is done wherever an RVD source/sink has a RoleBinding for LP_ID.
 		
+		auto rvd_links = sys->get_links(NET_RVD);
+		for (auto rvd_link : rvd_links)
+		{
+			auto src = as_a<RVDPort*>(rvd_link->get_src());
+			auto sink = as_a<RVDPort*>(rvd_link->get_sink());
+
+			for (auto port : {src, sink})
+			{
+				if (!port->has_role_binding(RVDPort::ROLE_DATA, "lpid"))
+					continue;
+
+				// Create flowconv node, name it after the port's hierarchical port name, relative
+				// to the System.
+				bool fc_to_flow = (port == src);
+				std::string fc_name = hier_path_collapse(port->get_primary_port()->
+					get_hier_path(sys)) + "_fc";
+				auto fc_node = new NodeFlowConv(fc_to_flow);
+				fc_node->set_name(fc_name);
+				sys->add_child(fc_node);
+
+				// Splice the node into the link between src/sink.
+				// !!! make rvd_link point to the new fcnode->sink link in the case that
+				// TWO fc_nodes are inserted on the original link. This relies on this for loop
+				// visiting src first and sink second !!!
+				rvd_link = sys->splice(rvd_link, fc_node->get_input(), fc_node->get_output());
+
+				// Make the node set up its conversion tables, now that it's connected to stuff
+				fc_node->configure();
+			}
+		}
+	}
+
+	void rvd_do_carriage(System* sys)
+	{
+		auto rs_links = sys->get_links(NET_RS);
+
+		for (auto& link : rs_links)
+		{
+
+		}
+	}
+
+	// Do all work for one System
+	void flow_do_system(System* sys)
+	{
+		// Process the RS links fresh after user's specification
+		// Identify connected communication domains and assign a domain
+		// index to each (physical, sans-linkpoint) RS port.
+		rs_assign_domains(sys);
+
+		// Create TOPO network from RS network
+		rs_refine_to_topo(sys);
+
+		// Assign Flow IDs to RS links and RS Ports based on topology and RS domain membership.
+		// Must be done after TOPO network has been created.
+		rs_assign_flow_ids(sys);
+
+		// Create RVD network from TOPO network
+		topo_refine_to_rvd(sys);
+		
+		// Various RVD processing
+		rvd_insert_flow_convs(sys);
+		rvd_do_carriage(sys);
+
+		// Hand off to Verilog processing and output
+		vlog::flow_process_system(sys);
 	}
 }
 
-void flow_refine_rs(System* sys)
+
+// Main processing entry point!
+void flow_main()
 {
-	// Refine all system contents first.
-	sys->refine(NET_TOPO);
+	auto systems = genie::get_root()->get_systems();
 
-	// Get the aspect that contains a reference to the System's Lua topology function
-	auto atopo = sys->asp_get<ATopoFunc>();
-	if (!atopo)
-		throw HierException(sys, "no topology function defined for system");
+	for (auto sys : systems)
+	{
+		flow_do_system(sys);
 
-	// Call topology function, passing the system as the first and only argument
-	lua::push_ref(atopo->func_ref);
-	lua::push_object(sys);
-	lua::pcall_top(1, 0);
+		if (Globals::inst()->dump_dot)
+		{
+			auto network = Network::get(Globals::inst()->dump_dot_network);
+			if (!network)
+				throw Exception("Unknown network " + Globals::inst()->dump_dot_network);
 
-	// Unref topology function, and remove Aspect
-	lua::free_ref(atopo->func_ref);
-	sys->asp_remove<ATopoFunc>();
-
-	// Identify connected communication domains and assign a domain
-	// index to each (physical, sans-linkpoint) RS port.
-	rs_assign_domains(sys);
-
-	// Assign Flow IDs to RS links based on topology
-	rs_assign_flow_id(sys);
-}
-
-void flow_refine_topo(System* sys)
-{
-	// Refine all system contents.
-	sys->refine(NET_RVD);
-
-	rvd_make_initial_links(sys);
-}
-
-void flow_process_rvd(System* sys)
-{
+			sys->write_dot(sys->get_name() + "." + network->get_name(), network->get_id());
+		}
+	}
 }
 

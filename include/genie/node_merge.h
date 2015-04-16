@@ -21,6 +21,8 @@ namespace genie
 
 		void refine(NetType) override;
 
+		HierObject* instantiate() override;
+
 	protected:
 		bool m_exclusive;
 		void init_vlog();

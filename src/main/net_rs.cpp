@@ -109,13 +109,16 @@ SigRoleID genie::RSPort::ROLE_LPID;
 //
 
 RSPort::RSPort(Dir dir)
-: Port(dir, NET_RS)
+: Port(dir, NET_RS), m_domain_id(-1)
 {
 }
 
 RSPort::RSPort(const RSPort& o)
 	: Port(o), m_clk_port_name(o.m_clk_port_name)
 {
+	// Reset domain membership
+	m_domain_id = -1;
+
 	// Only copy linkpoints upon instantiation
 	for (auto& c : o.get_children_by_type<RSLinkpoint>())
 	{
@@ -183,7 +186,7 @@ void RSPort::refine_topo()
 
 	// Create a topo subport
 	TopoPort* subp = new TopoPort(this->get_dir());
-	std::string subp_name = genie::make_reserved_name("topo");
+	std::string subp_name = genie::hier_make_reserved_name("topo");
 	subp->set_name(subp_name, true);
 
 	add_child(subp);
@@ -201,7 +204,12 @@ void RSPort::refine(NetType target)
 
 TopoPort* RSPort::get_topo_port() const
 {
-	return as_a<TopoPort*>(get_child(genie::make_reserved_name("topo")));
+	return as_a<TopoPort*>(get_child(genie::hier_make_reserved_name("topo")));
+}
+
+RVDPort* RSPort::get_rvd_port() const
+{
+	return get_topo_port()->get_rvd_port();
 }
 
 List<RSLinkpoint*> RSPort::get_linkpoints() const
@@ -224,6 +232,18 @@ ClockPort* RSPort::get_clock_port() const
 	{
 	}
 
+	return result;
+}
+
+RSPort* RSPort::get_rs_port(Port* p)
+{
+	// If we're an RSLinkpoint
+	RSPort* result = as_a<RSPort*>(p->get_parent());
+	 
+	// If we're an RSPort
+	if (!result) result = as_a<RSPort*>(p);
+
+	// Will return one of the above, or nullptr
 	return result;
 }
 
@@ -265,8 +285,18 @@ RSLinkpoint::Type RSLinkpoint::type_from_str(const char* str)
 	return result;
 }
 
-RSPort* RSLinkpoint::get_rs_port() const
+//
+// RSLink
+//
+
+RSLink::RSLink()
+	: m_domain_id(-1)
 {
-	return as_a<RSPort*>(get_parent());
 }
 
+Link* RSLink::clone() const
+{
+	auto result = new RSLink(*this);
+	result->copy_containment(*this);
+	return result;
+}

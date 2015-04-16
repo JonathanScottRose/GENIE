@@ -1,102 +1,54 @@
-require "spec"
 require "util"
-require "topo"
 
 -- 
--- Creates a ring topology. Each INSTANCE in the given system is given a split and merge node.
+-- Creates a ring topology. Each existing instance in the given system is given a split and merge node.
 -- The split node is an offramp which extracts traffic for the ring destined for the instance's input ports.
 -- The merge node takes traffic from the instance's output ports and inects it into the ring.
 -- The split node also connects directly to the merge node for traffic that bypasses the instance.
 --
 
 function topo_ring(sys)
-	-- graph to be constructed and returned
-	local graph = topo.Graph:new()
-	
-	-- helper function: get interface type of instance.iface, also the type of object
-	local function get_iface_type(sys, targname)
-		local targ = spec.LinkTarget:new()
-		targ:parse(targname)
-	
-		local inst = sys.objects[targ.obj]
-		if inst.type == 'INSTANCE' then
-			local comp = sys.parent.components[inst.component]
-			local iface = comp.interfaces[targ.iface]
-			return iface.type, inst.type
-		else
-			return inst.iface_type, inst.type
-		end
-	end
-	
-	-- main code
-	
-	-- initialize graph nodes from system spec, creating nodes for each
-	-- instance's interface
-	graph:init(sys)
-	
-	--
-	-- Make direct connections for clock, reset, conduit, and export
-	--
-	local data_links = {}
-	
-	for link in values(sys.links) do
-		local st,sot = get_iface_type(sys, link.src:phys())
-		local dt,dot = get_iface_type(sys, link.dest:phys())
-		if st == 'CLOCK' or st == 'RESET' or st == 'CONDUIT' or sot == 'EXPORT' or dot == 'EXPORT' then
-			-- make direct connection
-			local e = graph:connect(link.src:phys(), link.dest:phys())
-			e:add_link(link)
-		else
-			-- data_links is what's left to process
-			table.insert(data_links, link)
-		end
-	end
-
 	--
 	-- Create the ring: A split and merge node for every instance
 	--
 	
 	local ring = {}
 	
-	for objname,obj in pairs(sys.objects) do
-		if obj.type == "INSTANCE" then
-			-- create split and merge nodes
-			local entry = 
-			{
-				merge = topo.Node:new
-				{
-					name = objname .. '_inj',
-					type = 'MERGE'
-				},
-				
-				split = topo.Node:new
-				{
-					name = objname .. '_ej',
-					type = 'SPLIT'
-				}
-			}
-			
-			-- add nodes to graph, connect them with one edge
-			graph:add_node(entry.split)
-			graph:add_node(entry.merge)
-			graph:connect(entry.split, entry.merge)
-			
-			table.insert(ring, entry) -- numerical entry
-			ring[objname] = entry -- relational entry
-		end
+	for objname,obj in pairs(sys:get_nodes()) do
+        -- create a ringstop entry for this instance, which contains
+        -- a split node and a merge node named after the instance
+        local entry = 
+        {
+            merge = sys:add_merge(objname .. '_inj')
+            split = sys:add_split(objname .. '_ej')
+        }
+        
+        table.insert(ring, entry) -- numerical entry
+        ring[objname] = entry -- relational entry
 	end
 	
+    --
+    -- Make TOPO connections between the ringstops
+    --
+    
 	for idx,entry in ipairs(ring) do
-		local nextentry = ring[idx+1] or ring[1] -- loop around
-		graph:connect(entry.merge, nextentry.split)
-		entry.next = nextentry -- to help traversal
+		-- within a ringstop, the split has a bypass path to the merge
+        sys:add_link(entry.split:get_port('out'), entry.merge:get_port('in'))
+        
+        -- reference the next ringstop, looping around to make a ring
+        -- store the nextentry in each entry, linked-list style, for later
+        local nextentry = ring[idx+1] or ring[1]
+        entry.next = nextentry -- to help traversal
+        
+        -- across ringstops, the merge connects to the next's split
+        sys:add_link(entry.merge:get_port('out'), nextentry.split:get_port('in'))
 	end
 	
 	--
-	-- Follow end-to-end links through the ring, updating edges to reflect carriage
+	-- Make TOPO connections between instances and ringstops, and associate RS links
 	--
 	
-	for link in values(data_links) do
+	for _,link in ipairs(sys:get_links('rs')) do
 		-- start at source node's ringstop
 		local cur = ring[link.src.obj]
 		

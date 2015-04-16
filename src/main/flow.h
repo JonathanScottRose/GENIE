@@ -10,11 +10,5 @@ public:
 	int func_ref;
 };
 
-// RS->TOPO
-void flow_refine_rs(genie::System* sys);
+void flow_main();
 
-// TOPO->RVD
-void flow_refine_topo(genie::System* sys);
-
-// RVD refinement stages
-void flow_process_rvd(genie::System* sys);
