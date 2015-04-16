@@ -111,8 +111,8 @@ namespace genie
 
 		PROP_DICT(Params, param, ParamBinding);
 		List<ParamBinding*> get_params(bool are_bound);
-		void define_param(const std::string&);
-		void define_param(const std::string&, const Expression&);
+		ParamBinding* define_param(const std::string&);
+		ParamBinding* define_param(const std::string&, const Expression&);
 
 		PROP_GET(hdl_info, NodeHDLInfo*, m_hdl_info);
 		void set_hdl_info(NodeHDLInfo*);

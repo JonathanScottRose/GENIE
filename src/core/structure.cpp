@@ -354,14 +354,22 @@ List<ParamBinding*> Node::get_params(bool are_bound)
 	return result;
 }
 
-void Node::define_param(const std::string& nm)
+ParamBinding* Node::define_param(const std::string& nm)
 {
-	add_param(new ParamBinding(nm));
+	return add_param(new ParamBinding(nm));
 }
 
-void Node::define_param(const std::string& nm, const Expression& exp)
+ParamBinding* Node::define_param(const std::string& nm, const Expression& exp)
 {
-	add_param(new ParamBinding(nm, exp));
+	// If existing param binding, update its bound expression.
+	// Otherwise, create a new param binding with the expression already bound.
+	ParamBinding* result = get_param(nm);
+	if (result)
+		result->set_expr(exp);
+	else
+		result = add_param(new ParamBinding(nm, exp));
+
+	return result;
 }
 
 Node::Ports Node::get_ports(NetType net) const

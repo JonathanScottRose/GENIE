@@ -96,7 +96,7 @@ void NodeSplit::refine(NetType target)
 		port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 	
 		int n = get_n_outputs();
-		add_param(new ParamBinding("NO", n));
+		define_param("NO", n);
 
 		for (int i = 0; i < n; i++)
 		{

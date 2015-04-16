@@ -98,7 +98,7 @@ void NodeMerge::refine(NetType target)
 		port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 	
 		int n = get_n_inputs();
-		add_param(new ParamBinding("NI", n));
+		define_param("NI", n);
 
 		for (int i = 0; i < get_n_inputs(); i++)
 		{

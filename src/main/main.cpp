@@ -5,7 +5,6 @@
 #include "io.h"
 
 #include "genie/genie.h"
-#include "genie/net_clock.h"
 #include "genie/lua/genie_lua.h"
 #include "flow.h"
 

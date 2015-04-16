@@ -371,7 +371,7 @@ namespace
 		bool provide_val = !lua_isnoneornil(L, 3);
 
 		ParamBinding* parm = exists? self->get_param(parmname) : 
-			self->add_param(new ParamBinding(parmname));
+			self->define_param(parmname);
 		
 		if (exists && !provide_val)
 		{
