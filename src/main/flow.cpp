@@ -10,6 +10,7 @@
 #include "genie/graph.h"
 #include "genie/value.h"
 #include "genie/vlog.h"
+#include "genie/vlog_bind.h"
 #include "flow.h"
 #include "net_rs.h"
 #include "globals.h"
@@ -560,6 +561,60 @@ namespace
 		}
 	}
 
+	void rvd_connect_resets(System* sys)
+	{
+		// Finds danling reset inputs and connects them to either:
+		// 1) Any existing reset input in the system
+		// 2) A freshly-created reset input, if 1) didn't find one
+
+		// Find or create the reset source.
+		ResetPort* reset_src = nullptr;
+		auto reset_srces = sys->get_children<ResetPort>([](const HierObject* o)
+		{
+			auto oo = as_a<const ResetPort*>(o);
+			return oo && oo->get_dir() == Dir::IN;
+		});
+
+		if (!reset_srces.empty())
+		{
+			// Found an existing one. Any will do right now!
+			reset_src = reset_srces.front();
+		}
+		else
+		{
+			// Create one.
+			reset_src = new ResetPort(Dir::IN, "reset");
+			reset_src->add_role_binding(ResetPort::ROLE_RESET, 
+				new vlog::VlogStaticBinding("reset"));
+			sys->add_port(reset_src);
+
+			// Don't forget the actual HDL port too
+			auto vinfo = (vlog::NodeVlogInfo*)sys->get_hdl_info();
+			assert(vinfo);
+			vinfo->add_port(new vlog::Port("reset", 1, vlog::Port::IN));
+		}
+
+		// Find any unbound reset sinks on any nodes
+		auto nodes = sys->get_nodes();
+		for (auto node : nodes)
+		{
+			auto reset_sinks = node->get_children_by_type<ResetPort>();
+			for (auto reset_sink : reset_sinks)
+			{
+				// Sinks only
+				if (reset_sink->get_dir() != Dir::IN)
+					continue;
+
+				// Unconnected sinks only.
+				if (reset_sink->get_endpoint_sysface(NET_RESET)->is_connected())
+					continue;
+
+				// Connect
+				sys->connect(reset_src, reset_sink);
+			}
+		}
+	}
+
 	// Do all work for one System
 	void flow_do_system(System* sys)
 	{
@@ -583,6 +638,7 @@ namespace
 		rvd_do_carriage(sys);
 		rvd_connect_clocks(sys);
 		rvd_insert_clockx(sys);
+		rvd_connect_resets(sys);
 
 		// Hand off to Verilog processing and output
 		vlog::flow_process_system(sys);
