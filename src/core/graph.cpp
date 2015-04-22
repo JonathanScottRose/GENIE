@@ -4,6 +4,7 @@
 #include <fstream>
 #include <stack>
 #include "genie/graph.h"
+#include "genie/util.h"
 
 using namespace genie;
 using namespace genie::graphs;
@@ -285,14 +286,24 @@ void Graph::mergev(VertexID vidsrc, VertexID viddest)
 	V.erase(vidsrc);
 }
 
-Graph::IterContainer<Graph::VContType, VertexID> Graph::verts()
+Graph::IterContainer<Graph::VContType, VertexID> Graph::iter_verts()
 {
 	return IterContainer<VContType, VertexID>(*this);
 }
 
-Graph::IterContainer<Graph::EContType, EdgeID> Graph::edges()
+Graph::IterContainer<Graph::EContType, EdgeID> Graph::iter_edges()
 {
 	return IterContainer<EContType, EdgeID>(*this);
+}
+
+VList Graph::verts() const
+{
+	return util::keys<VList>(V);
+}
+
+EList Graph::edges() const
+{
+	return util::keys<EList>(E);
 }
 
 void Graph::dump(const std::string& filename, 

@@ -169,6 +169,9 @@ void RSPort::refine_rvd()
 			rvd_port->add_role_binding(RVDPort::ROLE_DATA, rvd_tag, rvd_hdlb);
 		}
 	}
+
+	// Copy associated clock port
+	rvd_port->set_clock_port_name(this->get_clock_port_name());
 }
 
 void RSPort::refine_topo()

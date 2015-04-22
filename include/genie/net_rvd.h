@@ -6,6 +6,8 @@
 
 namespace genie
 {
+	class ClockPort;
+
 	// Globally-accessible network type ID. Maybe move to a static member?
 	extern const NetType NET_RVD;
 
@@ -21,6 +23,12 @@ namespace genie
 		RVDPort(Dir dir, const std::string& name);
 		~RVDPort();
 
+		PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
+		ClockPort* get_clock_port() const;
+
 		HierObject* instantiate() override;
+
+	protected:
+		std::string m_clk_port_name;
 	};
 }

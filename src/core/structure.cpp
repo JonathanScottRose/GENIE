@@ -668,6 +668,9 @@ Link* System::splice(Link* orig, Port* new_sink, Port* new_src)
 	new_link->set_sink(orig_sink_ep);
 	new_src_ep->add_link(new_link);
 	orig_sink_ep->add_link(new_link);
+	
+	// Add link to the system
+	m_links[net].push_back(new_link);
 
 	return new_link;
 }
@@ -704,87 +707,30 @@ void System::delete_object(const HierPath& path)
 	delete obj;
 }
 
-namespace
-{
-	void write_dot_r(
-		HierObject* cur_obj,
-		std::ofstream& out,
-		const std::unordered_set<HierObject*>& live_eps,
-		const std::unordered_set<HierObject*>& live_parents)
-	{
-		// Define subgraph, give label
-		out << "subgraph cluster_" << cur_obj->get_name() << " {" << std::endl;
-		out << "label=\"" << cur_obj->get_name() << "\"" << std::endl;
-		
-		// This object is guaranteed to be a parent. Get children.
-		auto children = cur_obj->get_children();
-
-		for (auto child : children)
-		{
-			// Each child is either a terminal endpoint (src/sink of a link), or
-			// a parent of one. If neither, then ignore it.
-			if (live_eps.count(child))
-			{
-				// Src/sink of a link: give it a proper label
-				out << "\"" << child->get_hier_path() << "\" [label=\""
-					<< child->get_name() << "\"];" << std::endl;
-			}
-			else if (live_parents.count(child))
-			{
-				// Parent of an endpoint: recurse to create a new subgraph
-				write_dot_r(child, out, live_eps, live_parents);
-			}
-		}
-
-		// Close subgraph before going up a level
-		out << "}" << std::endl;
-	}
-}
-
 void System::write_dot(const std::string& filename, NetType nettype)
 {
-	// Gather connected objects into a set.
-	// Also keep track of all parent objects of live objects.
-	std::unordered_set<HierObject*> live_eps;
-	std::unordered_set<HierObject*> live_parents;
-	
-	auto links = get_links(nettype);
-	for (auto& link: links)
-	{
-		for (auto obj : { link->get_src(), link->get_sink() })
-		{
-			// all containers of source/sink are live
-			for (auto parent = obj->get_parent(); parent != this; parent = parent->get_parent())
-				live_parents.insert(parent);
-
-			// source and sink are live
-			live_eps.insert(obj);			
-		}
-	}
-
 	// Open file, create top-level graph
 	std::ofstream out(filename + ".dot");
 	out << "digraph {" << std::endl;
-	out << "newrank=true;" << std::endl;
-	//out << "ranksep=true;" << std::endl;
-
-	// Do recursive subgraph creation for parents of live endpoints
-	auto objects = this->get_objects();
-	for (auto obj : objects)
-	{
-		if (live_parents.count(obj))
-			write_dot_r(obj, out, live_eps, live_parents);
-	}
 
 	// For top-level system graph: create edge for every link
+	auto links = get_links(nettype);
 	for (auto& link : links)
 	{
-		HierObject* src = link->get_src();
-		HierObject* sink = link->get_sink();
+		Port* src_port = link->get_src();
+		Port* sink_port = link->get_sink();
 
-		out << "\"" << src->get_hier_path() 
-			<< "\" -> \"" << sink->get_hier_path()
-			<< "\";" 
+		Node* src_node = src_port->get_node();
+		Node* sink_node = sink_port->get_node();
+
+		std::string taillabel = src_port->get_hier_path(src_node);
+		std::string headlabel = sink_port->get_hier_path(sink_node);
+
+		std::string attrs = " [headlabel=\"" + headlabel + "\", taillabel=\"" + taillabel + "\"]";
+
+		out << "\"" << src_node->get_name()
+			<< "\" -> \"" << sink_node->get_name()
+			<< "\"" << attrs << ";" 
 			<< std::endl;
 	}
 

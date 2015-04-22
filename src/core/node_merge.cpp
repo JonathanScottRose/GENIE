@@ -94,6 +94,7 @@ void NodeMerge::refine(NetType target)
 	{
 		// Make bindings for the RVD ports
 		auto port = get_rvd_output();
+		port->set_clock_port_name(CLOCKPORT_NAME);
 		port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
 		port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 	
@@ -104,6 +105,7 @@ void NodeMerge::refine(NetType target)
 		{
 			auto port = get_rvd_input(i);
 
+			port->set_clock_port_name(CLOCKPORT_NAME);
 			port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid", 1, i));
 			port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
 		}

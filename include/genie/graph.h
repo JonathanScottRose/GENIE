@@ -47,12 +47,7 @@ namespace graphs
 		VContType V;
 		EContType E;
 
-	public:
-		// Creation of new vertices and edges
-		VertexID newv();
-		EdgeID newe();
-		EdgeID newe(VertexID v1, VertexID v2);
-		
+	public:		
 		// A class used to facilitate C++11 range for loops. Implements the required begin() and end()
 		// methods that return iterators for making this work.
 		//
@@ -85,8 +80,17 @@ namespace graphs
 		
 		// Use in a range-based for loop to iterate over all edge IDs or vertex IDs. Or,
 		// use the begin() and end() methods of the returned object to gain access to iterators directly.
-		IterContainer<VContType, VertexID> verts();
-		IterContainer<EContType, EdgeID> edges();
+		IterContainer<VContType, VertexID> iter_verts();
+		IterContainer<EContType, EdgeID> iter_edges();
+
+		// Retrieve all vertices/edges
+		VList verts() const;
+		EList edges() const;
+
+		// Creation of new vertices and edges
+		VertexID newv();
+		EdgeID newe();
+		EdgeID newe(VertexID v1, VertexID v2);
 
 		// Deletion
 		void delv(VertexID v);

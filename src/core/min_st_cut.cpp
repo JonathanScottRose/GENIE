@@ -1,6 +1,7 @@
 #include <cassert>
 #include <algorithm>
 #include <stack>
+#include <unordered_set>
 #include "genie/graph.h"
 
 using namespace genie;
@@ -116,36 +117,68 @@ int graphs::min_st_cut(Graph& G, EAttr<int> cap, VertexID s, VertexID t)
 		}
 	}
 
-	// Find total min cut weight and remove cut edges from input graph G.
-	// The edges of the cut are the edges that have zero capacity.
-	int result = 0;
-	for (EdgeID e : R.edges())
+	// Remove all zero-weight edges (and their corresponding back-edges) from R.
+	// Iterate over edges in G so that 'e' is always an existing forward edge (existing in both
+	// G and R) and e2 is a backward edge (existing and only introduced in R).
+	//
+	// Also, update the capacity of each forward edge 'e' to be the original cost
+	for (EdgeID e : G.iter_edges())
 	{
-		// Is this edge part of the cut?
-		if (cap[e] == 0)
-		{
-			// Okay, so the return value of the function needs to be the sum of the ORIGINAL weights
-			// in the graph, but we've completely modified those weights since then. How do we get them
-			// back?
-			//
-			// Trick: each original edge e in the graph had a weight w_e. We created a reverse edge
-			// for every e, e', which originally had the same weight w_e'=w_e. Every modification to 
-			// w_e results in an equal and opposite change in w_e'. By the time w_e is zero (and we're
-			// in this if statement clause), w_e' is therefore 2*(original value of w_e).
-			//
-			// So to get the original value of w_e, we take the current value of w_e' and divide it by 2.
-			
-			// Look up e's reverse edge (called e' in the above explanation, e2 here)
-			EdgeID e2 = R.redge(e);
+		EdgeID e2 = R.redge(e);
+		int cap_e = cap[e];
+		int cap_e2 = cap[e2];
 
-			// capacity in reverse direction must equal initial weight * 2
-			result += cap[e2] / 2;
-			
-			// Delete the edge in the _original_ graph. This is the only place where G is modified.
-			// e is guaranteed to exist in G, despite us iterating over the edges of R, because reasons.
-			G.dele(e);
+		if (cap_e == 0 || cap_e2 == 0)
+		{
+			R.dele(e);
+			R.dele(e2);
+
+			// This works because either cap_e or cap_e2 is 0, and the other is equal to
+			// the original weight * 2.
+			cap[e] = (cap_e + cap_e2) / 2;
 		}
 	}
+
+	// Find all vertices reachable from s in R
+	auto reachable = R.connected_verts(s);
+	std::unordered_set<VertexID> reachable_set(reachable.begin(), reachable.end());
+
+	// Find the edges in G that comprise the min-cut.
+	// Return the total sum of their weights.
+	// Remove those edges from G.
+	//
+	// A cut edge is an edge e=(u,v) in G such that satisfies both:
+	//	 - either v or u is reachable from terminal vertex s
+	//   - either e itself or e2(v,u) does not exist in R
+	//
+	// This represents edges that have zero residual capacity (in either the forward or backward
+	// direction) and that lie on the boundary of the cut (one vertex still reachable from s)
+
+	int result = 0;
+	auto g_edges = G.edges();
+	for (EdgeID e_g : g_edges)
+	{
+		VPair verts = G.verts(e_g);
+
+		// Only consider edges in G that have at least one vertex in the reachable set
+		if (!reachable_set.count(verts.first) && !reachable_set.count(verts.second))
+			continue;
+
+		// Try to get edges (u,v) and (v,u) in R
+		EdgeID e_r1 = R.dir_edge(verts.first, verts.second);
+		EdgeID e_r2 = R.dir_edge(verts.second, verts.first);
+
+		// If either one is missing in R, then this is a cut edge
+		if (e_r1 == INVALID_E || e_r2 == INVALID_E)
+		{
+			// Add the original capacity of the edge in G to the total cut weight.
+			result += cap[e_g];
+
+			// Remove the edge from the original input graph. This is the only place where
+			// G is modified. 
+			G.dele(e_g);
+		}
+	}	
 
 	return result;
 }

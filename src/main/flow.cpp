@@ -1,9 +1,11 @@
 #include <unordered_set>
 #include "genie/genie.h"
 #include "genie/net_topo.h"
+#include "genie/net_clock.h"
 #include "genie/net_rvd.h"
 #include "genie/node_merge.h"
 #include "genie/node_split.h"
+#include "genie/node_clockx.h"
 #include "genie/lua/genie_lua.h"
 #include "genie/graph.h"
 #include "genie/value.h"
@@ -350,6 +352,214 @@ namespace
 		}
 	}
 
+	void rvd_connect_clocks(System* sys)
+	{
+		using namespace graphs;
+
+		// The system contains interconnect-related nodes which have no clocks connected yet.
+		// When there are multiple clock domains, the choice of which clock domain to assign
+		// which interconnect node is an optimization problem: we want to minimize the total number
+		// of data bits that need clock crossing. This is an instance of a Multiway Graph Cut problem, 
+		// which is optimally solvable in polynomial time for k=2 clocks, but is NP-hard for 3 or more.
+		// We will use a greedy heuristic.
+
+		// The implementation of the algorithm sits in a different file, and works on a generic graph.
+		// Here, we need to generate this graph so that we can properly express the problem at hand.
+		// In the generated graph, each vertex will correspond to a ClockResetPort of some Node, which 
+		// either already has a clock assignment (making it a 'terminal' in the multiway problem) or
+		// has yet to have a clock assigned, which is ultimately what we want to find out.
+
+		// So, a Vertex represents a clock input port. An edge will represent a Conn between two DataPorts, 
+		// and the two vertices of the edge are the clock input ports associated with the DataPorts. Each edge
+		// will be weighted with the total number of PhysField bits in the protocol. In the case that the protocols
+		// are different between the two DataPorts, we will take the union (only the physfields present in both) since
+		// the missing ones will be defaulted later.
+
+		// Graph to do multiway algorithm on
+		Graph G;
+
+		// List of terminal vertices (one for each clock domain)
+		VList T;
+
+		// Edge weights in G
+		EAttr<int> weights;
+
+		// Maps UNCONNECTED clock sinks to vertex IDs in G
+		RVAttr<ClockPort*> clocksink_to_vid;
+			VAttr<ClockPort*> vid_to_clocksink;
+
+		// Maps clock sources (aka clock domains) to vertex IDs in G, and vice versa
+		RVAttr<ClockPort*> clocksrc_to_vid;
+		VAttr<ClockPort*> vid_to_clocksrc;
+		
+		// Construct G and the inputs to MWC algorithm
+		auto rvd_links = sys->get_links(NET_RVD);
+		for (auto rvd_link : rvd_links)
+		{
+			// RVD ports
+			auto rvd_a = (RVDPort*)rvd_link->get_src();
+			auto rvd_b = (RVDPort*)rvd_link->get_sink();
+			
+			// Get the clock sinks associated with each RVD port
+			auto csink_a = rvd_a->get_clock_port();
+			auto csink_b = rvd_b->get_clock_port();
+
+			// Two RVD ports in same node connected to each other, under same clock domain.
+			// This creates self-loops in the graph and derps up the MWC algorithm.
+			if (csink_a == csink_b)
+				continue;
+
+			// Get the clock ports driving each clock sink
+			auto csrc_a = csink_a->get_clock_driver();
+			auto csrc_b = csink_b->get_clock_driver();
+
+			// Vertices representing the two clock sinks. A single vertex is created for:
+			// 1) Each undriven clock sink
+			// 2) All clock sinks driven by the same clock source
+			VertexID v_a, v_b;
+
+			// Handle the _a and _b identically with this loop, to avoid code duplication
+			for (auto& i : { std::forward_as_tuple(v_a, csrc_a, csink_a), 
+				std::forward_as_tuple(v_b, csrc_b, csink_b) })
+			{
+				auto& v = std::get<0>(i);
+				auto csrc = std::get<1>(i);
+				auto csink = std::get<2>(i);
+
+				if (csrc)
+				{
+					// Case 1) Clock sink is driven. Create or get the vertex associated with
+					// the DRIVER of the clock sink.
+					if (clocksrc_to_vid.count(csrc))
+					{
+						v = clocksrc_to_vid[csrc];
+					}
+					else
+					{
+						v = G.newv();
+						clocksrc_to_vid[csrc] = v;
+						vid_to_clocksrc[v] = csrc;
+
+						// Also add this new vertex to our list of Terminal vertices
+						T.push_back(v);
+					}
+				}
+				else
+				{
+					// Case 2) Clock sink is UNdriven. Create or get the vertex associated with
+					// the sink itself.
+					if (clocksink_to_vid.count(csink))
+					{
+						v = clocksink_to_vid[csink];
+					}
+					else
+					{
+						v = G.newv();
+						clocksink_to_vid[csink] = v;
+							vid_to_clocksink[v] = csink;
+					}
+				}				
+			}
+
+			// Avoid self-loops
+			if (v_a == v_b)
+				continue;
+
+			// Determine weight based on sum of widths of fields common
+			// to both ends of the Conn
+			int weight = 1;
+			/*
+			for (auto& i : data_a->get_proto().fields())
+			{
+				auto pf = i.second;	
+				if (data_b->get_proto().has_field(i.first))
+					weight += pf->width;
+			}*/
+
+			// Create and add edge with weight
+			EdgeID e = G.newe(v_a, v_b);
+			weights[e] = weight;
+		}
+
+		/*
+		sys->write_dot("rvd_premwc", NET_RVD);
+		G.dump("mwc", [&](VertexID v)
+		{
+			ClockPort* p = nullptr;
+			if (vid_to_clocksink.count(v)) p = vid_to_clocksink[v];
+			if (vid_to_clocksrc.count(v))
+			{
+				assert(!p);
+				p = vid_to_clocksrc[v];
+			}
+			
+			return p->get_hier_path(sys) + " (" +  std::to_string(v) + ")";
+		}, [](EdgeID e)
+		{
+			return std::to_string(e);
+		});*/
+
+		// Call multiway cut algorithm, get vertex->terminal mapping
+		auto vid_to_terminal = graphs::multi_way_cut(G, weights, T);
+
+		// Iterate over all unconnected clock sinks, and connect them to the clock source
+		// identified by the output of the MWC algorithm.
+		for (auto& i : clocksink_to_vid)
+		{
+			ClockPort* csink = i.first;
+			VertexID v_sink = i.second;
+
+			VertexID v_src = vid_to_terminal[v_sink];
+			ClockPort* csrc = vid_to_clocksrc[v_src];
+
+			sys->connect(csrc, csink);
+		}
+	}
+
+	void rvd_insert_clockx(System* sys)
+	{
+		// Insert clock crossing adapters on clock domain boundaries.
+		// A clock domain boundary exists on any RVD link where the source/sink clock drivers differ.
+		int nodenum = 0;
+		auto rvd_links = sys->get_links(NET_RVD);
+		
+		for (auto rvd_link : rvd_links)
+		{
+			// RVD source/sink ports
+			auto rvd_a = (RVDPort*)rvd_link->get_src();
+			auto rvd_b = (RVDPort*)rvd_link->get_sink();
+
+			// Clock sinks of each RVD port
+			auto csink_a = rvd_a->get_clock_port();
+			auto csink_b = rvd_b->get_clock_port();
+
+			// Clock drivers of clock sinks of each RVD port
+			auto csrc_a = csink_a->get_clock_driver();
+			auto csrc_b = csink_b->get_clock_driver();
+
+			assert(csrc_a && csrc_b);
+
+			// We only care about mismatched domains
+			if (csrc_a == csrc_b)
+				continue;
+
+			// Check to see if src has backpressure
+			bool has_bp = rvd_a->has_role_binding(RVDPort::ROLE_READY);
+
+			// Create and add clockx node
+			auto cxnode = new NodeClockX(has_bp);
+			cxnode->set_name("clockx" + std::to_string(nodenum++));
+			sys->add_child(cxnode);
+
+			// Connect its clock inputs
+			sys->connect(csrc_a, cxnode->get_inclock_port());
+			sys->connect(csrc_b, cxnode->get_outclock_port());
+
+			// Splice the node into the existing rvd connection
+			sys->splice(rvd_link, cxnode->get_indata_port(), cxnode->get_outdata_port());
+		}
+	}
+
 	// Do all work for one System
 	void flow_do_system(System* sys)
 	{
@@ -371,6 +581,8 @@ namespace
 		// Various RVD processing
 		rvd_insert_flow_convs(sys);
 		rvd_do_carriage(sys);
+		rvd_connect_clocks(sys);
+		rvd_insert_clockx(sys);
 
 		// Hand off to Verilog processing and output
 		vlog::flow_process_system(sys);

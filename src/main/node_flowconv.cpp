@@ -59,17 +59,21 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 	const std::string& intag = to_flow? "lpid" : "flow_id";
 	const std::string& outtag = to_flow? "flow_id" : "lpid";
 
-	auto inport = add_port(new RVDPort(Dir::IN, INPORT_NAME));
+	auto inport = new RVDPort(Dir::IN, INPORT_NAME);
+	inport->set_clock_port_name(CLOCKPORT_NAME);
 	inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
 	inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 	inport->add_role_binding(RVDPort::ROLE_DATA, intag, new VlogStaticBinding("i_field"));
 	inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
+	add_port(inport);
 
-	auto outport = add_port(new RVDPort(Dir::OUT, OUTPORT_NAME));
+	auto outport = new RVDPort(Dir::OUT, OUTPORT_NAME);
+	outport->set_clock_port_name(CLOCKPORT_NAME);
 	outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
 	outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 	outport->add_role_binding(RVDPort::ROLE_DATA, outtag, new VlogStaticBinding("o_field"));
 	outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+	add_port(outport);
 }
 
 void NodeFlowConv::configure()

@@ -92,6 +92,7 @@ void NodeSplit::refine(NetType target)
 	{
 		// Make bindings for the RVD ports
 		auto port = get_rvd_input();
+		port->set_clock_port_name(CLOCKPORT_NAME);
 		port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
 		port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 	
@@ -102,6 +103,7 @@ void NodeSplit::refine(NetType target)
 		{
 			auto port = get_rvd_output(i);
 
+			port->set_clock_port_name(CLOCKPORT_NAME);
 			port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid", 1, i));
 			port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready", 1, i));
 		}

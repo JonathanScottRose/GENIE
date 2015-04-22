@@ -18,5 +18,7 @@ namespace genie
 		~ClockPort();
 
 		HierObject* instantiate() override;
+
+		ClockPort* get_clock_driver() const;
 	};
 }

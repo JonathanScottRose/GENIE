@@ -1,4 +1,5 @@
 #include "genie/net_rvd.h"
+#include "genie/net_clock.h"
 #include "genie/genie.h"
 
 using namespace genie;
@@ -71,3 +72,22 @@ HierObject* RVDPort::instantiate()
 {
 	return new RVDPort(*this);
 }
+
+ClockPort* RVDPort::get_clock_port() const
+{
+	// Use associated clock port name, search for a ClockPort named this on the node we're attached
+	// to.
+	auto node = get_node();
+	ClockPort* result = nullptr;
+	
+	try
+	{
+		result = as_a<ClockPort*>(node->get_port(get_clock_port_name()));
+	}
+	catch (HierNotFoundException&)
+	{
+	}
+
+	return result;
+}
+

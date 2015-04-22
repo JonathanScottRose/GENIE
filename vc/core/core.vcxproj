@@ -31,6 +31,7 @@
     <ClInclude Include="..\..\include\genie\net_reset.h" />
     <ClInclude Include="..\..\include\genie\net_rvd.h" />
     <ClInclude Include="..\..\include\genie\net_topo.h" />
+    <ClInclude Include="..\..\include\genie\node_clockx.h" />
     <ClInclude Include="..\..\include\genie\node_merge.h" />
     <ClInclude Include="..\..\include\genie\node_split.h" />
     <ClInclude Include="..\..\include\genie\parameter.h" />
@@ -60,6 +61,7 @@
     <ClCompile Include="..\..\src\core\net_reset.cpp" />
     <ClCompile Include="..\..\src\core\net_rvd.cpp" />
     <ClCompile Include="..\..\src\core\net_topo.cpp" />
+    <ClCompile Include="..\..\src\core\node_clockx.cpp" />
     <ClCompile Include="..\..\src\core\node_merge.cpp" />
     <ClCompile Include="..\..\src\core\node_split.cpp" />
     <ClCompile Include="..\..\src\core\sigroles.cpp" />
