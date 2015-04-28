@@ -16,7 +16,7 @@ namespace
 		return static_cast<SystemVlogInfo*>(sys->get_hdl_info());
 	}
 
-	void flow_connect_rb(System* sys, 
+	void connect_rb(System* sys, 
 		RoleBinding* src_rb, int src_lsb, RoleBinding* sink_rb, int sink_lsb, int width)
 	{
 		auto sysinfo = get_sysinfo(sys);
@@ -37,7 +37,7 @@ namespace
 			width);
 	}
 
-	void flow_connect_rb(System* sys, RoleBinding* src_rb, RoleBinding* sink_rb)
+	void connect_rb(System* sys, RoleBinding* src_rb, RoleBinding* sink_rb)
 	{
 		// Connect the entire width starting at the LSB
 		int src_width = src_rb->get_hdl_binding()->get_width();
@@ -49,10 +49,10 @@ namespace
 				" are different widths");
 		}
 
-		flow_connect_rb(sys, src_rb, 0, sink_rb, 0, src_width);		
+		connect_rb(sys, src_rb, 0, sink_rb, 0, src_width);		
 	}
 
-	void flow_tie_rb(System* sys, RoleBinding* sink, const Value& val, int lsb)
+	void tie_rb(System* sys, RoleBinding* sink, const Value& val, int lsb)
 	{
 		auto sysinfo = get_sysinfo(sys);
 
@@ -64,7 +64,7 @@ namespace
 		sysinfo->connect(sink_vport, val, lsb);
 	}
 
-	void flow_do_rvd_readyvalid(System* sys)
+	void do_rvd_readyvalid(System* sys)
 	{
 		auto links = sys->get_links(NET_RVD);
 
@@ -87,12 +87,12 @@ namespace
 				if (src_rb && sink_rb)
 				{
 					// Both present - everything good
-					flow_connect_rb(sys, src_rb, sink_rb);
+					connect_rb(sys, src_rb, sink_rb);
 				}
 				else if (!src_rb && sink_rb)
 				{
 					// Connect a constant high value to the sink.
-					flow_tie_rb(sys, sink_rb, Value(1, 1), 0);
+					tie_rb(sys, sink_rb, Value(1, 1), 0);
 				}
 				else if (src_rb && !sink_rb)
 				{
@@ -109,7 +109,153 @@ namespace
 		}
 	}
 
-	void flow_do_easy_links(System* sys)
+	bool find_rvd_rb(RVDPort* port, const Field& field, RoleBinding** out_rb, int* out_lsb)
+	{
+		const PortProtocol& proto = port->get_proto();
+		const FieldSet& term = proto.terminal_fields();
+
+		// Search the terminal fields
+		if (term.has(field))
+		{
+			// Terminals always have LSB=0 relative to their rolebindings
+			*out_lsb = 0;
+			const auto& rb_tag = proto.get_rvd_tag(field);
+			*out_rb = port->get_role_binding(RVDPort::ROLE_DATA, rb_tag);
+			return true;
+		}
+
+		// Search the carrier, if exists, for the field
+		const CarrierProtocol* carrier = proto.get_carried_protocol();
+		if (carrier && carrier->has(field))
+		{
+			*out_rb = port->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
+			*out_lsb = carrier->get_lsb(field);
+			return true;
+		}
+
+		return false;
+	}
+
+	void do_rvd_data(System* sys)
+	{
+		auto rvd_links = sys->get_links(NET_RVD);
+
+		for (auto link : rvd_links)
+		{
+			auto src = (RVDPort*)link->get_src();
+			auto sink = (RVDPort*)link->get_sink();
+
+			// Port protocols
+			const auto& sink_proto = sink->get_proto();
+			const auto& src_proto = src->get_proto();
+
+			// Carrier protocols (if exist)
+			CarrierProtocol* sink_carrier = sink_proto.get_carried_protocol();
+			CarrierProtocol* src_carrier = src_proto.get_carried_protocol();
+
+			// Special case: if both src/sink are carriers, then we will simply make a big huge
+			// net connecting both of their domain regions together, rather than connecting
+			// individual fields together.
+			//
+			// If not this case, then domain fields will be iterated over individually at the sink.
+			bool opaque_domain = (src_carrier && sink_carrier);
+
+			if (opaque_domain)
+			{
+				// Get the rolebindings for DATA_CARRIER at both ends and make a big fat net
+				// connecting the two.
+				RoleBinding* src_rb = src->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
+				int src_lsb = src_carrier->get_domain_lsb();
+				int src_width = src_carrier->get_domain_width();
+
+				RoleBinding* sink_rb = sink->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
+				int sink_lsb = sink_carrier->get_domain_lsb();
+				int sink_width = sink_carrier->get_domain_width();
+
+				// Make sure the widths agree
+				assert(src_width == sink_width);
+				connect_rb(sys, src_rb, src_lsb, sink_rb, sink_lsb, src_width);
+			}
+
+			// Go through all terminal and jection fields at the sink, and try connecting them
+			// to either a matching field from the source port, or to a constant value.
+			//
+			// Include Domain fields too if we're not doing an opaque carry
+			enum {TERMINAL, JECTION, DOM};
+			for (auto field_type : {TERMINAL, JECTION, DOM})
+			{
+				// Whether or not the current field type is jection/domain, which lie inside
+				// a carrier protocol (terminal fields don't)
+				bool in_carry = field_type != TERMINAL;
+
+				// Terminal/jection fieldsets don't exist without a carrier protocol.
+				if (in_carry && !sink_carrier)
+					continue;
+
+				// Skip doing domain fields if we've decided to do an opaque domain carry
+				if (field_type == DOM && opaque_domain)
+					continue;
+
+				// Will hold the terminal/jection/domain fieldset to iterate over
+				FieldSet fields;
+			
+				switch(field_type)
+				{
+				case TERMINAL:
+					fields = sink_proto.terminal_fields();
+					break;
+				case JECTION:
+					fields = sink_carrier->jection_fields();
+					break;
+				case DOM:
+					fields = sink_carrier->domain_fields();
+					break;
+				}
+
+				// Iterate over the jection/terminal/domain fieldset
+				for (const auto& field : fields.contents())
+				{
+					// Get rolebinding+lsb for field at sink
+					RoleBinding* sink_rb;
+					int sink_lsb;
+
+					if (in_carry)
+					{
+						// Jection/domain field: rolebinding is for data carrier, may have nonzero 
+						// lsb within carrier binding.
+						sink_rb = sink->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
+						sink_lsb = sink_carrier->get_lsb(field);
+					}
+					else
+					{
+						// Terminal field: can lie on arbitraily-tagged DATA rolebinding, but always
+						// at lsb of 0
+						const auto& rb_tag = sink_proto.get_rvd_tag(field);
+						sink_rb = sink->get_role_binding(RVDPort::ROLE_DATA, rb_tag);
+						sink_lsb = 0;
+					}
+
+					// Check if the fieled was marked const, and if so, tie it to the const value
+					if (sink_proto.is_const(field))
+					{
+						tie_rb(sys, sink_rb, sink_proto.get_const_value(field), sink_lsb);
+					}
+					else
+					{
+						// Not const? Try and find a matching src field to make a connection with
+						int src_lsb;
+						RoleBinding* src_rb;
+						if (find_rvd_rb(src, field, &src_rb, &src_lsb))
+						{
+							connect_rb(sys, src_rb, src_lsb, sink_rb, sink_lsb, field.get_width());
+						}
+					}
+				}
+			}
+		}
+	}
+
+	void do_easy_links(System* sys)
 	{
 		auto sysmod = get_sysinfo(sys);
 
@@ -136,7 +282,7 @@ namespace
 					if (src_rb->get_role_def().get_sense() == SigRole::REV)
 						std::swap(src_rb, sink_rb);
 
-					flow_connect_rb(sys, src_rb, sink_rb);
+					connect_rb(sys, src_rb, sink_rb);
 				}
 			}
 		}
@@ -145,9 +291,10 @@ namespace
 
 void vlog::flow_process_system(System* sys)
 {
-	flow_do_easy_links(sys);
-	flow_do_rvd_readyvalid(sys);
-	flow_write_system(sys);
+	do_easy_links(sys);
+	do_rvd_readyvalid(sys);
+	do_rvd_data(sys);
+	write_system(sys);
 }
 
 HDLBinding* vlog::export_binding(System* sys, genie::Port* new_port, HDLBinding* b)

@@ -29,9 +29,11 @@
     <ClInclude Include="..\..\include\genie\net_clock.h" />
     <ClInclude Include="..\..\include\genie\net_conduit.h" />
     <ClInclude Include="..\..\include\genie\net_reset.h" />
+    <ClInclude Include="..\..\include\genie\net_rs.h" />
     <ClInclude Include="..\..\include\genie\net_rvd.h" />
     <ClInclude Include="..\..\include\genie\net_topo.h" />
     <ClInclude Include="..\..\include\genie\node_clockx.h" />
+    <ClInclude Include="..\..\include\genie\node_flowconv.h" />
     <ClInclude Include="..\..\include\genie\node_merge.h" />
     <ClInclude Include="..\..\include\genie\node_split.h" />
     <ClInclude Include="..\..\include\genie\parameter.h" />
@@ -59,11 +61,14 @@
     <ClCompile Include="..\..\src\core\net_clock.cpp" />
     <ClCompile Include="..\..\src\core\net_conduit.cpp" />
     <ClCompile Include="..\..\src\core\net_reset.cpp" />
+    <ClCompile Include="..\..\src\core\net_rs.cpp" />
     <ClCompile Include="..\..\src\core\net_rvd.cpp" />
     <ClCompile Include="..\..\src\core\net_topo.cpp" />
     <ClCompile Include="..\..\src\core\node_clockx.cpp" />
+    <ClCompile Include="..\..\src\core\node_flowconv.cpp" />
     <ClCompile Include="..\..\src\core\node_merge.cpp" />
     <ClCompile Include="..\..\src\core\node_split.cpp" />
+    <ClCompile Include="..\..\src\core\protocol.cpp" />
     <ClCompile Include="..\..\src\core\sigroles.cpp" />
     <ClCompile Include="..\..\src\core\structure.cpp" />
     <ClCompile Include="..\..\src\core\value.cpp" />

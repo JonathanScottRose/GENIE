@@ -7,7 +7,7 @@
 #include "genie/vlog.h"
 #include "genie/vlog_bind.h"
 #include "genie/lua/genie_lua.h"
-#include "net_rs.h"
+#include "genie/net_rs.h"
 #include "flow.h"
 
 using namespace genie;
@@ -445,7 +445,7 @@ namespace
 		HierObject* newobj = prototype->instantiate();
 
 		newobj->set_name(instname);
-		sys->add_object(newobj);
+		sys->add_child(newobj);
 
 		lua::push_object(newobj);
 

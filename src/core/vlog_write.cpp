@@ -24,6 +24,7 @@ namespace
 	void write_sys_ports(SystemVlogInfo* mod);
 	void write_sys_params(SystemVlogInfo* mod);
 	void write_sys_wires(SystemVlogInfo* mod);
+	void write_sys_insts(SystemVlogInfo* mod);
 	void write_sys_file(SystemVlogInfo* mod);
 	void write_sys_body(SystemVlogInfo* mod);
 	void write_sys_localparams(SystemVlogInfo* mod);
@@ -290,7 +291,7 @@ namespace
 		for (auto& node : nodes)
 		{
 			auto vinfo = static_cast<NodeVlogInfo*>(node->get_hdl_info());
-			
+
 			// Gather bound params only (ones with a value attached to them)
 			auto bound_params = node->get_params(true);
 
@@ -384,7 +385,7 @@ namespace
 	}
 }
 
-void genie::vlog::flow_write_system(genie::System* sys)
+void genie::vlog::write_system(genie::System* sys)
 {
 	auto top = as_a<SystemVlogInfo*>(sys->get_hdl_info());
 	std::string filename = top->get_module_name() + ".sv";

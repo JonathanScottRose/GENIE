@@ -31,6 +31,17 @@ bool Value::operator==(const Value& other) const
 		m_depth == other.m_depth;
 }
 
+bool Value::operator<(const Value& o) const
+{
+	if (m_depth < o.m_depth) return true;
+	else if (m_depth > o.m_depth) return false;
+
+	if (m_width == 0) return true;
+	else if (o.m_width == 0) return false;
+
+	return m_vals[0] < o.m_vals[0];
+}
+
 Value::operator int() const
 {
 	return get(0);

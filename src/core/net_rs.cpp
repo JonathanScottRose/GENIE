@@ -1,7 +1,8 @@
 #include "genie/genie.h"
 #include "genie/net_topo.h"
 #include "genie/net_clock.h"
-#include "net_rs.h"
+#include "genie/node_merge.h"
+#include "genie/net_rs.h"
 
 using namespace genie;
 
@@ -26,10 +27,6 @@ namespace
 			RSPort::ROLE_LPID = add_sig_role(SigRole("lpid", SigRole::FWD, false));
 			RSPort::ROLE_EOP = add_sig_role(SigRole("eop", SigRole::FWD, false));
 			RSPort::ROLE_SOP = add_sig_role(SigRole("sop", SigRole::FWD, false));
-		}
-
-		~NetRS()
-		{
 		}
 
 		Link* create_link() override
@@ -95,14 +92,19 @@ namespace
 
 // Register the network type
 const NetType genie::NET_RS = Network::add<NetRS>();
-SigRoleID genie::RSPort::ROLE_DATA;
-SigRoleID genie::RSPort::ROLE_DATA_BUNDLE;
-SigRoleID genie::RSPort::ROLE_VALID;
-SigRoleID genie::RSPort::ROLE_READY;
-SigRoleID genie::RSPort::ROLE_EOP;
-SigRoleID genie::RSPort::ROLE_SOP;
-SigRoleID genie::RSPort::ROLE_LPID;
 
+// Register port signal roles
+SigRoleID RSPort::ROLE_DATA;
+SigRoleID RSPort::ROLE_DATA_BUNDLE;
+SigRoleID RSPort::ROLE_VALID;
+SigRoleID RSPort::ROLE_READY;
+SigRoleID RSPort::ROLE_EOP;
+SigRoleID RSPort::ROLE_SOP;
+SigRoleID RSPort::ROLE_LPID;
+
+// Register data field types
+const FieldID RSPort::FIELD_LPID = Field::reg();
+const FieldID RSPort::FIELD_DATA = Field::reg();
 
 //
 // RSPort
@@ -141,6 +143,9 @@ void RSPort::refine_rvd()
 	if (!rvd_port)
 		return;
 
+	// Configure the RVD Port Protocol
+	auto& proto = rvd_port->get_proto();
+
 	// Set up role bindings on RVD port, by copying ours
 	for (auto& rs_rb : get_role_bindings())
 	{
@@ -162,11 +167,38 @@ void RSPort::refine_rvd()
 		}
 		else
 		{
+			// Create the ROLE_DATA with the right tag
 			std::string rvd_tag = rs_rdef.get_name();
 			if (rs_rdef.get_uses_tags())
 				rvd_tag += "_" + rs_tag;
 
 			rvd_port->add_role_binding(RVDPort::ROLE_DATA, rvd_tag, rvd_hdlb);
+
+			// Add a terminal field to the RVD Port's Protocol
+			Field field;
+
+			if (rs_role == RSPort::ROLE_EOP)
+			{
+				field.set_id(NodeMerge::FIELD_EOP);
+			}
+			else if (rs_role == RSPort::ROLE_LPID)
+			{
+				field.set_id(RSPort::FIELD_LPID);
+			}
+			else if (rs_role == RSPort::ROLE_DATA)
+			{
+				field.set_id(RSPort::FIELD_DATA);
+				field.set_domain(this->get_domain_id());
+			}
+			else if (rs_role == RSPort::ROLE_DATA_BUNDLE)
+			{
+				field.set_id(RSPort::FIELD_DATA);
+				field.set_domain(this->get_domain_id());
+				field.set_tag(rs_tag);
+			}
+
+			field.set_width(rvd_hdlb->get_width());
+			proto.add_terminal_field(field, rvd_tag);
 		}
 	}
 

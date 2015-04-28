@@ -85,6 +85,12 @@
     <ClInclude Include="..\..\include\genie\node_clockx.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\genie\net_rs.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_flowconv.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />
@@ -111,5 +117,8 @@
     <ClCompile Include="..\..\src\core\vlog_write.cpp" />
     <ClCompile Include="..\..\src\core\sigroles.cpp" />
     <ClCompile Include="..\..\src\core\node_clockx.cpp" />
+    <ClCompile Include="..\..\src\core\protocol.cpp" />
+    <ClCompile Include="..\..\src\core\net_rs.cpp" />
+    <ClCompile Include="..\..\src\core\node_flowconv.cpp" />
   </ItemGroup>
 </Project>

@@ -19,18 +19,14 @@ namespace
 			m_sink_multibind = true;
 		}
 
-		~NetTopo()
-		{
-		}
-
-		Link* create_link()
+		Link* create_link() override
 		{
 			auto result = new Link();
 			result->asp_add(new ALinkContainment());
 			return result;
 		}
 
-		Port* create_port(Dir dir)
+		Port* create_port(Dir dir) override
 		{
 			return new TopoPort(dir);
 		}

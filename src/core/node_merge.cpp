@@ -9,6 +9,8 @@
 using namespace genie;
 using namespace vlog;
 
+const FieldID NodeMerge::FIELD_EOP = Field::reg();
+
 namespace
 {
 	const std::string MODULE = "genie_merge";
@@ -93,21 +95,31 @@ void NodeMerge::refine(NetType target)
 	if (target == NET_RVD)
 	{
 		// Make bindings for the RVD ports
-		auto port = get_rvd_output();
-		port->set_clock_port_name(CLOCKPORT_NAME);
-		port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
-		port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
+		auto outport = get_rvd_output();
+		outport->set_clock_port_name(CLOCKPORT_NAME);
+		outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
+		outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
+		outport->add_role_binding(RVDPort::ROLE_DATA, "eop", new VlogStaticBinding("o_eop"));
+		outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+		outport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
+		outport->get_proto().set_carried_protocol(&m_proto);
 	
 		int n = get_n_inputs();
 		define_param("NI", n);
 
 		for (int i = 0; i < get_n_inputs(); i++)
 		{
-			auto port = get_rvd_input(i);
+			auto inport = get_rvd_input(i);
 
-			port->set_clock_port_name(CLOCKPORT_NAME);
-			port->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid", 1, i));
-			port->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
+			inport->set_clock_port_name(CLOCKPORT_NAME);
+			inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid", 1, i));
+			inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
+			inport->add_role_binding(RVDPort::ROLE_DATA, "eop", new VlogStaticBinding("i_eop", 1, i));
+			inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, nullptr);
+			inport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
+			inport->get_proto().set_carried_protocol(&m_proto);
+
+			connect(inport, outport, NET_RVD_INTERNAL);
 		}
 	}
 }
@@ -115,4 +127,22 @@ void NodeMerge::refine(NetType target)
 HierObject* NodeMerge::instantiate()
 {
 	throw HierException(this, "node not instantiable");
+}
+
+void NodeMerge::do_post_carriage()
+{
+	// Get data width
+	int dwidth = m_proto.get_total_width();
+
+	// Fix parameter
+	define_param("WIDTH", dwidth);
+
+	// Update DATA_CARRIER role bindings of each input port
+	int n_inputs = get_n_inputs();
+	for (int i = 0; i < n_inputs; i++)
+	{
+		auto port = get_rvd_input(i);
+		auto rb = port->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
+		rb->set_hdl_binding(new VlogStaticBinding("i_data", dwidth, i*dwidth));
+	}
 }

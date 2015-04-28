@@ -20,11 +20,7 @@ namespace
 			ClockPort::ROLE_CLOCK = add_sig_role(SigRole("clock", SigRole::FWD));
 		}
 
-		~NetClock()
-		{
-		}
-
-		Port* create_port(Dir dir)
+		Port* create_port(Dir dir) override
 		{
 			return new ClockPort(dir);
 		}

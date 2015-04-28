@@ -119,6 +119,14 @@ Endpoint::Objects Endpoint::get_remote_objs() const
 	return result;
 }
 
+Endpoint* Endpoint::get_sibling() const
+{
+	Endpoint* ep_inner = get_obj()->get_endpoint(m_type, LinkFace::INNER);
+	Endpoint* ep_outer = get_obj()->get_endpoint(m_type, LinkFace::OUTER);
+
+	return (this == ep_inner)? ep_outer : ep_inner;
+}
+
 
 //
 // Link

@@ -24,11 +24,7 @@ namespace
 			ConduitPort::ROLE_INOUT= add_sig_role(SigRole("inout", SigRole::INOUT, true));
 		}
 
-		~NetConduit()
-		{
-		}
-
-		Port* create_port(Dir dir)
+		Port* create_port(Dir dir) override
 		{
 			return new ConduitPort(dir);
 		}

@@ -4,8 +4,9 @@
 #include "genie/net_reset.h"
 #include "genie/net_rvd.h"
 #include "genie/vlog_bind.h"
-#include "node_flowconv.h"
-#include "net_rs.h"
+#include "genie/node_flowconv.h"
+#include "genie/net_rs.h"
+#include "genie/node_split.h"
 
 using namespace genie;
 using namespace vlog;
@@ -17,19 +18,6 @@ namespace
 	const std::string OUTPORT_NAME = "out";
 	const std::string CLOCKPORT_NAME = "clk";
 	const std::string RESETPORT_NAME = "reset";
-
-	std::string to_binary(int x, int bits)
-	{
-		std::string result;
-
-		while (bits--)
-		{
-			result = ((x & 1) ? "1" : "0") + result;
-			x >>= 1;
-		}
-
-		return result;
-	}
 }
 
 NodeFlowConv::NodeFlowConv(bool to_flow)
@@ -65,6 +53,7 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 	inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 	inport->add_role_binding(RVDPort::ROLE_DATA, intag, new VlogStaticBinding("i_field"));
 	inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
+	inport->get_proto().set_carried_protocol(&m_proto);
 	add_port(inport);
 
 	auto outport = new RVDPort(Dir::OUT, OUTPORT_NAME);
@@ -73,7 +62,10 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 	outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 	outport->add_role_binding(RVDPort::ROLE_DATA, outtag, new VlogStaticBinding("o_field"));
 	outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+	outport->get_proto().set_carried_protocol(&m_proto);
 	add_port(outport);
+
+	connect(inport, outport, NET_RVD_INTERNAL);
 }
 
 void NodeFlowConv::configure()
@@ -93,7 +85,7 @@ void NodeFlowConv::configure()
 
 	// 4) Gather all endpoints of these links into a set. Whether to take src or sinks depends
 	// on flow converter's direction. All srces (or sinks) should be RSLinkpoints. Keep one
-	// exemplar RSLink* associated with each RSLinkpoint* (doesn't matter which0
+	// exemplar RSLink* associated with each RSLinkpoint* (doesn't matter which)
 	std::unordered_map<RSLinkpoint*, RSLink*> lp_to_link;
 	for (auto& link : rs_links)
 	{
@@ -158,8 +150,8 @@ void NodeFlowConv::configure()
 		auto& key = i.first;
 		auto& val = i.second;
 
-		keys_param = to_binary(key, key_width) + keys_param;
-		vals_param = to_binary(val, val_width) + vals_param;
+		keys_param = util::to_binary(key, key_width) + keys_param;
+		vals_param = util::to_binary(val, val_width) + vals_param;
 
 		// Make the string pretty by separating concatenated binary strings with underscores
 		if (--entries_written)
@@ -176,6 +168,15 @@ void NodeFlowConv::configure()
 	// Create the parameters as string literals
 	define_param("IF", Expression::build_hack_expression(keys_param));
 	define_param("OF", Expression::build_hack_expression(vals_param));
+
+	// Set up RVD protocol
+	FieldID key_fid = m_to_flow? RSPort::FIELD_LPID : NodeSplit::FIELD_FLOWID;
+	FieldID val_fid = m_to_flow? NodeSplit::FIELD_FLOWID : RSPort::FIELD_LPID;
+	const std::string& keytag = m_to_flow? "lpid" : "flow_id";
+	const std::string& valtag = m_to_flow? "flow_id" : "lpid";
+
+	get_input()->get_proto().add_terminal_field(Field(key_fid, key_width), keytag);
+	get_output()->get_proto().add_terminal_field(Field(val_fid, val_width), valtag);
 }
 
 RVDPort* NodeFlowConv::get_input() const
@@ -191,4 +192,9 @@ RVDPort* NodeFlowConv::get_output() const
 HierObject* NodeFlowConv::instantiate()
 {
 	throw HierException(this, "node not instantiable");
+}
+
+void NodeFlowConv::do_post_carriage()
+{
+	define_param("WD", m_proto.get_total_width());
 }

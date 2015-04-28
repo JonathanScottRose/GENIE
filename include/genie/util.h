@@ -224,5 +224,19 @@ namespace genie
 			}
 			return result;
 		}
+
+		// Int to binary string
+		static std::string to_binary(unsigned int x, int bits)
+		{
+			std::string result;
+
+			while (bits--)
+			{
+				result = ((x & 1) ? "1" : "0") + result;
+				x >>= 1;
+			}
+
+			return result;
+		}
 	}
 }

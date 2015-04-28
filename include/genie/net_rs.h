@@ -4,6 +4,7 @@
 #include "genie/structure.h"
 #include "genie/net_topo.h"
 #include "genie/value.h"
+#include "genie/protocol.h"
 
 namespace genie
 {
@@ -38,6 +39,9 @@ namespace genie
 		static SigRoleID ROLE_LPID;
 		static SigRoleID ROLE_EOP;
 		static SigRoleID ROLE_SOP;
+
+		static const FieldID FIELD_LPID;
+		static const FieldID FIELD_DATA;
 
 		RSPort(Dir dir);
 		RSPort(Dir dir, const std::string& name);

@@ -12,9 +12,9 @@
 #include "genie/vlog.h"
 #include "genie/vlog_bind.h"
 #include "flow.h"
-#include "net_rs.h"
+#include "genie/net_rs.h"
 #include "globals.h"
-#include "node_flowconv.h"
+#include "genie/node_flowconv.h"
 
 using namespace genie;
 using namespace genie::graphs;
@@ -343,14 +343,92 @@ namespace
 		}
 	}
 
+	void rvd_configure_split_nodes(System* sys)
+	{
+		// Now that the Split nodes have been connected to RVD links (that carry RS links),
+		// each node can configure its internal routing table
+		auto sp_nodes = sys->get_children_by_type<NodeSplit>();
+		for (auto node : sp_nodes)
+		{
+			node->configure();
+		}
+	}
+
 	void rvd_do_carriage(System* sys)
 	{
 		auto rs_links = sys->get_links(NET_RS);
 
-		for (auto& link : rs_links)
+		// Traverse every end-to-end RS link
+		for (auto& rs_link : rs_links)
 		{
+			// Get e2e RS ports (physical ones, ignoring Linkpoints)
+			auto rs_src = RSPort::get_rs_port(rs_link->get_src());
+			auto rs_sink = RSPort::get_rs_port(rs_link->get_sink());
 
+			// Extract their associated RVD ports
+			auto e2e_rvd_src = rs_src->get_rvd_port();
+			auto e2e_rvd_sink = rs_sink->get_rvd_port();
+
+			// Initialize a carriage set to empty. This holds the Fields that need to be
+			// carried across the next RVD link in the chain from e2e_sink to e2e_src.
+			FieldSet carriage_set;
+
+			// Start at the final sink and work backwards to the source
+			auto cur_rvd_sink = e2e_rvd_sink;
+
+			// Loop until we've traversed the entire chain of RVD links from sink to source
+			while(true)
+			{
+				// First, get the local RVD link feeding the current RVD sink
+				auto rvd_link_ext = cur_rvd_sink->get_endpoint_sysface(NET_RVD)->get_link0();
+				assert(rvd_link_ext);
+
+				// The next-hop feeder of the RVD link
+				auto cur_rvd_src = (RVDPort*)rvd_link_ext->get_src();
+
+				// Exit if we've reached the beginning
+				if (cur_rvd_src == e2e_rvd_src)
+					break;
+
+				// Protocols of local src/sink
+				auto& sink_proto = cur_rvd_sink->get_proto();
+				auto& src_proto = cur_rvd_src->get_proto();
+
+				// Carriage set += (what sink needs) - (what src provides)
+				carriage_set.add(sink_proto.terminal_fields());
+				carriage_set.subtract(src_proto.terminal_fields());
+
+				// Make the intermediate Node carry the carriage set
+				CarrierProtocol* carrier_proto = src_proto.get_carried_protocol();
+				if (carrier_proto)
+					carrier_proto->add_set(carriage_set);
+				else
+					carriage_set.clear();
+
+				// Traverse backwards through the Node to find the next input RVD port to visit
+				cur_rvd_sink = nullptr;
+				auto src_int_ep = cur_rvd_src->get_endpoint(NET_RVD_INTERNAL, LinkFace::INNER);
+				for (auto int_link : src_int_ep->links())
+				{
+					auto candidate = (RVDPort*)int_link->get_src();
+					auto cand_rvd_link = candidate->get_endpoint_sysface(NET_RVD)->get_link0();
+					auto ac = cand_rvd_link->asp_get<ALinkContainment>();
+					auto cand_rs_links = ac->get_all_parent_links(NET_RS);
+					for (auto cand_rs_link : cand_rs_links)
+					{
+						if (cand_rs_link == rs_link)
+						{
+							cur_rvd_sink = candidate;
+							break;
+						}
+					}
+				}
+				assert(cur_rvd_sink);
+			}
 		}
+
+		// Tell everyone in the System to update themselves to reflect the carriage
+		sys->do_post_carriage();
 	}
 
 	void rvd_connect_clocks(System* sys)
@@ -466,17 +544,9 @@ namespace
 			if (v_a == v_b)
 				continue;
 
-			// Determine weight based on sum of widths of fields common
-			// to both ends of the Conn
-			int weight = 1;
-			/*
-			for (auto& i : data_a->get_proto().fields())
-			{
-				auto pf = i.second;	
-				if (data_b->get_proto().has_field(i.first))
-					weight += pf->width;
-			}*/
-
+			// The weight of the edge is the width of signals crossing from a to b
+			int weight = PortProtocol::calc_transmitted_width(rvd_a->get_proto(), rvd_b->get_proto());
+			
 			// Create and add edge with weight
 			EdgeID e = G.newe(v_a, v_b);
 			weights[e] = weight;
@@ -495,9 +565,9 @@ namespace
 			}
 			
 			return p->get_hier_path(sys) + " (" +  std::to_string(v) + ")";
-		}, [](EdgeID e)
+		}, [&](EdgeID e)
 		{
-			return std::to_string(e);
+			return std::to_string(weights[e]);
 		});*/
 
 		// Call multiway cut algorithm, get vertex->terminal mapping
@@ -635,9 +705,11 @@ namespace
 		
 		// Various RVD processing
 		rvd_insert_flow_convs(sys);
+		rvd_configure_split_nodes(sys);
 		rvd_do_carriage(sys);
 		rvd_connect_clocks(sys);
 		rvd_insert_clockx(sys);
+		rvd_do_carriage(sys);
 		rvd_connect_resets(sys);
 
 		// Hand off to Verilog processing and output

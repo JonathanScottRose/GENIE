@@ -14,8 +14,10 @@ namespace genie
 		RVDPort* get_output() const;
 
 		HierObject* instantiate() override;
+		void do_post_carriage() override;
 
 	protected:
 		bool m_to_flow;
+		CarrierProtocol m_proto;
 	};
 }

@@ -42,6 +42,8 @@ namespace genie
 		
 		bool is_connected() const;
 
+		Endpoint* get_sibling() const;
+
 	protected:
 		Port* m_obj;
 		Dir m_dir;

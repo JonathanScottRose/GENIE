@@ -308,6 +308,13 @@ Node::Node(const Node& o)
 Node::~Node()
 {
 	delete m_hdl_info;
+
+	// Clean up links
+	for (auto& links : m_links)
+	{
+		// m_links is a map of Lists. here we delete each List
+		util::delete_all(links.second);
+	}
 }
 
 expressions::NameResolver Node::get_exp_resolver()
@@ -415,32 +422,12 @@ void Node::set_hdl_info(NodeHDLInfo* info)
 	info->set_node(this);
 }
 
-
-//
-// System
-//
-
-System::System()
-	: Node()
-{
-}
-
-System::~System()
-{
-	// Clean up links
-	for (auto& links : m_links)
-	{
-		// m_links is a map of Lists. here we delete each List
-		util::delete_all(links.second);
-	}
-}
-
-System::NetTypes System::get_net_types() const
+Node::NetTypes Node::get_net_types() const
 {
 	return util::keys<NetTypes>(m_links);
 }
 
-System::Links System::get_links() const
+Node::Links Node::get_links() const
 {
 	Links result;
 	for (const auto& i : m_links)
@@ -450,13 +437,13 @@ System::Links System::get_links() const
 	return result;
 }
 
-System::Links System::get_links(NetType type) const
+Node::Links Node::get_links(NetType type) const
 {
 	auto it = m_links.find(type);
 	return (it == m_links.end())? Links() : it->second;
 }
 
-System::Links System::get_links(Port* src, Port* sink, NetType nettype) const
+Node::Links Node::get_links(Port* src, Port* sink, NetType nettype) const
 {
 	Links result;
 	Endpoint* src_ep;
@@ -477,7 +464,7 @@ System::Links System::get_links(Port* src, Port* sink, NetType nettype) const
 	return result;
 }
 
-System::Links System::get_links(Port* src, Port* sink) const
+Node::Links Node::get_links(Port* src, Port* sink) const
 {
 	NetType nettype = find_auto_net_type(src, sink);
 	if (nettype == NET_INVALID)
@@ -486,26 +473,37 @@ System::Links System::get_links(Port* src, Port* sink) const
 	return get_links(src, sink, nettype);
 }
 
-void System::get_eps(Port*& src, Port*& sink, NetType nettype,
+void Node::get_eps(Port*& src, Port*& sink, NetType nettype,
 	Endpoint*& src_ep, Endpoint*& sink_ep) const
 {
-	// Ensure src/sink are somewhere within this System
-	for (auto port : {src, sink})
+	// Find out where each Port lies within this Node:
+	// 1) Port is at the boundary of this Node: use inward-facing endpoint to connect
+	// 2) Port is at the boundary of a Node whose parent is this Node: use outward-facing endpoint
+	// 3) Anything else: error
+	LinkFace src_face, sink_face;
+	for (auto& i : { std::make_pair(&src_face, src), std::make_pair(&sink_face, sink) })
 	{
-		// Find the first parent System, make sure it's us.
-		bool in_sys = false;
-		HierObject* sys = port;
-		while (sys && !(in_sys = is_a<System*>(sys)))
-			sys = sys->get_parent();
-
-		if (!in_sys || sys != this)
-			throw HierException(port, "can't connect, not a member of system " + get_name());
+		LinkFace* pface = i.first;
+		Port* port = i.second;
+		Node* portnode = port->get_node();
+		
+		if (portnode == this)
+		{
+			*pface = LinkFace::INNER;
+		}
+		else if (portnode->get_parent() == this)
+		{
+			*pface = LinkFace::OUTER;
+		}
+		else
+		{
+			throw HierException(port, "can't connect, not within bounds of node " + get_hier_path());
+		}		
 	}
 
-	// If src or sink is a (or is a child of) a System boundary port, then we need to use
-	// its inward-facing Endpoint rather than its outward-facing one
-	src_ep = src->get_endpoint_sysface(nettype);
-	sink_ep = sink->get_endpoint_sysface(nettype);
+	// Get the respective endpoints
+	src_ep = src->get_endpoint(nettype, src_face);
+	sink_ep = sink->get_endpoint(nettype, sink_face);
 
 	// Validate that both src/sink eps exist are connectable with the given nettype
 	if (!src_ep || !sink_ep)
@@ -524,7 +522,7 @@ void System::get_eps(Port*& src, Port*& sink, NetType nettype,
 	}
 }
 
-Link* System::connect(Port* src, Port* sink, NetType net)
+Link* Node::connect(Port* src, Port* sink, NetType net)
 {
 	Network* def = Network::get(net);
 	Endpoint* src_ep;
@@ -547,7 +545,7 @@ Link* System::connect(Port* src, Port* sink, NetType net)
 	return link;
 }
 
-NetType System::find_auto_net_type(Port* src, Port* sink) const
+NetType Node::find_auto_net_type(Port* src, Port* sink) const
 {
 	// Use the Port's nominal net type, and make sure both ports have it
 	NetType result = src->get_type();
@@ -576,17 +574,17 @@ NetType System::find_auto_net_type(Port* src, Port* sink) const
 	*/
 }
 
-Link* System::connect(Port* src, Port* sink)
+Link* Node::connect(Port* src, Port* sink)
 {
 	NetType nettype = find_auto_net_type(src, sink);
 
 	if (nettype == NET_INVALID)
-		throw Exception("Could not automatically determine network type to connect on");
+		throw Exception("could not automatically determine network type to connect on");
 
 	return connect(src, sink, nettype);
 }
 
-void System::disconnect(Port* src, Port* sink, NetType nettype)
+void Node::disconnect(Port* src, Port* sink, NetType nettype)
 {
 	Endpoint* src_ep;
 	Endpoint* sink_ep;
@@ -605,7 +603,7 @@ void System::disconnect(Port* src, Port* sink, NetType nettype)
 	}
 }
 
-void System::disconnect(Link* link)
+void Node::disconnect(Link* link)
 {
 	Endpoint* src_ep = link->get_src_ep();
 	Endpoint* sink_ep = link->get_sink_ep();
@@ -624,7 +622,7 @@ void System::disconnect(Link* link)
 		m_links.erase(nettype);
 }
 
-void System::disconnect(Port* src, Port* sink)
+void Node::disconnect(Port* src, Port* sink)
 {
 	NetType nettype = find_auto_net_type(src, sink);
 
@@ -634,7 +632,7 @@ void System::disconnect(Port* src, Port* sink)
 	disconnect(src, sink, nettype);
 }
 
-Link* System::splice(Link* orig, Port* new_sink, Port* new_src)
+Link* Node::splice(Link* orig, Port* new_sink, Port* new_src)
 {
 	//
 	// orig_src --> orig --> orig_sink
@@ -675,39 +673,7 @@ Link* System::splice(Link* orig, Port* new_sink, Port* new_src)
 	return new_link;
 }
 
-System::Objects System::get_objects() const
-{
-	return get_children();
-}
-
-System::Nodes System::get_nodes() const
-{
-	return get_children_by_type<Node>();
-}
-
-System::Exports System::get_exports() const
-{
-	return get_children_by_type<Port>();
-}
-
-void System::add_object(HierObject* obj)
-{
-	// System's Parent aspect
-	add_child(obj);
-}
-
-HierObject* System::get_object(const HierPath& path) const
-{
-	return get_child(path);
-}
-
-void System::delete_object(const HierPath& path)
-{
-	HierObject* obj = remove_child(path);
-	delete obj;
-}
-
-void System::write_dot(const std::string& filename, NetType nettype)
+void Node::write_dot(const std::string& filename, NetType nettype)
 {
 	// Open file, create top-level graph
 	std::ofstream out(filename + ".dot");
@@ -737,6 +703,44 @@ void System::write_dot(const std::string& filename, NetType nettype)
 	// Finish main graph
 	out << "}" << std::endl;
 	out.close();
+}
+
+void Node::do_post_carriage()
+{
+}
+
+//
+// System
+//
+
+System::System()
+	: Node()
+{
+}
+
+System::~System()
+{
+}
+
+System::Objects System::get_objects() const
+{
+	return get_children();
+}
+
+System::Nodes System::get_nodes() const
+{
+	return get_children_by_type<Node>();
+}
+
+System::Exports System::get_exports() const
+{
+	return get_children_by_type<Port>();
+}
+
+void System::delete_object(const HierPath& path)
+{
+	HierObject* obj = remove_child(path);
+	delete obj;
 }
 
 //
@@ -769,6 +773,16 @@ List<Node*> HierRoot::get_non_systems()
 	{
 		return as_a<const System*>(o) == nullptr;
 	});
+}
+
+void System::do_post_carriage()
+{
+	// Forward event to child nodes
+	auto nodes = get_nodes();
+	for (auto& node : nodes)
+	{
+		node->do_post_carriage();
+	}
 }
 
 //

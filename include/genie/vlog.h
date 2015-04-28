@@ -163,7 +163,7 @@ namespace vlog
 		List<ConstValue*> m_const_values;
 	};
 
-	void flow_write_system(System*);
+	void write_system(System*);
 	void flow_process_system(System*);
 	HDLBinding* export_binding(System*, genie::Port*, HDLBinding*);
 }

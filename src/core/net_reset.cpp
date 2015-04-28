@@ -20,11 +20,7 @@ namespace
 			ResetPort::ROLE_RESET = add_sig_role(SigRole("reset", SigRole::FWD));
 		}
 
-		~NetReset()
-		{
-		}
-
-		Port* create_port(Dir dir)
+		Port* create_port(Dir dir) override
 		{
 			return new ResetPort(dir);
 		}

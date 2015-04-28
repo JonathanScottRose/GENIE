@@ -24,26 +24,41 @@ namespace
 			RVDPort::ROLE_DATA_CARRIER = add_sig_role(SigRole("xdata", SigRole::FWD, false));
 		}
 
-		~NetRVD()
-		{
-		}
-
-		Link* create_link()
+		Link* create_link() override
 		{
 			auto result = new Link();
 			result->asp_add(new ALinkContainment());
 			return result;
 		}
 
-		Port* create_port(Dir dir)
+		Port* create_port(Dir dir) override
 		{
 			return new RVDPort(dir);
+		}
+	};
+
+	class NetRVDInternal : public Network
+	{
+	public:
+		NetRVDInternal(NetType id)
+			: Network(id)
+		{
+			m_name = "rvd_internal";
+			m_desc = "Represents RVD connectivity internal to Nodes";
+			m_src_multibind = true;
+			m_sink_multibind = true;
+		}
+
+		Port* create_port(Dir dir)
+		{
+			throw Exception("don't do that.");
 		}
 	};
 }
 
 // Register the network type
 const NetType genie::NET_RVD = Network::add<NetRVD>();
+const NetType genie::NET_RVD_INTERNAL = Network::add<NetRVDInternal>();
 SigRoleID genie::RVDPort::ROLE_DATA;
 SigRoleID genie::RVDPort::ROLE_DATA_CARRIER;
 SigRoleID genie::RVDPort::ROLE_VALID;
@@ -56,6 +71,7 @@ SigRoleID genie::RVDPort::ROLE_READY;
 RVDPort::RVDPort(Dir dir)
 : Port(dir, NET_RVD)
 {
+	set_connectable(NET_RVD_INTERNAL, dir);
 }
 
 RVDPort::RVDPort(Dir dir, const std::string& name)

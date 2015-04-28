@@ -18,6 +18,7 @@ namespace genie
 
 		Value& operator=(int v);
 		bool operator==(const Value&) const;
+		bool operator<(const Value&) const;
 		operator int() const;
 
 		const std::vector<int>& get() const;

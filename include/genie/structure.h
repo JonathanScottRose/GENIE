@@ -95,46 +95,36 @@ namespace genie
 	class Node : public HierObject
 	{
 	public:
+		typedef List<Link*> Links;
 		typedef List<Port*> Ports;
+		typedef List<NetType> NetTypes;
 
 		Node();
 		Node(const Node&);
 		virtual ~Node();
 
+		HierObject* instantiate() override;
+
+		// Hack: should be part of generic event handling system
+		virtual void do_post_carriage();
+
+		// Ports
 		Ports get_ports(NetType) const;
 		Ports get_ports() const;
 		Port* get_port(const std::string& name) const;
 		Port* add_port(Port*);
 		void delete_port(const std::string& name);
 
-		HierObject* instantiate() override;
-
+		// Parameters
 		PROP_DICT(Params, param, ParamBinding);
 		List<ParamBinding*> get_params(bool are_bound);
 		ParamBinding* define_param(const std::string&);
 		ParamBinding* define_param(const std::string&, const Expression&);
-
-		PROP_GET(hdl_info, NodeHDLInfo*, m_hdl_info);
-		void set_hdl_info(NodeHDLInfo*);
-
 		expressions::NameResolver get_exp_resolver();
 
-	protected:
-		NodeHDLInfo* m_hdl_info;	
-	};
-
-	class System : public Node
-	{
-	public:
-		typedef List<Link*> Links;
-		typedef List<NetType> NetTypes;
-		typedef List<Node*> Nodes;
-		typedef List<Port*> Exports;
-		typedef List<HierObject*> Objects;
-
-		System();
-		System(const System&) = delete;
-		~System();
+		// HDL Info
+		PROP_GET(hdl_info, NodeHDLInfo*, m_hdl_info);
+		void set_hdl_info(NodeHDLInfo*);
 
 		// Link-related
 		NetTypes get_net_types() const;
@@ -150,23 +140,36 @@ namespace genie
 		void disconnect(Link*);
 		Link* splice(Link* orig, Port* new_sink, Port* new_src);
 
-		// Access children
-		Objects get_objects() const;
-		Nodes get_nodes() const;
-		Exports get_exports() const;
-
-		void add_object(HierObject*);
-		HierObject* get_object(const HierPath& path) const;
-		void delete_object(const HierPath& path);
-
 		// Debug
 		void write_dot(const std::string& filename, NetType nettype);
-		
+
 	protected:
 		NetType find_auto_net_type(Port*, Port*) const;
 		void get_eps(Port*&, Port*&, NetType, Endpoint*&, Endpoint*&) const;
 
+		NodeHDLInfo* m_hdl_info;
 		std::unordered_map<NetType, Links> m_links;
+	};
+
+	class System : public Node
+	{
+	public:
+		typedef List<Node*> Nodes;
+		typedef List<Port*> Exports;
+		typedef List<HierObject*> Objects;
+
+		System();
+		System(const System&) = delete;
+		~System();
+
+		// Access children
+		Objects get_objects() const;
+		Nodes get_nodes() const;
+		Exports get_exports() const;
+		void delete_object(const HierPath& path);
+
+		// Hack: should be part of generic event handling system
+		void do_post_carriage() override;
 	};
 
 	class HierRoot : public HierObject
