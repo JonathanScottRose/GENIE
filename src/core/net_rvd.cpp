@@ -49,9 +49,14 @@ namespace
 			m_sink_multibind = true;
 		}
 
-		Port* create_port(Dir dir)
+		Port* create_port(Dir dir) override
 		{
 			throw Exception("don't do that.");
+		}
+
+		Link* create_link() override
+		{
+			return new RVDInternalLink();
 		}
 	};
 }

@@ -91,6 +91,9 @@
     <ClInclude Include="..\..\include\genie\node_flowconv.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_reg.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />
@@ -120,5 +123,6 @@
     <ClCompile Include="..\..\src\core\protocol.cpp" />
     <ClCompile Include="..\..\src\core\net_rs.cpp" />
     <ClCompile Include="..\..\src\core\node_flowconv.cpp" />
+    <ClCompile Include="..\..\src\core\node_reg.cpp" />
   </ItemGroup>
 </Project>

@@ -34,4 +34,13 @@ namespace genie
 		PortProtocol m_proto;
 		std::string m_clk_port_name;
 	};
+
+	class RVDInternalLink : public Link
+	{
+	public:
+		PROP_GET_SET(latency, int, m_latency);
+
+	protected:
+		int m_latency = 0;
+	};
 }
