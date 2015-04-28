@@ -5,6 +5,8 @@
 #include "genie/net_topo.h"
 #include "genie/genie.h"
 #include "genie/vlog_bind.h"
+#include "genie/graph.h"
+#include "genie/net_rs.h"
 
 using namespace genie;
 using namespace vlog;
@@ -26,7 +28,7 @@ void NodeMerge::init_vlog()
 {
 	using namespace vlog;
 
-	auto vinfo = new NodeVlogInfo(m_exclusive? MODULE_EX : MODULE);
+	auto vinfo = new NodeVlogInfo(MODULE);
 
 	vinfo->add_port(new vlog::Port("clk", 1, vlog::Port::IN));
 	vinfo->add_port(new vlog::Port("reset", 1, vlog::Port::IN));
@@ -145,4 +147,84 @@ void NodeMerge::do_post_carriage()
 		auto rb = port->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
 		rb->set_hdl_binding(new VlogStaticBinding("i_data", dwidth, i*dwidth));
 	}
+}
+
+void NodeMerge::do_exclusion_check()
+{
+	using namespace graphs;
+
+	int n_inputs = get_n_inputs();
+	
+	// For each input, holds the RS links connected to it
+	List<List<RSLink*>> links(n_inputs);
+
+	// Vertices represent RSLinks, edges represent possible temporal non-exclusivity
+	Graph G;
+	RVAttr<RSLink*> link_to_v;
+
+	// Gather all RS Links at every input port, create vertices for them
+	for (int i = 0; i < n_inputs; i++)
+	{
+		RVDPort* port = get_rvd_input(i);
+		List<RSLink*>& links_at_port = links[i];
+
+		// Populate list for this port
+		links_at_port = RSLink::get_from_rvd_port(port);
+
+		// Create vertices
+		for (auto link : links_at_port)
+		{
+			VertexID v = G.newv();
+			link_to_v[link] = v;
+		}
+	}
+
+	// Create edges based on exclusivity groups
+	for (int i = 0; i < n_inputs; i++)
+	{
+		const List<RSLink*>& links_at_port = links[i];
+		
+		for (auto link1 : links_at_port)
+		{
+			VertexID v1 = link_to_v[link1];
+
+			auto asp = link1->asp_get<ARSExclusionGroup>();
+			if (!asp)
+				continue;
+
+			for (auto link2 : asp->get_others())
+			{
+				VertexID v2 = link_to_v[link2];
+				assert(v1 != v2);
+
+				if (!G.hase(v1, v2))
+					G.newe(v1, v2);
+			}
+		}
+	}
+
+	// Complement the graph (having an edge now means POSSIBLY NOT EXCLUSIVE)
+	G.complement();
+
+	// Collapse all vertices belonging to each port. This leaves one vertex representing all the
+	// links at each port, and edges between the ports representing which ports are exclusive.
+	for (int i = 0; i < n_inputs; i++)
+	{
+		const List<RSLink*>& links_at_port = links[i];
+		VertexID v0 = link_to_v[links_at_port[0]];
+		for (unsigned j = 1; j < links_at_port.size(); j++)
+		{
+			VertexID v = link_to_v[links_at_port[j]];
+			G.mergev(v, v0);
+		}
+	}
+
+	// Count connected components. If this equals the number of ports, then all ports are
+	// mutually exclusive.
+	int comps = connected_comp(G, nullptr, nullptr);
+	bool exclusive = comps == n_inputs;
+
+	// Set the type of merge node based on this result
+	if (exclusive)
+		((NodeVlogInfo*)get_hdl_info())->set_module_name(MODULE_EX);
 }

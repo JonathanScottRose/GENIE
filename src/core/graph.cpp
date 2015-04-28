@@ -142,9 +142,9 @@ void Graph::connect(VertexID vid1, VertexID vid2, EdgeID eid)
 		v2.edges.push_back(eid);
 }
 
-VertexID Graph::otherv(EdgeID eid, VertexID self)
+VertexID Graph::otherv(EdgeID eid, VertexID self) const
 {
-	Edge& e = gete(eid);
+	const Edge& e = gete(eid);
 	
 	assert(e.v1 == self || e.v2 == self);
 	return (e.v1 == self) ? e.v2 : e.v1;
@@ -214,7 +214,24 @@ void Graph::dele(EdgeID eid)
 	E.erase(eid);
 }
 
-EList Graph::edges(VertexID vid1, VertexID vid2)
+bool Graph::hasv(VertexID v) const
+{
+	return V.count(v) > 0;
+}
+
+bool Graph::hase(EdgeID e) const
+{
+	return E.count(e) > 0;
+}
+
+bool Graph::hase(VertexID v1, VertexID v2) const
+{
+	return hasv(v1) && hasv(v2) &&
+		edge(v1, v2) != INVALID_E;
+}
+
+
+EList Graph::edges(VertexID vid1, VertexID vid2) const
 {
 	EList result;
 
@@ -228,7 +245,7 @@ EList Graph::edges(VertexID vid1, VertexID vid2)
 	return result;
 }
 
-EdgeID Graph::edge(VertexID vid1, VertexID vid2)
+EdgeID Graph::edge(VertexID vid1, VertexID vid2) const
 {
 	auto ee = edges(vid1, vid2);
 	assert(ee.size() < 2);
@@ -367,4 +384,31 @@ VList Graph::connected_verts(VertexID t)
 	}
 
 	return result;
+}
+
+void Graph::complement()
+{
+	for (auto& v1 : iter_verts())
+	{
+		for (auto& v2 : iter_verts())
+		{
+			if (v2 < v1)
+				continue;
+
+			EdgeID e = edge(v1, v2);
+			if (e == INVALID_E)
+				newe(v1, v2);
+			else
+				dele(e);
+		}
+	}
+}
+
+void Graph::mergev(const VList& list)
+{
+	VertexID v0 = list.front();
+	for (int i = 1; i < list.size(); i++)
+	{
+		mergev(list[i], v0);
+	}
 }

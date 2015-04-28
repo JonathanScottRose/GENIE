@@ -66,6 +66,40 @@ namespace
 		return index;
 	}
 
+	// Extracts a list of Objects from a Lua array/set
+	// Array: objects are table values
+	// Set: objects are table keys
+	// ARGS: table
+	// RETURNS: list of objects
+	template<class T>
+	List<T*> get_array_or_set(lua_State* L, int tablepos)
+	{
+		List<T*> result;
+		tablepos = lua_absindex(L, tablepos);
+
+		lua_pushnil(L);
+		while (lua_next(L, tablepos))
+		{
+			// Try key
+			T* obj = lua::is_object<T>(-2);
+			
+			// Try value
+			if (!obj)
+				obj = lua::is_object<T>(-1);
+
+			if (!obj)
+			{
+				lua::lerror("table entry doesn't have " + lua::obj_typename<T>() + 
+				" as either key or value");
+			}
+
+			result.push_back(obj);
+			lua_pop(L, 1);
+		}
+
+		return result;
+	}
+
 	//
 	// HierObject (re-used for many classes)
 	//
@@ -298,11 +332,22 @@ namespace
 		return hier_get_children_by_type<System>(L);
 	}
 
+	// Marks a set of RS links as temporally exclusive
+	// ARGS: array/set of RSLinks
+	// RETURNS: nothing
+	LFUNC(glob_make_exclusive)
+	{
+		auto links = get_array_or_set<RSLink>(L, 1);
+		ARSExclusionGroup::process_and_create(links);
+		return 0;
+	}
+
 	LGLOBALS(
 	{
 		LM(get_object, glob_get_object),
 		LM(get_objects, glob_get_objects),
-		LM(get_systems, glob_get_systems)
+		LM(get_systems, glob_get_systems),
+		LM(make_exclusive, glob_make_exclusive)
 	});
 
 	//

@@ -24,11 +24,11 @@ namespace genie
 		void refine(NetType) override;
 		HierObject* instantiate() override;
 		void do_post_carriage() override;
+		void do_exclusion_check();
 
 	protected:
 		void init_vlog();
 
-		bool m_exclusive;
 		CarrierProtocol m_proto;
 	};
 }

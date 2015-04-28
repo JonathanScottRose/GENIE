@@ -38,14 +38,20 @@ namespace lua
 			name = _name;
 			methods = _methods;
 			statics = _statics;
+
+			// Check func: returns whether o is castable to type T
 			cfunc = [](const Object* o)
 			{
 				return dynamic_cast<const T*>(o) != nullptr;
 			};
+
+			// Throw func: throws an object of type T*
 			throwfunc = []()
 			{
 				throw static_cast<T*>(nullptr);
 			};
+
+			// Catch func: returns whether the given throwfunc throws an object of type T*
 			catchfunc = [](const RTTIThrowFunc& th)
 			{
 				try	{ th();	}
@@ -67,19 +73,35 @@ namespace lua
 	}
 
 	template<class T>
-	T* check_object(int narg)
+	T* is_object(int narg)
 	{
 		Object* obj = priv::check_object(narg);
 		T* result = as_a<T*>(obj);
+
+		return result;
+	}
+
+	template<class T>
+	T* check_object(int narg)
+	{
+		Object* obj = priv::check_object(narg);
+		T* result = is_object<T>(narg);
 		if (!result)
 		{
 			std::string msg = "can't convert to " + 
-				std::string(typeid(T).name()) + " from " +
-				std::string(typeid(*obj).name());
+				obj_typename<T>() + " from " +
+				obj_typename(obj);
 			luaL_argerror(get_state(), narg, msg.c_str());
 		}
 
 		return result;
+	}
+
+	template<class T>
+	std::string obj_typename(T* ptr)
+	{
+		if (ptr) return typeid(*ptr).name();
+		else return typeid(T).name();
 	}
 }
 }

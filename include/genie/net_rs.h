@@ -2,7 +2,6 @@
 
 #include "genie/networks.h"
 #include "genie/structure.h"
-#include "genie/net_topo.h"
 #include "genie/value.h"
 #include "genie/protocol.h"
 
@@ -10,7 +9,10 @@ namespace genie
 {
 	class RSPort;
 	class RSLinkpoint;
+	class RSLink;
 	class ClockPort;
+	class TopoPort;
+	class RVDPort;
 
 	extern const NetType NET_RS;
 
@@ -18,6 +20,8 @@ namespace genie
 	{
 	public:
 		RSLink();
+
+		static List<RSLink*> get_from_rvd_port(RVDPort*);
 
 		PROP_GET_SETR(flow_id, Value&, m_flow_id);
 		PROP_GET_SET(domain_id, int, m_domain_id);
@@ -27,6 +31,24 @@ namespace genie
 	protected:
 		int m_domain_id;
 		Value m_flow_id;
+	};
+
+	// Attaches to an RSLink to indicate mutually-exclusive communications
+	class ARSExclusionGroup : public AspectWithRef<RSLink>
+	{
+	public:
+		// Get the set (excluding this/owning link)
+		const List<RSLink*>& get_others() const;
+
+		// Union-adds new members (this/owning link filtered out)
+		void add(const List<RSLink*>&);
+
+		// Given a list of RSLinks, adds an ARSExclusionGroup to each one
+		// and adds everyone to each member's set
+		static void process_and_create(const List<RSLink*>&);
+
+	protected:
+		List<RSLink*> m_set;
 	};
 
 	class RSPort : public Port

@@ -354,6 +354,17 @@ namespace
 		}
 	}
 
+	void rvd_configure_merge_nodes(System* sys)
+	{
+		// Make each merge node check for mutual temporal exclusivity on its RS links, so
+		// it can choose a simplified implementation
+		auto mg_nodes = sys->get_children_by_type<NodeMerge>();
+		for (auto node : mg_nodes)
+		{
+			node->do_exclusion_check();
+		}
+	}
+
 	void rvd_do_carriage(System* sys)
 	{
 		auto rs_links = sys->get_links(NET_RS);
@@ -766,6 +777,7 @@ namespace
 		// Various RVD processing
 		rvd_insert_flow_convs(sys);
 		rvd_configure_split_nodes(sys);
+		rvd_configure_merge_nodes(sys);
 		rvd_do_carriage(sys);
 		rvd_connect_clocks(sys);
 		rvd_insert_clockx(sys);

@@ -92,6 +92,11 @@ namespace graphs
 		EdgeID newe();
 		EdgeID newe(VertexID v1, VertexID v2);
 
+		// Existence query
+		bool hasv(VertexID v) const;
+		bool hase(EdgeID e) const;
+		bool hase(VertexID v1, VertexID v2) const;
+
 		// Deletion
 		void delv(VertexID v);
 		void dele(EdgeID e);		
@@ -99,15 +104,15 @@ namespace graphs
 		// Vertex properties
 		EList& edges(VertexID v);
 		const EList& edges(VertexID v) const;
-		EList edges(VertexID v1, VertexID v2);
-		EdgeID edge(VertexID v1, VertexID v2);
+		EList edges(VertexID v1, VertexID v2) const;
+		EdgeID edge(VertexID v1, VertexID v2) const;
 		VList neigh(VertexID v);
 		EList dir_edges(VertexID v1, VertexID v2);
 		EdgeID dir_edge(VertexID v1, VertexID v2);
 
 		// Edge properties
 		VPair verts(EdgeID e);
-		VertexID otherv(EdgeID e, VertexID self);
+		VertexID otherv(EdgeID e, VertexID self) const;
 		void set_otherv(EdgeID e, VertexID self, VertexID newdest);
 		EdgeID redge(EdgeID e); // reverse edge, if it exists
 
@@ -117,9 +122,14 @@ namespace graphs
 
 		// Merge two vertices src and dest leaving only dest, deleting any duplicated edges
 		void mergev(VertexID src, VertexID dest);
+		// Same thing but collapse a whole set of vertices (merge into first vertex of list)
+		void mergev(const VList&);
 
 		// Return a list of all vertices reachable from t, including t itself
 		VList connected_verts(VertexID t);
+
+		// Complement the graph (invert edge existence between all vertices)
+		void complement();
 
 		// Dump the graph to a .dot file, with an optional edge annotation function
 		void dump(const std::string& filename,

@@ -257,14 +257,14 @@ function define_cpu(b, N_CPU, N_MEM, IS_BPU, sysname)
         -- Cache Sources
         b:link('left0.rdresp.pipe','pipe.left_rdresp','l0_pipe')
         b:link('left1.rdresp.pipe','pipe.left_rdresp','l1_pipe')
-        b:make_exclusive{'l0_pipe', 'l1_pipe'}
+        b:make_exclusive_by_labels{'l0_pipe', 'l1_pipe'}
         
         b:link('cur0.rdresp.pipe','pipe.cur_rdresp','c0_pipe')
         b:link('cur0.rdresp.net','c2n.rdresp','c0_net')
         b:link('cur1.rdresp.pipe','pipe.cur_rdresp','c1_pipe')
         b:link('cur1.rdresp.net','c2n.rdresp','c1_net')
-        b:make_exclusive{'c0_pipe', 'c1_pipe'}
-        b:make_exclusive{'c0_net', 'c1_net'}
+        b:make_exclusive_by_labels{'c0_pipe', 'c1_pipe'}
+        b:make_exclusive_by_labels{'c0_net', 'c1_net'}
 
         b:link('top.rdresp.pipe','pipe.top_rdresp', 't_pipe')
         
@@ -287,28 +287,25 @@ function define_cpu(b, N_CPU, N_MEM, IS_BPU, sysname)
             for tuple in keys(v) do
                 local whichpage = '0'
                 local target
-                local label
+                local link
                 --PARSE the linkpoint name 
                 if string.find(tuple,'1') then
                     whichpage = '1'
                 end
                 if string.find(tuple,'l') then
                     target = 'left'..whichpage..'.wrreq'
-                    label = source..tuple..target
-                    b:link(source..tuple, target, label)
-                    table.insert(wr_groups[target], label)
+                    link = b:link(source..tuple, target, label)
+                    table.insert(wr_groups[target], link)
                 end
                 if string.find(tuple,'t') then
                     target = 'top'..'.wrreq'
-                    label = source..tuple..target
-                    b:link(source..tuple, target, label)
-                    table.insert(wr_groups[target], label)
+                    link = b:link(source..tuple, target, label)
+                    table.insert(wr_groups[target], link)
                 end
                 if string.find(tuple,'c') then
                     target = 'cur'..whichpage..'.wrreq'
-                    label = source..tuple..target
-                    b:link(source..tuple, target, label)
-                    table.insert(wr_groups[target], label)
+                    link = b:link(source..tuple, target, label)
+                    table.insert(wr_groups[target], link)
                 end
             end
         end
@@ -321,8 +318,8 @@ function define_cpu(b, N_CPU, N_MEM, IS_BPU, sysname)
         b:link('pipe.top_rdreq', 'top.rdreq.pipe', 'piper_t')
         
         -- exclusive-ize read requests
-        b:make_exclusive{'netr_c0', 'piper_cur0'}
-        b:make_exclusive{'netr_c1', 'piper_cur1'}
+        b:make_exclusive_by_labels{'netr_c0', 'piper_cur0'}
+        b:make_exclusive_by_labels{'netr_c1', 'piper_cur1'}
         
         -- exclusive-ize write requests
         for group in svaluesk(wr_groups) do

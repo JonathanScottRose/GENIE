@@ -6,6 +6,24 @@ genie.Builder = class()
 local g = genie;
 local Builder = genie.Builder
 
+local function names2links(self, sys, names)
+    local result = {}
+    local t = self.name2link[sys]
+    for name in values(names) do
+        local link = t[name]
+        if not link then
+            error("no link found with name " .. name .. " in system " .. sys)
+        end
+        table.insert(result, link)
+    end
+    return result
+end
+
+function Builder:__ctor()
+    -- Holds string->Link mappings for each System
+    self.name2link = {}
+end       
+
 function Builder:component(name, modl)
     self.cur_node = g.Node.new(name, modl)
     return self.cur_node
@@ -56,6 +74,9 @@ end
 function Builder:system(name, topofunc)
 	self.cur_sys = g.System.new(name, topofunc)
     self.cur_node = self.cur_sys
+    
+    -- initialize name2link table for this system
+    self.name2link[self.cur_sys] = {}
 end
 
 function Builder:instance(name, comp)
@@ -68,12 +89,28 @@ function Builder:export(port, name)
     self.cur_port = self.cur_sys:make_export(port, name)
 end
 
-function Builder:link(src, dest)
+function Builder:link(src, dest, label)
 	if not self.cur_sys then error("Unexpected 'link'") end
-    self.cur_sys:add_link(src, dest)
+    local link = self.cur_sys:add_link(src, dest)    
+    local n2l = self.name2link[self.cur_sys]
+    if label then 
+        if n2l[label] then
+            error('link with label ' .. label .. ' already exists ' .. 
+                ' in system ' .. self.cur_sys)
+        end
+        n2l[label] = link 
+    end
+    return link
 end
 
-function Builder:make_exclusive()
+function Builder:make_exclusive(s)
+    g.make_exclusive(s)
+end
+
+function Builder:make_exclusive_by_labels(s)
+    if not self.cur_sys then error("No current system defined") end
+    local links = names2links(self, self.cur_sys, s)
+    g.make_exclusive(links)
 end
 
 function Builder:parameter(name, val)

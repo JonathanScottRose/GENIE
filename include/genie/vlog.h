@@ -138,7 +138,7 @@ namespace vlog
 		NodeVlogInfo(const std::string&);
 		~NodeVlogInfo();
 
-		PROP_GET(module_name, const std::string&, m_mod_name);
+		PROP_GET_SET(module_name, const std::string&, m_mod_name);
 		PROP_DICT_NOSET(Ports, port, Port);
 
 		NodeHDLInfo* instantiate() override;

@@ -335,3 +335,66 @@ Link* RSLink::clone() const
 	result->copy_containment(*this);
 	return result;
 }
+
+List<RSLink*> RSLink::get_from_rvd_port(RVDPort* port)
+{
+	List<RSLink*> result;
+
+	// Endpoint
+	auto ep = port->get_endpoint_sysface(NET_RVD);
+	if (!ep)
+		return result;
+
+	// RVD Link
+	auto rvd_link = ep->get_link0();
+	if (!rvd_link)
+		return result;
+
+	// Containment
+	auto ac = rvd_link->asp_get<ALinkContainment>();
+	assert(ac);
+
+	result = util::container_cast<List<RSLink*>>(ac->get_all_parent_links(NET_RS));
+
+	return result;
+}
+
+//
+// ARSExclusionGroup
+//
+
+const List<RSLink*>& ARSExclusionGroup::get_others() const
+{
+	return m_set;
+}
+
+void ARSExclusionGroup::add(const List<RSLink*>& list)
+{
+	for (auto link : list)
+	{
+		// Never include owning link
+		if (link == asp_container())
+			continue;
+
+		// Ignore duplicates too
+		if (util::exists(m_set, link))
+			continue;
+
+		m_set.push_back(link);
+	}
+}
+
+void ARSExclusionGroup::process_and_create(const List<RSLink*>& links)
+{
+	// Go through each link
+	for (auto link : links)
+	{
+		// Get or create aspect
+		auto asp = link->asp_get<ARSExclusionGroup>();
+		if (!asp)
+			asp = link->asp_add(new ARSExclusionGroup());
+
+		// Add all links to everyone's sets
+		asp->add(links);
+	}
+}

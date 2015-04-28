@@ -134,6 +134,13 @@ namespace genie
 			return std::find(cont.begin(), cont.end(), v);
 		}
 
+		// Cast SCONT=container of A* to a DCONT=container of B*
+		template<class DCONT, class SCONT>
+		static DCONT container_cast(const SCONT& cont)
+		{
+			return *(reinterpret_cast<const DCONT*>(&cont));
+		}
+
 		// Create a reverse-mapping.
 		// Take an associative container K->V
 		// And create a new one, mapping V->list(K)

@@ -144,6 +144,12 @@ Set =
 	del = function(s, o)
 		s[o] = nil
 	end,
+    
+    clear = function(s)
+        for k in pairs (s) do
+            s[k] = nil
+        end
+    end,
 	
 	make = function(list)
 		local result = {}

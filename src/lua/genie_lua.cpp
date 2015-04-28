@@ -265,7 +265,7 @@ Object* lua::priv::check_object(int narg)
 {
 	auto ud = (Object**)lua_touserdata(s_state, narg);
 	if (!ud)
-		luaL_argerror(s_state, narg, "not userdata");
+		return nullptr;
 
 	return *ud;
 }
