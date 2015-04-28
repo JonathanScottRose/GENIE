@@ -96,6 +96,8 @@ namespace genie
 		bool is_const(const Field&) const;
 		const Value& get_const_value(const Field&) const;
 
+		bool has(const Field&) const;
+
 		const std::string& get_rvd_tag(const Field&) const;
 
 		PROP_GET_SET(carried_protocol, CarrierProtocol*, m_carry_p);

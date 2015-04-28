@@ -309,6 +309,17 @@ int PortProtocol::calc_transmitted_width(const PortProtocol& src, const PortProt
 	return result;
 }
 
+bool PortProtocol::has(const Field& f) const
+{
+	if (m_terminal_fields.has(f))
+		return true;
+
+	if (m_carry_p && m_carry_p->has(f))
+		return true;
+
+	return false;
+}
+
 //
 // CarrierProtocol
 //

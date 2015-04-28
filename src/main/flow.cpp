@@ -685,6 +685,66 @@ namespace
 		}
 	}
 
+	void rvd_default_eops(System* sys)
+	{
+		// Default unconnected EOPs to 1
+		auto links = sys->get_links(NET_RVD);
+		for (auto link : links)
+		{
+			auto src = (RVDPort*)link->get_src();
+			auto sink = (RVDPort*)link->get_sink();
+
+			auto& src_proto = src->get_proto();
+			auto& sink_proto = sink->get_proto();
+
+			Field f(NodeMerge::FIELD_EOP);
+			if (sink_proto.has(f) && !src_proto.has(f))
+			{
+				sink_proto.set_const(f, Value(1, 1));
+			}
+		}
+	}
+
+	void rvd_default_flowids(System* sys)
+	{
+		// Try to default unconnected FlowIDs.
+		// Use the unique (must be unique) FlowID of the RS link(s) going through the RVD link
+		auto rvd_links = sys->get_links(NET_RVD);
+		for (auto rvd_link : rvd_links)
+		{
+			auto src = (RVDPort*)rvd_link->get_src();
+			auto sink = (RVDPort*)rvd_link->get_sink();
+
+			auto& src_proto = src->get_proto();
+			auto& sink_proto = sink->get_proto();
+
+			Field f(NodeSplit::FIELD_FLOWID);
+			if (sink_proto.has(f) && !src_proto.has(f))
+			{
+				// Get all RS links contained by the RVD link
+				auto ac = rvd_link->asp_get<ALinkContainment>();
+				auto rs_links = ac->get_all_parent_links(NET_RS);
+				assert(rs_links.size() > 0);
+
+				// Use the first one's flow id, ensure it's the rest as the others'
+				auto rs_link = (RSLink*)rs_links.front();
+				const Value& flow_id = rs_link->get_flow_id();
+
+				for (auto& l : rs_links)
+				{
+					auto rs_link = (RSLink*)l;
+					if (rs_link->get_flow_id() != flow_id)
+					{
+						throw HierException(sink, "tried to find a default unique Flow ID but found multiple "
+						"possibilities");
+					}
+				}
+
+				sink_proto.set_const(f, flow_id);
+			}
+		}
+	}
+
 	// Do all work for one System
 	void flow_do_system(System* sys)
 	{
@@ -711,6 +771,9 @@ namespace
 		rvd_insert_clockx(sys);
 		rvd_do_carriage(sys);
 		rvd_connect_resets(sys);
+
+		rvd_default_eops(sys);
+		rvd_default_flowids(sys);
 
 		// Hand off to Verilog processing and output
 		vlog::flow_process_system(sys);
