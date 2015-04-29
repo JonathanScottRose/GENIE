@@ -353,6 +353,8 @@ namespace
 		{
 			write_line("localparam " + i->get_name() + " = " + i->get_expr().to_string() + ";");
 		}
+
+		write_line("");
 	}
 
 	void write_sys_body(SystemVlogInfo* mod)

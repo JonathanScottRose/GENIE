@@ -407,7 +407,7 @@ void Graph::complement()
 void Graph::mergev(const VList& list)
 {
 	VertexID v0 = list.front();
-	for (int i = 1; i < list.size(); i++)
+	for (unsigned i = 1; i < list.size(); i++)
 	{
 		mergev(list[i], v0);
 	}
