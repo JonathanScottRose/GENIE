@@ -6,14 +6,20 @@ genie.Builder = class()
 local g = genie;
 local Builder = genie.Builder
 
-local function names2links(self, sys, names)
-    local result = {}
+-- Private functions for looking up links by their labels
+local function name_to_link(self, sys, name)
     local t = self.name2link[sys]
+    local link = t[name]
+    if not link then
+        error("no link found with name " .. name .. " in system " .. sys)
+    end
+    return link
+end
+    
+local function names_to_links(self, sys, names)
+    local result = {}
     for name in values(names) do
-        local link = t[name]
-        if not link then
-            error("no link found with name " .. name .. " in system " .. sys)
-        end
+        local link = name_to_link(self, sys, name)
         table.insert(result, link)
     end
     return result
@@ -104,13 +110,29 @@ function Builder:link(src, dest, label)
 end
 
 function Builder:make_exclusive(s)
-    g.make_exclusive(s)
-end
-
-function Builder:make_exclusive_by_labels(s)
     if not self.cur_sys then error("No current system defined") end
-    local links = names2links(self, self.cur_sys, s)
-    g.make_exclusive(links)
+
+    -- ignore null args
+    if not s then return end;
+    
+    -- ensure a table, and ignore empty table
+    if type(s) ~= 'table' then 
+        error('expected array/set of labels or RS link objects')
+    end
+    
+    if not next(s) then return end
+    
+    -- based on the first entry in the table, guess whether or not we have
+    -- been given a list of actual objects, or a list of string labels
+    local k0,v0 = next(s)
+    if type(k0) == 'string' or type(v0) == 'string' then
+         s = names_to_links(self, self.cur_sys, s)
+    elseif type(k0) ~= 'userdata' and type(v0) ~= 'userdata' then
+        error('expected array/set of labels or RS link objects')
+    end
+    
+    -- s is now for sure a set of link objects
+    g.make_exclusive(s)    
 end
 
 function Builder:parameter(name, val)
@@ -129,5 +151,19 @@ function Builder:signal(role, tag, vname, width)
     end
     
     self.cur_port:add_signal(table.unpack(newargs))
+end
+
+function Builder:latency_query(link, param)
+    if not self.cur_sys then error("No current system defined") end
+    
+    -- function overload: link may be a label, or an actual link.
+    -- convert to an actual link if it's just a label
+    if type(link) == 'string' then
+        link = name_to_link(self, self.cur_sys, link)
+    elseif type(link ~= 'userdata') then
+        error('expected a link object or a link label')
+    end
+    
+    self.cur_sys:create_latency_query(link, param)
 end
 

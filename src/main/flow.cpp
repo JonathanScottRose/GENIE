@@ -782,6 +782,69 @@ namespace
 		}
 	}
 
+	void rvd_do_latency_queries(System* sys)
+	{
+		// Get list of queries attached to the System
+		auto asp = sys->asp_get<ARSLatencyQueries>();
+		if (!asp)
+			return;
+
+		for (const auto& query : asp->queries())
+		{
+			auto rs_link = query.first;
+			const auto& paramname = query.second;
+			
+			// RVD endpoints of the RS link
+			auto e2e_sink = RSPort::get_rs_port(rs_link->get_sink())->get_rvd_port();
+			auto e2e_src = RSPort::get_rs_port(rs_link->get_src())->get_rvd_port();
+
+			// Traverse RS link from start to end, one RVD link at a time, tracing through
+			// internal connections inside Nodes, and adding up their latencies
+			int latency = 0;
+			
+			for (RVDPort* cur_src = e2e_src ; ;)
+			{
+				// Follow external RVD link to its sink
+				auto cur_sink = (RVDPort*)cur_src->get_endpoint_sysface(NET_RVD)->get_remote_obj0();
+
+				// Quit if reached end
+				if (cur_sink == e2e_sink)
+					break;
+
+				// Go inside the current node and access internal links
+				auto int_ep = cur_sink->get_endpoint(NET_RVD_INTERNAL, LinkFace::INNER);
+				if (!int_ep)
+					throw HierException(cur_sink, "can't process latency query: no internal endpoint");
+
+				// Search for the internal link that continues us along the right RS Link
+				RVDInternalLink* int_link = nullptr;
+				bool found = false;
+
+				for (auto i : int_ep->links())
+				{
+					int_link = (RVDInternalLink*)i;
+					cur_src = (RVDPort*)int_link->get_sink();
+					if (rs_link->contained_in_rvd_port(cur_src))
+					{
+						found = true;
+						break;
+					}
+				}
+
+				if (!found)
+					throw HierException(cur_sink, "can't process latency query: no internal link for carrying RS link");
+
+				// Add latency
+				latency += int_link->get_latency();
+
+				// cur_src is already set up for next loop iteration
+			}
+
+			// Got latency? Now create parameter
+			sys->define_param(paramname, latency);
+		}
+	}
+
 	// Do all work for one System
 	void flow_do_system(System* sys)
 	{
@@ -813,6 +876,8 @@ namespace
 
 		rvd_default_eops(sys);
 		rvd_default_flowids(sys);
+
+		rvd_do_latency_queries(sys);
 
 		// Hand off to Verilog processing and output
 		vlog::flow_process_system(sys);

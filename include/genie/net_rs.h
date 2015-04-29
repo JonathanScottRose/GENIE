@@ -22,6 +22,8 @@ namespace genie
 		RSLink();
 
 		static List<RSLink*> get_from_rvd_port(RVDPort*);
+		
+		bool contained_in_rvd_port(RVDPort*) const;
 
 		PROP_GET_SETR(flow_id, Value&, m_flow_id);
 		PROP_GET_SET(domain_id, int, m_domain_id);
@@ -49,6 +51,19 @@ namespace genie
 
 	protected:
 		List<RSLink*> m_set;
+	};
+
+	// Attaches to a System. Contains RS Latency Queries (Link->parametername)
+	class ARSLatencyQueries : public Aspect
+	{
+	public:
+		using Query = std::pair<RSLink*, std::string>;
+
+		void add(RSLink*, const std::string&);
+		const List<Query>& queries() const;
+
+	protected:
+		List<Query> m_queries;
 	};
 
 	class RSPort : public Port

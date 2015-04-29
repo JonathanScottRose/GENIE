@@ -359,6 +359,12 @@ List<RSLink*> RSLink::get_from_rvd_port(RVDPort* port)
 	return result;
 }
 
+bool RSLink::contained_in_rvd_port(RVDPort* port) const
+{
+	auto links = get_from_rvd_port(port);
+	return util::exists(links, this);
+}
+
 //
 // ARSExclusionGroup
 //
@@ -397,4 +403,24 @@ void ARSExclusionGroup::process_and_create(const List<RSLink*>& links)
 		// Add all links to everyone's sets
 		asp->add(links);
 	}
+}
+
+//
+// ARSLatencyQueries
+//
+
+void ARSLatencyQueries::add(RSLink* link, const std::string& parmname)
+{
+	for (auto& i : m_queries)
+	{
+		if (i.second == parmname)
+			throw Exception("duplicate latency query parameter name " + parmname);
+	}
+
+	m_queries.emplace_back(link, parmname);
+}
+
+auto ARSLatencyQueries::queries() const -> const List<Query>&
+{
+	return m_queries;
 }

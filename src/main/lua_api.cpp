@@ -632,6 +632,24 @@ namespace
 		return 1;
 	}
 
+	// Creates an RS latency query
+	// ARGS: SELF<System>, RS Link, parameter name <string>
+	LFUNC(system_create_latency_query)
+	{
+		auto self = lua::check_object<System>(1);
+		auto link = lua::check_object<RSLink>(2);
+		auto paramname = luaL_checkstring(L, 3);
+
+		// Queries are attached to the System
+		auto asp = self->asp_get<ARSLatencyQueries>();
+		if (!asp)
+			asp = self->asp_add(new ARSLatencyQueries());
+
+		asp->add(link, paramname);
+
+		return 0;
+	}
+
 	LCLASS(System, "System",
 	{
 		LM(__tostring, hier_get_path),
@@ -647,7 +665,8 @@ namespace
 		LM(def_param, node_def_param),
 		LM(add_split, system_add_split),
 		LM(add_merge, system_add_merge),
-		LM(make_export, system_make_export)
+		LM(make_export, system_make_export),
+		LM(create_latency_query, system_create_latency_query)
 	},
 	{
 		LM(new, system_new)
