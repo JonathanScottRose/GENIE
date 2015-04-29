@@ -7,13 +7,13 @@ using namespace genie;
 static const char PATH_SEP = '.';
 
 // Default name, should help with debugging
-static const std::string UNNAMED_OBJECT = "<unnamed object>";
+static const char* UNNAMED_OBJECT = "<unnamed object>";
 
 // Regex pattern for legal object names
 // Alphanumeric characters plus underscore. First character can't be a number or underscore,
 // except for internal reserved names.
-static const std::string LEGAL_NAME = "[a-zA-Z][0-9a-zA-Z_]*";
-static const std::string LEGAL_NAME_RESERVED = "(_|[a-zA-Z])[0-9a-zA-Z_]*";
+static const char* LEGAL_NAME = "[a-zA-Z][0-9a-zA-Z_]*";
+static const char* LEGAL_NAME_RESERVED = "(_|[a-zA-Z])[0-9a-zA-Z_]*";
 
 //
 // Globals
@@ -207,3 +207,16 @@ HierObject* HierObject::remove_child(const HierPath& path)
 	return obj;
 }
 
+//
+// Exceptions
+//
+
+
+HierException::HierException(const HierObject* obj, const std::string& what)
+    : Exception(obj->get_hier_path() + ": " + what) { }
+
+HierNotFoundException::HierNotFoundException(const HierObject* parent, const HierPath& path)
+    : HierException(parent, "child object '" + path + "' not found.") { }
+
+HierDupException::HierDupException(const HierObject* parent, const std::string& what)
+    : HierException(parent, what) { }

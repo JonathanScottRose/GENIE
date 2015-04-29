@@ -45,7 +45,7 @@ namespace genie
 	class HDLBinding
 	{
 	public:
-		virtual ~HDLBinding() = 0 { };
+		virtual ~HDLBinding() = default;
 		virtual HDLBinding* clone() = 0;
 		virtual int get_width() const = 0;
 		virtual std::string to_string() const = 0;

@@ -5,7 +5,7 @@
 using namespace genie;
 
 RoleBinding::RoleBinding(SigRoleID id, const std::string& tag, HDLBinding* hdl)
-	: m_id(id), m_tag(tag), m_parent(nullptr)
+	: m_id(id), m_tag(tag), m_parent(nullptr), m_binding(nullptr)
 {
 	set_hdl_binding(hdl);
 }
@@ -64,3 +64,4 @@ std::string RoleBinding::to_string()
 
 	return result;
 }
+

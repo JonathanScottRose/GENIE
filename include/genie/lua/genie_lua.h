@@ -1,7 +1,7 @@
 #pragma once
 
 #include "genie/common.h"
-#include "genie/lua/genie_lua_impl.h"
+#include "genie/lua/lua.h"
 
 namespace genie
 {
@@ -33,3 +33,5 @@ namespace lua
 	void lerror(const std::string& what);
 }
 }
+
+#include "genie/lua/genie_lua_impl.h"

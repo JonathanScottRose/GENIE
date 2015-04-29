@@ -82,7 +82,7 @@ namespace genie
 	{
 	public:
 		NodeHDLInfo();
-		virtual ~NodeHDLInfo() = 0 {}
+		virtual ~NodeHDLInfo() = default;
 
 		virtual NodeHDLInfo* instantiate() = 0;
 

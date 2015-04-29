@@ -289,7 +289,7 @@ Node::Node()
 }
 
 Node::Node(const Node& o)
-	: HierObject(o)
+	: HierObject(o), m_hdl_info(nullptr)
 {
 	// Copy parameters
 	util::copy_all_2(o.m_params, m_params);

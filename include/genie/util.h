@@ -6,32 +6,6 @@
 
 namespace genie
 {
-	// Useful stuff that belongs outside the util namespace
-	template<class T, class O>
-	T as_a_check(O ptr)
-	{
-		T result = dynamic_cast<T>(ptr);
-		if (!result)
-		{
-			throw Exception("Failed casting " +
-				std::string(typeid(O).name()) + " to " +
-				std::string(typeid(T).name()));
-		}
-		return result;
-	}
-
-	template<class T, class O>
-	T as_a(O ptr)
-	{
-		return dynamic_cast<T>(ptr);
-	}
-
-	template<class T, class O>
-	bool is_a(O ptr)
-	{
-		return dynamic_cast<T>(ptr) != nullptr;
-	}
-
 	namespace util
 	{
 		// Check if file exists
@@ -68,7 +42,7 @@ namespace genie
 		{
 			for (auto i : src)
 			{
-				typedef std::remove_reference<decltype(*i)>::type obj_type;
+				using obj_type = typename std::remove_reference<decltype(*i)>::type;
 				dest.push_back(new obj_type(*i));
 			}
 		}
@@ -78,7 +52,7 @@ namespace genie
 		{
 			for (auto i : src)
 			{
-				typedef std::remove_reference<decltype(*i.second)>::type obj_type;
+				using obj_type = typename std::remove_reference<decltype(*i.second)>::type;
 				dest[i.first] = new obj_type(*i.second);
 			}
 		}

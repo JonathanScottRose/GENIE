@@ -80,6 +80,13 @@ namespace lua
 
 		return result;
 	}
+    
+    template<class T>
+	std::string obj_typename(T* ptr)
+	{
+		if (ptr) return typeid(*ptr).name();
+		else return typeid(T).name();
+	}
 
 	template<class T>
 	T* check_object(int narg)
@@ -95,13 +102,6 @@ namespace lua
 		}
 
 		return result;
-	}
-
-	template<class T>
-	std::string obj_typename(T* ptr)
-	{
-		if (ptr) return typeid(*ptr).name();
-		else return typeid(T).name();
 	}
 }
 }

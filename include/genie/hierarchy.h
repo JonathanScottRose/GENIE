@@ -21,6 +21,25 @@ namespace genie
 	// Create a single name with hierarchy separators replaced by underscores
 	std::string hier_path_collapse(const HierPath&);
 
+    // Exceptions
+	class HierException : public Exception
+	{
+	public:
+		HierException(const HierObject* obj, const std::string& what);
+	};
+
+	class HierNotFoundException : public HierException
+	{
+	public:
+		HierNotFoundException(const HierObject* parent, const HierPath& path);
+	};
+
+	class HierDupException : public HierException
+	{
+	public:
+		HierDupException(const HierObject* parent, const std::string& what);
+	};
+    
 	// A concrete, aspect-enabled base class for all Hierarchy members.
 	// Has a name, and optionally also a parent and prototype.
 	// When an asp_get call to a HierObject fails, it tries to look up that
@@ -119,27 +138,5 @@ namespace genie
 		std::string m_name;
 		HierObject* m_parent;
 		StringMap<HierObject*> m_children;
-	};
-
-	// Exceptions
-	class HierException : public Exception
-	{
-	public:
-		HierException(const HierObject* obj, const std::string& what)
-			: Exception(obj->get_hier_path() + ": " + what) { }
-	};
-
-	class HierNotFoundException : public HierException
-	{
-	public:
-		HierNotFoundException(const HierObject* parent, const HierPath& path)
-			: HierException(parent, "child object '" + path + "' not found.") { }
-	};
-
-	class HierDupException : public HierException
-	{
-	public:
-		HierDupException(const HierObject* parent, const std::string& what)
-			: HierException(parent, what) { }
 	};
 }

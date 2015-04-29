@@ -3,6 +3,7 @@
 #include <typeindex>
 #include <unordered_map>
 #include <cassert>
+#include "genie/common.h"
 
 //
 // Core of the Entity-Component system, which lets C++ objects have different
@@ -39,7 +40,8 @@ namespace genie
 		}
 
 	protected:
-		virtual ~Aspect() = 0 { };
+        Aspect() = default;
+		virtual ~Aspect() = default;
 		
 		// An Object destroys its Aspects by calling asp_dispose() on them.
 		// Because of the default implementation given here, this usually just results

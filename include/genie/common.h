@@ -13,7 +13,6 @@
 #include <memory>
 
 #include "genie/util.h"
-#include "genie/aspects.h"
 #include "genie/static_init.h"
 
 
@@ -105,4 +104,32 @@ namespace genie
 		Exception(const std::string& what)
 			: std::runtime_error(what.c_str()) { }
 	};
+    
+    // RTTI tomfoolery
+    template<class T, class O>
+	T as_a_check(O ptr)
+	{
+		T result = dynamic_cast<T>(ptr);
+		if (!result)
+		{
+			throw Exception("Failed casting " +
+				std::string(typeid(O).name()) + " to " +
+				std::string(typeid(T).name()));
+		}
+		return result;
+	}
+
+	template<class T, class O>
+	T as_a(O ptr)
+	{
+		return dynamic_cast<T>(ptr);
+	}
+
+	template<class T, class O>
+	bool is_a(O ptr)
+	{
+		return dynamic_cast<T>(ptr) != nullptr;
+	}
 }
+
+#include "genie/aspects.h"
