@@ -156,6 +156,11 @@ RoleBinding* Port::add_role_binding(RoleBinding* b)
 
 	if (role.get_uses_tags())
 	{
+		if (!b->has_tag())
+		{
+			throw HierException(this, "signal binding for role " + role.get_name() + " requires a tag");
+		}
+
 		if (has_role_binding(b->get_id(), b->get_tag()))
 		{
 			throw HierException(this, "already has signal binding for role " +
@@ -164,6 +169,11 @@ RoleBinding* Port::add_role_binding(RoleBinding* b)
 	}
 	else
 	{
+		if (b->has_tag())
+		{
+			throw HierException(this, "signal binding for role " + role.get_name() + " does not use tags");
+		}
+
 		if (has_role_binding(b->get_id()))
 		{
 			throw HierException(this, "already has signal binding for role " +

@@ -86,7 +86,7 @@ int TopoPort::get_n_rvd_ports() const
 RVDPort* TopoPort::get_rvd_port(int i) const
 {
 	if (i < 0 || i >= m_n_rvd)
-		throw HierException(this, "subport out of range: " + i);
+		throw HierException(this, "subport out of range: " + std::to_string(i));
 
 	std::string subp_name = genie::hier_make_reserved_name("rvd");
 	subp_name += std::to_string(i);

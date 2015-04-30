@@ -60,10 +60,10 @@ bool Field::matches(const Field& o) const
 	if (m_id != o.m_id)
 		return false;
 
-	if (m_has_tag && m_tag != o.m_tag)
+	if (m_has_tag != o.m_has_tag || m_has_tag && m_tag != o.m_tag)
 		return false;
 
-	if (m_has_domain && m_domain != o.m_domain)
+	if (m_has_domain != o.m_has_domain || m_has_domain && m_domain != o.m_domain)
 		return false;
 
 	return true;

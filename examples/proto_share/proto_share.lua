@@ -1,4 +1,4 @@
-require 'spec'
+require 'builder'
 require 'topo_shared_toob'
 
 -- define serveral protocols, and create a sender/receiver pair for each one, with a link from the 
@@ -40,8 +40,7 @@ local protos =
 
 -- define sender/receivers components for each
 
-local s = spec.Spec:new()
-local b = s:builder()
+local b = genie.Builder.new()
 
 for name,sigs in spairsk(protos) do
 	for dir in Set.mkvalues{"out", "in"} do
@@ -52,20 +51,25 @@ for name,sigs in spairsk(protos) do
 		b:component(comp_name, comp_name)
 		b:clock_sink('clk', 'clk')
 		b:reset_sink('reset', 'reset')
-		b:interface(dir, 'data', dir, 'clk')
-		b:signal('valid', pfx_fwd .. 'valid')
-		b:signal('ready', pfx_rev .. 'ready')
+		b:interface(dir, 'rs', dir)
+            b:assoc_clk('clk')
+            b:signal('valid', pfx_fwd .. 'valid')
+            b:signal('ready', pfx_rev .. 'ready')
 		for sname,swidth in pairs(sigs) do
 			local stype
 			local usertype = nil
 			if sname == 'eop' or sname == 'data' then
 				stype = sname
 			else
-				stype = 'data'
+				stype = 'databundle'
 				usertype = sname
 			end
-				
-			b:signal(stype, pfx_fwd .. sname, swidth, usertype)
+			
+            if usertype then
+                b:signal(stype, usertype, pfx_fwd .. sname, swidth)
+            else
+                b:signal(stype, pfx_fwd .. sname, swidth)
+            end
 		end
 	end
 end
@@ -73,27 +77,26 @@ end
 -- define system and instances and links
 
 b:system('sys', topo_shared_toob)
-b:export('clk', 'clock', 'in')
-b:export('reset', 'reset', 'in')
 
-for pname in keys(protos) do
-	-- instantiate a sender/receiver instance for each protocol
-	for dir in Set.mkvalues{"out", "in"} do
-		local comp_name = pname .. "_" .. dir
-		local inst_name = comp_name .. "_inst"
-		b:instance(inst_name, comp_name)
-		
-		-- link clocks and resets to this instance
-		b:link('clk', inst_name .. '.clk')
-		b:link('reset', inst_name .. '.reset')
-	end
-	
-	-- create a link from the sender to the receiver
-	b:link(pname .. "_out_inst.out", pname .. "_in_inst.in")
-end
-		
+    b:clock_sink('clk', 'clk')
+    b:reset_sink('reset', 'reset')
 
-s:submit()
+    for pname in keys(protos) do
+        -- instantiate a sender/receiver instance for each protocol
+        for dir in Set.mkvalues{"out", "in"} do
+            local comp_name = pname .. "_" .. dir
+            local inst_name = comp_name .. "_inst"
+            b:instance(inst_name, comp_name)
+            
+            -- link clocks and resets to this instance
+            b:link('clk', inst_name .. '.clk')
+            b:link('reset', inst_name .. '.reset')
+        end
+        
+        -- create a link from the sender to the receiver
+        b:link(pname .. "_out_inst.out", pname .. "_in_inst.in")
+    end
+		
 
 
 

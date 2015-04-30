@@ -60,8 +60,9 @@ namespace
 		assert(sink_hdlb);
 
 		auto sink_vport = sink_hdlb->get_port();
-
-		sysinfo->connect(sink_vport, val, lsb);
+		
+		// 'lsb' is additional offset on top of hdlbinding offset on vlog port
+		sysinfo->connect(sink_vport, val, sink_hdlb->get_lsb() + lsb);
 	}
 
 	void do_rvd_readyvalid(System* sys)

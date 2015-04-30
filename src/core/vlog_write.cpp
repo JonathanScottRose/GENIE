@@ -211,7 +211,7 @@ namespace
 					std::string version1 =
 						std::to_string(unconnected) + "'b" + std::string(unconnected, 'z');
 					std::string version2 =
-						"{" + std::to_string(unconnected) + "'{1'bz}}";
+						"{" + std::to_string(unconnected) + "{1'bz}}";
 
 					bindstr += version2.length() < version1.length()? version2 : version1;
 

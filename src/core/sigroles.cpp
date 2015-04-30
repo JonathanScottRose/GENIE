@@ -65,3 +65,7 @@ std::string RoleBinding::to_string()
 	return result;
 }
 
+bool RoleBinding::has_tag() const
+{
+	return !m_tag.empty();
+}

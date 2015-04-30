@@ -22,7 +22,7 @@ namespace
 
 			RSPort::ROLE_READY = add_sig_role(SigRole("ready", SigRole::REV, false));
 			RSPort::ROLE_VALID = add_sig_role(SigRole("valid", SigRole::FWD, false));
-			RSPort::ROLE_DATA = add_sig_role(SigRole("data", SigRole::FWD, true));
+			RSPort::ROLE_DATA = add_sig_role(SigRole("data", SigRole::FWD, false));
 			RSPort::ROLE_DATA_BUNDLE = add_sig_role(SigRole("databundle", SigRole::FWD, true));
 			RSPort::ROLE_LPID = add_sig_role(SigRole("lpid", SigRole::FWD, false));
 			RSPort::ROLE_EOP = add_sig_role(SigRole("eop", SigRole::FWD, false));
@@ -139,9 +139,12 @@ HierObject* RSPort::instantiate()
 
 void RSPort::refine_rvd()
 {
-	RVDPort* rvd_port = get_topo_port()->get_rvd_port();
-	if (!rvd_port)
+	TopoPort* topo_port = get_topo_port();
+	if (topo_port->get_n_rvd_ports() == 0)
 		return;
+
+	RVDPort* rvd_port = get_topo_port()->get_rvd_port();
+	assert(rvd_port);
 
 	// Configure the RVD Port Protocol
 	auto& proto = rvd_port->get_proto();
@@ -203,7 +206,11 @@ void RSPort::refine_rvd()
 	}
 
 	// Copy associated clock port
-	rvd_port->set_clock_port_name(this->get_clock_port_name());
+	const std::string& clkportname = this->get_clock_port_name();
+	if (clkportname.empty())
+		throw HierException(this, "missing associated clock port");
+
+	rvd_port->set_clock_port_name(clkportname);
 }
 
 void RSPort::refine_topo()

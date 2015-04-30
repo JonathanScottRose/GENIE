@@ -109,6 +109,11 @@ function Builder:link(src, dest, label)
     return link
 end
 
+function Builder:assoc_clk(clkname)
+    if not self.cur_port then error("no current interface") end
+    self.cur_port:set_clock_port_name(clkname)
+end
+
 function Builder:make_exclusive(s)
     if not self.cur_sys then error("No current system defined") end
 

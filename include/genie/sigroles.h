@@ -72,6 +72,7 @@ namespace genie
 		void set_hdl_binding(HDLBinding* b);
 		const SigRole& get_role_def();
 		std::string to_string();
+		bool has_tag() const;
 
 	protected:
 		Port* m_parent;

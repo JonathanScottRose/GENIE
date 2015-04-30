@@ -17,8 +17,6 @@ VAttr<VertexID> graphs::multi_way_cut(Graph G, const EAttr<int>& weights, VList 
 {
 	VAttr<VertexID> result;
 
-	assert(T.size() > 0);
-
 	// until nterminals == 1
 	while (T.size() > 1)
 	{
