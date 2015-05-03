@@ -177,53 +177,30 @@ Link* Network::create_link()
 	return new Link();
 }
 
-SigRoleID Network::add_sig_role(const SigRole& rs)
+void Network::add_sig_role(SigRoleID id)
 {
-	// Calculate a Role ID for the new entry
-	SigRoleID new_id = static_cast<SigRoleID>(m_sig_roles.size());
-
-	// Make the name lowercase
-	std::string new_name = util::str_tolower(rs.get_name());
+	const std::string& name = SigRole::get(id)->get_name();
 
 	// Make sure name is unique
-	for (const auto& entry : m_sig_roles)
+	auto roles = get_sig_roles();
+	for (const auto& entry : roles)
 	{
-		if (entry.get_name() == new_name)
-			throw Exception("signal role with name " + new_name + " already defined");
+		if (entry->get_name() == name)
+			throw Exception("signal role with name " + name + " already defined");
 	}
 
-	// Copy the rs into our internal vector
-	m_sig_roles.emplace_back(rs);
-
-	// Assign the new id (and lowercased name) to the new SigRole that's now in the vector
-	auto& entry = m_sig_roles.back();
-	entry.set_id(new_id);
-	entry.set_name(new_name);
-
-	return new_id;
+	// Add the role by ID
+	m_sig_roles.push_back(id);
 }
 
 bool Network::has_sig_role(SigRoleID id) const
 {
-	for (const auto& entry : m_sig_roles)
-	{
-		if (entry.get_id() == id)
-			return true;
-	}
-
-	return false;
+	return util::exists(m_sig_roles, id);
 }
 
 bool Network::has_sig_role(const std::string& name) const
 {
-	std::string lname = util::str_tolower(name);
-	for (const auto& entry : m_sig_roles)
-	{
-		if (entry.get_name() == lname)
-			return true;
-	}
-
-	return false;
+	return get_sig_role(name) != nullptr;
 }
 
 SigRoleID Network::role_id_from_name(const std::string& name) const
@@ -231,10 +208,11 @@ SigRoleID Network::role_id_from_name(const std::string& name) const
 	// Do a case-insensitive comparison. Entries are lowercase, and make the name lowercase too.
 	std::string lname = util::str_tolower(name);
 
-	for (const auto& role : m_sig_roles)
+	for (auto id: m_sig_roles)
 	{
-		if (role.get_name() == lname)
-			return role.get_id();
+		auto role = SigRole::get(id);
+		if (role->get_name() == lname)
+			return role->get_id();
 	}
 
 	return ROLE_INVALID;
@@ -242,24 +220,23 @@ SigRoleID Network::role_id_from_name(const std::string& name) const
 
 const std::string& Network::role_name_from_id(SigRoleID id) const
 {
-	return get_sig_role(id).get_name();
+	return get_sig_role(id)->get_name();
 }
 
-const SigRole& Network::get_sig_role(SigRoleID id) const
+const SigRole* Network::get_sig_role(SigRoleID id) const
 {
-	if (id >= m_sig_roles.size())
-		throw Exception("invalid role ID " + std::to_string(id));
+	auto it = std::find(m_sig_roles.begin(), m_sig_roles.end(), id);
 
-	return m_sig_roles[id];
+	return (it == m_sig_roles.end())? nullptr : SigRole::get(id);
 }
 
-const SigRole& Network::get_sig_role(const std::string& name) const
+const SigRole* Network::get_sig_role(const std::string& name) const
 {
 	auto id = role_id_from_name(name);
 	if (id == ROLE_INVALID)
-		throw Exception("invalid signal role: " + name);
+		return nullptr;
 
-	return get_sig_role(id);
+	return SigRole::get(id);
 }
 
 Port* Network::export_port(System* sys, Port* port, const std::string& name)
@@ -287,6 +264,16 @@ Port* Network::export_port(System* sys, Port* port, const std::string& name)
 
 	// Make a Link between the old port and the new one
 	sys->connect(port, result, port->get_type());
+
+	return result;
+}
+
+List<const SigRole*> Network::get_sig_roles() const
+{
+	List<const SigRole*> result;
+
+	for (auto id : m_sig_roles)
+		result.push_back(SigRole::get(id));
 
 	return result;
 }

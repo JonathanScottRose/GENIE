@@ -17,11 +17,11 @@ namespace
 			m_src_multibind = false;
 			m_sink_multibind = false;
 
-			ConduitPort::ROLE_FWD = add_sig_role(SigRole("fwd", SigRole::FWD, true));
-			ConduitPort::ROLE_REV = add_sig_role(SigRole("rev", SigRole::REV, true));
-			//ConduitPort::ROLE_OUT = add_sig_role(SigRole("out", SigRole::OUT, true));
-			//ConduitPort::ROLE_IN = add_sig_role(SigRole("in", SigRole::IN, true));
-			ConduitPort::ROLE_INOUT= add_sig_role(SigRole("inout", SigRole::INOUT, true));
+			add_sig_role(ConduitPort::ROLE_FWD);
+			add_sig_role(ConduitPort::ROLE_REV);
+			add_sig_role(ConduitPort::ROLE_OUT);
+			add_sig_role(ConduitPort::ROLE_IN);
+			add_sig_role(ConduitPort::ROLE_INOUT);
 		}
 
 		Port* create_port(Dir dir) override
@@ -32,12 +32,12 @@ namespace
 }
 
 // Register the network type
-const NetType genie::NET_CONDUIT = Network::add<NetConduit>();
-SigRoleID genie::ConduitPort::ROLE_FWD;
-SigRoleID genie::ConduitPort::ROLE_REV;
-//SigRoleID genie::ConduitPort::ROLE_OUT;
-//SigRoleID genie::ConduitPort::ROLE_IN;
-SigRoleID genie::ConduitPort::ROLE_INOUT;
+const NetType genie::NET_CONDUIT = Network::reg<NetConduit>();
+const SigRoleID genie::ConduitPort::ROLE_FWD = SigRole::reg("fwd", SigRole::FWD, true);
+const SigRoleID genie::ConduitPort::ROLE_REV = SigRole::reg("rev", SigRole::REV, true);
+const SigRoleID genie::ConduitPort::ROLE_OUT = SigRole::reg("out", SigRole::OUT, true);
+const SigRoleID genie::ConduitPort::ROLE_IN = SigRole::reg("in", SigRole::IN, true);
+const SigRoleID genie::ConduitPort::ROLE_INOUT = SigRole::reg("inout", SigRole::INOUT, true);
 
 //
 // ConduitPort
@@ -61,4 +61,27 @@ ConduitPort::~ConduitPort()
 HierObject* ConduitPort::instantiate()
 {
 	return new ConduitPort(*this);
+}
+
+RoleBinding* ConduitPort::get_matching_role_binding(RoleBinding* other)
+{
+	// With ConduitPorts, the following connectivity is possible:
+	// FWD->FWD
+	// REV->REV
+	// INOUT->INOUT
+	// IN->OUT
+	// OUT->IN
+
+	SigRoleID matching_id;
+	SigRoleID other_id = other->get_id();
+	const std::string& tag = other->get_tag();
+
+	if (other_id == ConduitPort::ROLE_FWD) matching_id = ConduitPort::ROLE_FWD;
+	else if (other_id == ConduitPort::ROLE_REV) matching_id = ConduitPort::ROLE_REV;
+	else if (other_id == ConduitPort::ROLE_IN) matching_id = ConduitPort::ROLE_OUT;
+	else if (other_id == ConduitPort::ROLE_OUT) matching_id = ConduitPort::ROLE_IN;
+	else if (other_id == ConduitPort::ROLE_INOUT) matching_id = ConduitPort::ROLE_INOUT;
+	else assert(false);
+
+	return get_role_binding(matching_id, tag);
 }

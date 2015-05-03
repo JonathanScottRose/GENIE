@@ -849,9 +849,12 @@ namespace
 		
 		SigRoleID sigrole_id = netdef->role_id_from_name(sigrole_str);
 		if (sigrole_id == ROLE_INVALID)
-			throw HierException(self, "invalid signal role: " + sigrole_str);
+		{
+			throw HierException(self, "unknown signal role " + sigrole_str + " for port of type " +
+			netdef->get_name());
+		}
 
-		auto& sigrole = netdef->get_sig_role(sigrole_id);
+		auto sigrole = SigRole::get(sigrole_id);
 
 		// Access Port's Node's vlog module and create a new vlog port if it does not exist yet
 		Node* node = self->get_node();
@@ -860,7 +863,7 @@ namespace
 
 		if (!vport)
 		{
-			auto vpdir = vlog::Port::make_dir(self->get_dir(), sigrole.get_sense());
+			auto vpdir = vlog::Port::make_dir(self->get_dir(), sigrole->get_sense());
 			vport = new vlog::Port(vlog_portname, widthexpr, vpdir);
 			vinfo->add_port(vport);
 		}

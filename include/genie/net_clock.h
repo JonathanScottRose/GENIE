@@ -11,7 +11,7 @@ namespace genie
 	class ClockPort : public Port
 	{
 	public:
-		static SigRoleID ROLE_CLOCK;
+		static const SigRoleID ROLE_CLOCK;
 
 		ClockPort(Dir dir);
 		ClockPort(Dir dir, const std::string& name);

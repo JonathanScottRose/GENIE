@@ -280,7 +280,7 @@ namespace
 				auto sink_rb = sink->get_matching_role_binding(src_rb);
 				if (sink_rb)
 				{
-					if (src_rb->get_role_def().get_sense() == SigRole::REV)
+					if (src_rb->get_role_def()->get_sense() == SigRole::REV)
 						std::swap(src_rb, sink_rb);
 
 					connect_rb(sys, src_rb, sink_rb);
@@ -309,12 +309,12 @@ HDLBinding* vlog::export_binding(System* sys, genie::Port* new_port, HDLBinding*
 	auto netdef = Network::get(new_port->get_type());
 
 	bool net_has_roles = netdef->get_sig_roles().size() > 1;
-	bool role_has_tags = roledef.get_uses_tags();
+	bool role_has_tags = roledef->get_uses_tags();
 
 	std::string new_vportname = new_port->get_name();
 	if (net_has_roles)
 	{
-		new_vportname += "_" + roledef.get_name();
+		new_vportname += "_" + roledef->get_name();
 	}
 	if (role_has_tags)
 	{

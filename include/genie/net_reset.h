@@ -10,7 +10,7 @@ namespace genie
 	class ResetPort : public Port
 	{
 	public:
-		static SigRoleID ROLE_RESET;
+		static const SigRoleID ROLE_RESET;
 
 		ResetPort(Dir dir);
 		ResetPort(Dir dir, const std::string& name);

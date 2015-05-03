@@ -34,7 +34,7 @@ namespace
 }
 
 // Register the network type
-const NetType genie::NET_TOPO = Network::add<NetTopo>();
+const NetType genie::NET_TOPO = Network::reg<NetTopo>();
 
 //
 // TopoPort

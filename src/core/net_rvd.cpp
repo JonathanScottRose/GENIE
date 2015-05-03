@@ -18,10 +18,10 @@ namespace
 			m_src_multibind = false;
 			m_sink_multibind = false;
 
-			RVDPort::ROLE_READY = add_sig_role(SigRole("ready", SigRole::REV, false));
-			RVDPort::ROLE_VALID = add_sig_role(SigRole("valid", SigRole::FWD, false));
-			RVDPort::ROLE_DATA = add_sig_role(SigRole("data", SigRole::FWD, true));
-			RVDPort::ROLE_DATA_CARRIER = add_sig_role(SigRole("xdata", SigRole::FWD, false));
+			add_sig_role(RVDPort::ROLE_READY);
+			add_sig_role(RVDPort::ROLE_VALID);
+			add_sig_role(RVDPort::ROLE_DATA);
+			add_sig_role(RVDPort::ROLE_DATA_CARRIER);
 		}
 
 		Link* create_link() override
@@ -62,12 +62,12 @@ namespace
 }
 
 // Register the network type
-const NetType genie::NET_RVD = Network::add<NetRVD>();
-const NetType genie::NET_RVD_INTERNAL = Network::add<NetRVDInternal>();
-SigRoleID genie::RVDPort::ROLE_DATA;
-SigRoleID genie::RVDPort::ROLE_DATA_CARRIER;
-SigRoleID genie::RVDPort::ROLE_VALID;
-SigRoleID genie::RVDPort::ROLE_READY;
+const NetType genie::NET_RVD = Network::reg<NetRVD>();
+const NetType genie::NET_RVD_INTERNAL = Network::reg<NetRVDInternal>();
+const SigRoleID genie::RVDPort::ROLE_DATA = SigRole::reg("data", SigRole::FWD, true);
+const SigRoleID genie::RVDPort::ROLE_DATA_CARRIER = SigRole::reg("xdata", SigRole::FWD, false);
+const SigRoleID genie::RVDPort::ROLE_VALID = SigRole::reg("valid", SigRole::FWD, false);
+const SigRoleID genie::RVDPort::ROLE_READY = SigRole::reg("ready", SigRole::REV, false);
 
 //
 // RVDPort

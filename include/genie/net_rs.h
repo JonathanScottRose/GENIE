@@ -69,13 +69,13 @@ namespace genie
 	class RSPort : public Port
 	{
 	public:
-		static SigRoleID ROLE_READY;
-		static SigRoleID ROLE_VALID;
-		static SigRoleID ROLE_DATA;
-		static SigRoleID ROLE_DATA_BUNDLE;
-		static SigRoleID ROLE_LPID;
-		static SigRoleID ROLE_EOP;
-		static SigRoleID ROLE_SOP;
+		static const SigRoleID ROLE_READY;
+		static const SigRoleID ROLE_VALID;
+		static const SigRoleID ROLE_DATA;
+		static const SigRoleID ROLE_DATA_BUNDLE;
+		static const SigRoleID ROLE_LPID;
+		static const SigRoleID ROLE_EOP;
+		static const SigRoleID ROLE_SOP;
 
 		static const FieldID FIELD_LPID;
 		static const FieldID FIELD_DATA;

@@ -27,15 +27,19 @@ namespace genie
 			INOUT
 		};
 
-		SigRole(const std::string& name, Sense sense, bool tags = false)
-			: m_name(name), m_sense(sense), m_uses_tags(tags), m_id(ROLE_INVALID) {}
+		static SigRoleID reg(const std::string& name, Sense sense, bool tags = false);
+		static const SigRole* get(SigRoleID);
 
-		PROP_GET_SET(name, const std::string&, m_name);
-		PROP_GET_SET(id, SigRoleID, m_id);
-		PROP_GET_SET(uses_tags, bool, m_uses_tags);
-		PROP_GET_SET(sense, Sense, m_sense);
+		PROP_GET(name, const std::string&, m_name);
+		PROP_GET(id, SigRoleID, m_id);
+		PROP_GET(uses_tags, bool, m_uses_tags);
+		PROP_GET(sense, Sense, m_sense);
 
 	protected:
+		static List<SigRole>& get_all_roles();
+
+		SigRole(SigRoleID, const std::string&, Sense, bool);
+
 		std::string m_name;
 		SigRoleID m_id;
 		bool m_uses_tags;
@@ -70,7 +74,7 @@ namespace genie
 		PROP_GET_SET(parent, Port*, m_parent);
 
 		void set_hdl_binding(HDLBinding* b);
-		const SigRole& get_role_def();
+		const SigRole* get_role_def() const;
 		std::string to_string();
 		bool has_tag() const;
 

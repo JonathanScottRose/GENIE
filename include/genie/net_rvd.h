@@ -15,10 +15,10 @@ namespace genie
 	class RVDPort : public Port
 	{
 	public:
-		static SigRoleID ROLE_VALID;
-		static SigRoleID ROLE_READY;
-		static SigRoleID ROLE_DATA;
-		static SigRoleID ROLE_DATA_CARRIER;
+		static const SigRoleID ROLE_VALID;
+		static const SigRoleID ROLE_READY;
+		static const SigRoleID ROLE_DATA;
+		static const SigRoleID ROLE_DATA_CARRIER;
 
 		RVDPort(Dir dir);
 		RVDPort(Dir dir, const std::string& name);

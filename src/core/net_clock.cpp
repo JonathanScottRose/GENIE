@@ -17,7 +17,7 @@ namespace
 			m_src_multibind = true;
 			m_sink_multibind = false;
 
-			ClockPort::ROLE_CLOCK = add_sig_role(SigRole("clock", SigRole::FWD));
+			add_sig_role(ClockPort::ROLE_CLOCK);
 		}
 
 		Port* create_port(Dir dir) override
@@ -28,8 +28,8 @@ namespace
 }
 
 // Register the network type
-const NetType genie::NET_CLOCK = Network::add<NetClock>();
-SigRoleID genie::ClockPort::ROLE_CLOCK;
+const NetType genie::NET_CLOCK = Network::reg<NetClock>();
+const SigRoleID genie::ClockPort::ROLE_CLOCK = SigRole::reg("clock", SigRole::FWD);
 
 
 //

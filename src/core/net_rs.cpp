@@ -20,13 +20,13 @@ namespace
 			m_src_multibind = true;
 			m_sink_multibind = true;
 
-			RSPort::ROLE_READY = add_sig_role(SigRole("ready", SigRole::REV, false));
-			RSPort::ROLE_VALID = add_sig_role(SigRole("valid", SigRole::FWD, false));
-			RSPort::ROLE_DATA = add_sig_role(SigRole("data", SigRole::FWD, false));
-			RSPort::ROLE_DATA_BUNDLE = add_sig_role(SigRole("databundle", SigRole::FWD, true));
-			RSPort::ROLE_LPID = add_sig_role(SigRole("lpid", SigRole::FWD, false));
-			RSPort::ROLE_EOP = add_sig_role(SigRole("eop", SigRole::FWD, false));
-			RSPort::ROLE_SOP = add_sig_role(SigRole("sop", SigRole::FWD, false));
+			add_sig_role(RSPort::ROLE_READY);
+			add_sig_role(RSPort::ROLE_VALID);
+			add_sig_role(RSPort::ROLE_DATA);
+			add_sig_role(RSPort::ROLE_DATA_BUNDLE);
+			add_sig_role(RSPort::ROLE_LPID);
+			add_sig_role(RSPort::ROLE_EOP);
+			add_sig_role(RSPort::ROLE_SOP);
 		}
 
 		Link* create_link() override
@@ -91,16 +91,16 @@ namespace
 }
 
 // Register the network type
-const NetType genie::NET_RS = Network::add<NetRS>();
+const NetType genie::NET_RS = Network::reg<NetRS>();
 
 // Register port signal roles
-SigRoleID RSPort::ROLE_DATA;
-SigRoleID RSPort::ROLE_DATA_BUNDLE;
-SigRoleID RSPort::ROLE_VALID;
-SigRoleID RSPort::ROLE_READY;
-SigRoleID RSPort::ROLE_EOP;
-SigRoleID RSPort::ROLE_SOP;
-SigRoleID RSPort::ROLE_LPID;
+const SigRoleID RSPort::ROLE_DATA = SigRole::reg("data", SigRole::FWD, false);
+const SigRoleID RSPort::ROLE_DATA_BUNDLE = SigRole::reg("databundle", SigRole::FWD, true);
+const SigRoleID RSPort::ROLE_VALID = SigRole::reg("valid", SigRole::FWD, false);
+const SigRoleID RSPort::ROLE_READY = SigRole::reg("ready", SigRole::REV, false);
+const SigRoleID RSPort::ROLE_EOP = SigRole::reg("eop", SigRole::FWD, false);
+const SigRoleID RSPort::ROLE_SOP = SigRole::reg("sop", SigRole::FWD, false);
+const SigRoleID RSPort::ROLE_LPID = SigRole::reg("lpid", SigRole::FWD, false);
 
 // Register data field types
 const FieldID RSPort::FIELD_LPID = Field::reg();
@@ -154,7 +154,7 @@ void RSPort::refine_rvd()
 	{
 		auto rs_role = rs_rb->get_id();
 		auto rs_tag = rs_rb->get_tag();
-		const auto& rs_rdef = rs_rb->get_role_def();
+		const auto rs_rdef = rs_rb->get_role_def();
 
 		// Clone the HDL binding
 		auto rvd_hdlb = rs_rb->get_hdl_binding()->clone();
@@ -171,8 +171,8 @@ void RSPort::refine_rvd()
 		else
 		{
 			// Create the ROLE_DATA with the right tag
-			std::string rvd_tag = rs_rdef.get_name();
-			if (rs_rdef.get_uses_tags())
+			std::string rvd_tag = rs_rdef->get_name();
+			if (rs_rdef->get_uses_tags())
 				rvd_tag += "_" + rs_tag;
 
 			rvd_port->add_role_binding(RVDPort::ROLE_DATA, rvd_tag, rvd_hdlb);

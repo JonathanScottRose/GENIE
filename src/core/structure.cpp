@@ -122,12 +122,6 @@ Node* Port::get_node() const
 	return as_a<Node*>(result);
 }
 
-const SigRole& Port::get_role_def(SigRoleID id) const
-{
-	// Helper function, gets signal role definition from network definition of this port
-	return Network::get(m_type)->get_sig_role(id);
-}
-
 RoleBinding* Port::add_role_binding(SigRoleID id, const std::string& tag, HDLBinding* bnd)
 {
 	return add_role_binding(new RoleBinding(id, tag, bnd));
@@ -152,32 +146,32 @@ RoleBinding* Port::add_role_binding(const std::string& role, HDLBinding* bnd)
 
 RoleBinding* Port::add_role_binding(RoleBinding* b)
 {
-	auto role = get_role_def(b->get_id());
+	auto role = SigRole::get(b->get_id());
 
-	if (role.get_uses_tags())
+	if (role->get_uses_tags())
 	{
 		if (!b->has_tag())
 		{
-			throw HierException(this, "signal binding for role " + role.get_name() + " requires a tag");
+			throw HierException(this, "signal binding for role " + role->get_name() + " requires a tag");
 		}
 
 		if (has_role_binding(b->get_id(), b->get_tag()))
 		{
 			throw HierException(this, "already has signal binding for role " +
-				role.get_name() + " with tag " + b->get_tag());
+				role->get_name() + " with tag " + b->get_tag());
 		}
 	}
 	else
 	{
 		if (b->has_tag())
 		{
-			throw HierException(this, "signal binding for role " + role.get_name() + " does not use tags");
+			throw HierException(this, "signal binding for role " + role->get_name() + " does not use tags");
 		}
 
 		if (has_role_binding(b->get_id()))
 		{
 			throw HierException(this, "already has signal binding for role " +
-				role.get_name());
+				role->get_name());
 		}
 	}
 
@@ -203,7 +197,7 @@ std::vector<RoleBinding*> Port::get_role_bindings(SigRoleID id)
 RoleBinding* Port::get_role_binding(SigRoleID id, const std::string& tag)
 {
 	// Used for roles that support tags
-	assert(get_role_def(id).get_uses_tags());
+	assert(SigRole::get(id)->get_uses_tags());
 
 	std::string ltag = util::str_tolower(tag);
 	for (auto& entry : m_role_bindings)
@@ -217,7 +211,7 @@ RoleBinding* Port::get_role_binding(SigRoleID id, const std::string& tag)
 
 RoleBinding* Port::get_matching_role_binding(RoleBinding* other)
 {
-	if (get_role_def(other->get_id()).get_uses_tags())
+	if (SigRole::get(other->get_id())->get_uses_tags())
 	{
 		return get_role_binding(other->get_id(), other->get_tag());
 	}
@@ -230,7 +224,7 @@ RoleBinding* Port::get_matching_role_binding(RoleBinding* other)
 RoleBinding* Port::get_role_binding(SigRoleID id)
 {
 	// Used for roles that do not support tags
-	assert(!get_role_def(id).get_uses_tags());
+	assert(!SigRole::get(id)->get_uses_tags());
 
 	for (auto& entry : m_role_bindings)
 	{

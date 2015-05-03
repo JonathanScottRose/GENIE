@@ -47,7 +47,7 @@ namespace genie
 	public:
 		// Call this in a static initializer to register a network type
 		template<class NET_DEF>
-		static NetType add()
+		static NetType reg()
 		{
 			NetType id = alloc_def_internal();
 			NetTypeRegistry::entries().emplace_front([=]()
@@ -79,12 +79,11 @@ namespace genie
 		PROP_GET(sink_multibind, bool, m_sink_multibind);
 
 		// Get allowed signal roles. Role conversion functions.
-		typedef std::vector<SigRole> SigRoles;
-		const SigRoles& get_sig_roles() const { return m_sig_roles; }
+		List<const SigRole*> get_sig_roles() const;
 		bool has_sig_role(SigRoleID) const;
 		bool has_sig_role(const std::string&) const;
-		const SigRole& get_sig_role(SigRoleID) const;
-		const SigRole& get_sig_role(const std::string&) const;
+		const SigRole* get_sig_role(SigRoleID) const;
+		const SigRole* get_sig_role(const std::string&) const;
 		SigRoleID role_id_from_name(const std::string&) const;
 		const std::string& role_name_from_id(SigRoleID) const;
 
@@ -104,8 +103,8 @@ namespace genie
 		bool m_src_multibind;
 		bool m_sink_multibind;
 
-		// Register a signal role and get its ID
-		SigRoleID add_sig_role(const SigRole&);
+		// Register an allowable signal role for ports of this network type
+		void add_sig_role(SigRoleID);
 
 		// Network type registration
 		typedef StaticRegistry<Network> NetTypeRegistry;
@@ -119,6 +118,6 @@ namespace genie
 		NetType m_id;
 
 		// Allowable signal roles for ports of this network type
-		SigRoles m_sig_roles;
+		List<SigRoleID> m_sig_roles;
 	};
 }

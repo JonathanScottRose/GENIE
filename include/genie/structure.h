@@ -46,7 +46,7 @@ namespace genie
 
 		// Manage signal role bindings
 		void clear_role_bindings();
-		RoleBinding* get_matching_role_binding(RoleBinding*);
+		virtual RoleBinding* get_matching_role_binding(RoleBinding*);
 		const RoleBindings& get_role_bindings() { return m_role_bindings; }
 		RoleBinding* add_role_binding(SigRoleID, const std::string&, HDLBinding*);
 		RoleBinding* add_role_binding(SigRoleID, HDLBinding*);
@@ -69,8 +69,6 @@ namespace genie
 
 		static Endpoint* get_ep_by_face(const EndpointsEntry&, LinkFace);
 		static void set_ep_by_face(EndpointsEntry&, LinkFace, Endpoint*);
-
-		const SigRole& get_role_def(SigRoleID) const;
 
 		Dir m_dir;
 		NetType m_type;

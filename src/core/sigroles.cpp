@@ -4,6 +4,41 @@
 
 using namespace genie;
 
+//
+// SigRole
+//
+
+List<SigRole>& SigRole::get_all_roles()
+{
+	static List<SigRole> all_roles;
+	return all_roles;
+}
+
+SigRoleID SigRole::reg(const std::string& name, Sense sense, bool tags)
+{
+	static SigRoleID next_id = 0;
+	get_all_roles().push_back(SigRole(next_id, name, sense, tags));
+
+	return next_id++;
+}
+
+const SigRole* SigRole::get(SigRoleID id)
+{
+	if (id > get_all_roles().size())
+		return nullptr;
+
+	return &get_all_roles()[id];
+}
+
+SigRole::SigRole(SigRoleID id, const std::string& name, Sense sense, bool tags)
+	: m_id(id), m_name(util::str_tolower(name)), m_sense(sense), m_uses_tags(tags)
+{
+}
+
+//
+// RoleBinding
+//
+
 RoleBinding::RoleBinding(SigRoleID id, const std::string& tag, HDLBinding* hdl)
 	: m_id(id), m_tag(tag), m_parent(nullptr), m_binding(nullptr)
 {
@@ -34,10 +69,9 @@ void RoleBinding::set_hdl_binding(HDLBinding* b)
 		m_binding->set_parent(this);
 }
 
-const SigRole& RoleBinding::get_role_def()
+const SigRole* RoleBinding::get_role_def() const
 {
-	assert(m_parent);
-	return Network::get(m_parent->get_type())->get_sig_role(m_id);
+	return SigRole::get(m_id);
 }
 
 std::string RoleBinding::to_string()
@@ -55,8 +89,8 @@ std::string RoleBinding::to_string()
 			
 	// Add role name and tag
 	auto rdef = get_role_def();
-	result += " (" + rdef.get_name();
-	if (rdef.get_uses_tags())
+	result += " (" + rdef->get_name();
+	if (rdef->get_uses_tags())
 	{
 		result += " " + m_tag;
 	}

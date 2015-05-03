@@ -17,7 +17,7 @@ namespace
 			m_src_multibind = true;
 			m_sink_multibind = false;
 
-			ResetPort::ROLE_RESET = add_sig_role(SigRole("reset", SigRole::FWD));
+			add_sig_role(ResetPort::ROLE_RESET);
 		}
 
 		Port* create_port(Dir dir) override
@@ -28,8 +28,8 @@ namespace
 }
 
 // Register the network type
-const NetType genie::NET_RESET = Network::add<NetReset>();
-SigRoleID genie::ResetPort::ROLE_RESET;
+const NetType genie::NET_RESET = Network::reg<NetReset>();
+const SigRoleID genie::ResetPort::ROLE_RESET = SigRole::reg("reset", SigRole::FWD);
 
 
 //
