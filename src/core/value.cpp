@@ -53,16 +53,6 @@ Value& Value::operator= (int val)
 	return *this;
 }
 
-const std::vector<int>& Value::get() const
-{
-	return m_vals;
-}
-
-void Value::set(std::vector<int>& v)
-{
-	m_vals = v;
-	m_depth = v.size();
-}
 
 int Value::get(int slice) const
 {

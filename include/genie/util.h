@@ -198,6 +198,7 @@ namespace genie
 		static int log2(int val)
 		{
 			int result = 0;
+			val = std::max(0, val-1);
 			while (val)
 			{
 				val >>= 1;

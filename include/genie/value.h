@@ -21,9 +21,6 @@ namespace genie
 		bool operator<(const Value&) const;
 		operator int() const;
 
-		const std::vector<int>& get() const;
-		void set(std::vector<int>&);
-
 		int get(int slice = 0) const;
 		void set(int val, int slice=0);
 

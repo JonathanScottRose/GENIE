@@ -209,7 +209,7 @@ namespace
 
 			// Go back and calculate the width of all flow_ids in the domain, now that we know
 			// the highest (final) value.
-			int flow_id_width = std::max(1, util::log2(std::max(0, flow_id - 1)));
+			int flow_id_width = std::max(1, util::log2(flow_id.get()));
 			for (auto link : rs_links)
 			{
 				auto rs_link = static_cast<RSLink*>(link);

@@ -342,12 +342,23 @@ namespace
 		return 0;
 	}
 
+	// Returns ceil(log2(unsigned integer))
+	LFUNC(glob_clog2)
+	{
+		auto num = luaL_checkunsigned(L, 1);
+		auto result = util::log2(num);
+		lua_pushunsigned(L, result);
+		return 1;
+	}
+
+
 	LGLOBALS(
 	{
 		LM(get_object, glob_get_object),
 		LM(get_objects, glob_get_objects),
 		LM(get_systems, glob_get_systems),
-		LM(make_exclusive, glob_make_exclusive)
+		LM(make_exclusive, glob_make_exclusive),
+		LM(clog2, glob_clog2)
 	});
 
 	//
