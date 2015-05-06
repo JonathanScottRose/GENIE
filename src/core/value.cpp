@@ -73,27 +73,31 @@ void Value::set_depth(int depth)
 Value::Value(const std::string& val)
 {
 	int base = 10;
+	int bits = 32;
 
-	std::regex regex("\\s*(\\d+)'([dbho])([0-9abcdefABCDEF]+)");
+	std::regex regex("\\s*((\\d+)'([dbho]))?([0-9abcdefABCDEF]+)");
 	std::smatch mr;
 
 	std::regex_match(val, mr, regex);
-	int bits = std::stoi(mr[1]);
-	char radix = mr[2].str().at(0);
 
-	switch (radix)
+	if (mr[1].matched)
 	{
-	case 'd': base = 10; break;
-	case 'h': base = 16; break;
-	case 'o': base = 8; break;
-	case 'b': base = 2; break;
-	default: assert(false);
+		bits = std::stoi(mr[2]);
+		char radix = mr[3].str().at(0);
+
+		switch (radix)
+		{
+		case 'd': base = 10; break;
+		case 'h': base = 16; break;
+		case 'o': base = 8; break;
+		case 'b': base = 2; break;
+		default: assert(false);
+		}
 	}
 	
 	set_width(bits);
 	set_depth(1);
-	set(std::stoi(mr[3], 0, base));
-	m_width = bits;
+	set(std::stoi(mr[4], 0, base));
 }
 
 Value Value::parse(const std::string& val)

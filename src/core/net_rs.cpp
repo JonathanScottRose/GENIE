@@ -215,14 +215,32 @@ void RSPort::refine_rvd()
 
 void RSPort::refine_topo()
 {
+	auto linkpoints = get_linkpoints();
+	bool has_linkpoints = !linkpoints.empty();
+	bool nonlp_connected = get_endpoint_sysface(NET_RS)->is_connected();
+
 	// Validate: if have linkpoints, then can't have any direct connections ourselves
+	if (has_linkpoints && nonlp_connected)
 	{
-		bool connected = get_endpoint(NET_RS, LinkFace::OUTER)->is_connected();
-		connected |= get_endpoint(NET_RS, LinkFace::INNER)->is_connected();
-		
-		if (get_linkpoints().size() > 0 && connected)
+		throw HierException(this, "cannot both have linkpoints and direct connections");
+	}
+	
+	// Validate: fixup linkpoint ID encodings to match the width of the likpoint ID port
+	if (has_linkpoints)
+	{
+		auto lp_rb = get_role_binding(ROLE_LPID);
+		if (!lp_rb)
 		{
-			throw HierException(this, "cannot both have linkpoints and direct connections");
+			throw HierException(this, "has linkpoints but no lpid signal");
+		}
+
+		int lp_rb_width = lp_rb->get_hdl_binding()->get_width();
+		for (auto& lp : linkpoints)
+		{
+			// good place to throw warnings if LPID value is truncated
+			auto lpid_val = lp->get_encoding();
+			lpid_val.set_width(lp_rb_width);
+			lp->set_encoding(lpid_val);
 		}
 	}
 
