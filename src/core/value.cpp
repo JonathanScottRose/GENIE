@@ -1,0 +1,119 @@
+#include "genie/regex.h"
+#include "genie/value.h"
+
+using namespace genie;
+
+Value::Value(const std::vector<int>& vals, int width)
+	: m_vals(vals), m_width(width), m_depth(vals.size())
+{
+}
+
+Value::Value(int val, int width)
+	: Value(std::vector<int>{val}, width)
+{
+}
+
+Value::Value(int val)
+	: Value(val, 32)
+{
+}
+
+Value::Value()
+	: Value(0)
+{
+}
+
+bool Value::operator==(const Value& other) const
+{
+	return 
+		m_vals == other.m_vals &&
+		m_width == other.m_width &&
+		m_depth == other.m_depth;
+}
+
+bool Value::operator<(const Value& o) const
+{
+	if (m_depth < o.m_depth) return true;
+	else if (m_depth > o.m_depth) return false;
+
+	if (m_width == 0) return true;
+	else if (o.m_width == 0) return false;
+
+	return m_vals[0] < o.m_vals[0];
+}
+
+Value::operator int() const
+{
+	return get(0);
+}
+
+Value& Value::operator= (int val)
+{
+	set(val);
+	return *this;
+}
+
+
+int Value::get(int slice) const
+{
+	return m_vals[slice];
+}
+
+void Value::set(int val, int slice)
+{
+	m_vals[slice] = val;
+}
+
+void Value::set_depth(int depth)
+{
+	m_depth = depth;
+	m_vals.resize(depth);
+}
+
+Value::Value(const std::string& val)
+{
+	int base = 10;
+	int bits = 32;
+
+	std::regex regex("\\s*((\\d+)'([dbho]))?([0-9abcdefABCDEF]+)");
+	std::smatch mr;
+
+	std::regex_match(val, mr, regex);
+
+	if (mr[1].matched)
+	{
+		bits = std::stoi(mr[2]);
+		char radix = mr[3].str().at(0);
+
+		switch (radix)
+		{
+		case 'd': base = 10; break;
+		case 'h': base = 16; break;
+		case 'o': base = 8; break;
+		case 'b': base = 2; break;
+		default: assert(false);
+		}
+	}
+	
+	set_width(bits);
+	set_depth(1);
+	set(std::stoi(mr[4], 0, base));
+}
+
+Value Value::parse(const std::string& val)
+{
+	return Value(val);
+}
+
+std::string Value::to_string() const
+{
+	// We don't support anything else yet
+	assert(m_depth == 1);
+
+	// Format for Verilog
+	std::string result = std::to_string(m_width);
+	result += "'d";
+	result += std::to_string(m_vals[0]);
+
+	return result;
+}

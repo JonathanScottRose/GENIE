@@ -1172,11 +1172,11 @@ LUA_API void lua_setallocf (lua_State *L, lua_Alloc f, void *ud) {
 }
 
 
-LUA_API void *lua_newuserdata (lua_State *L, size_t size) {
+LUA_API void *lua_newuserdata (lua_State *L, size_t size, int boxptr) {
   Udata *u;
   lua_lock(L);
   luaC_checkGC(L);
-  u = luaS_newudata(L, size, NULL);
+  u = luaS_newudata(L, size, NULL, boxptr);
   setuvalue(L, L->top, u);
   api_incr_top(L);
   lua_unlock(L);

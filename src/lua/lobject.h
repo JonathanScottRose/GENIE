@@ -157,6 +157,7 @@ typedef struct lua_TValue TValue;
 #define tsvalue(o)	(&rawtsvalue(o)->tsv)
 #define rawuvalue(o)	check_exp(ttisuserdata(o), &val_(o).gc->u)
 #define uvalue(o)	(&rawuvalue(o)->uv)
+#define bpvalue(o)	(*(void**)(rawuvalue(o)+1))
 #define clvalue(o)	check_exp(ttisclosure(o), &val_(o).gc->cl)
 #define clLvalue(o)	check_exp(ttisLclosure(o), &val_(o).gc->cl.l)
 #define clCvalue(o)	check_exp(ttisCclosure(o), &val_(o).gc->cl.c)
@@ -432,6 +433,7 @@ typedef union Udata {
   L_Umaxalign dummy;  /* ensures maximum alignment for `local' udata */
   struct {
     CommonHeader;
+	lu_byte boxptr; /* enabled when userdata contents are a pointer */
     struct Table *metatable;
     struct Table *env;
     size_t len;  /* number of bytes */

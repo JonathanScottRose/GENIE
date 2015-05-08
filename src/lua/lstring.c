@@ -172,7 +172,7 @@ TString *luaS_new (lua_State *L, const char *str) {
 }
 
 
-Udata *luaS_newudata (lua_State *L, size_t s, Table *e) {
+Udata *luaS_newudata (lua_State *L, size_t s, Table *e, int is_boxptr) {
   Udata *u;
   if (s > MAX_SIZET - sizeof(Udata))
     luaM_toobig(L);
@@ -180,6 +180,7 @@ Udata *luaS_newudata (lua_State *L, size_t s, Table *e) {
   u->uv.len = s;
   u->uv.metatable = NULL;
   u->uv.env = e;
+  u->uv.boxptr = is_boxptr? 1 : 0;
   return u;
 }
 

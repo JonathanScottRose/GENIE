@@ -1,42 +1,39 @@
-#include <stdexcept>
 #include <iostream>
+
 #include "getoptpp/getopt_pp.h"
 #include "globals.h"
 #include "io.h"
-#include "ct/ct.h"
-#include "write_vlog.h"
-#include "impl_vlog.h"
-#include "lua_iface.h"
+
+#include "genie/genie.h"
+#include "genie/lua/genie_lua.h"
+#include "genie/regex.h"
+#include "flow.h"
+
+using namespace genie;
 
 namespace
 {
 	std::string s_script;
+	std::string s_lua_args;
 
-	std::vector<std::string> split(const std::string &s, char delim)
+	lua::ArgsVec parse_lua_args()
 	{
-		std::vector<std::string> elems;
-		std::stringstream ss(s);
-		std::string item;
-		while (std::getline(ss, item, delim))
-		{
-			elems.push_back(item);
-		}
-		return elems;
-	}
+		lua::ArgsVec args;
 
-	void parse_params(const std::string& params)
-	{
-		auto keyvals = split(params, ',');
-		for (auto& i : keyvals)
+		// Extract key=val,key=val,... pairs from string
+		for (auto cur_pos = s_lua_args.cbegin(), end_pos = s_lua_args.cend(); cur_pos != end_pos; )
 		{
-			auto key_and_val = split(i, '=');
-			if (key_and_val.size() != 2)
-				throw Exception("Global parameter must have one key and one value: " + i);
+			static std::regex pattern(R"(((\w+)=(\w+)(,)?).*)");
+			std::smatch mr;
 
-			auto& key = key_and_val[0];
-			auto& val = key_and_val[1];
-			Globals::inst()->global_params[key] = val;
+			if (!std::regex_match(cur_pos, end_pos, mr, pattern, std::regex_constants::match_continuous))
+				throw Exception("malformed Lua args: " + s_lua_args);
+
+			args.emplace_back(std::make_pair(mr[2], mr[3]));
+			cur_pos = mr[1].second;
 		}
+
+		return args;
 	}
 
 	void parse_args(int argc, char** argv)
@@ -45,53 +42,47 @@ namespace
 
 		//args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
 		
-		args >> GetOpt::OptionPresent("p2pdot", Globals::inst()->dump_p2p_graph);
-		args >> GetOpt::OptionPresent("topodot", Globals::inst()->dump_topo_graph);
-		args >> GetOpt::OptionPresent("reg_merge", Globals::inst()->register_merge);
-
-		std::string params;
-		args >> GetOpt::Option("params", params);
-		parse_params(params);
+		args >> GetOpt::OptionPresent("dump_dot", Globals::inst()->dump_dot);
+		args >> GetOpt::Option("dump_dot", Globals::inst()->dump_dot_network);
+		args >> GetOpt::Option("args", s_lua_args);
 
 		if (!(args >> GetOpt::GlobalOption(s_script)))
-			throw Exception("Must specify script");
-	}
-
-	void set_global_params()
-	{
-		for (auto& keyval : Globals::inst()->global_params)
-		{
-			LuaIface::set_global_param(keyval.first, keyval.second);
-		}
+			throw Exception("Must specify Lua script");
 	}
 }
-
-
 
 int main(int argc, char** argv)
 {
 	try
 	{
+		parse_args(argc, argv);
+
+		genie::init();
+		lua::init(parse_lua_args());		
+
+		lua::exec_script(s_script);		
+
+		flow_main();
+	}
+	catch (std::exception& e)
+	{
+		io::msg_error(e.what());
+	}
+
+	lua::shutdown();
+
+	/*
+	try
+	{
 		LuaIface::init();
 		parse_args(argc, argv);
-		set_global_params();
 		LuaIface::exec_script(s_script);
-
-		ct::get_opts().register_merge = Globals::inst()->register_merge;
 
 		for (auto& i : Spec::systems())
 		{
 			Spec::System* spec_sys = i.second;
-
-			if (Globals::inst()->dump_topo_graph)
-				spec_sys->get_topology()->dump_graph(spec_sys->get_name() + "_topo.dot");
-
-			P2P::System* p2p_sys = ct::build_system(spec_sys);
-
-			if (Globals::inst()->dump_p2p_graph)
-				p2p_sys->dump_graph();
-
-			Vlog::SystemModule* sys_mod = ImplVerilog::build_top_module(p2p_sys);
+			P2P::System* p2p_sys = genie::build_system(spec_sys);
+			Vlog::SystemVlogInfo* sys_mod = ImplVerilog::build_top_module(p2p_sys);
 			WriteVerilog::go(sys_mod);
 			
 			delete sys_mod;
@@ -103,7 +94,7 @@ int main(int argc, char** argv)
 		IO::msg_error(e.what());		
 	}
 
-	LuaIface::shutdown();
+	LuaIface::shutdown();*/
 
 	return 0;
 }

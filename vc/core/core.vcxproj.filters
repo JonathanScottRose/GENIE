@@ -6,78 +6,123 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\instance_node.cpp" />
-    <ClCompile Include="..\..\src\p2p.cpp" />
-    <ClCompile Include="..\..\src\spec.cpp" />
-    <ClCompile Include="..\..\src\sys_spec.cpp" />
-    <ClCompile Include="..\..\src\comp_spec.cpp" />
-    <ClCompile Include="..\..\src\ct.cpp" />
-    <ClCompile Include="..\..\src\expressions.cpp" />
-    <ClCompile Include="..\..\src\merge_node.cpp" />
-    <ClCompile Include="..\..\src\split_node.cpp" />
-    <ClCompile Include="..\..\src\flow_conv_node.cpp" />
-    <ClCompile Include="..\..\src\export_node.cpp" />
-    <ClCompile Include="..\..\src\topo_spec.cpp" />
-    <ClCompile Include="..\..\src\protocol.cpp" />
-    <ClCompile Include="..\..\src\clock_cross_node.cpp" />
-    <ClCompile Include="..\..\src\multi_way_cut.cpp" />
-    <ClCompile Include="..\..\src\graph.cpp" />
-    <ClCompile Include="..\..\src\min_st_cut.cpp" />
-    <ClCompile Include="..\..\src\reg_node.cpp" />
+    <ClInclude Include="..\..\src\core\expressions_nodes.h" />
+    <ClInclude Include="..\..\include\genie\aspects.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\common.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\connections.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\expressions.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\genie.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\hierarchy.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\networks.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\static_init.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\structure.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\util.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\net_clock.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\net_reset.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\net_topo.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\regex.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\net_rvd.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_split.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\net_conduit.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_merge.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\graph.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\value.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\sigroles.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\protocol.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\vlog.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\vlog_bind.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\parameter.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_clockx.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\net_rs.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_flowconv.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_reg.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\include\ct\p2p.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\instance_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\comp_spec.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\common.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\sys_spec.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\static_init.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\spec.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\ct.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\split_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\merge_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\expressions.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\flow_conv_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\export_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\expressions_nodes.h" />
-    <ClInclude Include="..\..\include\ct\topo_spec.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\protocol.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\include\ct\clock_cross_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\graph.h" />
-    <ClInclude Include="..\..\include\ct\reg_node.h">
-      <Filter>Public</Filter>
-    </ClInclude>
+    <ClCompile Include="..\..\src\core\expressions.cpp" />
+    <ClCompile Include="..\..\src\core\hierarchy.cpp" />
+    <ClCompile Include="..\..\src\core\structure.cpp" />
+    <ClCompile Include="..\..\src\core\networks.cpp" />
+    <ClCompile Include="..\..\src\core\connections.cpp" />
+    <ClCompile Include="..\..\src\core\genie.cpp" />
+    <ClCompile Include="..\..\src\core\net_clock.cpp" />
+    <ClCompile Include="..\..\src\core\net_reset.cpp" />
+    <ClCompile Include="..\..\src\core\net_topo.cpp" />
+    <ClCompile Include="..\..\src\core\net_rvd.cpp" />
+    <ClCompile Include="..\..\src\core\graph.cpp" />
+    <ClCompile Include="..\..\src\core\min_st_cut.cpp" />
+    <ClCompile Include="..\..\src\core\multi_way_cut.cpp" />
+    <ClCompile Include="..\..\src\core\node_split.cpp" />
+    <ClCompile Include="..\..\src\core\net_conduit.cpp" />
+    <ClCompile Include="..\..\src\core\node_merge.cpp" />
+    <ClCompile Include="..\..\src\core\min_color.cpp" />
+    <ClCompile Include="..\..\src\core\value.cpp" />
+    <ClCompile Include="..\..\src\core\vlog.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_bind.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_flow.cpp" />
+    <ClCompile Include="..\..\src\core\vlog_write.cpp" />
+    <ClCompile Include="..\..\src\core\sigroles.cpp" />
+    <ClCompile Include="..\..\src\core\node_clockx.cpp" />
+    <ClCompile Include="..\..\src\core\protocol.cpp" />
+    <ClCompile Include="..\..\src\core\net_rs.cpp" />
+    <ClCompile Include="..\..\src\core\node_flowconv.cpp" />
+    <ClCompile Include="..\..\src\core\node_reg.cpp" />
   </ItemGroup>
 </Project>

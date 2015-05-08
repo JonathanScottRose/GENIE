@@ -4,27 +4,28 @@ util = {}
 -- LANGUAGE/OO SUPPORT
 --
 
-function class(members)
-	local result = members or {}
-	result.__index = result
+function class()
+	local result = {}
+    setmetatable(result, result)
 	
-	function result:_init_inst(o)
-		o = o or {}
-		setmetatable(o, self)
-		return o
-	end
-	
-	function result:new(o)
-		return self:_init_inst(o)
-	end
-	
-	function result:subclass(o)
-		local c = self:_init_inst(o)
-		c.__index = c
-		return c
-	end
+    function result.new(...)
+        local inst = {}
+        inst.__index = result
+        setmetatable(inst, inst)
+        inst:__ctor(...)
+        return inst
+    end
+    
+    function result:__ctor(...)
+    end
 	
 	return result
+end
+
+function subclass(base)
+    local result = class()
+    result.__index = base
+    return result
 end
 
 function enum(names)
@@ -137,13 +138,19 @@ end
 
 Set = 
 {
-	add = function(s, o)
+	add = function(s, o)        
 		s[o] = true
 	end,
 	
 	del = function(s, o)
 		s[o] = nil
 	end,
+    
+    clear = function(s)
+        for k in pairs (s) do
+            s[k] = nil
+        end
+    end,
 	
 	make = function(list)
 		local result = {}
@@ -154,7 +161,8 @@ Set =
 	end,
 	
 	values = function(s)
-		return keys(s)
+        -- important! sort the keys to ensure deterministic iteration order
+		return skeysk(s)
 	end,
 	
 	mkvalues = function(list)
@@ -166,18 +174,6 @@ Set =
 --
 -- FUNCTIONS
 --
-
-function util.error(e, level)
-	print(debug.traceback())
-	error(e, level)
-end
-
-function util.assert(cond)
-	if not cond then
-		print(debug.traceback())
-		assert(false)
-	end
-end
 
 function util.is_member(x, y)
 	for _,v in ipairs(y) do

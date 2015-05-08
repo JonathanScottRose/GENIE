@@ -114,6 +114,12 @@ static Node *mainposition (const Table *t, const TValue *key) {
       return hashpointer(t, pvalue(key));
     case LUA_TLCF:
       return hashpointer(t, fvalue(key));
+	case LUA_TUSERDATA: {
+		if (uvalue(key)->boxptr)
+			return hashpointer(t, bpvalue(key));
+		else
+			return hashpointer(t, gcvalue(key));
+	}
     default:
       return hashpointer(t, gcvalue(key));
   }
