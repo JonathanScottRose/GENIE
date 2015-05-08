@@ -14,7 +14,8 @@ namespace lua
 	#define LGLOBALS(...) GlobalsReg s_globals_reg(__VA_ARGS__)	
 
 	// Init/shutdown
-	void init();
+	using ArgsVec = std::vector<std::pair<std::string,std::string>>;
+	void init(const ArgsVec&);
 	void shutdown();
 	
 	// Class registration and C++ interop

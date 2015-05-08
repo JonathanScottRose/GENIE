@@ -6,6 +6,7 @@
 
 #include "genie/genie.h"
 #include "genie/lua/genie_lua.h"
+#include "genie/regex.h"
 #include "flow.h"
 
 using namespace genie;
@@ -13,6 +14,27 @@ using namespace genie;
 namespace
 {
 	std::string s_script;
+	std::string s_lua_args;
+
+	lua::ArgsVec parse_lua_args()
+	{
+		lua::ArgsVec args;
+
+		// Extract key=val,key=val,... pairs from string
+		for (auto cur_pos = s_lua_args.cbegin(), end_pos = s_lua_args.cend(); cur_pos != end_pos; )
+		{
+			static std::regex pattern(R"(((\w+)=(\w+)(,)?).*)");
+			std::smatch mr;
+
+			if (!std::regex_match(cur_pos, end_pos, mr, pattern, std::regex_constants::match_continuous))
+				throw Exception("malformed Lua args: " + s_lua_args);
+
+			args.emplace_back(std::make_pair(mr[2], mr[3]));
+			cur_pos = mr[1].second;
+		}
+
+		return args;
+	}
 
 	void parse_args(int argc, char** argv)
 	{
@@ -22,6 +44,7 @@ namespace
 		
 		args >> GetOpt::OptionPresent("dump_dot", Globals::inst()->dump_dot);
 		args >> GetOpt::Option("dump_dot", Globals::inst()->dump_dot_network);
+		args >> GetOpt::Option("args", s_lua_args);
 
 		if (!(args >> GetOpt::GlobalOption(s_script)))
 			throw Exception("Must specify Lua script");
@@ -35,8 +58,8 @@ int main(int argc, char** argv)
 		parse_args(argc, argv);
 
 		genie::init();
-		lua::init();
-		
+		lua::init(parse_lua_args());		
+
 		lua::exec_script(s_script);		
 
 		flow_main();

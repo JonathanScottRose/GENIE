@@ -8,11 +8,10 @@
 using namespace genie;
 using namespace lua;
 
-extern volatile int foo;
-
 namespace
 {
 	const char* API_TABLE_NAME = "genie";
+	const char* API_ARGV_TABLE = "argv";
 	lua_State* s_state = nullptr;
 	std::vector<ClassRegEntry> s_reg_classes;
 
@@ -79,8 +78,6 @@ namespace
 			return other.catchfunc(entry.throwfunc);
 		});
 
-		//auto it = s_reg_classes.end();
-
 		s_reg_classes.emplace(it, entry);
 	}
 
@@ -137,30 +134,47 @@ lua_State* lua::get_state()
 	return s_state;
 }
 
-void lua::init()
+void lua::init(const lua::ArgsVec& argv)
 {
+	// Create global Lua state
 	s_state = luaL_newstate();
 	lua_atpanic(s_state, s_panic);
 	luaL_checkversion(s_state);
 	luaL_openlibs(s_state);
 
+	// Create global API table
 	lua_newtable(s_state);
 	lua_setglobal(s_state, API_TABLE_NAME);
 
+	// Register all API classes
 	for (auto& entry : ClassReg::entries())
 	{
 		s_register_class_lua(entry);
 		s_register_class_cpp(entry);
 	}
 
-	// Push API table on the stack
+	// Push API table onto the stack and register all global API functions
 	lua_getglobal(s_state, API_TABLE_NAME);
-
 	for (auto& entry : GlobalsReg::entries())
 	{
 		s_register_funclist(entry);
 	}
 
+	// With API table still on the stack, create the argv table and populate it
+	lua_newtable(s_state);
+	for (const auto& kv : argv)
+	{
+		const char* key = kv.first.c_str();
+		const char* val = kv.second.c_str();
+
+		lua_pushstring(s_state, val);
+		lua_setfield(s_state, -2, key);
+	}
+
+	// Add argv table to API table
+	lua_setfield(s_state, -2, API_ARGV_TABLE);
+
+	// Pop API table
 	lua_pop(s_state, 1);
 }
 
