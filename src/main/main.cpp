@@ -26,7 +26,7 @@ namespace
 			static std::regex pattern(R"(((\w+)=(\w+)(,)?).*)");
 			std::smatch mr;
 
-			if (!std::regex_match(cur_pos, end_pos, mr, pattern, std::regex_constants::match_continuous))
+			if (!std::regex_match(cur_pos, end_pos, mr, pattern))
 				throw Exception("malformed Lua args: " + s_lua_args);
 
 			args.emplace_back(std::make_pair(mr[2], mr[3]));
