@@ -32,6 +32,7 @@ end
 
 function Builder:component(name, modl)
     self.cur_node = g.Node.new(name, modl)
+    self.cur_param_tgt = self.cur_node
     return self.cur_node
 end
 
@@ -74,7 +75,7 @@ function Builder:linkpoint(name, encoding, type)
 	if not self.cur_port then error("Unexpected 'linkpoint'") end
     if not self.cur_port.add_linkpoint then error("Interface does not support linkpoints") end
     
-    self.cur_port:add_linkpoint(name, encoding, type)
+    return self.cur_port:add_linkpoint(name, encoding, type)
 end
 
 function Builder:system(name, topofunc)
@@ -87,7 +88,8 @@ end
 
 function Builder:instance(name, comp)
 	if not self.cur_sys then error("Unexpected 'instance'") end
-    self.cur_node = self.cur_sys:add_node(name, comp)
+    self.cur_param_tgt = self.cur_sys:add_node(name, comp)
+    return self.cur_param_tgt
 end
 
 function Builder:export(port, name)
@@ -115,7 +117,7 @@ function Builder:assoc_clk(clkname)
 end
 
 function Builder:make_exclusive(s)
-    if not self.cur_sys then error("No current system defined") end
+    if not self.cur_sys then error("no current system") end
 
     -- ignore null args
     if not s then return end;
@@ -141,12 +143,12 @@ function Builder:make_exclusive(s)
 end
 
 function Builder:parameter(name, val)
-    if not self.cur_node then error("Unexpected 'parameter'") end
-    self.cur_node:def_param(name, val)
+    if not self.cur_param_tgt then error("no current component or system") end
+    self.cur_param_tgt:def_param(name, val)
 end
 
 function Builder:signal(role, tag, vname, width)
-    if not self.cur_port then error("Unexpected 'signal'") end
+    if not self.cur_port then error("no current port") end
     
     local newargs
     
@@ -159,7 +161,7 @@ function Builder:signal(role, tag, vname, width)
 end
 
 function Builder:latency_query(link, param)
-    if not self.cur_sys then error("No current system defined") end
+    if not self.cur_sys then error("no current system") end
     
     -- function overload: link may be a label, or an actual link.
     -- convert to an actual link if it's just a label

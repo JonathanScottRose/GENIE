@@ -280,7 +280,8 @@ namespace
 				auto sink_rb = sink->get_matching_role_binding(src_rb);
 				if (sink_rb)
 				{
-					if (src_rb->get_role_def()->get_sense() == SigRole::REV)
+					auto src_sense = src_rb->get_role_def()->get_sense();
+					if (src_sense == SigRole::REV || src_sense == SigRole::IN)
 						std::swap(src_rb, sink_rb);
 
 					connect_rb(sys, src_rb, sink_rb);
@@ -321,9 +322,12 @@ HDLBinding* vlog::export_binding(System* sys, genie::Port* new_port, HDLBinding*
 		new_vportname += "_" + old_rb->get_tag();
 	}
 
-	// Create new verilog port on the system. Auto name, same dir, concrete-ized width.
+	// Create new verilog port on the system:
+	// name: auto-generated above based on role and tag
+	// direction: same as that of exported verilog port
+	// width: same as the width of the binding
 	auto old_vport = old_b->get_port();
-	int width = old_vport->eval_width();
+	int width = old_b->get_width();
 	auto new_vport = new Port(new_vportname, width, old_vport->get_dir());
 
 	sysinfo->add_port(new_vport);

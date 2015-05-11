@@ -853,7 +853,50 @@ namespace
 		std::string sigrole_str = luaL_checkstring(L, 2);
 		std::string tag = has_tag? luaL_checkstring(L, 3) : "";
 		std::string vlog_portname = luaL_checkstring(L, has_tag? 4 : 3);
-		std::string widthexpr = luaL_checkstring(L, has_tag? 5 : 4);
+
+		// Total width of signal, width of signal actually used to bind role, and lsb
+		std::string widthexpr_total;
+		std::string widthexpr_bind;
+		std::string lsbexpr;
+
+		// The argument can either be an array (=table) containing {totalwidth,[boundwidth],[lsb]}
+		// or a string just containing totalwidth.
+		int tab_idx = has_tag? 5 : 4;
+		if (lua_istable(L, tab_idx))
+		{
+			lua_rawgeti(L, tab_idx, 1);
+			lua_rawgeti(L, tab_idx, 2);
+			lua_rawgeti(L, tab_idx, 3);
+
+			if (!lua_isstring(L, -3))
+				luaL_argerror(L, tab_idx, "expected totalwidth expression as first table element");
+			widthexpr_total = lua_tostring(L, -3);
+
+			// Second element (bound width) is optional, defaults to total width
+			if (lua_isstring(L, -2))
+				widthexpr_bind = lua_tostring(L, -2);
+			else if (lua_isnil(L, -2))
+				widthexpr_bind = widthexpr_total;
+			else
+				luaL_argerror(L, tab_idx, "expected bound-width expression as second table element");
+
+			// Third element (lsb) is optional, defaults to 0
+			if (lua_isstring(L, -1))
+				lsbexpr = lua_tostring(L, -1);
+			else if (lua_isnil(L, -1))
+				lsbexpr = "0";
+			else
+				luaL_argerror(L, tab_idx, "expected lsb expression as third table element");
+
+			// Pop the elements retrieved by rawgeti's
+			lua_pop(L, 3);
+		}
+		else if (lua_isstring(L, tab_idx))
+		{
+			widthexpr_total = lua_tostring(L, tab_idx);
+			widthexpr_bind = widthexpr_total;
+			lsbexpr = "0";
+		}
 
 		// Get Role ID and Role Definition
 		Network* netdef = Network::get(self->get_type());
@@ -875,12 +918,12 @@ namespace
 		if (!vport)
 		{
 			auto vpdir = vlog::Port::make_dir(self->get_dir(), sigrole->get_sense());
-			vport = new vlog::Port(vlog_portname, widthexpr, vpdir);
+			vport = new vlog::Port(vlog_portname, widthexpr_total, vpdir);
 			vinfo->add_port(vport);
 		}
 
 		// Add a new signal role binding, bound to the entire verilog port
-		self->add_role_binding(sigrole_id, tag, new vlog::VlogStaticBinding(vlog_portname));
+		self->add_role_binding(sigrole_id, tag, new vlog::VlogStaticBinding(vlog_portname, widthexpr_bind, lsbexpr));
 
 		return 0;
 	}
