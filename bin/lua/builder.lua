@@ -81,6 +81,7 @@ end
 function Builder:system(name, topofunc)
 	self.cur_sys = g.System.new(name, topofunc)
     self.cur_node = self.cur_sys
+	self.cur_param_tgt = self.cur_sys
     
     -- initialize name2link table for this system
     self.name2link[self.cur_sys] = {}
