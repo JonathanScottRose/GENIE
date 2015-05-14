@@ -22,6 +22,7 @@ module genie_merge_ex #
 // guaranteed to never compete.
 
 // Payload: assuming up to one valid[] is true at any time, make a very simple mux
+generate if (WIDTH > 0)
 always_comb begin : one_hot_mux
     o_eop = '0;
     o_data = '0;
@@ -31,6 +32,7 @@ always_comb begin : one_hot_mux
         o_data = o_data | ({WIDTH{i_valid[i]}} & i_data[WIDTH*i +: WIDTH]);
     end
 end
+endgenerate
 
 assign o_valid = |i_valid;
 assign o_ready = {NI{i_ready}};

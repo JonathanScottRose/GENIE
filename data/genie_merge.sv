@@ -126,6 +126,7 @@ cur_input_calc #
 );
 
 // Output muxes
+generate if (WIDTH > 0)
 genie_mux #
 (
 	.lpm_width(WIDTH),
@@ -138,6 +139,7 @@ genie_mux #
 	.sel(cur_input),
 	.result(o_data)
 );
+endgenerate
 
 genie_mux #
 (
