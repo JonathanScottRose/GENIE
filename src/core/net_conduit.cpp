@@ -63,27 +63,3 @@ HierObject* ConduitPort::instantiate()
 	return new ConduitPort(*this);
 }
 
-RoleBinding* ConduitPort::get_matching_role_binding(RoleBinding* other)
-{
-	// With ConduitPorts, the following connectivity is possible:
-	// FWD->FWD
-	// REV->REV
-	// INOUT->INOUT
-	// IN->OUT
-	// OUT->IN
-
-	SigRoleID matching_id;
-	SigRoleID other_id = other->get_id();
-	const std::string& tag = other->get_tag();
-
-	bool export_polarity = is_export() ^ other->get_parent()->is_export();
-
-	if (other_id == ConduitPort::ROLE_FWD) matching_id = ConduitPort::ROLE_FWD;
-	else if (other_id == ConduitPort::ROLE_REV) matching_id = ConduitPort::ROLE_REV;
-	else if (other_id == ConduitPort::ROLE_IN) matching_id = export_polarity? ConduitPort::ROLE_IN : ConduitPort::ROLE_OUT;
-	else if (other_id == ConduitPort::ROLE_OUT) matching_id = export_polarity? ConduitPort::ROLE_OUT : ConduitPort::ROLE_IN;
-	else if (other_id == ConduitPort::ROLE_INOUT) matching_id = ConduitPort::ROLE_INOUT;
-	else assert(false);
-
-	return get_role_binding(matching_id, tag);
-}

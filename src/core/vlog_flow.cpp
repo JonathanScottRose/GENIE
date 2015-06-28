@@ -256,13 +256,13 @@ namespace
 		}
 	}
 
-	void do_easy_links(System* sys)
+	void do_clockreset(System* sys)
 	{
 		auto sysmod = get_sysinfo(sys);
 
 		// Gather links
 		System::Links links;
-		for (auto n : {NET_CLOCK, NET_RESET, NET_CONDUIT})
+		for (auto n : {NET_CLOCK, NET_RESET})
 		{
 			auto to_add = sys->get_links(n);
 			links.insert(links.end(), to_add.begin(), to_add.end());
@@ -281,9 +281,70 @@ namespace
 				if (sink_rb)
 				{
 					auto src_sense = src_rb->get_role_def()->get_sense();
-					if (src_sense == SigRole::REV || src_sense == SigRole::IN)
+					if (src_sense == SigRole::REV)
 						std::swap(src_rb, sink_rb);
 
+					connect_rb(sys, src_rb, sink_rb);
+				}
+			}
+		}
+	}
+
+	void do_conduit(System* sys)
+	{
+		auto sysmod = get_sysinfo(sys);
+
+		// Gather links
+		auto links = sys->get_links(NET_CONDUIT);
+
+		for (auto& link : links)
+		{
+			auto link_src = as_a<genie::ConduitPort*>(link->get_src());
+			auto link_sink = as_a<genie::ConduitPort*>(link->get_sink());
+			assert(link_src);
+			assert(link_sink);
+
+			// Go through all the role bindings at the src and find the matching one at the sink.
+			// Then do the reverse (swap src/sink). This is done to catch all unmatched role bindings.
+			// To avoid doubling the amount of links, we only make a connection in the OUT->IN direction,
+			// with a special case for INOUT.
+			for (const auto& pair : {std::make_pair(link_src, link_sink), std::make_pair(link_sink, link_src)})
+			{
+				auto src = pair.first;
+				auto sink = pair.second;
+
+				for (auto src_rb : src->get_role_bindings())
+				{
+					// Only make connections from out->in to avoid doubling the amount of links.
+					// Special case for inout to make it only happen once
+					auto src_sense = src_rb->get_absolute_sense();
+					if (src_sense != SigRole::OUT || (src_sense == SigRole::INOUT && src == link_sink))
+						continue;
+
+					auto src_sense_rev = SigRole::rev_sense(src_sense); // could be IN or INOUT
+					auto src_tag = src_rb->get_tag();
+
+					// Now find the role binding at the other end that has the opposite absolute port direction
+					// and the same tag.
+					RoleBinding* sink_rb = nullptr;
+					for (auto sink_rb_cand : sink->get_role_bindings())
+					{
+						auto sink_sense = sink_rb_cand->get_absolute_sense();
+						if (sink_sense == src_sense_rev && sink_rb_cand->get_tag() == src_tag)
+						{
+							sink_rb = sink_rb_cand;
+							break;
+						}
+					}
+
+					// Make sure it exists! Conduits can't have unmatched bindings.
+					if (!sink_rb)
+					{
+						throw HierException(sink, "no matching counterpart role binding for " + 
+							src_rb->to_string());
+					}
+
+					// Make the connection. It's already oriented correctly.
 					connect_rb(sys, src_rb, sink_rb);
 				}
 			}
@@ -293,7 +354,8 @@ namespace
 
 void vlog::flow_process_system(System* sys)
 {
-	do_easy_links(sys);
+	do_clockreset(sys);
+	do_conduit(sys);
 	do_rvd_readyvalid(sys);
 	do_rvd_data(sys);
 	write_system(sys);

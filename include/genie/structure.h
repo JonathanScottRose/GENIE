@@ -46,7 +46,7 @@ namespace genie
 
 		// Manage signal role bindings
 		void clear_role_bindings();
-		virtual RoleBinding* get_matching_role_binding(RoleBinding*);
+		RoleBinding* get_matching_role_binding(RoleBinding*);
 		const RoleBindings& get_role_bindings() { return m_role_bindings; }
 		RoleBinding* add_role_binding(SigRoleID, const std::string&, HDLBinding*);
 		RoleBinding* add_role_binding(SigRoleID, HDLBinding*);

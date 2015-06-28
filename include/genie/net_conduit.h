@@ -21,7 +21,6 @@ namespace genie
 		ConduitPort(Dir dir, const std::string& name);
 		~ConduitPort();
 
-		RoleBinding* get_matching_role_binding(RoleBinding*) override;
 		HierObject* instantiate() override;
 	};
 }

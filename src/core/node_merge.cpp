@@ -211,6 +211,9 @@ void NodeMerge::do_exclusion_check()
 	for (int i = 0; i < n_inputs; i++)
 	{
 		const List<RSLink*>& links_at_port = links[i];
+		if (links_at_port.empty())
+			continue;
+
 		VertexID v0 = link_to_v[links_at_port[0]];
 		for (unsigned j = 1; j < links_at_port.size(); j++)
 		{

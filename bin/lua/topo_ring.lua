@@ -13,18 +13,23 @@ function topo_ring(sys)
 	--
 	
 	local ring = {}
-	
-	for objname,obj in pairs(sys:get_nodes()) do
+    
+    local objs = sys:get_nodes()
+    table.insert(objs, sys)
+    
+	for obj in values(objs) do
+        local objname = obj:get_name()
+        
         -- create a ringstop entry for this instance, which contains
         -- a split node and a merge node named after the instance
         local entry = 
         {
-            merge = sys:add_merge(objname .. '_inj')
+            merge = sys:add_merge(objname .. '_inj'),
             split = sys:add_split(objname .. '_ej')
         }
         
         table.insert(ring, entry) -- numerical entry
-        ring[objname] = entry -- relational entry
+        ring[obj] = entry -- relational entry
 	end
 	
     --
@@ -33,7 +38,8 @@ function topo_ring(sys)
     
 	for idx,entry in ipairs(ring) do
 		-- within a ringstop, the split has a bypass path to the merge
-        sys:add_link(entry.split:get_port('out'), entry.merge:get_port('in'))
+        local e = sys:add_link(entry.split:get_port('out'), entry.merge:get_port('in'))
+        entry.s2m = e
         
         -- reference the next ringstop, looping around to make a ring
         -- store the nextentry in each entry, linked-list style, for later
@@ -41,7 +47,8 @@ function topo_ring(sys)
         entry.next = nextentry -- to help traversal
         
         -- across ringstops, the merge connects to the next's split
-        sys:add_link(entry.merge:get_port('out'), nextentry.split:get_port('in'))
+        local e = sys:add_link(entry.merge:get_port('out'), nextentry.split:get_port('in'))
+        entry.m2s = e
 	end
 	
 	--
@@ -50,30 +57,30 @@ function topo_ring(sys)
 	
 	for _,link in ipairs(sys:get_links('rs')) do
 		-- start at source node's ringstop
-		local cur = ring[link.src.obj]
+        local srcnode = link:get_src():get_rs_port():get_parent()
+		local cur = ring[srcnode]
 		
 		-- get onto ring via merge node
-		local e = graph:connect(link.src:phys(), cur.merge)
-		e:add_link(link)
+        local e = sys:add_link(link:get_src():get_topo_port(), cur.merge:get_port('in'))
+        e:add_parent(link)
 		
 		-- advance to next ringstop's split node (makes the loop condition work properly)
-		e = graph:get_edge(cur.merge, cur.next.split)
-		e:add_link(link)
+        e = cur.m2s
+		e:add_parent(link)
 		cur = cur.next
 		
 		-- keep traveling in ring until we reach destination node's ringstop
-		while (cur ~= ring[link.dest.obj]) do
-			e = graph:get_edge(cur.split, cur.merge)
-			e:add_link(link)
-			e = graph:get_edge(cur.merge, cur.next.split)
-			e:add_link(link)
+        local sinknode = link:get_sink():get_rs_port():get_parent()
+		while (cur ~= ring[sinknode]) do
+			e = cur.s2m
+			e:add_parent(link)
+			e = cur.m2s
+			e:add_parent(link)
 			cur = cur.next
 		end
 		
 		-- get off of ring
-		e = graph:connect(cur.split, link.dest:phys())
-		e:add_link(link)
+        e = sys:add_link(cur.split:get_port('out'), link:get_sink():get_topo_port())
+		e:add_parent(link)
 	end
-	
-	return graph
 end
