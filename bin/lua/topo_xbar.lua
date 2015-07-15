@@ -7,17 +7,18 @@ require 'util'
 
 -- Default topo_xbar: register merge but not split
 function topo_xbar(sys)
-    make_topo_xbar(false, true)(sys)
+    make_topo_xbar(false, true, false)(sys)
 end
 
-function make_topo_xbar(reg_split, reg_merge)
+function make_topo_xbar(reg_split, reg_merge, reg_internal)
 return function(sys)
     
     -- maps each RS link to the furthest-along (forward or backward) TOPO port
     -- that's carrying that RS link
 	local heads = {}
 	local tails = {}
-	
+	local sm_count = {}
+    
     -- given a SET of RS links, return a table with:
     -- key: head/tail TOPO port
     -- value: set of RS links associated with said TOPO port
@@ -52,6 +53,7 @@ return function(sys)
 	for link in Set.values(rs_links) do
 		heads[link] = link:get_src():get_topo_port()
 		tails[link] = link:get_sink():get_topo_port()
+        sm_count[link] = 0
 	end
 
 	--
@@ -74,6 +76,7 @@ return function(sys)
 			for link in Set.values(links) do
                 link:add_child(tlink)
 				heads[link] = split
+                sm_count[link] = sm_count[link] + 1
 			end
             
             if reg_split then
@@ -99,12 +102,15 @@ return function(sys)
 			for link in Set.values(links) do
                 link:add_child(tlink)
 				tails[link] = merge
+                sm_count[link] = sm_count[link] + 1
 			end
             
             if reg_merge then
                 local reg = sys:add_buffer(merge:get_name() .. "_reg")
                 sys:splice_node(tlink, reg)
             end
+            
+            
 		end
 	end
 
@@ -121,6 +127,14 @@ return function(sys)
             -- carry all the associated RS links over this new TOPO link
             for link in Set.values(links2) do
                 link:add_child(tlink)
+            end
+       
+            if reg_internal and sm_count[next(links2)] == 2 then
+                local reg = sys:add_buffer(
+                    util.unique_key(sys:get_objects(), 'intreg')
+                )
+                
+                sys:splice_node(tlink, reg)
             end
         end
 	end
