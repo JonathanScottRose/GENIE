@@ -153,6 +153,9 @@ namespace
 			auto mg_node = as_a<NodeMerge*>(o->get_parent());
 			if (mg_node) return mg_node->get_topo_input();
 
+			auto reg_node = as_a<NodeReg*>(o->get_parent());
+			if (reg_node) return reg_node->get_topo_input();
+
 			// Not an input/output port of a split/merge node. Do not remap.
 			return o;
 		};
@@ -697,31 +700,6 @@ namespace
 		}
 	}
 
-	void rvd_insert_reg_stages(System* sys)
-	{
-		// Register the outputs of all Merge nodes
-
-		auto mg_nodes = sys->get_children_by_type<NodeMerge>();
-		for (auto mg_node : mg_nodes)
-		{
-			// Get output
-			auto mg_out = mg_node->get_rvd_output();
-
-			// Get outgoing link
-			auto orig_link = mg_out->get_endpoint_sysface(NET_RVD)->get_link0();
-			if (!orig_link)
-				continue;
-
-			// Create reg node, add to system
-			auto rg_node = new NodeReg();
-			rg_node->set_name(mg_node->get_name() + "_reg");
-			sys->add_child(rg_node);
-
-			// Splice it into existing post-merge link
-			sys->splice(orig_link, rg_node->get_input(), rg_node->get_output());
-		}
-	}
-
 	void rvd_default_eops(System* sys)
 	{
 		// Default unconnected EOPs to 1
@@ -865,7 +843,6 @@ namespace
 		
 		// Various RVD processing
 		rvd_insert_flow_convs(sys);
-		rvd_insert_reg_stages(sys);
 		rvd_configure_split_nodes(sys);
 		rvd_configure_merge_nodes(sys);
 		rvd_do_carriage(sys);

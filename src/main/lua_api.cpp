@@ -4,6 +4,7 @@
 #include "genie/connections.h"
 #include "genie/node_split.h"
 #include "genie/node_merge.h"
+#include "genie/node_reg.h"
 #include "genie/vlog.h"
 #include "genie/vlog_bind.h"
 #include "genie/lua/genie_lua.h"
@@ -542,6 +543,38 @@ namespace
 		return 1;
 	}
 
+	// Creates reg node
+	// ARGS: SELF<System>, name<string>
+	// RETURNS: reg node
+	LFUNC(system_add_buf)
+	{
+		System* self = check_object<System>(1);
+		const char* name = luaL_checkstring(L, 2);
+
+		auto node = new NodeReg();
+		node->set_name(name);
+		self->add_child(node);
+
+		lua::push_object(node);
+
+		return 1;
+	}
+
+	// Splices a new HierObject into an existing Link.
+	// Uses auto-Port-finding on the HierObject to find the input and output Ports.
+	// ARGS: SELF<System>, link<Link>, object to splice into the link<HierObject or string>
+	LFUNC(system_splice_node)
+	{
+		System* self = check_object<System>(1);
+		Link* link = check_object<Link>(2);
+		HierObject* obj = check_obj_or_str_hierpath(L, 3, self);
+
+		auto new_link = self->splice(link, obj, obj);
+
+		lua::push_object(new_link);
+		return 1;
+	}
+
 	// Creates a new Link between a source and a sink, and optionally
 	// of an explicit network type (it's deduced automatically by default).
 	// The source and sink can either be Endpoint-equipped HierObjects, or
@@ -552,8 +585,8 @@ namespace
 	LFUNC(system_add_link)
 	{
 		System* sys = lua::check_object<System>(1);
-		auto src = check_obj_or_str_hierpath<Port>(L, 2, sys);
-		auto sink = check_obj_or_str_hierpath<Port>(L, 3, sys);
+		auto src = check_obj_or_str_hierpath<HierObject>(L, 2, sys);
+		auto sink = check_obj_or_str_hierpath<HierObject>(L, 3, sys);
 		auto netstr = luaL_optstring(L, 4, nullptr);
 
 		Link* link;
@@ -588,8 +621,8 @@ namespace
 		System* sys = lua::check_object<System>(1);
 
 		// Get src/sink, if applicable
-		Port* src = nargs >= 3 ? check_obj_or_str_hierpath<Port>(L, 2, sys) : nullptr;
-		Port* sink = nargs >= 3 ? check_obj_or_str_hierpath<Port>(L, 3, sys) : nullptr;
+		HierObject* src = nargs >= 3 ? check_obj_or_str_hierpath<HierObject>(L, 2, sys) : nullptr;
+		HierObject* sink = nargs >= 3 ? check_obj_or_str_hierpath<HierObject>(L, 3, sys) : nullptr;
 
 		// Get and check nettype, if applicable
 		NetType nettype = NET_INVALID;
@@ -675,6 +708,8 @@ namespace
 		LM(get_links, system_get_links),
 		LM(def_param, node_def_param),
 		LM(add_split, system_add_split),
+		LM(add_buffer, system_add_buf),
+		LM(splice_node, system_splice_node),
 		LM(add_merge, system_add_merge),
 		LM(make_export, system_make_export),
 		LM(create_latency_query, system_create_latency_query)

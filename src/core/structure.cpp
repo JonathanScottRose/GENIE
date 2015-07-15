@@ -283,6 +283,14 @@ Port::Port(const Port& o)
 		add_role_binding(new RoleBinding(*b));
 }
 
+Port* Port::locate_port(Dir dir, NetType type)
+{
+	if (type == NET_INVALID || is_connectable(type))
+		return this;
+	else
+		return HierObject::locate_port(dir, type);
+}
+
 //
 // Node
 //
@@ -447,7 +455,7 @@ Node::Links Node::get_links(NetType type) const
 	return (it == m_links.end())? Links() : it->second;
 }
 
-Node::Links Node::get_links(Port* src, Port* sink, NetType nettype) const
+Node::Links Node::get_links(HierObject* src, HierObject* sink, NetType nettype) const
 {
 	Links result;
 	Endpoint* src_ep;
@@ -468,7 +476,7 @@ Node::Links Node::get_links(Port* src, Port* sink, NetType nettype) const
 	return result;
 }
 
-Node::Links Node::get_links(Port* src, Port* sink) const
+Node::Links Node::get_links(HierObject* src, HierObject* sink) const
 {
 	NetType nettype = find_auto_net_type(src, sink);
 	if (nettype == NET_INVALID)
@@ -477,15 +485,19 @@ Node::Links Node::get_links(Port* src, Port* sink) const
 	return get_links(src, sink, nettype);
 }
 
-void Node::get_eps(Port*& src, Port*& sink, NetType nettype,
+void Node::get_eps(HierObject*& src, HierObject*& sink, NetType nettype,
 	Endpoint*& src_ep, Endpoint*& sink_ep) const
 {
+	// Find the ports to connect.
+	Port* src_port = src->locate_port(Dir::OUT, nettype);
+	Port* sink_port = sink->locate_port(Dir::IN, nettype);
+
 	// Find out where each Port lies within this Node:
 	// 1) Port is at the boundary of this Node: use inward-facing endpoint to connect
 	// 2) Port is at the boundary of a Node whose parent is this Node: use outward-facing endpoint
 	// 3) Anything else: error
 	LinkFace src_face, sink_face;
-	for (auto& i : { std::make_pair(&src_face, src), std::make_pair(&sink_face, sink) })
+	for (auto& i : { std::make_pair(&src_face, src_port), std::make_pair(&sink_face, sink_port) })
 	{
 		LinkFace* pface = i.first;
 		Port* port = i.second;
@@ -506,15 +518,15 @@ void Node::get_eps(Port*& src, Port*& sink, NetType nettype,
 	}
 
 	// Get the respective endpoints
-	src_ep = src->get_endpoint(nettype, src_face);
-	sink_ep = sink->get_endpoint(nettype, sink_face);
+	src_ep = src_port->get_endpoint(nettype, src_face);
+	sink_ep = sink_port->get_endpoint(nettype, sink_face);
 
 	// Validate that both src/sink eps exist are connectable with the given nettype
 	if (!src_ep || !sink_ep)
 	{
 		std::string netname = Network::to_string(nettype);
 		std::string who_role = !src_ep ? " source" : " sink";
-		HierObject* who_obj = !src_ep ? src : sink;
+		HierObject* who_obj = !src_ep ? src_port : sink_port;
 		throw HierException(who_obj, "not a " + netname + who_role);
 	}
 
@@ -526,7 +538,7 @@ void Node::get_eps(Port*& src, Port*& sink, NetType nettype,
 	}
 }
 
-Link* Node::connect(Port* src, Port* sink, NetType net)
+Link* Node::connect(HierObject* src, HierObject* sink, NetType net)
 {
 	Network* def = Network::get(net);
 	Endpoint* src_ep;
@@ -549,11 +561,11 @@ Link* Node::connect(Port* src, Port* sink, NetType net)
 	return link;
 }
 
-NetType Node::find_auto_net_type(Port* src, Port* sink) const
+NetType Node::find_auto_net_type(HierObject* src, HierObject* sink) const
 {
 	// Use the Port's nominal net type, and make sure both ports have it
-	NetType result = src->get_type();
-	if (sink->get_type() != result)
+	NetType result = src->locate_port(Dir::OUT)->get_type();
+	if (sink->locate_port(Dir::IN)->get_type() != result)
 		result = NET_INVALID;
 
 	return result;
@@ -578,7 +590,7 @@ NetType Node::find_auto_net_type(Port* src, Port* sink) const
 	*/
 }
 
-Link* Node::connect(Port* src, Port* sink)
+Link* Node::connect(HierObject* src, HierObject* sink)
 {
 	NetType nettype = find_auto_net_type(src, sink);
 
@@ -588,7 +600,7 @@ Link* Node::connect(Port* src, Port* sink)
 	return connect(src, sink, nettype);
 }
 
-void Node::disconnect(Port* src, Port* sink, NetType nettype)
+void Node::disconnect(HierObject* src, HierObject* sink, NetType nettype)
 {
 	Endpoint* src_ep;
 	Endpoint* sink_ep;
@@ -626,7 +638,7 @@ void Node::disconnect(Link* link)
 		m_links.erase(nettype);
 }
 
-void Node::disconnect(Port* src, Port* sink)
+void Node::disconnect(HierObject* src, HierObject* sink)
 {
 	NetType nettype = find_auto_net_type(src, sink);
 
@@ -636,7 +648,7 @@ void Node::disconnect(Port* src, Port* sink)
 	disconnect(src, sink, nettype);
 }
 
-Link* Node::splice(Link* orig, Port* new_sink, Port* new_src)
+Link* Node::splice(Link* orig, HierObject* new_sink, HierObject* new_src)
 {
 	//
 	// orig_src --> orig --> orig_sink

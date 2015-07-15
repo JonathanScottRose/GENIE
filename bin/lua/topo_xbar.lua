@@ -5,7 +5,14 @@ require 'util'
 -- and up to 1 layer of merge nodes
 --
 
+-- Default topo_xbar: register merge but not split
 function topo_xbar(sys)
+    make_topo_xbar(false, true)(sys)
+end
+
+function make_topo_xbar(reg_split, reg_merge)
+return function(sys)
+    
     -- maps each RS link to the furthest-along (forward or backward) TOPO port
     -- that's carrying that RS link
 	local heads = {}
@@ -61,13 +68,18 @@ function topo_xbar(sys)
             )
           
             -- link src port to split node with a topo link
-            local tlink = sys:add_link(src, split:get_port('in'))
+            local tlink = sys:add_link(src, split)
 			
             -- make the new TOPO link be a child of the RS link
 			for link in Set.values(links) do
                 link:add_child(tlink)
-				heads[link] = split:get_port('out')
+				heads[link] = split
 			end
+            
+            if reg_split then
+                local reg = sys:add_buffer(split:get_name() .. "_reg")
+                sys:splice_node(tlink, reg)
+            end
 		end
 	end
 
@@ -82,12 +94,17 @@ function topo_xbar(sys)
                 util.unique_key(sys:get_objects(), 'merge')
             )
 			
-            local tlink = sys:add_link(merge:get_port('out'), sink)
-			
+            local tlink = sys:add_link(merge, sink)
+
 			for link in Set.values(links) do
                 link:add_child(tlink)
-				tails[link] = merge:get_port('in')
+				tails[link] = merge
 			end
+            
+            if reg_merge then
+                local reg = sys:add_buffer(merge:get_name() .. "_reg")
+                sys:splice_node(tlink, reg)
+            end
 		end
 	end
 
@@ -107,4 +124,6 @@ function topo_xbar(sys)
             end
         end
 	end
+    
+end
 end

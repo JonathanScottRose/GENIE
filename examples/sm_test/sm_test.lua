@@ -58,7 +58,7 @@ b:component('reverser', 'reverser')
 		b:signal('ready', 'i_ready')
 		b:signal('data', 'o_data', 'WIDTH')
 
-b:system('sm_test', topo_ring)
+b:system('sm_test', make_topo_xbar(true, true))
     b:clock_sink('clk', 'clk')
     b:reset_sink('reset', 'reset')
 	b:instance('the_dispatch', 'dispatch')

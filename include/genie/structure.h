@@ -43,6 +43,7 @@ namespace genie
 		bool is_connected(NetType) const;
 		Endpoint* get_endpoint(NetType, LinkFace) const;	// Explicit inner/outer-facing endpoint
 		Endpoint* get_endpoint_sysface(NetType) const;		// Get endpoint that faces inside the system
+		Port* locate_port(Dir, NetType) override;
 
 		// Manage signal role bindings
 		void clear_role_bindings();
@@ -129,21 +130,21 @@ namespace genie
 
 		Links get_links() const;
 		Links get_links(NetType) const;
-		Links get_links(Port* src, Port* sink) const;
-		Links get_links(Port* src, Port* sink, NetType net) const;
-		Link* connect(Port* src, Port* sink);
-		Link* connect(Port* src, Port* sink, NetType net);
-		void disconnect(Port* src, Port* sink);
-		void disconnect(Port* src, Port* sink, NetType net);
+		Links get_links(HierObject* src, HierObject* sink) const;
+		Links get_links(HierObject* src, HierObject* sink, NetType net) const;
+		Link* connect(HierObject* src, HierObject* sink);
+		Link* connect(HierObject* src, HierObject* sink, NetType net);
+		void disconnect(HierObject* src, HierObject* sink);
+		void disconnect(HierObject* src, HierObject* sink, NetType net);
 		void disconnect(Link*);
-		Link* splice(Link* orig, Port* new_sink, Port* new_src);
+		Link* splice(Link* orig, HierObject* new_sink, HierObject* new_src);
 
 		// Debug
 		void write_dot(const std::string& filename, NetType nettype);
 
 	protected:
-		NetType find_auto_net_type(Port*, Port*) const;
-		void get_eps(Port*&, Port*&, NetType, Endpoint*&, Endpoint*&) const;
+		NetType find_auto_net_type(HierObject*, HierObject*) const;
+		void get_eps(HierObject*&, HierObject*&, NetType, Endpoint*&, Endpoint*&) const;
 
 		NodeHDLInfo* m_hdl_info;
 		std::unordered_map<NetType, Links> m_links;

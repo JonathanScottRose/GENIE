@@ -26,6 +26,8 @@ namespace genie
 		void do_post_carriage() override;
 		void configure();
 
+		Port* locate_port(Dir dir, NetType type) override;
+
 	protected:
 		void init_vlog();
 

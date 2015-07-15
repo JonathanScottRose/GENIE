@@ -231,3 +231,19 @@ void NodeMerge::do_exclusion_check()
 	if (exclusive)
 		((NodeVlogInfo*)get_hdl_info())->set_module_name(MODULE_EX);
 }
+
+genie::Port* NodeMerge::locate_port(Dir dir, NetType type)
+{
+	// We accept TOPO connections directed at the node itself. This resolves
+	// to either the input or output TOPO ports depending on dir.
+	if (type != NET_INVALID && type != NET_TOPO)
+		return HierObject::locate_port(dir, type);
+
+	if (dir == Dir::IN) return get_topo_input();
+	else if (dir == Dir::OUT) return get_topo_output();
+	else
+	{
+		assert(false);
+		return nullptr;
+	}
+}

@@ -207,6 +207,13 @@ HierObject* HierObject::remove_child(const HierPath& path)
 	return obj;
 }
 
+Port* HierObject::locate_port(Dir dir, NetType type)
+{
+	// If this it not overridden, throw error
+	throw HierException(this, "could not find a suitable Port to connect to");
+	return nullptr;
+}
+
 //
 // Exceptions
 //
