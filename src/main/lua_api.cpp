@@ -449,6 +449,7 @@ namespace
 		LM(get_name, hier_get_name),
 		LM(get_hier_path, hier_get_path),
 		LM(get_parent, hier_get_parent),
+		LM(get_object, hier_get_child),
 		LM(add_port, node_add_port),
 		LM(get_ports, hier_get_children_by_type<Port>),
 		LM(get_port, hier_get_child),
