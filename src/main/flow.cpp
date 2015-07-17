@@ -91,6 +91,24 @@ namespace
 		return result;
 	}
 
+	Port* net_to_graph_topo_remap(Port* o)
+	{
+		// Makes split, merge, and reg nodes behave as vertices in a Topo graph by
+		// melding together their input/output Topo ports into one vertex rather than two
+		// disconnected ones.
+		auto sp_node = as_a<NodeSplit*>(o->get_parent());
+		if (sp_node) return sp_node->get_topo_input();
+			
+		auto mg_node = as_a<NodeMerge*>(o->get_parent());
+		if (mg_node) return mg_node->get_topo_input();
+
+		auto reg_node = as_a<NodeReg*>(o->get_parent());
+		if (reg_node) return reg_node->get_topo_input();
+
+		// Not an input/output port of a split/merge node. Do not remap.
+		return o;
+	}
+
 	// Assign domains to RS Ports
 	void rs_assign_domains(System* sys)
 	{
@@ -140,31 +158,53 @@ namespace
 		}
 	}
 
+	void topo_do_routing(System* sys)
+	{
+		auto rs_links = sys->get_links(NET_RS);
+
+		EAttr<Link*> topo_eid_to_link;
+		VAttr<Port*> topo_vid_to_port;
+		RVAttr<Port*> topo_port_to_vid;
+		Graph topo_g = net_to_graph(sys, NET_TOPO, &topo_vid_to_port, &topo_port_to_vid, 
+			&topo_eid_to_link, nullptr, net_to_graph_topo_remap);
+
+		for (auto& rs_link : rs_links)
+		{
+			// Get endpoints
+			auto rs_src = RSPort::get_rs_port(rs_link->get_src());
+			auto rs_sink =  RSPort::get_rs_port(rs_link->get_sink());
+			auto topo_src = rs_src->get_topo_port();
+			auto topo_sink = rs_sink->get_topo_port();
+
+			// TODO: add manual routing capability, and verify manual routes here
+
+			VertexID v_src = topo_port_to_vid[topo_src];
+			VertexID v_sink = topo_port_to_vid[topo_sink];
+			EList route_edges;
+			bool result = graphs::dijkstra(topo_g, v_src, v_sink, nullptr, nullptr, &route_edges);
+			if (!result)
+			{
+				throw Exception("No route found from " + rs_src->get_hier_path() + " to " +
+					rs_sink->get_hier_path());
+			}
+
+			// Walk the edges and associate the RS link with each constituent TOPO link
+			for (auto& route_edge : route_edges)
+			{
+				Link* route_link = topo_eid_to_link[route_edge];
+				route_link->asp_get<ALinkContainment>()->add_parent_link(rs_link);
+			}
+		}
+	}
+
 	// Assign Flow IDs to RS links
 	void rs_assign_flow_ids(System* sys)
 	{
-		// Turn TOPO network into a graph. Merge together the input/output ports of split and merge
-		// nodes for the purposes of graph construction.
-		N2GRemapFunc remap = [] (Port* o) -> Port*
-		{
-			auto sp_node = as_a<NodeSplit*>(o->get_parent());
-			if (sp_node) return sp_node->get_topo_input();
-			
-			auto mg_node = as_a<NodeMerge*>(o->get_parent());
-			if (mg_node) return mg_node->get_topo_input();
-
-			auto reg_node = as_a<NodeReg*>(o->get_parent());
-			if (reg_node) return reg_node->get_topo_input();
-
-			// Not an input/output port of a split/merge node. Do not remap.
-			return o;
-		};
-
 		// Get TOPO network as graph. We need link->eid and HObj->vid
 		EAttr<Link*> topo_eid_to_link;
 		RVAttr<Port*> topo_port_to_vid;
 		Graph topo_g = net_to_graph(sys, NET_TOPO, nullptr, &topo_port_to_vid, &topo_eid_to_link, nullptr,
-			remap);
+			net_to_graph_topo_remap);
 
 		// Split topo graph into connected domains
 		EAttr<int> edge_to_comp;
@@ -833,6 +873,9 @@ namespace
 
 		// Create TOPO network from RS network
 		rs_refine_to_topo(sys);
+
+		// Route RS links over TOPO links
+		topo_do_routing(sys);
 
 		// Assign Flow IDs to RS links and RS Ports based on topology and RS domain membership.
 		// Must be done after TOPO network has been created.

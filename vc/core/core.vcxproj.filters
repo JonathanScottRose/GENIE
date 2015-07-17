@@ -124,5 +124,6 @@
     <ClCompile Include="..\..\src\core\net_rs.cpp" />
     <ClCompile Include="..\..\src\core\node_flowconv.cpp" />
     <ClCompile Include="..\..\src\core\node_reg.cpp" />
+    <ClCompile Include="..\..\src\core\dijkstra.cpp" />
   </ItemGroup>
 </Project>

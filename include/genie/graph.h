@@ -106,12 +106,16 @@ namespace graphs
 		const EList& edges(VertexID v) const;
 		EList edges(VertexID v1, VertexID v2) const;
 		EdgeID edge(VertexID v1, VertexID v2) const;
-		VList neigh(VertexID v);
-		EList dir_edges(VertexID v1, VertexID v2);
+		VList neigh(VertexID v) const;
+		VList dir_neigh(VertexID v) const;
+		EList dir_edges(VertexID v1, VertexID v2) const;
+		EList dir_edges(VertexID self) const;
 		EdgeID dir_edge(VertexID v1, VertexID v2);
 
 		// Edge properties
-		VPair verts(EdgeID e);
+		VPair verts(EdgeID e) const;
+		VertexID src_vert(EdgeID e) const;
+		VertexID sink_vert(EdgeID e) const;
 		VertexID otherv(EdgeID e, VertexID self) const;
 		void set_otherv(EdgeID e, VertexID self, VertexID newdest);
 		EdgeID redge(EdgeID e); // reverse edge, if it exists
@@ -156,5 +160,7 @@ namespace graphs
 	VAttr<VertexID> multi_way_cut(Graph g, const EAttr<int>& weights, VList T);
 	int min_st_cut(Graph& g, EAttr<int> weights, VertexID s, VertexID t);
 	int connected_comp(Graph& g, VAttr<int>* vcolor, EAttr<int>* ecolor);
+	bool dijkstra(const Graph& g, VertexID src, VertexID dest, 
+		const EAttr<int>* distances, VList* v_out, EList* e_out);
 }
 }

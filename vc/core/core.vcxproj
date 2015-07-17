@@ -51,6 +51,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\connections.cpp" />
+    <ClCompile Include="..\..\src\core\dijkstra.cpp" />
     <ClCompile Include="..\..\src\core\expressions.cpp" />
     <ClCompile Include="..\..\src\core\genie.cpp" />
     <ClCompile Include="..\..\src\core\graph.cpp" />

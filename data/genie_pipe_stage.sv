@@ -74,7 +74,7 @@ else if (MLAB) begin : mlab
 end
 else begin : regs
 	logic [WIDTH-1:0] i2o_saved_data;
-	logic [WIDTH-1:0] i2o_data;
+	(* keep *) logic [WIDTH-1:0] i2o_data;
 	logic i2o_valid;
 
     always_ff @ (posedge i_clk or posedge i_reset) begin

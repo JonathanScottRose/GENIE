@@ -171,11 +171,11 @@ const EList& Graph::edges(VertexID vid) const
 	return v.edges;
 }
 
-VList Graph::neigh(VertexID vid)
+VList Graph::neigh(VertexID vid) const
 {
 	VList result;
 
-	Vertex& v = getv(vid);
+	const Vertex& v = getv(vid);
 	for (auto& eid : v.edges)
 	{
 		VertexID oid = otherv(eid, vid);
@@ -186,11 +186,39 @@ VList Graph::neigh(VertexID vid)
 	return result;
 }
 
-VPair Graph::verts(EdgeID eid)
+VList Graph::dir_neigh(VertexID vid) const
 {
-	Edge& e = gete(eid);
+	VList result;
+
+	const Vertex& v = getv(vid);
+	for (auto& eid : v.edges)
+	{
+		const Edge& e = gete(eid);
+		VertexID oid = e.v2;
+		if (e.v1 == vid && std::find(result.begin(), result.end(), oid) == result.end())
+			result.push_back(oid);
+	}
+
+	return result;
+}
+
+VPair Graph::verts(EdgeID eid) const
+{
+	const Edge& e = gete(eid);
 	return VPair(e.v1, e.v2);
 }
+
+VertexID Graph::src_vert(EdgeID eid) const
+{
+	const Edge& e = gete(eid);
+	return e.v1;
+}
+
+VertexID Graph::sink_vert(EdgeID eid) const
+{
+	const Edge& e = gete(eid);
+	return e.v2;
+}		
 
 void Graph::delv(VertexID vid)
 {
@@ -252,7 +280,7 @@ EdgeID Graph::edge(VertexID vid1, VertexID vid2) const
 	return ee.empty()? INVALID_E : ee.front();
 }
 
-EList Graph::dir_edges(VertexID vid1, VertexID vid2)
+EList Graph::dir_edges(VertexID vid1, VertexID vid2) const
 {
 	EList result;
 
@@ -261,6 +289,21 @@ EList Graph::dir_edges(VertexID vid1, VertexID vid2)
 	{
 		VPair vs = verts(eid);
 		if (vs.second == vid2)
+			result.push_back(eid);
+	}
+
+	return result;
+}
+
+EList Graph::dir_edges(VertexID self) const
+{
+	EList result;
+
+	EList eids1 = edges(self);
+	for (auto& eid : eids1)
+	{
+		VPair vs = verts(eid);
+		if (vs.first == self)
 			result.push_back(eid);
 	}
 

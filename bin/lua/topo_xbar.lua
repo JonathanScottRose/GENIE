@@ -74,7 +74,6 @@ return function(sys)
 			
             -- make the new TOPO link be a child of the RS link
 			for link in Set.values(links) do
-                link:add_child(tlink)
 				heads[link] = split
                 sm_count[link] = sm_count[link] + 1
 			end
@@ -100,7 +99,6 @@ return function(sys)
             local tlink = sys:add_link(merge, sink)
 
 			for link in Set.values(links) do
-                link:add_child(tlink)
 				tails[link] = merge
                 sm_count[link] = sm_count[link] + 1
 			end
@@ -109,8 +107,6 @@ return function(sys)
                 local reg = sys:add_buffer(merge:get_name() .. "_reg")
                 sys:splice_node(tlink, reg)
             end
-            
-            
 		end
 	end
 
@@ -123,17 +119,11 @@ return function(sys)
 		local tails = gather_tails(links)
         for tail,links2 in pairs(tails) do
             local tlink = sys:add_link(head, tail)
-        
-            -- carry all the associated RS links over this new TOPO link
-            for link in Set.values(links2) do
-                link:add_child(tlink)
-            end
        
             if reg_internal and sm_count[next(links2)] == 2 then
                 local reg = sys:add_buffer(
                     util.unique_key(sys:get_objects(), 'intreg')
                 )
-                
                 sys:splice_node(tlink, reg)
             end
         end
