@@ -276,7 +276,7 @@ void lua::push_object(Object* inst)
 	// leaves userdata on stack
 }
 
-Object* lua::priv::check_object(int narg)
+Object* lua::priv::to_object(int narg)
 {
 	auto ud = (Object**)lua_touserdata(s_state, narg);
 	if (!ud)

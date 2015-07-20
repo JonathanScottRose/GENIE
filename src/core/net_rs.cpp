@@ -17,8 +17,8 @@ namespace
 		{
 			m_name = "rs";
 			m_desc = "Routed Streaming";
-			m_src_multibind = true;
-			m_sink_multibind = true;
+			m_default_max_in =  Endpoint::UNLIMITED;
+			m_default_max_out = Endpoint::UNLIMITED;
 
 			add_sig_role(RSPort::ROLE_READY);
 			add_sig_role(RSPort::ROLE_VALID);

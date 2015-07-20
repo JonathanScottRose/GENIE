@@ -53,7 +53,10 @@ NodeSplit::NodeSplit()
 
 	// Input port and output port start out as Topo ports
 	add_port(new TopoPort(Dir::IN, INPORT_NAME));
-	add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+	port = add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+
+	// Output may have multiple connections
+	port->set_max_links(NET_TOPO, Dir::OUT, Endpoint::UNLIMITED);
 }
 
 NodeSplit::~NodeSplit()

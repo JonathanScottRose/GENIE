@@ -69,13 +69,13 @@ namespace lua
 
 	namespace priv
 	{
-		Object* check_object(int narg);
+		Object* to_object(int narg);
 	}
 
 	template<class T>
 	T* is_object(int narg)
 	{
-		Object* obj = priv::check_object(narg);
+		Object* obj = priv::to_object(narg);
 		T* result = as_a<T*>(obj);
 
 		return result;
@@ -91,8 +91,12 @@ namespace lua
 	template<class T>
 	T* check_object(int narg)
 	{
-		Object* obj = priv::check_object(narg);
-		T* result = is_object<T>(narg);
+		luaL_checktype(get_state(), narg, LUA_TUSERDATA);
+
+		Object* obj = priv::to_object(narg);
+		assert(obj);
+
+		T* result = as_a<T*>(obj);
 		if (!result)
 		{
 			std::string msg = "can't convert to " + 

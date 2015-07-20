@@ -15,8 +15,8 @@ namespace
 		{
 			m_name = "topo";
 			m_desc = "Topology";
-			m_src_multibind = true;
-			m_sink_multibind = true;
+			m_default_max_in = 1;
+			m_default_max_out = 1;
 		}
 
 		Link* create_link() override

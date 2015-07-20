@@ -49,8 +49,6 @@ namespace
 
 Dir genie::dir_from_str(const std::string& str)
 {
-	
-
 	Dir result = Dir::INVALID;
 	util::str_to_enum(s_dir_table, str, &result);
 	return result;

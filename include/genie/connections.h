@@ -17,16 +17,21 @@ namespace genie
 	class Endpoint
 	{
 	public:
+		static const unsigned int UNLIMITED = 1<<31;
+
 		typedef std::vector<Port*> Objects;
 		typedef std::vector<Endpoint*> Endpoints;
 		typedef std::vector<Link*> Links;
 
 		Endpoint(NetType type, Dir dir);
+		Endpoint(const Endpoint&);
 		~Endpoint();
 		
 		PROP_GET(type, NetType, m_type);
 		PROP_GET(dir, Dir, m_dir);
 		PROP_GET_SET(obj, Port*, m_obj);
+
+		PROP_GET_SET(max_links, unsigned int, m_max_links);
 
 		void add_link(Link*);
 		void remove_link(Link*);
@@ -49,6 +54,7 @@ namespace genie
 		Dir m_dir;
 		NetType m_type;
 		Links m_links;
+		unsigned int m_max_links;
 
 		Network* get_network() const;
 	};

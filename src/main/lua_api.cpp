@@ -266,16 +266,16 @@ namespace
 		return 1;
 	}
 
-	// Gets a connectable object's currently-bound outgoing or incoming links.
-	// When called with no arguments, it gets all links from all endpoints.
+	// Gets a Port's currently-bound outgoing or incoming links.
+	// When called with no arguments, it gets all connections of the Port's canonical network type
 	// When called with a nettype argument, it just gets all links of that net type.
 	// ARGS: SELF, [netname <string>]
 	// RETURNS: links <array<userdata>>
 	LFUNC(net_get_links)
 	{
-		Object* obj = lua::check_object<Object>(1);
+		Port* obj = lua::check_object<Port>(1);
 		const char* netname = luaL_optstring(L, 2, nullptr);
-		NetType nettype = NET_INVALID;
+		NetType nettype = obj->get_type();
 
 		// Resolve network type, if provided
 		if (netname)
@@ -290,17 +290,8 @@ namespace
 			unsigned int arrindex = 1;
 
 			// Iterate through all endpoint aspects of the object
-			auto eps = obj->asp_get_all_matching<Endpoint>();
-			for (Endpoint* ep : eps)
-			{
-				// Skip all but the given network type, if provided
-				if (nettype != NET_INVALID && ep->get_type() != nettype)
-					continue;
-
-				// Otherwise, query the endpoint's links and add them to the result.
-				// Multiple calls will update arrindex and concatenate to the same table.
-				arrindex = push_array(L, ep->links(), arrindex);
-			}
+			auto ep = obj->get_endpoint_sysface(nettype);
+			push_array(L, ep->links());
 		}
 
 		return 1;

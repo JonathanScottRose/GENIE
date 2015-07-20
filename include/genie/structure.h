@@ -41,6 +41,7 @@ namespace genie
 		NetTypes get_connectable_networks() const;
 		bool is_connectable(NetType) const;
 		bool is_connected(NetType) const;
+		void set_max_links(NetType, Dir, int);
 		Endpoint* get_endpoint(NetType, LinkFace) const;	// Explicit inner/outer-facing endpoint
 		Endpoint* get_endpoint_sysface(NetType) const;		// Get endpoint that faces inside the system
 		Port* locate_port(Dir, NetType) override;

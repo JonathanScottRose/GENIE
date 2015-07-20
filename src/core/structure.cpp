@@ -98,6 +98,18 @@ void Port::set_connectable(NetType type, Dir dir)
 	outer->set_obj(this);
 	inner->set_obj(this);
 
+	// Set default # of connection limits
+	int max_sink = ndef->get_default_max_in();
+	int max_src = ndef->get_default_max_out();
+	Endpoint* sink = outer;
+	Endpoint* src = inner;
+	if (dir == Dir::OUT)
+		std::swap(sink, src);
+
+	src->set_max_links(max_src);
+	sink->set_max_links(max_sink);
+	
+	// Put it in
 	EndpointsEntry entry;
 	set_ep_by_face(entry, LinkFace::OUTER, outer);
 	set_ep_by_face(entry, LinkFace::INNER, inner);
@@ -274,13 +286,32 @@ Port::Port(const Port& o)
 	// Copy connectivity
 	for (const auto& i : o.m_endpoints)
 	{
-		NetType type = i.first;
-		set_connectable(type, m_dir);
+		auto new_inner = new Endpoint(*i.second.first);
+		auto new_outer = new Endpoint(*i.second.second);
+
+		new_inner->set_obj(this);
+		new_outer->set_obj(this);
+
+		auto type = i.first;
+		m_endpoints.emplace(std::make_pair(type, EndpointsEntry(new_inner, new_outer)));
 	}
 
 	// Copy the role bindings
 	for (auto& b : o.m_role_bindings)
 		add_role_binding(new RoleBinding(*b));
+}
+
+void Port::set_max_links(NetType type, Dir dir, int max_links)
+{
+	// Get endpoint
+	if (!is_connectable(type))
+		throw HierException(this, " not connectable on type " + Network::to_string(type));
+
+	auto& entry = m_endpoints[type];
+	Endpoint* ep = entry.first->get_dir() == dir ? entry.first : entry.second;
+	assert(ep->get_dir() == dir);
+
+	ep->set_max_links(max_links);
 }
 
 Port* Port::locate_port(Dir dir, NetType type)

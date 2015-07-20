@@ -15,8 +15,8 @@ namespace
 		{
 			m_name = "rvd";
 			m_desc = "Point-to-Point Ready/Valid/Data";
-			m_src_multibind = false;
-			m_sink_multibind = false;
+			m_default_max_in = 1;
+			m_default_max_out = 1;
 
 			add_sig_role(RVDPort::ROLE_READY);
 			add_sig_role(RVDPort::ROLE_VALID);
@@ -45,8 +45,8 @@ namespace
 		{
 			m_name = "rvd_internal";
 			m_desc = "Represents RVD connectivity internal to Nodes";
-			m_src_multibind = true;
-			m_sink_multibind = true;
+			m_default_max_in =  Endpoint::UNLIMITED;
+			m_default_max_out = Endpoint::UNLIMITED;
 		}
 
 		Port* create_port(Dir dir) override

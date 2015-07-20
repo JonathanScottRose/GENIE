@@ -14,8 +14,8 @@ namespace
 		{
 			m_name = "conduit";
 			m_desc = "Point-to-Point Conduit";
-			m_src_multibind = false;
-			m_sink_multibind = false;
+			m_default_max_in = 1;
+			m_default_max_out = 1;
 
 			add_sig_role(ConduitPort::ROLE_FWD);
 			add_sig_role(ConduitPort::ROLE_REV);

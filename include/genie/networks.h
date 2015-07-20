@@ -75,8 +75,8 @@ namespace genie
 		PROP_GET(id, NetType, m_id);
 		PROP_GET(name, const std::string&, m_name);
 		PROP_GET(desc, const std::string&, m_desc);
-		PROP_GET(src_multibind, bool, m_src_multibind);
-		PROP_GET(sink_multibind, bool, m_sink_multibind);
+		PROP_GET(default_max_in, unsigned int, m_default_max_in);
+		PROP_GET(default_max_out, unsigned int, m_default_max_out);
 
 		// Get allowed signal roles. Role conversion functions.
 		List<const SigRole*> get_sig_roles() const;
@@ -98,10 +98,10 @@ namespace genie
 		// Descriptive
 		std::string m_name;
 		std::string m_desc;
-		
-		// Network properties
-		bool m_src_multibind;
-		bool m_sink_multibind;
+
+		// Connection properties
+		unsigned int m_default_max_in;
+		unsigned int m_default_max_out;
 
 		// Register an allowable signal role for ports of this network type
 		void add_sig_role(SigRoleID);

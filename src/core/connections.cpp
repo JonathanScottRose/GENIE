@@ -10,7 +10,12 @@ using namespace genie;
 //
 
 Endpoint::Endpoint(NetType type, Dir dir)
-: m_dir(dir), m_obj(nullptr), m_type(type)
+: m_dir(dir), m_obj(nullptr), m_type(type), m_max_links(0)
+{
+}
+
+Endpoint::Endpoint(const Endpoint& o)
+	: m_dir(o.m_dir), m_obj(nullptr), m_type(o.m_type), m_max_links(o.m_max_links)
 {
 }
 
@@ -34,14 +39,14 @@ void Endpoint::add_link(Link* link)
 		throw HierException(m_obj, "link is already bound to endpoint");
 
 	// Check connection rules
-	Network* def = get_network();
+	assert(m_max_links != 0);
 
-	if (is_connected())
+	auto n_cur_links = m_links.size();
+	if (m_max_links != UNLIMITED && n_cur_links >= m_max_links)
 	{
-		if (m_dir == Dir::OUT && !def->get_src_multibind())
-			throw HierException(m_obj, "source endpoint does not support multiple bindings");
-		else if (m_dir == Dir::IN && !def->get_sink_multibind())
-			throw HierException(m_obj, "sink endpoint does not support multiple bindings");
+		std::string dir = m_dir == Dir::OUT? "source" : "sink";
+		throw HierException(m_obj, dir + " endpoint already has " + std::to_string(n_cur_links)
+			+ " connections");
 	}
 
 	m_links.push_back(link);
