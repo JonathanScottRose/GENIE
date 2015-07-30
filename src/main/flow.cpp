@@ -178,10 +178,19 @@ namespace
 
 			// TODO: add manual routing capability, and verify manual routes here
 
-			VertexID v_src = topo_port_to_vid[topo_src];
-			VertexID v_sink = topo_port_to_vid[topo_sink];
+			// Find a route
+			bool result = false;
 			EList route_edges;
-			bool result = graphs::dijkstra(topo_g, v_src, v_sink, nullptr, nullptr, &route_edges);
+
+			// Need to check if topo ports are part of graph. They might not exist because
+			// no edges exist. That's an automatic no-route.
+			if(topo_port_to_vid.count(topo_src) && topo_port_to_vid.count(topo_sink))
+			{
+				VertexID v_src = topo_port_to_vid[topo_src];
+				VertexID v_sink = topo_port_to_vid[topo_sink];
+				result = graphs::dijkstra(topo_g, v_src, v_sink, nullptr, nullptr, &route_edges);
+			}
+
 			if (!result)
 			{
 				throw Exception("No route found from " + rs_src->get_hier_path() + " to " +
