@@ -415,6 +415,11 @@ void ARSExclusionGroup::add(const List<RSLink*>& list)
 	}
 }
 
+bool ARSExclusionGroup::has(const RSLink* test) const
+{
+	return util::exists(m_set, test);		
+}
+
 void ARSExclusionGroup::process_and_create(const List<RSLink*>& links)
 {
 	// Go through each link

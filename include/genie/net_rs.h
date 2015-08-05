@@ -45,6 +45,9 @@ namespace genie
 		// Union-adds new members (this/owning link filtered out)
 		void add(const List<RSLink*>&);
 
+		// Test membership
+		bool has(const RSLink*) const;
+
 		// Given a list of RSLinks, adds an ARSExclusionGroup to each one
 		// and adds everyone to each member's set
 		static void process_and_create(const List<RSLink*>&);

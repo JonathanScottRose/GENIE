@@ -183,10 +183,8 @@ void NodeMerge::do_exclusion_check()
 	}
 
 	// Create edges based on exclusivity groups
-	for (int i = 0; i < n_inputs; i++)
+	for (const auto& links_at_port : links)
 	{
-		const List<RSLink*>& links_at_port = links[i];
-		
 		for (auto link1 : links_at_port)
 		{
 			VertexID v1 = link_to_v[link1];
@@ -197,6 +195,10 @@ void NodeMerge::do_exclusion_check()
 
 			for (auto link2 : asp->get_others())
 			{
+				// We only care about exclusion group entries that refer to links we know about
+				if (!link_to_v.count(link2))
+					continue;
+
 				VertexID v2 = link_to_v[link2];
 				assert(v1 != v2);
 
