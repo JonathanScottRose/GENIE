@@ -409,6 +409,11 @@ namespace
 
 	void rvd_configure_merge_nodes(System* sys)
 	{
+		// If full merge nodes are forced with this option, just return. Merge nodes
+		// start off being the complex full ones by default.
+		if (flow_options().force_full_merge)
+			return;
+
 		// Make each merge node check for mutual temporal exclusivity on its RS links, so
 		// it can choose a simplified implementation
 		auto mg_nodes = sys->get_children_by_type<NodeMerge>();
@@ -934,3 +939,8 @@ void flow_main()
 	}
 }
 
+FlowOptions& flow_options()
+{
+	static FlowOptions opts;
+	return opts;
+}

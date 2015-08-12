@@ -45,6 +45,7 @@ namespace
 		args >> GetOpt::OptionPresent("dump_dot", Globals::inst()->dump_dot);
 		args >> GetOpt::Option("dump_dot", Globals::inst()->dump_dot_network);
 		args >> GetOpt::Option("args", s_lua_args);
+		args >> GetOpt::OptionPresent("force_full_merge", flow_options().force_full_merge);
 
 		if (!(args >> GetOpt::GlobalOption(s_script)))
 			throw Exception("Must specify Lua script");

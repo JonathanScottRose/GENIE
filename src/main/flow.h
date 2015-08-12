@@ -10,5 +10,11 @@ public:
 	int func_ref;
 };
 
+struct FlowOptions
+{
+	bool force_full_merge = false;
+};
+
+FlowOptions& flow_options();
 void flow_main();
 
