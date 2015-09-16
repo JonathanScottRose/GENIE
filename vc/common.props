@@ -15,7 +15,7 @@
   
   <PropertyGroup Label="Configuration">
     <IntDir>$(ProjectDir)$(Configuration)\</IntDir>
-	<PlatformToolset>v120</PlatformToolset>
+	<PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   
