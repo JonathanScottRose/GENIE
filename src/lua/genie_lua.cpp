@@ -341,6 +341,8 @@ void lua::push_object(Object* inst)
         // Didn't find an entry in the cache.
         // What we do now is:
         // 1) Look through all registered classes
+        // 1.5) If there's a direct typeid match between a registered class
+        //      and *inst, then use that for sure. Otherwise...
         // 2) Find the ones that *inst can be cast to
         // 3) Take the most-derived class found in 2)
         // 4) Use this class. Store it in the cache for next time.
@@ -354,7 +356,15 @@ void lua::push_object(Object* inst)
         {
             auto& entry = it_entry.second;
 
-            // We only care about classes related to *inst
+            // Perfect match? Get outta here. Done.
+            if (entry.tindex == inst_tindex)
+            {
+                best_entry = &entry;
+                break;
+            }
+
+            // Otherwise, see if it's family-related and keep
+            // track of the most-derived matches.
             if (entry.cfunc(inst))
             {
                 if (entry.depth > best_depth)
