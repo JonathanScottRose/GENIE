@@ -225,12 +225,13 @@ namespace
 		return 1;
 	}
 
-	LCLASS(HierObject, "HierObject",
+	LCLASS(HierObject, 
 	{
 		LM(__tostring, hier_get_path),
 		LM(get_name, hier_get_name),
 		LM(get_hier_path, hier_get_path),
 		LM(get_parent, hier_get_parent),
+        LM(get_child, hier_get_child),
 		LM(get_children, hier_get_children)
 	});
 
@@ -434,13 +435,8 @@ namespace
 		return 0;
 	};
 
-	LCLASS(Node, "Node",
+	LSUBCLASS(Node, (HierObject),
 	{
-		LM(__tostring, hier_get_path),
-		LM(get_name, hier_get_name),
-		LM(get_hier_path, hier_get_path),
-		LM(get_parent, hier_get_parent),
-		LM(get_object, hier_get_child),
 		LM(add_port, node_add_port),
 		LM(get_ports, hier_get_children_by_type<Port>),
 		LM(get_port, hier_get_child),
@@ -686,25 +682,22 @@ namespace
 		return 0;
 	}
 
-	LCLASS(System, "System",
+	LSUBCLASS(System, (Node),
 	{
-		LM(__tostring, hier_get_path),
-		LM(get_name, hier_get_name),
+		
 		LM(add_node, system_add_node),
-		LM(add_port, node_add_port),
-		LM(get_object, hier_get_child),
-		LM(get_objects, hier_get_children),
 		LM(get_nodes, hier_get_children_by_type<Node>),
 		LM(get_ports, hier_get_children_by_type<Port>),
 		LM(add_link, system_add_link),
 		LM(get_links, system_get_links),
-		LM(def_param, node_def_param),
 		LM(add_split, system_add_split),
 		LM(add_buffer, system_add_buf),
 		LM(splice_node, system_splice_node),
 		LM(add_merge, system_add_merge),
 		LM(make_export, system_make_export),
-		LM(create_latency_query, system_create_latency_query)
+		LM(create_latency_query, system_create_latency_query),
+        LM(get_object, hier_get_child),
+        LM(get_objects, hier_get_children)
 	},
 	{
 		LM(new, system_new)
@@ -847,7 +840,7 @@ namespace
 		return 1;
 	}
 
-	LCLASS(Link, "Link",
+	LCLASS(Link,
 	{
 		LM(__tostring, link_to_string),
 		LM(get_type, net_get_type<Link>),
@@ -955,12 +948,8 @@ namespace
 		return 0;
 	}
 
-	LCLASS(Port, "Port",
+	LSUBCLASS(Port, (HierObject),
 	{
-		LM(__tostring, hier_get_path),
-		LM(get_name, hier_get_name),
-		LM(get_parent, hier_get_parent),
-		LM(get_hier_path, hier_get_path),
 		LM(get_type, net_get_type<Port>),
 		LM(get_dir, net_get_dir<Port>),
 		LM(get_links, net_get_links),
@@ -1029,19 +1018,11 @@ namespace
 		return 0;
 	}
 
-	LCLASS(RSPort, "RSPort",
+	LSUBCLASS(RSPort, (Port),
 	{
-		LM(__tostring, hier_get_path),
-		LM(get_name, hier_get_name),
-		LM(get_parent, hier_get_parent),
-		LM(get_type, net_get_type<Port>),
-		LM(get_dir, net_get_dir<Port>),
-		LM(get_links, net_get_links),
-
 		LM(add_linkpoint, rsport_add_linkpoint),
 		LM(get_rs_port, rsport_get_rs_port),
 		LM(get_topo_port, rsport_get_topo_port),
-		LM(add_signal, port_add_signal),
 		LM(set_clock_port_name, rsport_set_clock_port_name)
 	});
 
@@ -1070,13 +1051,9 @@ namespace
 		return 1;
 	}
 
-	LCLASS(RSLinkpoint, "RSLinkpoint",
+	LSUBCLASS(RSLinkpoint, (HierObject),
 	{
-		LM(__tostring, hier_get_path),
-		LM(get_name, hier_get_name),
-		LM(get_hier_path, hier_get_path),
 		LM(get_links, net_get_links),
-
 		LM(get_rs_port, rslp_get_rs_port),
 		LM(get_topo_port, rslp_get_topo_port)
 	});
