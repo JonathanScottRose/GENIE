@@ -266,10 +266,14 @@ end
 -- Applies to the Interface created by the most recent call to @{Builder:interface} or its specialized
 -- convenience functions. The `role` and `vname` arguments are mandatory. Some types of signals also require
 -- a tag. If width is not specified, it defaults to 1.
+--
+-- It is also possible to refer to _part_ of a Verilog signal. This is done by supplying a three-element array 
+-- for the width argument, in the form `{totalwidth, width, lsb}`. `totalwidth` is the size of the entire
+-- Verilog signal. Bits `[lsb+width-1 : lsb]` will be selected.
 -- @tparam string role Signal role. Allowable values depend on the type of Interface.
 -- @tparam[opt] string tag Used-defined tag to differentiate similar signal roles.
 -- @tparam string vname Verilog name of signal in module to bind to.
--- @tparam[opt=1] string|number width width of signal, can be an expression
+-- @tparam[opt=1] string|number|array width width of signal, can be an expression, or a partial binding as described above
 function Builder:signal(role, tag, vname, width)
     if not self.cur_port then error("no current port") end
     
