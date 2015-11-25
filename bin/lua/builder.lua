@@ -1,6 +1,11 @@
-require "util"
+--- Convenience class used to enable easy creation of systems.
+-- This wraps the more detailed and complex @{genie} API.
+-- @usage 
+-- require 'builder'
+-- local g = genie.Builder.new()
+-- @classmod Builder
 
--- Builder
+require "util"
 
 genie.Builder = class()
 local g = genie;
@@ -30,19 +35,81 @@ function Builder:__ctor()
     self.name2link = {}
 end       
 
+--- Defines a new Component.
+-- @tparam string name Component name
+-- @tparam string modl name of Verilog module
+-- @treturn genie.Node raw representation for advanced use
 function Builder:component(name, modl)
     self.cur_node = g.Node.new(name, modl)
     self.cur_param_tgt = self.cur_node
     return self.cur_node
 end
 
-function Builder:interface(name, type, dir, clock)
+--- Defines a new Interface.
+-- Applies to the current Component or System, which is defined by the most recent call to
+-- @{Builder:component} or @{Builder:system}.
+-- @tparam string name name of Interface
+-- @tparam string type one of `clock`, `reset`, `conduit`, or `rs`
+-- @tparam string dir one of `in` or `out`
+-- @treturn genie.Port raw representation for advanced use
+function Builder:interface(name, type, dir)
 	if not self.cur_node then error("Unexpected 'interface'") end
     self.cur_port = self.cur_node:add_port(name, type, dir)
     return self.cur_port
 end
 
--- programmatically define several special-case versions of ::interface,
+
+--- Define a Clock Source Interface.
+-- Also creates the clock signal binding within the Interface.
+-- Calls @{Builder:interface} with type='`clock`' and dir='`out`' followed
+-- by a call to @{Builder:signal}.
+-- @function clock_src
+-- @tparam string name name of Interface
+-- @tparam string binding name of Verilog clock signal in module
+-- @treturn genie.Port
+
+--- Define a Clock Sink Interface.
+-- Also creates the clock signal binding within the Interface.
+-- Calls @{Builder:interface} with type='`clock`' and dir='`in`' followed
+-- by a call to @{Builder:signal}.
+-- @function clock_sink
+-- @tparam string name name of Interface
+-- @tparam string binding name of Verilog clock signal in module
+-- @treturn genie.Port
+
+--- Define a Conduit Source Interface.
+-- Must connect to a Conduit Sink, but the direction of individual contained signals can still vary.
+-- Calls @{Builder:interface} with type='`conduit`' and dir='`out`'.
+-- @function conduit_src
+-- @tparam string name name of Interface
+-- @treturn genie.Port
+
+--- Define a Conduit Sink Interface.
+-- Must connect to a Conduit Source, but the direction of individual contained signals can still vary.
+-- Calls @{Builder:interface} with type='`conduit`' and dir='`in`'.
+-- @function conduit_sink
+-- @tparam string name name of Interface
+-- @treturn genie.Port
+
+--- Define a Routed Streaming Source Interface.
+-- Also associates a Clock Interface with it.
+-- Calls @{Builder:interface} with type='`rs`' and dir='`out`', followed by a call to
+-- @{Builder:assoc_clk} to associate a clock interface.
+-- @function rs_source
+-- @tparam string name name of Interface
+-- @tparam string clockif name of associated Clock Interface
+-- @treturn genie.Port
+
+--- Define a Routed Streaming Sink Interface.
+-- Also associates a Clock Interface with it.
+-- Calls @{Builder:interface} with type='`rs`' and dir='`in`', followed by a call to
+-- @{Builder:assoc_clk} to associate a clock interface.
+-- @function rs_sink
+-- @tparam string name name of Interface
+-- @tparam string clockif name of associated Clock Interface
+-- @treturn genie.Port
+
+-- programmatically define several special-case versions of :interface,
 -- for each network type and direction
 for _,i in pairs({{'src', 'out'}, {'sink', 'in'}}) do
     local suffix = i[1]
@@ -71,13 +138,24 @@ for _,i in pairs({{'src', 'out'}, {'sink', 'in'}}) do
     end
 end
 
-function Builder:linkpoint(name, encoding, type)
+--- Creates a Linkpoint.
+-- Applies to the current Interface, defined by the most recent call to @{Builder:interface} or its 
+-- specialized convenience functions.
+-- @tparam string name name of Linkpoint
+-- @tparam string lpid Verilog encoding of Linkpoint ID, eg `2'b00`
+-- @treturn genie.RSLinkpoint raw representation for advanced use
+function Builder:linkpoint(name, lpid)
 	if not self.cur_port then error("Unexpected 'linkpoint'") end
     if not self.cur_port.add_linkpoint then error("Interface does not support linkpoints") end
     
-    return self.cur_port:add_linkpoint(name, encoding, type)
+    return self.cur_port:add_linkpoint(name, lpid, 'broadcast')
 end
 
+--- Creates a System.
+-- Can provide a GENIE-supplied topology function, or a custom one.
+-- @tparam string name name of System
+-- @tparam function topofunc topology function
+-- @treturn genie.Node raw representation for advanced use
 function Builder:system(name, topofunc)
 	self.cur_sys = g.System.new(name, topofunc)
     self.cur_node = self.cur_sys
@@ -85,19 +163,40 @@ function Builder:system(name, topofunc)
     
     -- initialize name2link table for this system
     self.name2link[self.cur_sys] = {}
+	return self.cur_sys
 end
 
+--- Instantiates a Component.
+-- Instantiates within the current System, created by the most recent call to @{Builder:system}.
+-- @tparam string name name of instance
+-- @tparam string comp name of previously-defined Component
+-- @treturn genie.Node raw representation for advanced use
 function Builder:instance(name, comp)
 	if not self.cur_sys then error("Unexpected 'instance'") end
     self.cur_param_tgt = self.cur_sys:add_node(name, comp)
     return self.cur_param_tgt
 end
 
-function Builder:export(port, name)
+--- Exports an Interface of a Component instance.
+-- Within the current System, this creates a new top-level Interface with the same
+-- type and complementary direction, and automatically creates a Link between them.
+-- @tparam string|Port iface hierarchical path, or reference to, Interface to export
+-- @tparam string name name of new exported Interface that will be generated
+-- @treturn genie.Port raw representation for advanced use
+function Builder:export(iface, name)
 	if not self.cur_sys then error("Unexpected 'export'") end
-    self.cur_port = self.cur_sys:make_export(port, name)
+    self.cur_port = self.cur_sys:make_export(iface, name)
+	return self.cur_port
 end
 
+--- Defines a Link between two Interfaces.
+-- The source and sink need to be of the same network type.
+-- For Routed Streaming Interfaces, the source/sink can be a Linkpoint.
+-- 
+-- @tparam string|Port src hierarchical path, or object reference, to source Interface/Linkpoint
+-- @tparam string|Port dest hierarchical path, or object reference, to sink Interface/Linkpoint
+-- @tparam[opt] string label unique label for Link
+-- @treturn genie.Link raw representation for advanced use
 function Builder:link(src, dest, label)
 	if not self.cur_sys then error("Unexpected 'link'") end
     local link = self.cur_sys:add_link(src, dest)    
@@ -112,11 +211,18 @@ function Builder:link(src, dest, label)
     return link
 end
 
-function Builder:assoc_clk(clkname)
+--- Associates a Clock Interface with the current RS Interface.
+-- Applies to most recently-defined RS Interface.
+-- @tparam string clkif name of Clock Interface
+function Builder:assoc_clk(clkif)
     if not self.cur_port then error("no current interface") end
-    self.cur_port:set_clock_port_name(clkname)
+    self.cur_port:set_clock_port_name(clkif)
 end
 
+--- Marks a set of RS Links as temporally exclusive.
+-- This is a guarantee by the designer that none of the RS Links in this set
+-- will ever be used simultaneously.
+-- @tparam array(string)|array(Link) s an array of RS Links (@{genie.Link}) or RS Link labels
 function Builder:make_exclusive(s)
     if not self.cur_sys then error("no current system") end
 
@@ -143,11 +249,27 @@ function Builder:make_exclusive(s)
     g.make_exclusive(s)    
 end
 
+--- Creates or defines a parameter.
+-- Applies to the most recently defined Component or System.
+-- Parameters of Components can reference parameters of their parent System.
+-- Creating a parameter without a value allows it to be set later.
+-- Creating a parameter with a value on a System generates it as a Verilog `localparam`
+-- and it can not be overridden later.
+-- @tparam string name name
+-- @tparam number|string val value or expression
 function Builder:parameter(name, val)
     if not self.cur_param_tgt then error("no current component or system") end
     self.cur_param_tgt:def_param(name, val)
 end
 
+--- Registers a Verilog signal with an Interface.
+-- Applies to the Interface created by the most recent call to @{Builder:interface} or its specialized
+-- convenience functions. The `role` and `vname` arguments are mandatory. Some types of signals also require
+-- a tag. If width is not specified, it defaults to 1.
+-- @tparam string role Signal role. Allowable values depend on the type of Interface.
+-- @tparam[opt] string tag Used-defined tag to differentiate similar signal roles.
+-- @tparam string vname Verilog name of signal in module to bind to.
+-- @tparam[opt=1] string|number width width of signal, can be an expression
 function Builder:signal(role, tag, vname, width)
     if not self.cur_port then error("no current port") end
     
@@ -161,6 +283,11 @@ function Builder:signal(role, tag, vname, width)
     self.cur_port:add_signal(table.unpack(newargs))
 end
 
+--- Creates a latency query.
+-- Creates a new system-level parameter of the given name, whose value is set to the latency of the given RS link.
+-- The link can be specified by string label or by a reference to a Link object.
+-- @tparam string|Link link the Routed Streaming link to query, specified by string link label or directly by object
+-- @tparam string param name of the system-level parameter to create and populate
 function Builder:latency_query(link, param)
     if not self.cur_sys then error("no current system") end
     
