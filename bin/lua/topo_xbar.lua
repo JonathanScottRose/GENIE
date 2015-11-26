@@ -40,11 +40,11 @@ return function(sys)
 	-- main code
 	
     --
-    -- 1: get all RS links from the system into a set
+    -- 1: get all RS links from the system (that haven't been topologized yet) into a set
     --
     
-    local rs_links = Set.make(sys:get_links('rs'))
-    
+    local rs_links = Set.make(sys:get_untopo_rs_links())
+	
     --
 	-- 2: initialize the head/tail for each link to be at its ultimate 
 	-- TOPO source/destination respectively
@@ -128,6 +128,6 @@ return function(sys)
             end
         end
 	end
-    
+	
 end
 end

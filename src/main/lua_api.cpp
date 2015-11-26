@@ -794,6 +794,42 @@ namespace
 		return 0;
 	}
 
+    /// Returns un-topologized RS Links.
+    ///
+    /// Returns all RS links whose source and sink Ports lack
+    /// Topology connections.
+    ///
+    /// Useful for writing topology functions.
+    /// @function get_untopo_rs_links
+    /// @treturn array(Link)
+    LFUNC(system_get_untopo_rs_links)
+    {
+        auto self = lua::check_object<System>(1);
+
+        // Get all RS links and then filter them out.
+        auto all_links = self->get_links(NET_RS);
+        List<Link*> result;
+
+        for (auto link : all_links)
+        {
+            auto rslink = (RSLink*)link;
+
+            RSPort* src_rs = RSPort::get_rs_port(rslink->get_src());
+            RSPort* sink_rs = RSPort::get_rs_port(rslink->get_sink());
+            TopoPort* src_topo = src_rs->get_topo_port();
+            TopoPort* sink_topo = sink_rs->get_topo_port();
+
+            // Only those links where src and sink topo ports are unconnected
+            if (!src_topo->is_connected(NET_TOPO) && !sink_topo->is_connected(NET_TOPO))
+                result.push_back(link);
+        }
+
+        lua_newtable(L);
+        push_array(L, result);
+
+        return 1;
+    }
+
 	/// Get all contained @{Node}s.
 	/// @function get_nodes
 	/// @treturn array(Node)
@@ -831,7 +867,8 @@ namespace
 		LM(make_export, system_make_export),
 		LM(create_latency_query, system_create_latency_query),
         LM(get_object, hier_get_child),
-        LM(get_objects, hier_get_children)
+        LM(get_objects, hier_get_children),
+        LM(get_untopo_rs_links, system_get_untopo_rs_links)
 	},
 	{
 		LM(new, system_new)
