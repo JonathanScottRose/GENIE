@@ -1,3 +1,7 @@
+# Homepage #
+
+[http://www.eecg.toronto.edu/~jayar/software/GENIE]
+
 # Compilation #
 
 ## Visual Studio ##
