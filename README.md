@@ -1,6 +1,6 @@
 # Homepage #
 
-[http://www.eecg.toronto.edu/~jayar/software/GENIE]
+http://www.eecg.toronto.edu/~jayar/software/GENIE
 
 # Compilation #
 
