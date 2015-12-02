@@ -20,6 +20,7 @@ namespace genie
 		TopoPort* get_topo_output() const;		
 		RVDPort* get_rvd_input() const;
 		RVDPort* get_rvd_output(int idx) const;
+        void set_uses_bp(bool);
 
 		void refine(NetType) override;
 		HierObject* instantiate() override;
@@ -32,5 +33,6 @@ namespace genie
 		void init_vlog();
 
 		CarrierProtocol m_proto;
+        bool m_uses_bp;
 	};
 }

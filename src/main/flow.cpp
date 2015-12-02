@@ -390,6 +390,10 @@ namespace
 				// visiting src first and sink second !!!
 				rvd_link = sys->splice(rvd_link, fc_node->get_input(), fc_node->get_output());
 
+                // Configure backpressure first
+                bool has_bp = port->has_role_binding(RVDPort::ROLE_READY);
+                fc_node->set_uses_bp(has_bp);
+
 				// Make the node set up its conversion tables, now that it's connected to stuff
 				fc_node->configure();
 			}
@@ -403,6 +407,16 @@ namespace
 		auto sp_nodes = sys->get_children_by_type<NodeSplit>();
 		for (auto node : sp_nodes)
 		{
+            // This is temporary until a more robust method happens.
+            // We need to disable backpressure on the Split input port if the thing driving it
+            // doesn't accept it. Not always correct :(
+            RVDPort* rvd_b = node->get_rvd_input();
+            auto rvd_a = (RVDPort*)rvd_b->get_endpoint_sysface(NET_RVD)->get_remote_obj0();
+            assert(rvd_a);
+
+            bool has_bp = rvd_a->has_role_binding(RVDPort::ROLE_READY);
+            node->set_uses_bp(has_bp);
+
 			node->configure();
 		}
 	}

@@ -57,6 +57,10 @@ NodeSplit::NodeSplit()
 
 	// Output may have multiple connections
 	port->set_max_links(NET_TOPO, Dir::OUT, Endpoint::UNLIMITED);
+
+    // Does the source RVD port use backpressure? This is a temporary hack. Default true.
+    // Disable later if we find out the source doesn't need it.
+    m_uses_bp = true;
 }
 
 NodeSplit::~NodeSplit()
@@ -88,6 +92,11 @@ RVDPort* NodeSplit::get_rvd_output(int idx) const
 	return get_topo_output()->get_rvd_port(idx);
 }
 
+void genie::NodeSplit::set_uses_bp(bool b)
+{
+    m_uses_bp = b;
+}
+
 void NodeSplit::refine(NetType target)
 {
 	// Do the default. TOPO ports will get the correct number of RVD subports.
@@ -102,7 +111,7 @@ void NodeSplit::refine(NetType target)
 		auto inport = get_rvd_input();
 		inport->set_clock_port_name(CLOCKPORT_NAME);
 		inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
-		inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
+		//inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 		inport->add_role_binding(RVDPort::ROLE_DATA, "flowid", new VlogStaticBinding("i_flow"));
 		inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
 		inport->get_proto().set_carried_protocol(&m_proto);
@@ -130,6 +139,10 @@ HierObject* NodeSplit::instantiate()
 
 void NodeSplit::configure()
 {
+    // Add backpressure if necessary
+    if (m_uses_bp)
+        get_rvd_input()->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
+
 	int n_outputs = get_n_outputs();
 
 	// Get all RS links that travel through the split node's input
