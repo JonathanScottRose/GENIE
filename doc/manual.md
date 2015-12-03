@@ -424,3 +424,7 @@ When creating a System, it is necessary to provide a topology function. A common
 The system's RS links are automatically routed over the network using a shortest-hop algorithm.
 
 A topology function is a regular Lua function that accepts one parameter: the system being processed. The function thus has access to all objects inside the System and can use that information to generate a topology in a generic way. The source for `topo_xbar` provides an example of how to do this.
+
+## Latency Queries
+
+## Communication Hints
