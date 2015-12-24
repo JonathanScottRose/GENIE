@@ -27,7 +27,7 @@ The user defines logical, end-to-end links between the Interfaces of instantiate
 
 Here's a complete, minimal example that trivially connects two components together in a point-to-point fashion:
 
-```language:lua
+```lua
 require 'builder'
 require 'topo_xbar'
 
@@ -38,9 +38,11 @@ b = genie.Builder.new()
 b:component('compA', 'comp_a_ver')	
 	-- create a clock sink interface, containing Verilog input port i_clk
 	b:clock_sink('clkIface', 'i_clk')
-	-- create a Routed Streaming source interface, synchronous to clock interface clkIface
+	-- create a Routed Streaming source interface, 
+    -- synchronous to clock interface clkIface
 	b:rs_src('sender', 'clkIface')
-		-- this Interface contains a 10 bit wide data signal and a valid signal for handshaking
+		-- this Interface contains a 10 bit wide data signal 
+        -- and a valid signal for handshaking
 		b:signal('data', 'o_data', 10)
 		b:signal('valid', 'o_vld')
 
@@ -77,7 +79,7 @@ b:system('TheSys', topo_xbar)
 
 This generates a file `TheSys.sv`, which looks like this:
 
-```language:systemverilog
+```verilog
 module TheSys
 (
     input reset,
@@ -109,7 +111,7 @@ Note the auto-created reset signal, which ended being unused. Also note that for
 
 Here's the same example but this time the system contains two instances of the B component, and A communicates with both of them.
 
-```language:lua
+```lua
 require 'builder'
 require 'topo_xbar'
 
@@ -151,7 +153,7 @@ b:system('TheSys', topo_xbar)
 
 What happens now? Well, instance A will broadcast to both instances of B through a Split Node, which is a piece of GENIE-generated interconnect. The actual hardware will optimize away to just wires. Here's the Verilog output:
 
-```language:systemverilog
+```verilog
 module TheSys
 (
     input reset,
@@ -217,7 +219,7 @@ A Linkpoint is a virtual connection point associated with a Routed Streaming Int
 
 Sink interfaces are allowed to define Linkpoints as well, and this can be used to discern the source of incoming traffic. The previous example has been modified in the code fragment below to allow component A to use Linkpoints:
 
-```language:lua
+```lua
 
 ...
 		-- (within definition of Component A)
@@ -249,24 +251,24 @@ Systems behave like Components - they can be instantiated in another System, and
 
 However, sometimes all you want to do is export an Interface of some Component to the outside world, creating the correct type (and matching direction) of Interface and connecting them together with a single Link. The `export` command lets you do this.
 
-```language:lua
+```lua
 	b:export('instB1.recvr', 'TopLevelRecvr')
 ```
 
 which is equivalent to:
-```language:lua
+```lua
 	b:rs_sink('TopLevelRecvr', 'TopLevelClk')
 	b:link('TopLevelRecvr', 'instB1.recvr')
 ```
 
 Note that `export` figures out the correct associated clock to use, as well as the type and direction of the new Interface. Any interface may be exported. With RS Ports, the Linkpoint definitions are copied to the exported interface. Had we instead exported `instA.sender`:
 
-```language:lua
+```lua
 	b:export('instA.sender', 'TopLevelSender')
 ```
 
 it would have been equivalent to creating matching Linkpoints and explicitly forwarding each one:
-```language:lua
+```lua
 	b:rs_src('TopLevelSender', 'TopLevelClk')
 		b:linkpoint('lpA', "1'b0")
 		b:linkpoint('lpB', "1'b1")
@@ -330,7 +332,7 @@ When two sources are feeding a sink, only one can physically be allowed to reach
 
 GENIE supports the parameterization of Components with Verilog Parameters. They can be passed down into the associated Verilog module during Component instantiation, or be used for signal widths. Here's an example of a Component that has parameterizable width:
 
-```language:lua
+```lua
 b:component('Inverter', 'inverter')
 	b:parameter('WIDTH')
 	b:clock_sink('Clk', 'clk')
@@ -351,7 +353,7 @@ The `parameter` function is used both to define parameters on Components, and to
 
 Parameters are passed to the Verilog modules during instantiation:
 
-```language:systemverilog
+```verilog
 
 inverter #
 (
@@ -368,7 +370,7 @@ Inverter1
 
 Systems can be parameterized too, and those parameters can be referenced by the System's top-level Interfaces or be passed down to Component instances:
 
-```language:lua
+```lua
 b:component('Inverter', 'inverter')
 	b:parameter('WIDTH')
 	b:clock_sink('Clk', 'clk')
@@ -398,7 +400,7 @@ Parameters can be referenced in mathematical expressions. GENIE supports the fol
 
 `%` has highest precedence, followed by multiplication/division followed by addition/subtraction. Parameters can appear in expressions. Every reference to a parameter is actually just a trivial expression with no operators. Here are two uses of expressions:
 
-```language:lua
+```lua
 -- when passing parameters:
 b:system(...)
 b:parameter('SYSPARAM')
@@ -407,7 +409,7 @@ b:instance(...)
 b:parameter('INSTPARAM', 'SYSPARAM*2 -1')
 ```
 
-```language:lua
+```lua
 --- when specifying signal widths:
 b:rs_sink (...)
 	b:signal('data', 'i_data', '%WIDTH - 1')
@@ -427,4 +429,68 @@ A topology function is a regular Lua function that accepts one parameter: the sy
 
 ## Latency Queries
 
+GENIE can extract the no-load latency of any given RS link and deliver it as a Verilog parameter to your Components. This is useful if you wish to avoid using latency-insensitive design techniques and rely on a simpler fixed-latency model.
+
+To extract the latency of a link, you must either label the link with a unique string tag (and refer to it later) or pass the link directly as an object. The latency will be stored as a system-level parameter.
+
+```lua
+b:system('mysys', topo_xbar)
+	...
+    -- create an RS link and label it with the optional 3rd parameter
+    b:link('fooInst.fooIface', 'barInst.barIface', 'myImportantLink')
+    
+    -- you can also capture the created link with a return value
+    local linkObj = b:link('baz.a', 'qwerty.b')
+    
+    -- make two queries, creates two new parameters
+    b:create_latency_qnery('myImportantLink', 'LATENCY_1')
+    b:create_latency_query(linkObj, 'LATENCY_2')
+    
+    -- pass both latencies to a component so it can adjust its
+    -- pipeline length, for example
+    b:instance('anInst', 'aComponent')
+    	b:parameter('TOTAL_LATENCY', 'LATENCY_1 + LATENCY_2 + 2)
+```
+
 ## Communication Hints
+
+If you can guaranteed that no two RS links will be used simultaneously, you can tell GENIE this and it has an opportunity to generate more efficient interconnect. A guarantee of no-competition means that any Merge nodes traversed by such links can have simplified arbitration logic.
+
+To mark a set of RS links as musually exclusive, you must create an array containing either:
+
+* the unique string labels of the links
+* references to the link objects themselves
+
+Here is an example done the first way:
+
+```lua
+b:system('mysys', topo_xbar)
+	...
+    -- create a bunch of RS links and name them
+    b:link('foo.srcA', 'bar.sharedDest', 'linkA')
+    b:link('foo.srcB', 'bar.sharedDest', 'linkB')
+    b:link('foo.srcC', 'bar.sharedDest', 'linkC')
+    
+    -- create an array containing the link names
+    local arr = {'linkA', 'linkB', 'linkC'}
+    
+    -- tell GENIE that these links will never be active simultaneously
+    b:make_exclusive(arr)
+    
+    -- Lua syntactic sugar that does the above 2 lines in one step:
+    -- b:make_exclusive{'linkA', 'linkB', 'linkC'}
+```
+
+Here is the same example but done with object references instead of string labels:
+
+```lua
+b:system('mysys', topo_xbar)
+	...
+    local linkA = b:link('foo.srcA', 'bar.sharedDest')
+    local linkB = b:link('foo.srcB', 'bar.sharedDest')
+    local linkC = b:link('foo.srcC', 'bar.sharedDest')
+    
+    b:make_exclusive{linkA, linkB, linkC}
+```
+
+Rather than a Lua array (which is a Lua table having integers as keys and the stored elements as values), it is also possible to pass a _set_, which is a table with the stored elements as keys (the values are irrelevant and just need to be non-_nil_). GENIE's `util` package has routines for creating and manipulating Set objects. See the API reference.
