@@ -388,5 +388,14 @@ function util.con_cat(...)
     end
     return result
 end
+
+--- Replace all dots in a string with underscores.
+--- This is useful for operating on hierarchical names.
+-- @param str input string
+-- @treturn string
+function util.dot_to_uscore(str)
+	return string.gsub(str, '%.', '_')
+end
+
 			
 		

@@ -1,86 +1,66 @@
-require "util"
+require 'util'
+require 'topo_xbar'
 
--- 
--- Creates a ring topology. Each existing instance in the given system is given a split and merge node.
--- The split node is an offramp which extracts traffic for the ring destined for the instance's input ports.
--- The merge node takes traffic from the instance's output ports and inects it into the ring.
--- The split node also connects directly to the merge node for traffic that bypasses the instance.
---
-
-function topo_ring(sys)
-	--
-	-- Create the ring: A split and merge node for every instance
-	--
-	
-	local ring = {}
-    
-    local objs = sys:get_nodes()
-    table.insert(objs, sys)
-    
-	for obj in values(objs) do
-        local objname = obj:get_name()
-        
-        -- create a ringstop entry for this instance, which contains
-        -- a split node and a merge node named after the instance
-        local entry = 
-        {
-            merge = sys:add_merge(objname .. '_inj'),
-            split = sys:add_split(objname .. '_ej')
-        }
-        
-        table.insert(ring, entry) -- numerical entry
-        ring[obj] = entry -- relational entry
+function make_topo_ring(cb)
+	if not cb or type(cb) ~= "function" then 
+		error("make_topo_ring: Must provide a function that returns an array of networks, where each network is an array of interfaces") 
 	end
+	local rings = cb()
 	
-    --
-    -- Make TOPO connections between the ringstops
-    --
-    
-	for idx,entry in ipairs(ring) do
-		-- within a ringstop, the split has a bypass path to the merge
-        local e = sys:add_link(entry.split:get_port('out'), entry.merge:get_port('in'))
-        entry.s2m = e
-        
-        -- reference the next ringstop, looping around to make a ring
-        -- store the nextentry in each entry, linked-list style, for later
-        local nextentry = ring[idx+1] or ring[1]
-        entry.next = nextentry -- to help traversal
-        
-        -- across ringstops, the merge connects to the next's split
-        local e = sys:add_link(entry.merge:get_port('out'), nextentry.split:get_port('in'))
-        entry.m2s = e
-	end
-	
-	--
-	-- Make TOPO connections between instances and ringstops, and associate RS links
-	--
-	
-	for _,link in ipairs(sys:get_links('rs')) do
-		-- start at source node's ringstop
-        local srcnode = link:get_src():get_rs_port():get_parent()
-		local cur = ring[srcnode]
-		
-		-- get onto ring via merge node
-        local e = sys:add_link(link:get_src():get_topo_port(), cur.merge:get_port('in'))
-        e:add_parent(link)
-		
-		-- advance to next ringstop's split node (makes the loop condition work properly)
-        e = cur.m2s
-		e:add_parent(link)
-		cur = cur.next
-		
-		-- keep traveling in ring until we reach destination node's ringstop
-        local sinknode = link:get_sink():get_rs_port():get_parent()
-		while (cur ~= ring[sinknode]) do
-			e = cur.s2m
-			e:add_parent(link)
-			e = cur.m2s
-			e:add_parent(link)
-			cur = cur.next
+	-- this function, make_topo_ring, returns a topology function
+	return function(sys)
+		-- build each ring network
+		for ring in values(rings) do
+			local ring_stops = {}
+			
+			-- go through each RS interface/linkpoint in the ring and create a split/merge node for it,
+			-- saving it in ring_stops
+			for iface in values(ring) do
+				-- each entry provided by the user can either be an object or a string reference to the object.
+				-- if it's the latter, convert it to the former.
+				if type(iface) == 'string' then iface = sys:get_object(iface) end
+				
+				-- make sure this is an RS source/sink and get its topology endpoint
+				if iface:get_type() ~= 'rs' then
+					error("topo_ring: object " .. iface .. " is not an RS interface or linkpoint")
+				end
+				
+				-- get the RS port's associated topology port
+				local iface_topo = iface:get_topo_port()
+				
+				-- create a split or merge node depending on the user port's direction
+				-- also make the connection
+				local ringstop
+				if iface_topo:get_dir() == 'out' then
+					local nm = util.dot_to_uscore(util.con_cat(iface:get_hier_path(sys), 'mg'))
+					ringstop = sys:add_merge(nm)
+					sys:add_link(iface_topo, ringstop)
+				else
+					local nm = util.dot_to_uscore(util.con_cat(iface:get_hier_path(sys), 'sp'))
+					ringstop = sys:add_split(nm)
+					sys:add_link(ringstop, iface_topo)
+				end
+				
+				table.insert(ring_stops, ringstop)
+			end
+			
+			-- connect the ringstops together
+			for i = 1,#ring_stops do
+				local j = (i % #ring_stops) + 1
+				sys:add_link(ring_stops[i], ring_stops[j])
+			end
 		end
 		
-		-- get off of ring
-        e = sys:add_link(cur.split:get_port('out'), link:get_sink():get_topo_port())
-		e:add_parent(link)
+		local uncon = sys:get_untopo_rs_links()
+		local n_uncon = util.count(uncon)
+		if n_uncon > 0 then
+			print("topo_ring: found " .. n_uncon .. " RS links not belonging to a topology, passing to topo_xbar")
+			for link in values(uncon) do
+				print(" " .. link)
+			end
+			
+			topo_xbar(sys)
+		end
 	end
 end
+

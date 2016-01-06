@@ -271,7 +271,12 @@ namespace
 	LFUNC(hier_get_path)
 	{
 		auto obj = lua::check_object<HierObject>(1);
-		lua_pushstring(L, obj->get_hier_path().c_str());
+        
+        HierObject* rel_obj = nullptr;
+        if (!lua_isnil(L, 2))
+            rel_obj = lua::check_object<HierObject>(2);
+
+		lua_pushstring(L, obj->get_hier_path(rel_obj).c_str());
 		return 1;
 	}
 

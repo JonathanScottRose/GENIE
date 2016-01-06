@@ -1,0 +1,25 @@
+LU Factorization Engine
+
+This is a complex real example that demonstrates:
+- hierarchical systems
+- passing arguments to Lua scripts from the command line
+- a custom topology function
+- communication hints for mutual exclusivity (zero competition)
+- latency introspection
+- using regular Lua language constructs to automate everything
+
+The top-level script is lu.lua and needs parameters N_CPU and N_MEM at the minimum.
+An example invocation is:
+
+genie lu.lua --args "N_CPU=2,N_MEM=2"
+
+Here is a list of parameters that can be specified:
+
+N_CPU: number of Compute Elements
+N_MEM: number of memory controllers
+RING: 1 to enable custom topology, 0 to use default Sparse Crossbar
+
+There are other parameters, but they are not useful unless you were actually 
+simulating/building the full design.
+
+Some source code files are missing, so it's not possible to compile/simulate the design at the moment. However, enough source files are present to be able to match up with the Component definitions in the Lua files to serve for learning purposes.
