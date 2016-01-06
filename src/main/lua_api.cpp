@@ -1318,9 +1318,9 @@ namespace
 	/// @function get_links
 	/// @tparam[opt] string type network type
 	/// @treturn array(Link)
-	LSUBCLASS(RSLinkpoint, (HierObject),
+	LSUBCLASS(RSLinkpoint, (Port),
 	{
-		LM(get_links, net_get_links),
+		//LM(get_links, net_get_links),
 		LM(get_rs_port, rslp_get_rs_port),
 		LM(get_topo_port, rslp_get_topo_port)
 	});
