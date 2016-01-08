@@ -82,9 +82,9 @@ namespace genie
 		// Duplicate link.
 		virtual Link* clone() const;
 
-	protected:
-		void copy_containment(const Link&);
+        void copy_containment(const Link*);
 
+	protected:
 		Endpoint* m_src;
 		Endpoint* m_sink;
 	};

@@ -3,6 +3,16 @@ require 'topo_xbar'
 
 local b = genie.Builder.new()
 
+-- Partial signal binding example
+-- The last parameter to signal() is usually just a bit width, but also has
+-- an advanced mode where you provide an array containing three elements:
+-- 1: The total width of the Verilog signal
+-- 2: The actual number of bits to bind the signal to
+-- 3: The least-significant bit index within the Verilog signal where the binding occurs
+
+-- This example has three logical interfaces, but they all map to different ranges within the
+-- same physical Verilog signal.
+
 b:component('comp','comp')
     b:conduit_src('iface')
         b:signal('out', 'field', 'o_sig', 4)

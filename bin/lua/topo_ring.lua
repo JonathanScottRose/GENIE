@@ -42,6 +42,10 @@ function make_topo_ring(cb)
 				end
 				
 				table.insert(ring_stops, ringstop)
+				
+				-- add a reg node after each stop
+				local reg = sys:add_buffer(util.con_cat(ringstop:get_name(), 'reg'))
+				table.insert(ring_stops, reg)
 			end
 			
 			-- connect the ringstops together

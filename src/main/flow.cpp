@@ -1,4 +1,6 @@
 #include <unordered_set>
+#include <stack>
+#include <iostream>
 #include "genie/genie.h"
 #include "genie/net_topo.h"
 #include "genie/net_clock.h"
@@ -114,7 +116,7 @@ namespace
 	{
 		// Turn RS network into a graph.
 		// Pass in a remap function which effectively treats all linkpoints as their parent ports.
-		N2GRemapFunc remap = [=] (Port* o)
+		N2GRemapFunc remap = [] (Port* o)
 		{
 			return RSPort::get_rs_port(o);
 		};
@@ -162,6 +164,8 @@ namespace
 	{
 		auto rs_links = sys->get_links(NET_RS);
 
+		// Turn the RS network into a graph.
+		// Maintain: vertexid<->port, edgeid->link mappings
 		EAttr<Link*> topo_eid_to_link;
 		VAttr<Port*> topo_vid_to_port;
 		RVAttr<Port*> topo_port_to_vid;
@@ -206,6 +210,146 @@ namespace
 		}
 	}
 
+	void topo_prune_unused(System* sys)
+	{
+		// Find any TOPO links that do not carry RS links and remove them
+		auto topo_links = sys->get_links(NET_TOPO);
+		
+		// Gather everything in an array first so we can safely iterate
+		List<Link*> remove_links;
+		
+		for (auto link : topo_links)
+		{
+			auto rs_parents = link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+			if (rs_parents.empty())
+			{
+				remove_links.push_back(link);				
+			}
+		}
+		
+		// Now remove the unused links
+		for (auto link : remove_links)
+		{
+			sys->disconnect(link);
+		}
+		
+		// Part 2: remove any split/merge/reg nodes that are superfluous (not enough
+		// inputs/output TOPO Links). Every time such a node is removed, one of two things
+		// can also happen:
+		// 1) If the node was not a 'dead end' and ended up having a single input link and single
+		// output link, then it can be replaced with a single link. Upstream/downstream are none the wiser.
+		// 2) If the node was a dead end (either had zero inputs or zero outputs) then the
+		// removal of the node and any remaining outputs/inputs can potentially trigger
+		// the removal of any downstream/upstream nodes.
+		//
+		// Because of 2), we use a stack of Nodes to examine and to potentially remove.
+		// If a 2) happens, any potentially affected upstream/downstream Nodes are put on the
+		// stack to examine. We stop when the chain reaction stops and no more nodes are left to examine.
+		std::stack<Node*> to_examine;
+		for (auto i : sys->get_nodes())
+			to_examine.push(i);
+		
+		while (!to_examine.empty())
+		{
+			Node* cur_node = to_examine.top();
+			to_examine.pop();
+			
+			// Split/merge/reg nodes have different criteria for what it means to be superfluous.
+			unsigned min_inputs = 0;
+			unsigned min_outputs = 0;
+			TopoPort* input = nullptr;
+			TopoPort* output = nullptr;
+			
+			if (auto n = as_a<NodeSplit*>(cur_node))
+			{
+				min_inputs = 1;
+				min_outputs = 2;
+				input = n->get_topo_input();
+				output = n->get_topo_output();
+			}
+			else if (auto n = as_a<NodeMerge*>(cur_node))
+			{
+				min_inputs = 2;
+				min_outputs = 1;
+				input = n->get_topo_input();
+				output = n->get_topo_output();
+			}
+			else if (auto n = as_a<NodeReg*>(cur_node))
+			{
+				min_inputs = 1;
+				min_outputs = 1;
+				input = n->get_topo_input();
+				output = n->get_topo_output();
+			}
+			else
+			{
+				// We don't care about other kinds of nodes
+				continue;
+			}
+			
+			// Get the upstream/downstream ports of this Node, so we can count the number of links.
+			List<Port*> input_remotes;
+			List<Port*> output_remotes;
+			if (input) input_remotes = input->get_endpoint_sysface(NET_TOPO)->get_remote_objs();
+			if (output) output_remotes = output->get_endpoint_sysface(NET_TOPO)->get_remote_objs();
+			
+			// Evaluate the criteria for being removable
+			if (input_remotes.size() < min_inputs || output_remotes.size() < min_outputs)
+			{
+                // Special case: we're removing a node that had one incoming and one outgoing link.
+                // The node plus these two links will be simply replaced with a new link.
+                // Before we do this, we have to save the Link Containment aspect of one of the
+                // existing two to-be-removed links, which contains associations with parent RS links.
+                //
+                // The actual new link will be created after the old ones have been removed, below.
+				ALinkContainment* cont_copy = nullptr;
+				if (input_remotes.size() == 1 && output_remotes.size() == 1)
+				{
+                    Link* oldlink1 = sys->get_links(input_remotes.front(), input).front();
+                    auto old_cont = oldlink1->asp_get<ALinkContainment>();
+                    cont_copy = new ALinkContainment(*old_cont);
+				}
+				
+				// Disconnect any links attached to the node we're about to remove
+				if (input_remotes.size() > 0)
+				{
+					for (Port* remote : input_remotes)
+					{
+						sys->disconnect(remote, input);
+						
+						// Examine the affected remote node later
+						if (!remote->is_export())
+							to_examine.push(remote->get_node());
+					}
+				}
+				
+				if (output_remotes.size() > 0)
+				{
+					for (Port* remote : output_remotes)
+					{
+						sys->disconnect(output, remote);
+						if (!remote->is_export())
+							to_examine.push(remote->get_node());
+					}
+				}
+				
+                // Part 2 of the procedure outlined above.
+                if (input_remotes.size() == 1 && output_remotes.size() == 1)
+                {
+                    assert(cont_copy);
+                    Link* newlink = sys->connect(input_remotes.front(), output_remotes.front());
+                    newlink->asp_remove<ALinkContainment>();
+                    newlink->asp_add(cont_copy);
+                }
+				
+				
+				// Remove the node
+				sys->remove_child(cur_node->get_name());
+				std::cout << "Superfluous node: removing " << cur_node->get_hier_path() << std::endl;
+			}
+		}
+	}
+	
 	// Assign Flow IDs to RS links
 	void rs_assign_flow_ids(System* sys)
 	{
@@ -905,6 +1049,9 @@ namespace
 		// Route RS links over TOPO links
 		topo_do_routing(sys);
 
+		// Prune unused TOPO links
+		topo_prune_unused(sys);
+		
 		// Assign Flow IDs to RS links and RS Ports based on topology and RS domain membership.
 		// Must be done after TOPO network has been created.
 		rs_assign_flow_ids(sys);

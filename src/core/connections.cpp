@@ -225,9 +225,9 @@ NetType Link::get_type() const
 	return ep->get_type();
 }
 
-void Link::copy_containment(const Link& other)
+void Link::copy_containment(const Link* other)
 {
-	auto ac = other.asp_get<ALinkContainment>();
+	auto ac = other->asp_get<ALinkContainment>();
 	if (!ac)
 		return;
 
@@ -239,7 +239,7 @@ Link* Link::clone() const
 {
 	// Default clone function for generic Links
 	auto result = new Link();
-	result->copy_containment(*this);
+	result->copy_containment(this);
 	return result;
 }
 

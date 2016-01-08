@@ -626,7 +626,7 @@ namespace
 	/// Create a Buffer Node.
 	///
 	/// Should only be called within Topology Functions.
-	/// @function add_buf
+	/// @function add_buffer
 	/// @tparam string name name
 	/// @treturn Node
 	LFUNC(system_add_buf)

@@ -357,7 +357,7 @@ RSLink::RSLink()
 Link* RSLink::clone() const
 {
 	auto result = new RSLink(*this);
-	result->copy_containment(*this);
+	result->copy_containment(this);
 	return result;
 }
 
