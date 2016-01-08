@@ -274,7 +274,7 @@ namespace
 		auto obj = lua::check_object<HierObject>(1);
         
         HierObject* rel_obj = nullptr;
-        if (!lua_isnil(L, 2))
+        if (!lua_isnoneornil(L, 2))
             rel_obj = lua::check_object<HierObject>(2);
 
 		lua_pushstring(L, obj->get_hier_path(rel_obj).c_str());
