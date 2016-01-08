@@ -1,3 +1,14 @@
+--- Sparse Crossbar topology.
+-- Attaches a Split node to every output that has more than one physical fanout.
+-- Attaches a Merge node to every input that has more than one physical fanin.
+-- Connects the Splits to the Merges, with optional Buffer Nodes after each Split or Merge.
+--@usage
+--b:system('mysys', topo_xbar)
+--@usage
+--b:system('mysys', make_topo_xbar(true, false, true))
+-- @module topo_xbar
+
+
 require 'util'
 
 -- 
@@ -5,11 +16,17 @@ require 'util'
 -- and up to 1 layer of merge nodes
 --
 
--- Default topo_xbar: register merge but not split
+--- Default version that adds buffers after merge nodes only.
 function topo_xbar(sys)
     make_topo_xbar(false, true, false)(sys)
 end
 
+--- Returns a customized topo_xbar topology function.
+-- You get to control where buffer nodes are placed.
+-- @tparam boolean reg_split Add buffer at input to split nodes.
+-- @tparam boolean reg_merge Add buffer at output of merge nodes.
+-- @tparam boolean reg_internal Add buffer between each split and each merge.
+-- @treturn function
 function make_topo_xbar(reg_split, reg_merge, reg_internal)
 return function(sys)
     

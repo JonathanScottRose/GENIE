@@ -267,6 +267,7 @@ namespace
 
 	/// Get the object's absolute path.
 	/// @function get_hier_path
+	/// @tparam[opt] HierObject get path relative to this parent, rather than the root
 	/// @treturn string path
 	LFUNC(hier_get_path)
 	{
@@ -1293,7 +1294,7 @@ namespace
 
 	/// A named sub-entity residing within an @{RSPort}. Can be a source or sink for RS @{Link}s.
 	///
-	/// Inherits from: @{HierObject}.
+	/// Inherits from: @{Port}.
 	/// @type RSLinkpoint
 	
 	/// Get parent @{RSPort}'s associated Topology @{Port}.
@@ -1319,10 +1320,6 @@ namespace
 		return 1;
 	}
 
-	/// Get connected @{Link}s.
-	/// @function get_links
-	/// @tparam[opt] string type network type
-	/// @treturn array(Link)
 	LSUBCLASS(RSLinkpoint, (Port),
 	{
 		//LM(get_links, net_get_links),

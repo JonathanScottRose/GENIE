@@ -1,6 +1,26 @@
+--- Multi-Ring Topology.
+-- Connects explicitly-provided RS ports in one or more rings.
+-- Each RS output gets MERGEd onto the ring, and each RS input is fed by a SPLIT.
+-- The topology expects a callback function which returns an array of rings, where
+-- each ring is itself an array of RS ports. These can be specified directly by object
+-- reference, or be strings representing hierarchical paths to the RS ports.
+--@usage
+--function ring_callback()
+--	local ring1 = {'instA.iface1', 'instA.iface2', 'instB.someIface'}
+--	local ring2 = {'instA.iface3', 'instC.fooBarIface'}
+--	local rings = { ring1, ring2 }
+--	return rings
+--end
+--...
+--b:system('mysys', make_topo_ring(ring_callback))
+-- @module topo_ring
+
 require 'util'
 require 'topo_xbar'
 
+--- Multi-ring topology function generator. Returns a topology function.
+-- @tparam function cb callback function that must return an array of arrays which contain RS interface names/references
+-- @treturn function
 function make_topo_ring(cb)
 	if not cb or type(cb) ~= "function" then 
 		error("make_topo_ring: Must provide a function that returns an array of networks, where each network is an array of interfaces") 
