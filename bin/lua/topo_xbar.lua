@@ -17,6 +17,7 @@ require 'util'
 --
 
 --- Default version that adds buffers after merge nodes only.
+-- @tparam System sys
 function topo_xbar(sys)
     make_topo_xbar(false, true, false)(sys)
 end

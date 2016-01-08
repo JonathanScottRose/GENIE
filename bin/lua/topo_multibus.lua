@@ -1,5 +1,3 @@
-require 'util'
-
 --- Multi-Bus Topology.
 -- Creates multiple shared buses, one per communication domain.
 -- Two RS interfaces belong to the same domain if
@@ -10,6 +8,10 @@ require 'util'
 --b:system('mysys', topo_multibus)
 -- @module topo_multibus
 
+require 'util'
+
+--- MultiBus topology function.
+-- @tparam System sys
 function topo_multibus(sys)
 	-- keep track of the members of each domain, and each RS port's domain membership
 	local domains = {}
