@@ -95,7 +95,7 @@ end
 -- Also associates a Clock Interface with it.
 -- Calls @{Builder:interface} with type='`rs`' and dir='`out`', followed by a call to
 -- @{Builder:assoc_clk} to associate a clock interface.
--- @function rs_source
+-- @function rs_src
 -- @tparam string name name of Interface
 -- @tparam string clockif name of associated Clock Interface
 -- @treturn genie.Port
