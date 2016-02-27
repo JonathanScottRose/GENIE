@@ -77,6 +77,24 @@ end
 -- @tparam string binding name of Verilog clock signal in module
 -- @treturn genie.Port
 
+--- Define a Reset Source Interface.
+-- Also creates the reset signal binding within the Interface.
+-- Calls @{Builder:interface} with type='`reset`' and dir='`out`' followed
+-- by a call to @{Builder:signal}.
+-- @function reset_src
+-- @tparam string name name of Interface
+-- @tparam string binding name of Verilog reset signal in module
+-- @treturn genie.Port
+
+--- Define a Reset Sink Interface.
+-- Also creates the reset signal binding within the Interface.
+-- Calls @{Builder:interface} with type='`reset`' and dir='`in`' followed
+-- by a call to @{Builder:signal}.
+-- @function reset_sink
+-- @tparam string name name of Interface
+-- @tparam string binding name of Verilog reset signal in module
+-- @treturn genie.Port
+
 --- Define a Conduit Source Interface.
 -- Must connect to a Conduit Sink, but the direction of individual contained signals can still vary.
 -- Calls @{Builder:interface} with type='`conduit`' and dir='`out`'.
@@ -109,6 +127,24 @@ end
 -- @tparam string clockif name of associated Clock Interface
 -- @treturn genie.Port
 
+--- Define a Message Source
+-- This is a special case of a Routed Streaming source interface that has only
+-- a '`valid`' signal.
+-- @function msg_src
+-- @tparam string name name of Interface
+-- @tparam string vname Verilog signal name
+-- @tparam string clockif name of associated Clock Interface
+-- @treturn genie.Port
+
+--- Define a Message Sink
+-- This is a special case of a Routed Streaming sink interface that has only
+-- a '`valid`' signal.
+-- @function msg_sink
+-- @tparam string name name of Interface
+-- @tparam string vname Verilog signal name
+-- @tparam string clockif name of associated Clock Interface
+-- @treturn genie.Port
+
 -- programmatically define several special-case versions of :interface,
 -- for each network type and direction
 for _,i in pairs({{'src', 'out'}, {'sink', 'in'}}) do
@@ -136,6 +172,12 @@ for _,i in pairs({{'src', 'out'}, {'sink', 'in'}}) do
         result:set_clock_port_name(clockif)
         return result
     end
+	
+	Builder['msg_'..suffix] = function(self, name, vname, clockif)
+		local result = self['rs_'..suffix](self, name, clockif)
+		self:signal('valid', vname)
+		return result
+	end
 end
 
 --- Creates a Linkpoint.
