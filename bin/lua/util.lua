@@ -397,5 +397,28 @@ function util.dot_to_uscore(str)
 	return string.gsub(str, '%.', '_')
 end
 
+--- Creates an empty multi-dimensional table.
+-- Dimensions are 0-indexed.
+-- @param ... sizes of each dimension
+-- @treturn table
+function util.md_array(...)
+	local args = {...}
+	
+	-- Recursively creates sub-tables
+	local function init_dim(t, d)
+		if d >= #args then return end
+		local dim = args[d]
+		
+		for i=0,dim-1 do
+			t[i] = {}
+			init_dim(t[i], d+1)
+		end
+	end
+	
+	local result = {}
+	init_dim(result, 1)
+	
+	return result
+end
 			
 		
