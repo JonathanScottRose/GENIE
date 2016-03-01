@@ -15,7 +15,7 @@ namespace
 			m_name = "conduit";
 			m_desc = "Point-to-Point Conduit";
 			m_default_max_in = 1;
-			m_default_max_out = 1;
+			m_default_max_out = Endpoint::UNLIMITED;
 
 			add_sig_role(ConduitPort::ROLE_FWD);
 			add_sig_role(ConduitPort::ROLE_REV);

@@ -212,7 +212,7 @@ void NodeMerge::do_exclusion_check()
 	G.complement();
 
 	// Collapse all vertices belonging to each port. This leaves one vertex representing all the
-	// links at each port, and edges between the ports representing which ports are exclusive.
+	// links at each port, and edges between the ports representing which ports are possibly non-exclusive.
 	for (int i = 0; i < n_inputs; i++)
 	{
 		const List<RSLink*>& links_at_port = links[i];

@@ -340,8 +340,10 @@ namespace
 					// Make sure it exists! Conduits can't have unmatched bindings.
 					if (!sink_rb)
 					{
-						throw HierException(sink, "no matching counterpart role binding for " + 
-							src_rb->to_string());
+                        // TODO: warning instead?
+						//throw HierException(sink, "no matching counterpart role binding for " + 
+						//	src_rb->to_string());
+                        continue;
 					}
 
 					// Make the connection. It's already oriented correctly.

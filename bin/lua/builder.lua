@@ -341,7 +341,7 @@ function Builder:latency_query(link, param)
     -- convert to an actual link if it's just a label
     if type(link) == 'string' then
         link = name_to_link(self, self.cur_sys, link)
-    elseif type(link ~= 'userdata') then
+    elseif type(link) ~= 'userdata' then
         error('expected a link object or a link label')
     end
     
