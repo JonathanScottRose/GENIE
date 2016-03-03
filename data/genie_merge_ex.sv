@@ -30,17 +30,32 @@ if (WIDTH > 0) begin
     if (NI == 2) begin
         assign o_eop = i_valid[0] ? i_eop[0] : i_eop[1];
         assign o_data = i_valid[0] ? i_data[0 +: WIDTH] : i_data[WIDTH +: WIDTH];
+		assert property (@(posedge clk) disable iff (reset) (!i_valid[0] || !i_valid[1]));
     end
     else if (NI > 2) begin
-        always_comb begin : one_hot_mux
+		// synthesis translate_off
+		int n_valids;
+		// synthesis translate_on
+		
+        always_comb begin : one_hot_mux	
             o_eop = '0;
             o_data = '0;
+			// synthesis translate_off
+			n_valids = 0;
+			// synthesis translate_on
             
             for (int i = 0; i < NI; i++) begin
                 o_eop = o_eop | (i_valid[i] & i_eop[i]);
                 o_data = o_data | ({WIDTH{i_valid[i]}} & i_data[WIDTH*i +: WIDTH]);
+				// synthesis translate_off
+				n_valids += i_valid[i];
+				// synthesis translate_on
             end
         end
+		
+		// synthesis translate_off
+		assert property (@(posedge clk) disable iff (reset) (n_valids <= 1));
+		// synthesis translate_on
     end
 end
 endgenerate
