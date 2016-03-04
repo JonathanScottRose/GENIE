@@ -710,6 +710,8 @@ namespace
 			auto csink_a = rvd_a->get_clock_port();
 			auto csink_b = rvd_b->get_clock_port();
 
+            assert(csink_a && csink_b);
+
 			// Two RVD ports in same node connected to each other, under same clock domain.
 			// This creates self-loops in the graph and derps up the MWC algorithm.
 			if (csink_a == csink_b)

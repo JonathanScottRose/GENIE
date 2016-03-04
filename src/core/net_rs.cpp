@@ -210,6 +210,20 @@ void RSPort::refine_rvd()
 	if (clkportname.empty())
 		throw HierException(this, "missing associated clock port");
 
+    // Do some validation
+    {
+        bool has_clkport = this->get_parent()->has_child(clkportname);
+        if (!has_clkport)
+        {
+            throw HierException(this, "associated clock port '" + clkportname +
+                "' does not exist");
+        }
+
+        auto clkport = this->get_parent()->get_child(clkportname);
+        if (!clkport || !is_a<ClockPort*>(clkport))
+            throw HierException(this, clkportname + " is not a valid associated clock port");
+    }
+
 	rvd_port->set_clock_port_name(clkportname);
 }
 
