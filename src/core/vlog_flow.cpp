@@ -175,7 +175,12 @@ namespace
 
 				// Make sure the widths agree
 				assert(src_width == sink_width);
-				connect_rb(sys, src_rb, src_lsb, sink_rb, sink_lsb, src_width);
+
+                // Only connect if the domain-carried width is greater than 0!
+                if (src_width > 0)
+                {
+				    connect_rb(sys, src_rb, src_lsb, sink_rb, sink_lsb, src_width);
+                }
 			}
 
 			// Go through all terminal and jection fields at the sink, and try connecting them
