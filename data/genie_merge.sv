@@ -201,6 +201,7 @@ wire data_sent = (i_valid && o_ready);
 always_comb begin
     nextstate = state;
     last_input_load = '0;
+    cur_input = 'x;
     
     case (state)
         S_FLOW_THROUGH: begin

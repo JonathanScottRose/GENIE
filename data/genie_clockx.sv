@@ -118,7 +118,7 @@ module genie_clockx #
 
 /* synthesis ALTERA_ATTRIBUTE = "-name SDC_STATEMENT \"set_false_path -from [get_registers {*|out_rd_ptr_gray[*]}] -to [get_registers {*|altera_dcfifo_synchronizer_bundle:read_crosser|altera_std_synchronizer:sync[*].u|din_s1}]\" " */
 
-/* synthesis ALTERA_ATTRIBUTE = "-name SDC_STATEMENT \"set_false_path -from [get_registers -nowarn altera_avalon_dc_fifo:*|mem*] -to [get_registers -nowarn altera_avalon_dc_fifo:*|internal_out_payload*]\" " */
+/* synthesis ALTERA_ATTRIBUTE = "-name SDC_STATEMENT \"set_false_path -from [get_registers -nowarn {*|genie_clockx:*|mem*}] -to [get_registers -nowarn {*|genie_clockx:*|internal_out_payload*}]\" " */
 
     // optimizations
     localparam LOOKAHEAD_POINTERS  = 0;
