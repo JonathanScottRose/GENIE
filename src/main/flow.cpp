@@ -634,7 +634,7 @@ namespace
 
 				// Traverse backwards through the Node to find the next input RVD port to visit
 				cur_rvd_sink = nullptr;
-				auto src_int_ep = cur_rvd_src->get_endpoint(NET_RVD_INTERNAL, LinkFace::INNER);
+				auto src_int_ep = cur_rvd_src->get_endpoint(NET_RVD, LinkFace::INNER);
 				for (auto int_link : src_int_ep->links())
 				{
 					auto candidate = (RVDPort*)int_link->get_src();
@@ -1004,17 +1004,17 @@ namespace
 					break;
 
 				// Go inside the current node and access internal links
-				auto int_ep = cur_sink->get_endpoint(NET_RVD_INTERNAL, LinkFace::INNER);
+				auto int_ep = cur_sink->get_endpoint(NET_RVD, LinkFace::INNER);
 				if (!int_ep)
 					throw HierException(cur_sink, "can't process latency query: no internal endpoint");
 
 				// Search for the internal link that continues us along the right RS Link
-				RVDInternalLink* int_link = nullptr;
+				RVDLink* int_link = nullptr;
 				bool found = false;
 
 				for (auto i : int_ep->links())
 				{
-					int_link = (RVDInternalLink*)i;
+					int_link = (RVDLink*)i;
 					cur_src = (RVDPort*)int_link->get_sink();
 					if (rs_link->contained_in_rvd_port(cur_src))
 					{

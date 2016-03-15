@@ -56,7 +56,7 @@ NodeClockX::NodeClockX(bool use_backpressure)
 	outport->get_proto().set_carried_protocol(&m_proto);
 	add_port(outport);
 
-	connect(inport, outport, NET_RVD_INTERNAL);
+	connect(inport, outport, NET_RVD);
 }
 
 NodeClockX::~NodeClockX()

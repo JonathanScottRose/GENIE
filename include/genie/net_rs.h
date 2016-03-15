@@ -27,10 +27,12 @@ namespace genie
 
 		PROP_GET_SETR(flow_id, Value&, m_flow_id);
 		PROP_GET_SET(domain_id, int, m_domain_id);
+        PROP_GET_SET(latency, int, m_latency);
 
 		Link* clone() const override;
 
 	protected:
+        int m_latency; // for internal links
 		int m_domain_id;
 		Value m_flow_id;
 	};

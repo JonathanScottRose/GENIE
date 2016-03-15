@@ -65,7 +65,7 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 	outport->get_proto().set_carried_protocol(&m_proto);
 	add_port(outport);
 
-	connect(inport, outport, NET_RVD_INTERNAL);
+	connect(inport, outport, NET_RVD);
 }
 
 void NodeFlowConv::configure()

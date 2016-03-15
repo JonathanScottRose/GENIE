@@ -25,4 +25,13 @@ namespace genie
 	protected:
 		int m_n_rvd;
 	};
+
+    class TopoLink : public Link
+    {
+    public:
+        PROP_GET_SET(latency, int, m_latency);
+
+    protected:
+        int m_latency = 0;
+    };
 }

@@ -26,7 +26,7 @@ namespace
 
 		Link* create_link() override
 		{
-			auto result = new Link();
+			auto result = new RVDLink();
 			result->asp_add(new ALinkContainment());
 			return result;
 		}
@@ -36,34 +36,10 @@ namespace
 			return new RVDPort(dir);
 		}
 	};
-
-	class NetRVDInternal : public Network
-	{
-	public:
-		NetRVDInternal(NetType id)
-			: Network(id)
-		{
-			m_name = "rvd_internal";
-			m_desc = "Represents RVD connectivity internal to Nodes";
-			m_default_max_in =  Endpoint::UNLIMITED;
-			m_default_max_out = Endpoint::UNLIMITED;
-		}
-
-		Port* create_port(Dir dir) override
-		{
-			throw Exception("don't do that.");
-		}
-
-		Link* create_link() override
-		{
-			return new RVDInternalLink();
-		}
-	};
 }
 
 // Register the network type
 const NetType genie::NET_RVD = Network::reg<NetRVD>();
-const NetType genie::NET_RVD_INTERNAL = Network::reg<NetRVDInternal>();
 const SigRoleID genie::RVDPort::ROLE_DATA = SigRole::reg("data", SigRole::FWD, true);
 const SigRoleID genie::RVDPort::ROLE_DATA_CARRIER = SigRole::reg("xdata", SigRole::FWD, false);
 const SigRoleID genie::RVDPort::ROLE_VALID = SigRole::reg("valid", SigRole::FWD, false);
@@ -76,7 +52,8 @@ const SigRoleID genie::RVDPort::ROLE_READY = SigRole::reg("ready", SigRole::REV,
 RVDPort::RVDPort(Dir dir)
 : Port(dir, NET_RVD)
 {
-	set_connectable(NET_RVD_INTERNAL, dir);
+    // Allow unlimited _internal_ fanin/fanout
+    set_max_links(NET_RVD, dir_rev(dir), Endpoint::UNLIMITED);
 }
 
 RVDPort::RVDPort(Dir dir, const std::string& name)

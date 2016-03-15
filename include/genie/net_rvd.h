@@ -10,7 +10,6 @@ namespace genie
 
 	// Globally-accessible network type ID. Maybe move to a static member?
 	extern const NetType NET_RVD;
-	extern const NetType NET_RVD_INTERNAL;
 
 	class RVDPort : public Port
 	{
@@ -35,7 +34,7 @@ namespace genie
 		std::string m_clk_port_name;
 	};
 
-	class RVDInternalLink : public Link
+	class RVDLink : public Link
 	{
 	public:
 		PROP_GET_SET(latency, int, m_latency);

@@ -127,7 +127,7 @@ void NodeSplit::refine(NetType target)
 			outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
 			outport->get_proto().set_carried_protocol(&m_proto);
 
-			connect(inport, outport, NET_RVD_INTERNAL);
+			connect(inport, outport, NET_RVD);
 		}
 	}
 }

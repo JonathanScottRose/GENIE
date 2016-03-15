@@ -124,7 +124,7 @@ void NodeMerge::refine(NetType target)
 			inport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
 			inport->get_proto().set_carried_protocol(&m_proto);
 
-			connect(inport, outport, NET_RVD_INTERNAL);
+			connect(inport, outport, NET_RVD);
 		}
 	}
 }

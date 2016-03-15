@@ -21,7 +21,7 @@ namespace
 
 		Link* create_link() override
 		{
-			auto result = new Link();
+			auto result = new TopoLink();
 			result->asp_add(new ALinkContainment());
 			return result;
 		}

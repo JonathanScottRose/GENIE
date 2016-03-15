@@ -71,7 +71,7 @@ void NodeReg::refine(NetType type)
 
 		// Internally connect input to output and set its latency to 1, to allow graph
 		// traversal and end-to-end latency calculation.
-		auto link = (RVDInternalLink*)connect(inport, outport, NET_RVD_INTERNAL);
+		auto link = (RVDLink*)connect(inport, outport, NET_RVD);
 		link->set_latency(1);
 	}
 }
