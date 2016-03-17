@@ -346,6 +346,44 @@ Node::Node(const Node& o)
 	{
 		add_child(p->instantiate());
 	}  
+
+    // Copy internal links (between top ports only)
+    auto links = o.get_links();
+    for (auto& link : links)
+    {
+        Port* src = link->get_src();
+        Port* sink = link->get_sink();
+
+        // Ignore internal structure
+        if (!src->is_export() || !sink->is_export())
+            continue;
+
+        Port* newsrc;
+        Port* newsink;
+
+        // It's okay for the ports to not exist in the copy.
+        try
+        {
+            newsrc = this->get_port(src->get_name());
+            newsink = this->get_port(sink->get_name());
+        } 
+        catch (HierNotFoundException&)
+        {
+            continue;
+        }
+
+        auto newlink = link->clone();
+        auto newsrc_ep = newsrc->get_endpoint(link->get_type(), LinkFace::INNER);
+        auto newsink_ep = newsink->get_endpoint(link->get_type(), LinkFace::INNER);
+        
+        newsrc_ep->add_link(newlink);
+        newsink_ep->add_link(newlink);
+
+        newlink->set_src(newsrc_ep);
+        newlink->set_sink(newsink_ep);
+
+        m_links[link->get_type()].push_back(newlink);
+    }
 }
 
 Node::~Node()

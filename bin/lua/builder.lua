@@ -253,6 +253,18 @@ function Builder:link(src, dest, label)
     return link
 end
 
+--- Defines an internal RS link between two RS Interfaces within a Component.
+-- The internal link is between a sink port (that receives data from outside the Component),
+-- that feeds a a source port (that sends data out of the Component)). An optional parameter
+-- specifies the latency in cycles (only makes sense if sink/src are on the same clock domain).
+-- @tparam string|Port sink hierarchical path, or object reference, to sink RS Interface
+-- @tparam string|Port src hierarchical path, or object reference, to source RS Interface
+-- @tparam[opt] number latency in cycles
+function Builder:internal_link(sink, src, latency)
+	if not self.cur_node then error("Unexpected internal_link, no current component/system") end
+	self.cur_node:add_internal_link(sink, src, latency)
+end
+
 --- Associates a Clock Interface with the current RS Interface.
 -- Applies to most recently-defined RS Interface.
 -- @tparam string clkif name of Clock Interface
@@ -346,5 +358,23 @@ function Builder:latency_query(link, param)
     end
     
     self.cur_sys:create_latency_query(link, param)
+end
+
+--- Creates a latency constraint.
+-- Constrains the final latency, in cycles, of one or more Paths. A Path is a sequence of one or more RS Links, 
+-- starting at an ultimate RS Source and ending at an ultimate RS Sink. Intermediate Components that serve as a 
+-- terminus for one Link and the source of the next Link in the Path must have an internal Link defined between
+-- the sink and source Interfaces to make the Path contiguous.
+--
+-- The constraint takes on the form: `lb <= p1 [+/-p2, +/-p3, ...] <= ub` where `lb` and `ub` are the upper/lower 
+-- latency bounds and are integers, and `pn` are paths, represented as arrays of RS Links. Terms p2 and up are optional.
+-- @tparam array(RSLink) p1 first path term
+-- @tparam[opt] string pn_sign sign of successive path term, either `+` or `-`
+-- @tparam[opt] array(RSLink) pn successive path term
+-- @tparam int lb lower bound
+-- @tparam int ub upper bound
+function Builder:latency_constraint(...)
+	if not self.cur_sys then error("no current system") end
+	self.cur_sys:create_latency_constraint(...)
 end
 

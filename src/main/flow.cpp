@@ -445,6 +445,26 @@ namespace
 		// Create system contents ready for TOPO connectivity
 		sys->refine(NET_TOPO);
 
+        // Convert internal RS links into TOPO links
+        for (auto& n : sys->get_nodes())
+        {
+            for (auto& link : n->get_links(NET_RS))
+            {
+                auto rs_link = (RSLink*)link;
+                auto src = as_a<RSPort*>(rs_link->get_src());
+                auto sink = as_a<RSPort*>(rs_link->get_sink());
+                if (!src || !sink || !src->is_export() || !sink->is_export())
+                    continue;
+
+                auto src_topo = src->get_topo_port();
+                auto sink_topo = sink->get_topo_port();
+                auto topo_link = as_a<TopoLink*>(n->connect(src_topo, sink_topo));
+                assert(topo_link);
+
+                topo_link->set_latency(rs_link->get_latency());
+            }
+        }
+
 		// Get the aspect that contains a reference to the System's Lua topology function
 		auto atopo = sys->asp_get<ATopoFunc>();
 		if (!atopo)

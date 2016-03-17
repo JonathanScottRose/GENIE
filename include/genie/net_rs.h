@@ -135,4 +135,27 @@ namespace genie
 		Type m_type;
 		Value m_encoding;
 	};
+
+    using RSPath = List<RSLink*>;
+
+    struct RSLatencyConstraint
+    {
+        enum TermSign
+        {
+            PLUS,
+            MINUS
+        };
+
+        using PathTerm = std::pair<TermSign, RSPath>;
+
+        List<PathTerm> path_terms;
+        int lower_bound = 0;
+        int upper_bound = 0;
+    };
+
+    class ARSLatencyConstraints : public Aspect
+    {
+    public:
+        List<RSLatencyConstraint> constraints;
+    };
 }

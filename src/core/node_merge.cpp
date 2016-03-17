@@ -56,11 +56,14 @@ NodeMerge::NodeMerge()
 	port->add_role_binding(ResetPort::ROLE_RESET, new VlogStaticBinding("reset"));
 
 	// Input port and output port start out as Topo ports
-	port = add_port(new TopoPort(Dir::IN, INPORT_NAME));
-	add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+	auto inport = add_port(new TopoPort(Dir::IN, INPORT_NAME));
+	auto outport = add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
 
-	// input topo port can have multiple connections
-	port->set_max_links(NET_TOPO, Dir::IN, Endpoint::UNLIMITED);
+    // input topo port feeds output topo port with an internal link
+    connect(inport, outport);
+
+	// input topo port can have multiple connections (to outside world)
+	inport->set_max_links(NET_TOPO, Dir::IN, Endpoint::UNLIMITED);
 }
 
 NodeMerge::~NodeMerge()

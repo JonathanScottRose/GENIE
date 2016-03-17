@@ -52,11 +52,13 @@ NodeSplit::NodeSplit()
 	port->add_role_binding(ResetPort::ROLE_RESET, new VlogStaticBinding("reset"));
 
 	// Input port and output port start out as Topo ports
-	add_port(new TopoPort(Dir::IN, INPORT_NAME));
-	port = add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+	auto inport = add_port(new TopoPort(Dir::IN, INPORT_NAME));
+	auto outport = add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+
+    connect(inport, outport);
 
 	// Output may have multiple connections
-	port->set_max_links(NET_TOPO, Dir::OUT, Endpoint::UNLIMITED);
+	outport->set_max_links(NET_TOPO, Dir::OUT, Endpoint::UNLIMITED);
 
     // Does the source RVD port use backpressure? This is a temporary hack. Default true.
     // Disable later if we find out the source doesn't need it.

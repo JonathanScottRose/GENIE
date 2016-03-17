@@ -34,8 +34,10 @@ NodeReg::NodeReg()
 
 	// Create TOPO ports
 	// Input port and output port start out as Topo ports
-	add_port(new TopoPort(Dir::IN, INPORT_NAME));
-	add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+	auto inport = add_port(new TopoPort(Dir::IN, INPORT_NAME));
+	auto outport = add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+    auto link = (TopoLink*)connect(inport, outport);
+    link->set_latency(1);
 
 	// Create clock and reset ports
 	auto clkport = add_port(new ClockPort(Dir::IN, CLOCKPORT_NAME));

@@ -500,6 +500,28 @@ namespace
 		return 0;
 	};
 
+    /// Defines an internal RS link.
+    ///
+    /// Tells GENIE about a sink-to-source path internal to the Node, optionally defining
+    /// a fixed latency in cycles (if sink/src are on the same clock domain).
+    /// @function create_internal_link
+    /// @tparam string|HierObject source name of or reference to RS sink (internal source) port
+    /// @tparam string|HierObject sink name of or reference to RS source (internal sink) port
+    /// @tparam[opt] number latency latency in cycles
+    LFUNC(node_add_internal_link)
+    {
+        auto self = lua::check_object<Node>(1);
+
+        auto src = check_obj_or_str_hierpath<RSPort>(L, 2, self);
+        auto sink = check_obj_or_str_hierpath<RSPort>(L, 3, self);
+        int latency = luaL_optint(L, 4, 0);
+
+        auto link = (RSLink*)self->connect(src, sink, NET_RS);
+        link->set_latency(latency);
+
+        return 0;
+    };
+
 	/// Get all @{Port}s.
 	/// @function get_ports
 	/// @treturn array(Port)
@@ -513,7 +535,8 @@ namespace
 		LM(add_port, node_add_port),
 		LM(get_ports, hier_get_children_by_type<Port>),
 		LM(get_port, hier_get_child),
-		LM(def_param, node_def_param)
+		LM(def_param, node_def_param),
+        LM(add_internal_link, node_add_internal_link)
 	},
 	{
 		LM(new, node_new)
@@ -836,6 +859,141 @@ namespace
         return 1;
     }
 
+    /// Creates a latency constraint.
+    ///
+    /// A constraint defines an inequality relationship between one ore more Paths
+    /// and an integer constant.
+    ///
+    /// A Path is a sequence of one or more RS Links starting at a source port and ending at a sink
+    /// port. When it contains more than one RS Link, there must exist internal links between the
+    /// sinks and sources of intermediate Nodes.
+    ///
+    /// Each constraint takes the form: `LB <= p1 [+/-p2, +/-p3, ...] <= UB` where
+    /// LB and UB are integer lower and upper bounds, respectively, and p1, p2, ... are Paths.
+    /// @tparam array(RSLink) p1 First path
+    /// @tparam[opt] string p2sign Sign for second path, either `+` or `-`
+    /// @tparam[opt] array(RSLink) p2 Second path
+    /// @tparam[opt] ... Additional signs+paths
+    /// @tparam int lb Lower latency bound (inclusive)
+    /// @tparam int ub Upper latency bound (inclusive)
+    LFUNC(system_create_latency_constraint)
+    {
+        auto self = lua::check_object<System>(1);
+        
+        // The constraint we're building and adding
+        RSLatencyConstraint constraint;
+
+        // State machine
+        enum
+        {
+            REQ_PATH, OPT_CHECK, OPT_SIGN, OPT_PATH, BOUNDS, DONE
+        } state = REQ_PATH;
+
+        // Current argument being processed
+        int narg = 2;
+
+        // Current path term (+/- sign and array of links)
+        RSLatencyConstraint::PathTerm cur_term;
+
+        while (state != DONE)
+        {
+            switch(state)
+            {
+            // First (required) and subsequent (optional) path arrays
+            case REQ_PATH:
+            case OPT_PATH:
+            {
+                // Clear array of links, we're about to populate it
+                cur_term.second.clear();
+                
+                // Required path has an implicit + sign. Signs for optional terms are parsed elsewhere.  
+                if (state == REQ_PATH) cur_term.first = RSLatencyConstraint::PLUS;
+
+                // Parse RS Link array
+                if (lua_istable(L, narg))
+                {
+                    lua_pushnil(L);
+                    while(lua_next(L, narg))
+                    {
+                        auto link = lua::check_object<RSLink>(-1);
+                        lua_pop(L, 1);
+                        cur_term.second.push_back(link);
+                    }
+                }
+                else
+                {
+                    luaL_argerror(L, narg, "expected an array of RSLink objects");
+                }
+
+                // cur_term should have a sign and link array by now. fully complete. add it to
+                // the constraint.
+                constraint.path_terms.push_back(cur_term);
+
+                state = OPT_CHECK;
+                narg++;
+            }
+            break;
+
+            // State to check whether we should parse an optional path term, or we're done with
+            // optional terms and are now parsing the Lower/Upper bounds arguments
+            case OPT_CHECK:
+            {
+                auto tp = lua_type(L, narg); 
+                switch(tp)
+                {
+                case LUA_TSTRING: state = OPT_SIGN; break;
+                case LUA_TNUMBER: state = BOUNDS; break;
+                default: 
+                    luaL_argerror(L, narg, (std::string("expected lower latency bound (integer) or +/- sign"
+                    " for optional extra path term (string), instead got ") + lua_typename(L, tp)).c_str());
+                }
+            }
+            break;
+
+            // Beginning of pair of aguments to specify an optional path term. This is the +/- sign.
+            case OPT_SIGN:
+            {
+                auto str = luaL_checkstring(L, narg);
+                switch(str[0])
+                {
+                case '+': cur_term.first = RSLatencyConstraint::PLUS; break;
+                case '-': cur_term.first = RSLatencyConstraint::MINUS; break;
+                default:
+                    luaL_argerror(L, narg, (std::string("expected '+' or '-', got: ") + str).c_str());
+                }
+
+                state = OPT_PATH;
+                narg++;                                
+            }
+            break;
+
+            // The final upper/lower bound arguments at the end of the function call
+            case BOUNDS:
+            {
+                constraint.lower_bound = luaL_checkint(L, narg);
+                narg++;
+                constraint.upper_bound = luaL_checkint(L, narg);
+                state = DONE;                
+            }
+            break;
+
+            default: assert(false);
+        }
+        } // while state != DONE
+        
+
+        // Access/create the constraints aspect of System and add the constraint
+        auto a_constraints = self->asp_get<ARSLatencyConstraints>();
+        if (!a_constraints)
+        {
+            a_constraints = self->asp_add(new ARSLatencyConstraints);
+        }
+
+        a_constraints->constraints.push_back(constraint);
+
+        return 0;
+    }
+
 	/// Get all contained @{Node}s.
 	/// @function get_nodes
 	/// @treturn array(Node)
@@ -874,7 +1032,8 @@ namespace
 		LM(create_latency_query, system_create_latency_query),
         LM(get_object, hier_get_child),
         LM(get_objects, hier_get_children),
-        LM(get_untopo_rs_links, system_get_untopo_rs_links)
+        LM(get_untopo_rs_links, system_get_untopo_rs_links),
+        LM(create_latency_constraint, system_create_latency_constraint)
 	},
 	{
 		LM(new, system_new)
