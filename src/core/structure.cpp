@@ -698,6 +698,14 @@ void Node::disconnect(Link* link)
 	src_ep->remove_link(link);
 	sink_ep->remove_link(link);
 
+    // Tell any parent links we're not existing anymore
+    auto cont = link->asp_get<ALinkContainment>();
+    auto parents = cont->get_parent_links();
+    for (auto parent : parents)
+    {
+        cont->remove_parent_link(parent);
+    }
+
 	// Remove the link from the System and destroy it
 	util::erase(m_links[nettype], link);
 	delete link;

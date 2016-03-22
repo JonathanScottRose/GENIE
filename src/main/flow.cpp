@@ -236,12 +236,13 @@ namespace
                 // existing two to-be-removed links, which contains associations with parent RS links.
                 //
                 // The actual new link will be created after the old ones have been removed, below.
-				ALinkContainment* cont_copy = nullptr;
-				if (input_remotes.size() == 1 && output_remotes.size() == 1)
+				List<Link*> old_parents;
+                bool replace_with_link = input_remotes.size() == 1 && output_remotes.size() == 1;
+				if (replace_with_link)
 				{
                     Link* oldlink1 = sys->get_links(input_remotes.front(), input).front();
                     auto old_cont = oldlink1->asp_get<ALinkContainment>();
-                    cont_copy = new ALinkContainment(*old_cont);
+                    old_parents = old_cont->get_all_parent_links(NET_RS);
 				}
 				
 				// Disconnect any links attached to the node we're about to remove
@@ -268,14 +269,13 @@ namespace
 				}
 				
                 // Part 2 of the procedure outlined above.
-                if (input_remotes.size() == 1 && output_remotes.size() == 1)
+                if (replace_with_link)
                 {
-                    assert(cont_copy);
                     Link* newlink = sys->connect(input_remotes.front(), output_remotes.front());
-                    newlink->asp_remove<ALinkContainment>();
-                    newlink->asp_add(cont_copy);
+                    auto new_cont = newlink->asp_get<ALinkContainment>();
+                    for (auto parent : old_parents)
+                        new_cont->add_parent_link(parent);
                 }
-				
 				
 				// Remove the node
 				sys->remove_child(cur_node->get_name());
