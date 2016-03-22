@@ -92,8 +92,8 @@ void Port::set_connectable(NetType type, Dir dir)
 	if (is_connectable(type))
 		throw HierException(this, "already connectable for nettype " + ndef->get_name());
 
-	Endpoint* outer = new Endpoint(type, dir);
-	Endpoint* inner = new Endpoint(type, dir_rev(dir));
+	Endpoint* outer = new Endpoint(type, dir, LinkFace::OUTER);
+	Endpoint* inner = new Endpoint(type, dir_rev(dir), LinkFace::INNER);
 
 	outer->set_obj(this);
 	inner->set_obj(this);
@@ -355,7 +355,7 @@ Node::Node(const Node& o)
         Port* sink = link->get_sink();
 
         // Ignore internal structure
-        if (!src->is_export() || !sink->is_export())
+        if (src->get_node() != &o || sink->get_node() != &o)
             continue;
 
         Port* newsrc;
@@ -728,9 +728,10 @@ Link* Node::splice(Link* orig, HierObject* new_sink, HierObject* new_src)
 	//
 
 	// Check containment: we cannot splice if this link has child links
-	ALinkContainment* acont = orig->asp_get<ALinkContainment>();
-	if (acont && acont->has_child_links())
-		throw Exception("can not splice link: has child links");
+    // edit: nevermind. let the caller deal with it manually if they want
+	ALinkContainment* acont_orig = orig->asp_get<ALinkContainment>();
+	//if (acont_orig && acont_orig->has_child_links())
+		//throw Exception("can not splice link: has child links");
 
 	Endpoint* orig_src_ep = orig->get_src_ep();
 	Endpoint* orig_sink_ep = orig->get_sink_ep();
@@ -754,6 +755,16 @@ Link* Node::splice(Link* orig, HierObject* new_sink, HierObject* new_src)
 	
 	// Add link to the system
 	m_links[net].push_back(new_link);
+
+    // Transfer containment relationships. Just immediate parents.
+    ALinkContainment* acont_new = new_link->asp_get<ALinkContainment>();
+    if (acont_orig && acont_new)
+    {
+        for (auto parent : acont_orig->get_parent_links())
+        {
+            acont_new->add_parent_link(parent);
+        }
+    }
 
 	return new_link;
 }

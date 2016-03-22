@@ -11,7 +11,7 @@ namespace genie
 	class NodeReg : public Node
 	{
 	public:
-		NodeReg();
+		NodeReg(bool notopo = false);
 
 		RVDPort* get_input() const;
 		RVDPort* get_output() const;
@@ -24,6 +24,9 @@ namespace genie
 		Port* locate_port(Dir dir, NetType type) override;
 
 	protected:
+        void create_rvd();
+
 		CarrierProtocol m_proto;
+        bool m_notopo;
 	};
 }

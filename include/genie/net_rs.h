@@ -32,7 +32,7 @@ namespace genie
 		Link* clone() const override;
 
 	protected:
-        int m_latency; // for internal links
+        int m_latency = 0; // for internal links
 		int m_domain_id;
 		Value m_flow_id;
 	};
@@ -146,11 +146,20 @@ namespace genie
             MINUS
         };
 
+        enum CompareOp
+        {
+            LT,
+            LEQ,
+            EQ,
+            GEQ,
+            GT
+        };
+
         using PathTerm = std::pair<TermSign, RSPath>;
 
         List<PathTerm> path_terms;
-        int lower_bound = 0;
-        int upper_bound = 0;
+        CompareOp op;
+        int rhs;
     };
 
     class ARSLatencyConstraints : public Aspect

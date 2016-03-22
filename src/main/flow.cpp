@@ -18,81 +18,13 @@
 #include "globals.h"
 #include "genie/node_flowconv.h"
 #include "genie/node_reg.h"
+#include "genie/flow_utils.h"
 
 using namespace genie;
 using namespace genie::graphs;
 
 namespace
 {
-	// Convert a network into a Graph
-	typedef std::function<Port*(Port*)> N2GRemapFunc;
-	Graph net_to_graph(System* sys, NetType ntype, 
-		VAttr<Port*>* v_to_obj,
-		RVAttr<Port*>* obj_to_v,
-		EAttr<Link*>* e_to_link,
-		REAttr<Link*>* link_to_e,
-		const N2GRemapFunc& remap = N2GRemapFunc())
-	{
-		Graph result;
-
-		// Gather all edges
-		auto links = sys->get_links(ntype);
-
-		// Whether or not the caller needs one, we require an obj->v map.
-		// If the caller doesn't provide one, allocate (and then later free) a local one.
-		bool local_map = !obj_to_v;
-		if (local_map)
-			obj_to_v = new RVAttr<Port*>;
-
-		for (auto link : links)
-		{
-			// Get link's endpoints
-			Port* src = link->get_src();
-			Port* sink = link->get_sink();
-
-			// Remap if a remap function was provided
-			if (remap)
-			{
-				src = remap(src);
-				sink = remap(sink);
-			}
-
-			// Create (or retrieve) associated vertex IDs for endpoints.
-			// Update reverse association if caller requested one.
-			VertexID src_v, sink_v;
-
-			for (auto& p : {std::make_pair(&src_v, src), std::make_pair(&sink_v, sink)})
-			{
-				// src_v or sink_v
-				VertexID* pv = p.first;
-				// src or sink
-				Port* obj = p.second;
-
-				auto it = obj_to_v->find(obj);
-				if (it == obj_to_v->end())
-				{
-					*pv = result.newv();
-					obj_to_v->emplace(obj, *pv);
-					if (v_to_obj) v_to_obj->emplace(*pv, obj);
-				}
-				else
-				{
-					*pv = it->second;
-				}		
-			}
-
-			// Create edge and update mappings if requested
-			EdgeID e = result.newe(src_v, sink_v);
-			if (e_to_link) e_to_link->emplace(e, link);
-			if (link_to_e) link_to_e->emplace(link, e);
-		}
-
-		if (local_map)
-			delete obj_to_v;
-
-		return result;
-	}
-
 	Port* net_to_graph_topo_remap(Port* o)
 	{
 		// Makes split, merge, and reg nodes behave as vertices in a Topo graph by
@@ -116,7 +48,7 @@ namespace
 	{
 		// Turn RS network into a graph.
 		// Pass in a remap function which effectively treats all linkpoints as their parent ports.
-		N2GRemapFunc remap = [] (Port* o)
+		flow::N2GRemapFunc remap = [] (Port* o)
 		{
 			return RSPort::get_rs_port(o);
 		};
@@ -124,7 +56,7 @@ namespace
 		// We care about port->vid mapping and link->eid mapping
 		REAttr<Link*> link_to_eid;
 		RVAttr<Port*> port_to_vid;
-		Graph rs_g = net_to_graph(sys, NET_RS, nullptr, &port_to_vid, nullptr, &link_to_eid, remap);
+		Graph rs_g = flow::net_to_graph(sys, NET_RS, false, nullptr, &port_to_vid, nullptr, &link_to_eid, remap);
 
 		// Identify connected components (domains).
 		// Capture vid->domainid mapping and eid->domainid mapping
@@ -169,8 +101,10 @@ namespace
 		EAttr<Link*> topo_eid_to_link;
 		VAttr<Port*> topo_vid_to_port;
 		RVAttr<Port*> topo_port_to_vid;
-		Graph topo_g = net_to_graph(sys, NET_TOPO, &topo_vid_to_port, &topo_port_to_vid, 
-			&topo_eid_to_link, nullptr, net_to_graph_topo_remap);
+		Graph topo_g = flow::net_to_graph(sys, NET_TOPO, true, &topo_vid_to_port, &topo_port_to_vid, 
+			&topo_eid_to_link, nullptr, nullptr);
+
+        //topo_g.dump("debug", [=](VertexID v) {return topo_vid_to_port.at(v)->get_hier_path();});
 
 		for (auto& rs_link : rs_links)
 		{
@@ -356,8 +290,8 @@ namespace
 		// Get TOPO network as graph. We need link->eid and HObj->vid
 		EAttr<Link*> topo_eid_to_link;
 		RVAttr<Port*> topo_port_to_vid;
-		Graph topo_g = net_to_graph(sys, NET_TOPO, nullptr, &topo_port_to_vid, &topo_eid_to_link, nullptr,
-			net_to_graph_topo_remap);
+		Graph topo_g = flow::net_to_graph(sys, NET_TOPO, true, nullptr, &topo_port_to_vid, &topo_eid_to_link, nullptr,
+			nullptr);
 
 		// Split topo graph into connected domains
 		EAttr<int> edge_to_comp;
@@ -444,26 +378,6 @@ namespace
 	{
 		// Create system contents ready for TOPO connectivity
 		sys->refine(NET_TOPO);
-
-        // Convert internal RS links into TOPO links
-        for (auto& n : sys->get_nodes())
-        {
-            for (auto& link : n->get_links(NET_RS))
-            {
-                auto rs_link = (RSLink*)link;
-                auto src = as_a<RSPort*>(rs_link->get_src());
-                auto sink = as_a<RSPort*>(rs_link->get_sink());
-                if (!src || !sink || !src->is_export() || !sink->is_export())
-                    continue;
-
-                auto src_topo = src->get_topo_port();
-                auto sink_topo = sink->get_topo_port();
-                auto topo_link = as_a<TopoLink*>(n->connect(src_topo, sink_topo));
-                assert(topo_link);
-
-                topo_link->set_latency(rs_link->get_latency());
-            }
-        }
 
 		// Get the aspect that contains a reference to the System's Lua topology function
 		auto atopo = sys->asp_get<ATopoFunc>();
@@ -597,6 +511,7 @@ namespace
 		auto mg_nodes = sys->get_children_by_type<NodeMerge>();
 		for (auto node : mg_nodes)
 		{
+            node->configure();
 			node->do_exclusion_check();
 		}
 	}
@@ -795,6 +710,9 @@ namespace
 
 			// The weight of the edge is the width of signals crossing from a to b
 			int weight = PortProtocol::calc_transmitted_width(rvd_a->get_proto(), rvd_b->get_proto());
+
+            // Eliminiate 0 weights
+            weight++;
 			
 			// Create and add edge with weight
 			EdgeID e = G.newe(v_a, v_b);
@@ -1057,6 +975,43 @@ namespace
 		}
 	}
 
+    void rvd_add_pipeline_regs(System* sys)
+    {
+        // Find RVD edges with nonzero latency.
+        // Splice in that many reg nodes.
+        // Reset latencies to zero.
+
+        auto rvd_links = sys->get_links(NET_RVD);
+        std::vector<RVDLink*> links_to_process;
+        for (auto link : rvd_links)
+        {
+            auto rvd_link = (RVDLink*)link;
+            if (rvd_link->get_latency() > 0)
+                links_to_process.push_back(rvd_link);
+        }
+
+        int pipe_no = 0;
+        for (auto orig_link : links_to_process)
+        {
+            int latency = orig_link->get_latency();
+
+            auto cur_link = orig_link;
+            for (int i = latency-1; i >= 0; i--)
+            {
+                auto rg = new NodeReg(true);
+                rg->set_name("pipe" + std::to_string(pipe_no) + "_" + std::to_string(i));
+                sys->add_child(rg);
+
+                cur_link = (RVDLink*)sys->splice(orig_link, rg->get_input(), rg->get_output());                
+            }
+
+            orig_link->set_latency(0);
+            pipe_no++;
+        }
+    }
+
+    
+
 	// Do all work for one System
 	void flow_do_system(System* sys)
 	{
@@ -1086,11 +1041,16 @@ namespace
 		rvd_configure_split_nodes(sys);
 		rvd_configure_merge_nodes(sys);
 		rvd_do_carriage(sys);
-		rvd_connect_clocks(sys);
-		rvd_insert_clockx(sys);
-		rvd_do_carriage(sys);
-		rvd_connect_resets(sys);
 
+        flow::apply_latency_constraints(sys);
+        rvd_add_pipeline_regs(sys);
+        rvd_do_carriage(sys);
+        
+        rvd_connect_clocks(sys);
+        rvd_insert_clockx(sys);
+		rvd_do_carriage(sys);
+		
+        rvd_connect_resets(sys);
 		rvd_default_eops(sys);
 		rvd_default_flowids(sys);
 

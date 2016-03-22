@@ -26,9 +26,7 @@ namespace
 
 		Link* create_link() override
 		{
-			auto result = new RVDLink();
-			result->asp_add(new ALinkContainment());
-			return result;
+            return new RVDLink();
 		}
 
 		Port* create_port(Dir dir) override
@@ -54,6 +52,7 @@ RVDPort::RVDPort(Dir dir)
 {
     // Allow unlimited _internal_ fanin/fanout
     set_max_links(NET_RVD, dir_rev(dir), Endpoint::UNLIMITED);
+    asp_add(new ALinkContainment());
 }
 
 RVDPort::RVDPort(Dir dir, const std::string& name)
@@ -89,3 +88,14 @@ ClockPort* RVDPort::get_clock_port() const
 	return result;
 }
 
+genie::RVDLink::RVDLink()
+{
+    asp_add(new ALinkContainment());
+}
+
+Link* RVDLink::clone() const
+{
+    auto result = new RVDLink(*this);
+    result->asp_add(new ALinkContainment());
+    return result;
+}

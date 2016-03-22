@@ -845,11 +845,11 @@ namespace
 
             RSPort* src_rs = RSPort::get_rs_port(rslink->get_src());
             RSPort* sink_rs = RSPort::get_rs_port(rslink->get_sink());
-            TopoPort* src_topo = src_rs->get_topo_port();
-            TopoPort* sink_topo = sink_rs->get_topo_port();
+            Endpoint* src_topo = src_rs->get_topo_port()->get_endpoint_sysface(NET_TOPO);
+            Endpoint* sink_topo = sink_rs->get_topo_port()->get_endpoint_sysface(NET_TOPO);
 
-            // Only those links where src and sink topo ports are unconnected
-            if (!src_topo->is_connected(NET_TOPO) && !sink_topo->is_connected(NET_TOPO))
+            // Only those links where src and sink topo ports are unconnected externally
+            if (!src_topo->is_connected() && !sink_topo->is_connected())
                 result.push_back(link);
         }
 
@@ -868,14 +868,14 @@ namespace
     /// port. When it contains more than one RS Link, there must exist internal links between the
     /// sinks and sources of intermediate Nodes.
     ///
-    /// Each constraint takes the form: `LB <= p1 [+/-p2, +/-p3, ...] <= UB` where
-    /// LB and UB are integer lower and upper bounds, respectively, and p1, p2, ... are Paths.
+    /// Each constraint takes the form: `p1 [+/-p2, +/-p3, ...] OP bound` where
+    /// OP is `'<'`, `'<='`, `'='`, `'>='`, or `'>'`, bound is an integer, and p1, p2, ... are Paths.
     /// @tparam array(RSLink) p1 First path
     /// @tparam[opt] string p2sign Sign for second path, either `+` or `-`
     /// @tparam[opt] array(RSLink) p2 Second path
     /// @tparam[opt] ... Additional signs+paths
-    /// @tparam int lb Lower latency bound (inclusive)
-    /// @tparam int ub Upper latency bound (inclusive)
+    /// @tparam string op Comparison operator, as described
+    /// @tparam int bound latency bound
     LFUNC(system_create_latency_constraint)
     {
         auto self = lua::check_object<System>(1);
@@ -938,15 +938,11 @@ namespace
             // optional terms and are now parsing the Lower/Upper bounds arguments
             case OPT_CHECK:
             {
-                auto tp = lua_type(L, narg); 
-                switch(tp)
-                {
-                case LUA_TSTRING: state = OPT_SIGN; break;
-                case LUA_TNUMBER: state = BOUNDS; break;
-                default: 
-                    luaL_argerror(L, narg, (std::string("expected lower latency bound (integer) or +/- sign"
-                    " for optional extra path term (string), instead got ") + lua_typename(L, tp)).c_str());
-                }
+                int total_args = lua_gettop(L);
+                int args_remaining = total_args - narg;
+
+                if (args_remaining > 2) state = OPT_SIGN;
+                else state = BOUNDS;
             }
             break;
 
@@ -967,12 +963,31 @@ namespace
             }
             break;
 
-            // The final upper/lower bound arguments at the end of the function call
+            // The final two arguments are the comparison operator and the RHS constant
             case BOUNDS:
             {
-                constraint.lower_bound = luaL_checkint(L, narg);
+                // Get operator
+                static std::unordered_map<std::string, RSLatencyConstraint::CompareOp> op_mapping = 
+                {
+                    {"<", RSLatencyConstraint::LT},
+                    {"<=", RSLatencyConstraint::LEQ},
+                    {"=", RSLatencyConstraint::EQ},
+                    {">=", RSLatencyConstraint::GEQ},
+                    {">", RSLatencyConstraint::GT}
+                };
+
+                std::string opstr = luaL_checkstring(L, narg);
+                auto op_it = op_mapping.find(opstr);
+                if (op_it == op_mapping.end())
+                {
+                    luaL_argerror(L, narg, "invalid comparison operator");
+                }
+                
+                constraint.op = op_it->second;
+                
+                // Get RHS constant
                 narg++;
-                constraint.upper_bound = luaL_checkint(L, narg);
+                constraint.rhs = luaL_checkint(L, narg);
                 state = DONE;                
             }
             break;

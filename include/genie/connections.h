@@ -23,13 +23,14 @@ namespace genie
 		typedef std::vector<Endpoint*> Endpoints;
 		typedef std::vector<Link*> Links;
 
-		Endpoint(NetType type, Dir dir);
+		Endpoint(NetType type, Dir dir, LinkFace face);
 		Endpoint(const Endpoint&);
 		~Endpoint();
 		
 		PROP_GET(type, NetType, m_type);
 		PROP_GET(dir, Dir, m_dir);
 		PROP_GET_SET(obj, Port*, m_obj);
+        PROP_GET(face, LinkFace, m_face);
 
 		PROP_GET_SET(max_links, unsigned int, m_max_links);
 
@@ -54,6 +55,7 @@ namespace genie
 		Dir m_dir;
 		NetType m_type;
 		Links m_links;
+        LinkFace m_face;
 		unsigned int m_max_links;
 
 		Network* get_network() const;
@@ -78,18 +80,17 @@ namespace genie
 		void set_sink(Endpoint*);
 
 		NetType get_type() const;
+        bool is_internal() const;
 
 		// Duplicate link.
 		virtual Link* clone() const;
-
-        void copy_containment(const Link*);
 
 	protected:
 		Endpoint* m_src;
 		Endpoint* m_sink;
 	};
 
-	// An aspect that can be attached to links which says:
+    // An aspect that can be attached to links which says:
 	// which (higher abstraction level) links does this link implement?
 	// which (lower abstraciton level) links does this link contain?
 	class ALinkContainment : public AspectWithRef<Link>

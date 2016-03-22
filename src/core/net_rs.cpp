@@ -31,9 +31,7 @@ namespace
 
 		Link* create_link() override
 		{
-			auto result = new RSLink();
-			result->asp_add(new ALinkContainment());
-			return result;
+            return new RSLink();
 		}
 
 		Port* create_port(Dir dir) override
@@ -366,12 +364,13 @@ RSLinkpoint::Type RSLinkpoint::type_from_str(const char* str)
 RSLink::RSLink()
 	: m_domain_id(-1)
 {
+    asp_add(new ALinkContainment());
 }
 
 Link* RSLink::clone() const
 {
 	auto result = new RSLink(*this);
-	result->copy_containment(this);
+    result->asp_add(new ALinkContainment());
 	return result;
 }
 

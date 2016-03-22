@@ -9,13 +9,14 @@ using namespace genie;
 // Endpoint
 //
 
-Endpoint::Endpoint(NetType type, Dir dir)
-: m_dir(dir), m_obj(nullptr), m_type(type), m_max_links(0)
+Endpoint::Endpoint(NetType type, Dir dir, LinkFace face)
+: m_dir(dir), m_obj(nullptr), m_type(type), m_max_links(0), m_face(face)
 {
 }
 
 Endpoint::Endpoint(const Endpoint& o)
-	: m_dir(o.m_dir), m_obj(nullptr), m_type(o.m_type), m_max_links(o.m_max_links)
+	: m_dir(o.m_dir), m_obj(nullptr), m_type(o.m_type), m_max_links(o.m_max_links),
+    m_face(o.m_face)
 {
 }
 
@@ -225,22 +226,15 @@ NetType Link::get_type() const
 	return ep->get_type();
 }
 
-void Link::copy_containment(const Link* other)
+bool Link::is_internal() const
 {
-	auto ac = other->asp_get<ALinkContainment>();
-	if (!ac)
-		return;
-
-	auto new_ac = new ALinkContainment(*ac);
-	asp_add(new_ac);
+    return get_src_ep()->get_face() == LinkFace::INNER &&
+        get_sink_ep()->get_face() == LinkFace::INNER;
 }
 
 Link* Link::clone() const
 {
-	// Default clone function for generic Links
-	auto result = new Link();
-	result->copy_containment(this);
-	return result;
+    return new Link(*this);
 }
 
 //

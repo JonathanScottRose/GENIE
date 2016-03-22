@@ -37,7 +37,11 @@ namespace genie
 	class RVDLink : public Link
 	{
 	public:
+        RVDLink();
+
 		PROP_GET_SET(latency, int, m_latency);
+
+        Link* clone() const override;
 
 	protected:
 		int m_latency = 0;

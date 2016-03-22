@@ -102,8 +102,12 @@ void NodeMerge::refine(NetType target)
 
 	if (target == NET_RVD)
 	{
+        int n = get_n_inputs();
+        define_param("NI", n);
+
 		// Make bindings for the RVD ports
 		auto outport = get_rvd_output();
+        outport->set_max_links(NET_RVD, Dir::IN, n);
 		outport->set_clock_port_name(CLOCKPORT_NAME);
 		outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
 		outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
@@ -111,11 +115,8 @@ void NodeMerge::refine(NetType target)
 		outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
 		outport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
 		outport->get_proto().set_carried_protocol(&m_proto);
-	
-		int n = get_n_inputs();
-		define_param("NI", n);
 
-		for (int i = 0; i < get_n_inputs(); i++)
+		for (int i = 0; i < n; i++)
 		{
 			auto inport = get_rvd_input(i);
 
@@ -153,6 +154,22 @@ void NodeMerge::do_post_carriage()
 		auto rb = port->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
 		rb->set_hdl_binding(new VlogStaticBinding("i_data", dwidth, i*dwidth));
 	}
+}
+
+void NodeMerge::configure()
+{
+    // Route RS Links over internal RVD links created during refinement
+    RVDPort* rvd_out = get_rvd_output();
+    for (int i = 0; i < get_n_inputs(); i++)
+    {
+        RVDPort* rvd_in = get_rvd_input(i);
+
+        auto rs_links = RSLink::get_from_rvd_port(rvd_in);
+        auto int_link = (RVDLink*)get_links(rvd_in, rvd_out).front();
+        
+        for (auto rs_link : rs_links)
+            int_link->asp_get<ALinkContainment>()->add_parent_link(rs_link);
+    }
 }
 
 void NodeMerge::do_exclusion_check()

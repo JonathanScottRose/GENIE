@@ -141,19 +141,28 @@ HierObject* NodeSplit::instantiate()
 
 void NodeSplit::configure()
 {
+    RVDPort* inport = get_rvd_input();	
+
     // Add backpressure if necessary
     if (m_uses_bp)
-        get_rvd_input()->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
+        inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 
 	int n_outputs = get_n_outputs();
+	
+    // Route RS Links over internal RVD links created during refinement
+    for (int i = 0; i < n_outputs; i++)
+    {
+        RVDPort* rvd_out = get_rvd_output(i);
 
-	// Get all RS links that travel through the split node's input
-	RVDPort* inport = get_rvd_input();	
-	Link* in_rvd_link = inport->get_endpoint(NET_RVD, LinkFace::OUTER)->get_link0();
-	if (!in_rvd_link)
-		throw HierException(inport, "not connected, can't configure split node");
+        auto rs_links = RSLink::get_from_rvd_port(rvd_out);
+        auto int_link = get_links(inport, rvd_out).front();
 
-	auto in_rs_links = in_rvd_link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+        for (auto rs_link : rs_links)
+            int_link->asp_get<ALinkContainment>()->add_parent_link(rs_link);
+    }
+
+    // Get all RS links that travel through the split node's input
+    auto in_rs_links = RSLink::get_from_rvd_port(inport);
 
 	// For each Flow ID, find out which split node outputs continue to carry it forward.
 	// This map holds which flow IDs go to which outputs. First gather all the unique Flow IDs

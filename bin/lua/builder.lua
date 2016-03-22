@@ -366,13 +366,13 @@ end
 -- terminus for one Link and the source of the next Link in the Path must have an internal Link defined between
 -- the sink and source Interfaces to make the Path contiguous.
 --
--- The constraint takes on the form: `lb <= p1 [+/-p2, +/-p3, ...] <= ub` where `lb` and `ub` are the upper/lower 
--- latency bounds and are integers, and `pn` are paths, represented as arrays of RS Links. Terms p2 and up are optional.
+-- The constraint takes on the form: `p1 [+/-p2, +/-p3, ...] OP rhs` where rhs is an integer, OP is a comparison operator
+-- (<, <=, =, >= >), and `pn` are paths, represented as arrays of RS Links. Terms p2 and up are optional.
 -- @tparam array(RSLink) p1 first path term
 -- @tparam[opt] string pn_sign sign of successive path term, either `+` or `-`
 -- @tparam[opt] array(RSLink) pn successive path term
--- @tparam int lb lower bound
--- @tparam int ub upper bound
+-- @tparam string op comparison operator
+-- @tparam int rhs comparison constant
 function Builder:latency_constraint(...)
 	if not self.cur_sys then error("no current system") end
 	self.cur_sys:create_latency_constraint(...)
