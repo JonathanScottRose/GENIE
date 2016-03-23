@@ -356,6 +356,17 @@ function util.count(t)
 	return result
 end
 
+--- Appends the values of one table to another.
+-- The values of tsrc get inserted with table.insert into tdest.
+-- @tparam table tdest
+-- @tparam table tsrc
+-- @treturn table tdest, after concatenation
+function util.append_vals(tdest, tsrc)
+	for v in values(tsrc) do
+		table.insert(tdest, v)
+	end
+end
+
 --- Generates a unique table key from a prefix.
 -- If `base` is "foo", then this will return the first "fooN"
 -- that does not yet exist as a key in the table, where N is an integer.
