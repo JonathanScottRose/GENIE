@@ -41,7 +41,7 @@ namespace
 		s_file << line;
 
 		if (newline)
-			s_file << std::endl;
+			s_file << '\n';
 	}
 
 	void write_port(Port* port)
