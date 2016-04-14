@@ -249,6 +249,14 @@ ALinkContainment::~ALinkContainment()
 {
 }
 
+void genie::ALinkContainment::add_links(const Links& others, PorC porc)
+{
+    for (auto& other : others)
+    {
+        add_link(other, porc);
+    }
+}
+
 void ALinkContainment::add_link(Link* other, PorC porc)
 {
 	assert(other);

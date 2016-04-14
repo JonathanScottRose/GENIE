@@ -1010,7 +1010,195 @@ namespace
         }
     }
 
-    
+    void rvd_systolic_transform(System* sys)
+    {
+        // Find split nodes whose fanouts have different latencies.
+        // Turn this into a chain of split nodes that feed the same destinations,
+        // with the links in the split node chain 'sharing' the latency differences
+        // between the original destinations. This will save registers.
+
+        // Conditions: find split nodes that have three or more outputs. Among all the outputs,
+        // at least three must have different latency values.
+        auto split_nodes = sys->get_children_by_type<NodeSplit>();
+        for (auto orig_sp : split_nodes)
+        {
+            // Sort the split node's outputs into latency bins, in increasing order.
+            // std::map automatically does this for us.
+            std::map<int, std::vector<TopoLink*>> lat_bins;
+            for (int i = 0; i < orig_sp->get_n_outputs(); i++)
+            {
+                RVDPort* out_port = orig_sp->get_rvd_output(i);
+                RVDLink* out_link_rvd = (RVDLink*)out_port->get_endpoint_sysface(NET_RVD)->get_link0();
+                TopoLink* out_link_topo = (TopoLink*)out_link_rvd->asp_get<ALinkContainment>()->get_all_parent_links(NET_TOPO).front();
+                lat_bins[out_link_rvd->get_latency()].push_back(out_link_topo);
+            }
+
+            // At least 3 different bins guarantees at least 3 split node outputs with differing latencies.
+            unsigned n_bins = lat_bins.size();
+            if (n_bins < 3)
+                continue;
+
+            // Grab the name and of the original split node, and destroy it!
+            // Also grab the incoming topo link
+            TopoLink* orig_topo = (TopoLink*)orig_sp->get_topo_input()->get_endpoint_sysface(NET_TOPO)->get_link0();
+            std::string orig_name = orig_sp->get_name();
+            sys->delete_object(orig_name);
+
+            // Create split node chain
+            std::vector<NodeSplit*> sp_nodes;
+
+            // Previous split node and cumulative latency up to that point from start of chain
+            NodeSplit* prev_sp = nullptr;
+            int prev_lat = 0;
+
+            for (auto bin_it = lat_bins.begin(); bin_it != lat_bins.end(); ++bin_it)
+            {
+                int cur_lat = bin_it->first;
+                auto& cur_bin = bin_it->second;
+
+                // Are we on the last bin?
+                bool last_bin = (bin_it == --lat_bins.end());
+
+                // Not last bin means create a split node
+                if (!last_bin)
+                {
+                    // Create and name node
+                    NodeSplit* cur_sp = new NodeSplit();
+                    cur_sp->set_name(orig_name + "_systol" + std::to_string(cur_lat));
+                    sys->add_child(cur_sp);
+                    sp_nodes.push_back(cur_sp);
+
+                    // Connect split node's input. If this is the first one in the chain (prev_sp is null),
+                    // then use the original topo link for the deleted split node. Otherwise, create a new
+                    // link to the previous split node in the chain, set its latency, and route the right RS links over it.
+
+                    if (!prev_sp)
+                    {
+                        // Feed with original
+                        Endpoint* cur_sp_in_ep = cur_sp->get_topo_input()->get_endpoint_sysface(NET_TOPO);
+                        cur_sp_in_ep->add_link(orig_topo);
+                        orig_topo->set_sink(cur_sp_in_ep);
+                    }
+                    else
+                    {
+                        // Chain to previous split node
+                        TopoLink* chain_link = (TopoLink*)sys->connect(prev_sp->get_topo_output(), cur_sp->get_topo_input());
+                        // Internal link within currente split node
+                        TopoLink* int_link = (TopoLink*)cur_sp->get_links(cur_sp->get_topo_input(), cur_sp->get_topo_output()).front();
+                        
+                        // Gather RS links to route (to remainder of chain, as well as to this split node's local egress)
+                        std::vector<Link*> rs_to_route;
+                        for (auto bin_it2 = bin_it; bin_it2 != lat_bins.end(); ++bin_it2)
+                        {
+                            // For each egress topo link in this bin
+                            for (auto topo_in_bin : bin_it2->second)
+                            {
+                                // Append RS parents
+                                auto cont = topo_in_bin->asp_get<ALinkContainment>();
+                                auto rs = cont->get_all_parent_links(NET_RS);
+                                rs_to_route.insert(rs_to_route.end(), rs.begin(), rs.end());
+                            }
+                        }
+                        
+                        chain_link->asp_get<ALinkContainment>()->add_parent_links(rs_to_route);
+                        int_link->asp_get<ALinkContainment>()->add_parent_links(rs_to_route);
+
+                        // Latency on this new link = current cumulative latency - previous cumulative latency
+                        chain_link->set_latency(cur_lat - prev_lat);
+                    }
+
+                    prev_sp = cur_sp;
+                    prev_lat = cur_lat;
+                } // !last_bin
+
+                // Attach existing/former split output. The last two bins will re-use the same prev_sp.
+                // Readjust the latencies of each one.
+                for (auto& topo_egress : cur_bin)
+                {
+                    // These will end up being:
+                    // (first bin's latency) for first bin
+                    // (last bin - secondlast bin) for the last bin
+                    // 0 for the rest in between
+                    topo_egress->set_latency(cur_lat - prev_lat);
+
+                    // Connect link to split node output, manually
+                    Endpoint* prev_sp_out = prev_sp->get_topo_output()->get_endpoint_sysface(NET_TOPO);
+                    prev_sp_out->add_link(topo_egress);
+                    topo_egress->set_src(prev_sp_out);
+                }
+            } // iterate through bins
+
+            // Iterate through created split nodes to handle RVD connectivity
+            
+            // Refine. Now ready for RVD connections
+            for (auto sp_node : sp_nodes)
+            {
+                sp_node->refine(NET_RVD);
+            }
+
+            // Connect first incoming RVD link
+            {
+                NodeSplit* first_node = sp_nodes.front();
+                Endpoint* first_input = first_node->get_rvd_input()->get_endpoint_sysface(NET_RVD);
+                RVDLink* first_link = (RVDLink*)orig_topo->asp_get<ALinkContainment>()->get_all_child_links(NET_RVD).front();
+                first_input->add_link(first_link);
+                first_link->set_sink(first_input);
+            }
+
+            // Connect RVD links
+            for (auto sp_node : sp_nodes)
+            {
+                // Get topo output and links
+                TopoPort* topo_out = sp_node->get_topo_output();
+                auto& topo_links = topo_out->get_endpoint_sysface(NET_TOPO)->links();
+
+                // Iterate through links and create/assign to RVD link and output
+                int idx = 0;
+                for (auto topo_link_generic : topo_links)
+                {
+                    TopoLink* topo_link = (TopoLink*)topo_link_generic;
+                    RVDPort* rvd_out = sp_node->get_rvd_output(idx);
+
+                    // Check for existing RVD link
+                    RVDLink* rvd_link = nullptr;
+                    auto cont = topo_link->asp_get<ALinkContainment>();
+                    if (cont->has_child_links())
+                    {
+                        // Existing link. Re-use RVD link. Just hook it up to split node output.
+                        rvd_link = (RVDLink*)cont->get_child_link0();
+                        auto rvd_out_ep = rvd_out->get_endpoint_sysface(NET_RVD);
+                        rvd_link->set_src(rvd_out_ep);
+                        rvd_out_ep->add_link(rvd_link);
+                    }
+                    else
+                    {
+                        // This means this topo link is between our newly created split nodes.
+                        // Need to create a new rvd link.
+                        RVDPort* rvd_sink = ((TopoPort*)topo_link->get_sink())->get_rvd_port();
+                        rvd_link = (RVDLink*)sys->connect(rvd_out, rvd_sink);
+                        cont->add_child_link(rvd_link);
+                    }
+
+                    rvd_link->set_latency(topo_link->get_latency());
+                    idx++;
+                }
+            }
+
+            // Set backpressure stuff and configure()
+            for (auto sp_node : sp_nodes)
+            {
+                // Set backpressure flag
+                RVDPort* rvd_b = sp_node->get_rvd_input();
+                auto rvd_a = (RVDPort*)rvd_b->get_endpoint_sysface(NET_RVD)->get_remote_obj0();
+                assert(rvd_a);
+
+                bool has_bp = rvd_a->has_role_binding(RVDPort::ROLE_READY);
+                sp_node->set_uses_bp(has_bp);
+
+                sp_node->configure();
+            }
+        } // end orig_sp
+    }
 
 	// Do all work for one System
 	void flow_do_system(System* sys)
@@ -1043,6 +1231,7 @@ namespace
 		rvd_do_carriage(sys);
 
         flow::apply_latency_constraints(sys);
+        //rvd_systolic_transform(sys);
         rvd_add_pipeline_regs(sys);
         rvd_do_carriage(sys);
         

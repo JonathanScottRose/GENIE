@@ -102,13 +102,15 @@ namespace genie
 		~ALinkContainment();
 		
 		void add_parent_link(Link* other) { add_link(other, PARENT); }
-		void remove_parent_link(Link* other) { remove_link(other, PARENT); }
+        void add_parent_links(const Links& other) { add_links(other, PARENT); }
+        void remove_parent_link(Link* other) { remove_link(other, PARENT); }
 		Link* get_parent_link0() const { return get_link0(PARENT); }
 		const Links& get_parent_links() const { return m_links[PARENT]; }
 		bool has_parent_links() const { return !m_links[PARENT].empty(); }
 		Links get_all_parent_links(NetType type) const { return get_all_links(type, PARENT); }
 
 		void add_child_link(Link* other) { add_link(other, CHILD); }
+        void add_child_links(const Links& other) { add_links(other, CHILD); }
 		void remove_child_link(Link* other) { remove_link(other, CHILD); }
 		Link* get_child_link0() const { return get_link0(CHILD); }
 		const Links& get_child_links() const { return m_links[CHILD]; }
@@ -124,6 +126,7 @@ namespace genie
 
 		PorC rev_rel(PorC porc) { return (PorC)(1 - porc); }
 
+        void add_links(const Links&, PorC);
 		void add_link(Link*, PorC);
 		void remove_link(Link*, PorC);
 		Link* get_link0(PorC) const;
