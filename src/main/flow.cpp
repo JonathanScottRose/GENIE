@@ -468,10 +468,6 @@ namespace
 				// visiting src first and sink second !!!
 				rvd_link = sys->splice(rvd_link, fc_node->get_input(), fc_node->get_output());
 
-                // Configure backpressure first
-                bool has_bp = port->has_role_binding(RVDPort::ROLE_READY);
-                fc_node->set_uses_bp(has_bp);
-
 				// Make the node set up its conversion tables, now that it's connected to stuff
 				fc_node->configure();
 			}
@@ -485,16 +481,6 @@ namespace
 		auto sp_nodes = sys->get_children_by_type<NodeSplit>();
 		for (auto node : sp_nodes)
 		{
-            // This is temporary until a more robust method happens.
-            // We need to disable backpressure on the Split input port if the thing driving it
-            // doesn't accept it. Not always correct :(
-            RVDPort* rvd_b = node->get_rvd_input();
-            auto rvd_a = (RVDPort*)rvd_b->get_endpoint_sysface(NET_RVD)->get_remote_obj0();
-            assert(rvd_a);
-
-            bool has_bp = rvd_a->has_role_binding(RVDPort::ROLE_READY);
-            node->set_uses_bp(has_bp);
-
 			node->configure();
 		}
 	}
@@ -781,11 +767,8 @@ namespace
 			if (csrc_a == csrc_b)
 				continue;
 
-			// Check to see if src has backpressure
-			bool has_bp = rvd_a->has_role_binding(RVDPort::ROLE_READY);
-
 			// Create and add clockx node
-			auto cxnode = new NodeClockX(has_bp);
+			auto cxnode = new NodeClockX();
 			cxnode->set_name("clockx" + std::to_string(nodenum++));
 			sys->add_child(cxnode);
 
@@ -1187,17 +1170,95 @@ namespace
             // Set backpressure stuff and configure()
             for (auto sp_node : sp_nodes)
             {
-                // Set backpressure flag
-                RVDPort* rvd_b = sp_node->get_rvd_input();
-                auto rvd_a = (RVDPort*)rvd_b->get_endpoint_sysface(NET_RVD)->get_remote_obj0();
-                assert(rvd_a);
-
-                bool has_bp = rvd_a->has_role_binding(RVDPort::ROLE_READY);
-                sp_node->set_uses_bp(has_bp);
-
                 sp_node->configure();
             }
         } // end orig_sp
+    }
+
+    void rvd_do_backpressure(System* sys)
+    {
+        auto rvd_links = sys->get_links(NET_RVD);
+
+        RVAttr<Port*> port_to_v;
+        VAttr<Port*> v_to_port;
+        Graph g = flow::net_to_graph(sys, NET_RVD, true,
+            &v_to_port, &port_to_v, nullptr, nullptr);
+
+        // Populate initial visitation list with ports that are either:
+        // 1) terminal (no outgoing edges)
+        // 2) Have a known/forced backpressure setting
+        // Then do a depth-first reverse traversal, visiting and updating all feeders that are
+        // configurable.
+        std::deque<VertexID> to_visit;
+
+        for (auto v: g.iter_verts())
+        {
+            bool add = g.dir_neigh(v).empty();
+            add |= ((RVDPort*)(v_to_port[v]))->get_bp_status().configurable == false;
+            
+            if (add)
+                to_visit.push_back(v);
+        }
+
+        while(!to_visit.empty())
+        {
+            VertexID cur_v = to_visit.back();
+            to_visit.pop_back();
+
+            auto cur_rvd = (RVDPort*)v_to_port[cur_v];
+            auto& cur_bp = cur_rvd->get_bp_status();
+
+            if (cur_bp.configurable && cur_bp.status == RVDBackpressure::UNSET)
+            {
+                // Given the choice, we'd like to not have this.
+                cur_bp.status = RVDBackpressure::DISABLED;
+            }
+            else if (!cur_bp.configurable)
+            {
+                // If it's unchangeable, make sure it's set to something
+                assert(cur_bp.status != RVDBackpressure::UNSET);
+            }
+
+            // Get feeders of this port. Could be internal or external links.
+            auto feeders = g.dir_neigh_r(cur_v);
+
+            for (auto next_v : feeders)
+            {
+                auto next_rvd = (RVDPort*)v_to_port[next_v];
+                auto& next_bp = next_rvd->get_bp_status();
+                
+                // Is the feeder configurable?
+                if (next_bp.configurable)
+                {
+                    // If it's unset, updated it to match.
+                    // If it's set to DISABLED and the incoming is ENABLED, update it to match too.
+                    // In both cases, put the destination on the visitation stack to continue the update.
+                    //
+                    // Else (it's set and: matches incoming, or is ENABLED and incoming is DISABLED),
+                    // do nothing.
+
+                    if (next_bp.status == RVDBackpressure::UNSET ||
+                        next_bp.status == RVDBackpressure::DISABLED &&
+                        cur_bp.status == RVDBackpressure::ENABLED)
+                    {
+                        next_bp.status = cur_bp.status;
+                        to_visit.push_back(next_v);
+                    }
+                }
+                else
+                {
+                    // Not configurable? Just make sure backpressures are compatible then.
+                    assert(next_bp.status != RVDBackpressure::UNSET);
+                    
+                    if (next_bp.status == RVDBackpressure::DISABLED &&
+                        cur_bp.status == RVDBackpressure::ENABLED)
+                    {
+                        throw Exception("Incompatible backpressure: " + cur_rvd->get_hier_path() +
+                            " provides but " + next_rvd->get_hier_path() + " does not consume");
+                    }
+                }
+            } // foreach feeder
+        }
     }
 
 	// Do all work for one System
@@ -1231,7 +1292,7 @@ namespace
 		rvd_do_carriage(sys);
 
         flow::apply_latency_constraints(sys);
-        //rvd_systolic_transform(sys);
+        rvd_systolic_transform(sys);
         rvd_add_pipeline_regs(sys);
         rvd_do_carriage(sys);
         
@@ -1239,6 +1300,7 @@ namespace
         rvd_insert_clockx(sys);
 		rvd_do_carriage(sys);
 		
+        rvd_do_backpressure(sys);
         rvd_connect_resets(sys);
 		rvd_default_eops(sys);
 		rvd_default_flowids(sys);

@@ -45,6 +45,7 @@ void NodeMerge::init_vlog()
 }
 
 NodeMerge::NodeMerge()
+    : m_is_exclusive(false)
 {	
 	init_vlog();
 
@@ -110,10 +111,11 @@ void NodeMerge::refine(NetType target)
         outport->set_max_links(NET_RVD, Dir::IN, n);
 		outport->set_clock_port_name(CLOCKPORT_NAME);
 		outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
-		outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
+        outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 		outport->add_role_binding(RVDPort::ROLE_DATA, "eop", new VlogStaticBinding("o_eop"));
 		outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
 		outport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
+        outport->get_bp_status().make_configurable();
 		outport->get_proto().set_carried_protocol(&m_proto);
 
 		for (int i = 0; i < n; i++)
@@ -122,10 +124,11 @@ void NodeMerge::refine(NetType target)
 
 			inport->set_clock_port_name(CLOCKPORT_NAME);
 			inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid", 1, i));
-			inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
+            inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
 			inport->add_role_binding(RVDPort::ROLE_DATA, "eop", new VlogStaticBinding("i_eop", 1, i));
 			inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, nullptr);
 			inport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
+            inport->get_bp_status().force_enable();
 			inport->get_proto().set_carried_protocol(&m_proto);
 
 			connect(inport, outport, NET_RVD);
@@ -250,11 +253,20 @@ void NodeMerge::do_exclusion_check()
 	// Count connected components. If this equals the number of ports, then all ports are
 	// mutually exclusive.
 	int comps = connected_comp(G, nullptr, nullptr);
-	bool exclusive = comps == n_inputs;
+	m_is_exclusive = comps == n_inputs;
 
-	// Set the type of merge node based on this result
-	if (exclusive)
+	if (m_is_exclusive)
+    {
+        // Set the type of merge node based on this result
 		((NodeVlogInfo*)get_hdl_info())->set_module_name(MODULE_EX);
+
+        // Loosen backpressure restrictions on inputs
+        for (int i = 0; i < n_inputs; i++)
+        {
+            auto in = get_rvd_input(i);
+            in->get_bp_status().make_configurable();
+        }
+    }
 }
 
 genie::Port* NodeMerge::locate_port(Dir dir, NetType type)

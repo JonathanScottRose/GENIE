@@ -15,8 +15,7 @@ namespace
 	const std::string RESETPORT_NAME = "reset";
 }
 
-NodeClockX::NodeClockX(bool use_backpressure)
-	: m_use_backpressure(use_backpressure)
+NodeClockX::NodeClockX()
 {
 	auto vinfo = new NodeVlogInfo(MODULE);
 	vinfo->add_port(new vlog::Port("arst", 1, vlog::Port::IN));
@@ -41,19 +40,20 @@ NodeClockX::NodeClockX(bool use_backpressure)
 
 	auto inport = new RVDPort(Dir::IN, INDATAPORT_NAME);
 	inport->set_clock_port_name(INCLOCKPORT_NAME);
-	inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
-	if (m_use_backpressure)
-		inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
+	inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));		
 	inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
+    inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 	inport->get_proto().set_carried_protocol(&m_proto);
+    inport->get_bp_status().make_configurable();
 	add_port(inport);
 
 	auto outport = new RVDPort(Dir::OUT, OUTDATAPORT_NAME);
 	outport->set_clock_port_name(OUTCLOCKPORT_NAME);
 	outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
-	outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 	outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+    outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 	outport->get_proto().set_carried_protocol(&m_proto);
+    outport->get_bp_status().make_configurable();
 	add_port(outport);
 
 	connect(inport, outport, NET_RVD);
@@ -83,11 +83,6 @@ RVDPort* NodeClockX::get_outdata_port() const
 	return (RVDPort*)get_port(OUTDATAPORT_NAME);
 }
 
-bool NodeClockX::uses_backpressure() const
-{
-	return m_use_backpressure;
-}
-
 HierObject* NodeClockX::instantiate() 
 {
 	throw HierException(this, "node not instantiable");
@@ -97,3 +92,4 @@ void NodeClockX::do_post_carriage()
 {
 	define_param("WIDTH", m_proto.get_total_width());
 }
+

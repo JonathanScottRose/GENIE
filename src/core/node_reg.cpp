@@ -140,12 +140,14 @@ void genie::NodeReg::create_rvd()
     inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
     inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
     inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
+    inport->get_bp_status().make_configurable();
     inport->get_proto().set_carried_protocol(&m_proto);
  
     outport->set_clock_port_name(CLOCKPORT_NAME);
-    outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
+    outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));;
     outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
     outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+    outport->get_bp_status().make_configurable();
     outport->get_proto().set_carried_protocol(&m_proto);
 
     // Internally connect input to output and set its latency to 1, to allow graph
@@ -159,3 +161,4 @@ void genie::NodeReg::create_rvd()
             get_links(NET_TOPO).front());
     }
 }
+

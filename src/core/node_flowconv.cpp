@@ -21,7 +21,7 @@ namespace
 }
 
 NodeFlowConv::NodeFlowConv(bool to_flow)
-	: Node(), m_to_flow(to_flow), m_uses_bp(true)
+	: Node(), m_to_flow(to_flow)
 {
 	// Create verilog ports
 	auto vinfo = new NodeVlogInfo(MODNAME);
@@ -50,18 +50,20 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 	auto inport = new RVDPort(Dir::IN, INPORT_NAME);
 	inport->set_clock_port_name(CLOCKPORT_NAME);
 	inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
-	//inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
+    inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 	inport->add_role_binding(RVDPort::ROLE_DATA, intag, new VlogStaticBinding("i_field"));
 	inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
+    inport->get_bp_status().make_configurable();
 	inport->get_proto().set_carried_protocol(&m_proto);
 	add_port(inport);
 
 	auto outport = new RVDPort(Dir::OUT, OUTPORT_NAME);
 	outport->set_clock_port_name(CLOCKPORT_NAME);
 	outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
-	outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
+    outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 	outport->add_role_binding(RVDPort::ROLE_DATA, outtag, new VlogStaticBinding("o_field"));
 	outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+    outport->get_bp_status().make_configurable();
 	outport->get_proto().set_carried_protocol(&m_proto);
 	add_port(outport);
 
@@ -70,10 +72,6 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 
 void NodeFlowConv::configure()
 {
-    // Add backpressure if necessary
-    if (m_uses_bp)
-        get_input()->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
-
 	// Create an lpid<->flow_id mapping, based on the connections at our lp_id-facing side.
 	
 	// 1) Take the port that has LPID on it (either the input or the output)
@@ -193,11 +191,6 @@ RVDPort* NodeFlowConv::get_output() const
 	return as_a<RVDPort*>(get_port(OUTPORT_NAME));
 }
 
-void genie::NodeFlowConv::set_uses_bp(bool b)
-{
-    m_uses_bp = b;
-}
-
 HierObject* NodeFlowConv::instantiate()
 {
 	throw HierException(this, "node not instantiable");
@@ -207,3 +200,4 @@ void NodeFlowConv::do_post_carriage()
 {
 	define_param("WD", m_proto.get_total_width());
 }
+

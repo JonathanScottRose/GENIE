@@ -147,6 +147,9 @@ void RSPort::refine_rvd()
 	// Configure the RVD Port Protocol
 	auto& proto = rvd_port->get_proto();
 
+    // Set to true if we have a Ready signal
+    bool uses_backpressure = false;
+
 	// Set up role bindings on RVD port, by copying ours
 	for (auto& rs_rb : get_role_bindings())
 	{
@@ -165,6 +168,7 @@ void RSPort::refine_rvd()
 		else if (rs_role == RSPort::ROLE_READY)
 		{
 			rvd_port->add_role_binding(RVDPort::ROLE_READY, rvd_hdlb);
+            uses_backpressure = true;
 		}
 		else
 		{
@@ -202,6 +206,13 @@ void RSPort::refine_rvd()
 			proto.add_terminal_field(field, rvd_tag);
 		}
 	}
+
+    // Set up backpressure.
+    // Configurable=false meaning this is a hard constraint and not negotiable.
+    auto& bp_status = rvd_port->get_bp_status();
+    bp_status.configurable = false;
+    bp_status.status = uses_backpressure? 
+        RVDBackpressure::ENABLED : RVDBackpressure::DISABLED;
 
 	// Copy associated clock port
 	const std::string& clkportname = this->get_clock_port_name();

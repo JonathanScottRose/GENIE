@@ -186,6 +186,22 @@ VList Graph::neigh(VertexID vid) const
 	return result;
 }
 
+VList Graph::dir_neigh_r(VertexID vid) const
+{
+    VList result;
+
+    const Vertex& v = getv(vid);
+    for (auto& eid : v.edges)
+    {
+        const Edge& e = gete(eid);
+        VertexID oid = e.v1;
+        if (e.v2 == vid && std::find(result.begin(), result.end(), oid) == result.end())
+            result.push_back(oid);
+    }
+
+    return result;
+}
+
 VList Graph::dir_neigh(VertexID vid) const
 {
 	VList result;

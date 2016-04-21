@@ -73,40 +73,70 @@ namespace
 		// If not, try and insert defaulted signals
 		for (auto link : links)
 		{
-			genie::Port* src = link->get_src();
-			genie::Port* sink = link->get_sink();
+            auto src = (RVDPort*)link->get_src();
+            auto sink = (RVDPort*)link->get_sink();
 
-			for (auto role : {RVDPort::ROLE_VALID, RVDPort::ROLE_READY})
-			{
-				RoleBinding* src_rb = src->get_role_binding(role);
-				RoleBinding* sink_rb = sink->get_role_binding(role);
+            // Valid
+            {
+                RoleBinding* src_rb = src->get_role_binding(RVDPort::ROLE_VALID);
+                RoleBinding* sink_rb = sink->get_role_binding(RVDPort::ROLE_VALID);
 
-				// Ready travels backwards
-				if (role == RVDPort::ROLE_READY)
-					std::swap(src_rb, sink_rb);
+                if (src_rb && sink_rb)
+                {
+                    // Both present - everything good
+                    connect_rb(sys, src_rb, sink_rb);
+                }
+                else if (!src_rb && sink_rb)
+                {
+                    // Connect a constant high value to the sink.
+                    tie_rb(sys, sink_rb, Value(1, 1), 0);
+                }
+                else if (src_rb && !sink_rb)
+                {
+                    // Bad news, this is logically wrong
+                    throw Exception("can't connect " + src->get_hier_path() + " to " +
+                        sink->get_hier_path() + " because " + src_rb->to_string() + 
+                        " has no counterpart to connect to");
+                }
+                else
+                {
+                    // Neither present? Ok, do nothing.
+                }
+            }
 
-				if (src_rb && sink_rb)
-				{
-					// Both present - everything good
-					connect_rb(sys, src_rb, sink_rb);
-				}
-				else if (!src_rb && sink_rb)
-				{
-					// Connect a constant high value to the sink.
-					tie_rb(sys, sink_rb, Value(1, 1), 0);
-				}
-				else if (src_rb && !sink_rb)
-				{
-					// Bad news, this is logically wrong
-					throw Exception("can't connect " + src->get_hier_path() + " to " +
-						sink->get_hier_path() + " because " + src_rb->to_string() + 
-						" has no counterpart to connect to");
-				}
-				else
-				{
-					// Neither present? Ok, do nothing.
-				}
-			}
+            // Ready
+            {
+                RoleBinding* src_rb = src->get_role_binding(RVDPort::ROLE_READY);
+                RoleBinding* sink_rb = sink->get_role_binding(RVDPort::ROLE_READY);
+
+                // Check backpressure presence
+                auto src_bp = src->get_bp_status().status == RVDBackpressure::ENABLED;
+                auto sink_bp = sink->get_bp_status().status == RVDBackpressure::ENABLED;
+
+                // Legality check 1: if a port has backpressure, it must have a ready signal.
+                if (src_bp && !src_rb)
+                    throw HierException(src, " has backpressure but no ready signal");
+                if (sink_bp && !sink_rb)
+                    throw HierException(sink, " has backpressure but no ready signal");
+
+                // Legality check 2: if sink has backpressure, src should have it too
+                if (sink_bp && !src_bp)
+                {
+                    throw HierException(src, " has no backpressure but its sink " +
+                        sink->get_hier_path() + " does");
+                }
+
+                // If sink has backpressure, connect ready signals together
+                if (sink_bp)
+                {
+                    connect_rb(sys, sink_rb, src_rb);
+                }
+                else if (src_rb)
+                {
+                    // Otherwise, if there's a src ready signal, tie it high
+                    tie_rb(sys, src_rb, Value(1,1), 0);
+                }
+            }
 		}
 	}
 

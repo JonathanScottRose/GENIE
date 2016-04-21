@@ -10,22 +10,18 @@ namespace genie
 	class NodeClockX : public Node
 	{
 	public:
-		NodeClockX(bool use_backpressure = true);
+		NodeClockX();
 		~NodeClockX();
 
-		ResetPort* get_reset_port() const;
 		RVDPort* get_indata_port() const;
 		RVDPort* get_outdata_port() const;
 		ClockPort* get_inclock_port() const;
 		ClockPort* get_outclock_port() const;
-		
-		bool uses_backpressure() const;
 
 		HierObject* instantiate() override;
 		void do_post_carriage() override;
 
 	protected:
-		bool m_use_backpressure;
 		CarrierProtocol m_proto;
 	};
 }

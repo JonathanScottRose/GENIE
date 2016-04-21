@@ -107,6 +107,7 @@ namespace graphs
 		EList edges(VertexID v1, VertexID v2) const;
 		EdgeID edge(VertexID v1, VertexID v2) const;
 		VList neigh(VertexID v) const;
+        VList dir_neigh_r(VertexID v) const;
 		VList dir_neigh(VertexID v) const;
 		EList dir_edges(VertexID v1, VertexID v2) const;
 		EList dir_edges(VertexID self) const;

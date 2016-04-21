@@ -24,6 +24,7 @@ namespace genie
 		void refine(NetType) override;
 		HierObject* instantiate() override;
 		void do_post_carriage() override;
+
         void configure();
 		void do_exclusion_check();
 
@@ -32,6 +33,7 @@ namespace genie
 	protected:
 		void init_vlog();
 
+        bool m_is_exclusive;
 		CarrierProtocol m_proto;
 	};
 }
