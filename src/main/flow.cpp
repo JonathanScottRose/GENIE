@@ -23,6 +23,19 @@
 using namespace genie;
 using namespace genie::graphs;
 
+namespace std
+{
+    template<> class std::hash<std::pair<int,int>>
+    {
+    public:
+        size_t operator() (const std::pair<int,int>& p) const
+        {
+            std::hash<int> h;
+            return h(p.first) ^ h(p.second);
+        }
+    };
+}
+
 namespace
 {
 	Port* net_to_graph_topo_remap(Port* o)
@@ -1261,6 +1274,309 @@ namespace
         }
     }
 
+    bool topo_optimize_check_conflict(std::vector<Link*>& set1, std::vector<Link*>& set2,
+        std::unordered_set<std::pair<int,int>>& out)
+    {
+        // Find pairwise conflict between RSLinks in set1 and set2, and update 'out'
+        // Return true if new elements were added to the set
+        bool added_new = false;
+
+        // Conflict-AVOIDING conditions:
+        // - they're the same RS Link
+        // - they share the same source
+        // - they are explicitly marked mutually-exclusive
+
+        for (auto link1 : set1)
+        {
+            for (auto link2 : set2)
+            {
+                if (link1 == link2)
+                    continue;
+
+                auto link1_rs = (RSLink*)link1;
+                auto link2_rs = (RSLink*)link2;
+
+                auto link1_src = RSPort::get_rs_port(link1->get_src());
+                auto link2_src = RSPort::get_rs_port(link2->get_src());
+
+                if (link1_src == link2_src)
+                    continue;
+                
+                int fid1 = link1_rs->get_flow_id();
+                int fid2 = link2_rs->get_flow_id();
+
+                if (fid1 == fid2)
+                    continue;
+
+                auto aex = link1->asp_get<ARSExclusionGroup>();
+                if (aex && aex->has(link2_rs))
+                    continue;
+
+                // Welp, they must be potentially-conflicting then.
+                // Add the pair to the set, in a canonical sorted order
+                std::pair<int,int> entry(fid1, fid2);
+
+                if (fid2 < fid1)
+                    std::swap(entry.first, entry.second);
+
+                auto ins_result = out.insert(entry);
+                added_new |= ins_result.second;
+            }
+        }
+
+        return added_new;
+    }
+
+    void topo_optimize_fix_split(System* sys, NodeSplit* sp)
+    {
+        // 'sp' should have two downstream nodes. Get ports
+        auto sp_topo_out = sp->get_topo_output();
+        auto sp_topo_out_ep = sp_topo_out->get_endpoint_sysface(NET_TOPO);
+        auto sp_downstream_ports = sp_topo_out_ep->get_remote_objs();
+
+        assert(sp_downstream_ports.size() == 2);
+
+        // For each of the two downstream nodes
+        for (auto sp_ds_port : sp_downstream_ports)
+        {
+            auto sp_ds_node = as_a<NodeSplit*>(sp_ds_port->get_node());
+
+            // Check if it's a split node that we're allowed to touch
+            if (!sp_ds_node)
+                continue;
+
+            // Disconnect 'sp' from this split node
+            sys->disconnect(sp_topo_out, sp_ds_port);
+
+            // Get downstream links of this split node
+            auto sp_ds_node_out = sp_ds_node->get_topo_output();
+            auto reroute_links = sp_ds_node_out->get_endpoint_sysface(NET_TOPO)->links();
+
+            // Reconnect each link's source to be 'sp'
+            for (auto reroute_link : reroute_links)
+            {
+                reroute_link->set_src(sp_topo_out_ep);
+                sp_topo_out_ep->add_link(reroute_link);
+            }
+
+            // Delete downstream split node
+            sys->delete_object(sp_ds_node->get_name());
+        }
+    }
+
+    void topo_optimize(System* sys)
+    {
+        // While can still merge more merge nodes...
+        while(true)
+        {
+            // Keep track of whether we found a legal mergemerge candidate pair,
+            // the members of the best pair, and the best pair's cost.
+            bool best_found = false;
+            unsigned best_cost = 0;
+            NodeMerge* best_node1 = nullptr;
+            NodeMerge* best_node2 = nullptr;
+
+            // Get all current merge nodes
+            auto all_merges = sys->get_children_by_type<NodeMerge>();
+            
+            // Loop through all pairs and find the best pair to merge
+            for (auto it1 = all_merges.begin(); it1 != all_merges.end(); ++it1)
+            {
+                NodeMerge* node1 = *it1;
+                for (auto it2 = it1 + 1; it2 != all_merges.end(); ++it2)
+                {
+                    NodeMerge* node2 = *it2;
+
+                    // For each pair of merge nodes...
+
+                    // Get merge nodes' incoming topo links
+                    auto node1_topos = node1->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
+                    auto node2_topos = node2->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
+
+                    // Get the transmissions (RS Links) on each topo link.
+                    // The outer vector index corresponds to the index in nodeX_topos vectors
+                    std::vector<std::vector<Link*>> node1_rslinks, node2_rslinks;
+
+                    for (auto tlink : node1_topos)
+                    {
+                        auto links = tlink->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+                        node1_rslinks.push_back(links);
+                    }
+
+                    for (auto tlink : node2_topos)
+                    {
+                        auto links = tlink->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+                        node2_rslinks.push_back(links);
+                    }
+
+                    // Create a 'conflict map': says which pairs of RS Links potentially overlap in transmission time
+                    std::unordered_set<std::pair<int, int>> conflict_map;
+
+                    // Populate conflict map with conflicts between transmissions belonging to the first merge node
+                    for (auto it3 = node1_rslinks.begin(); it3 != node1_rslinks.end(); ++it3)
+                    {
+                        auto rslinks1 = *it3;
+                        for (auto it4 = it3 + 1; it4 != node1_rslinks.end(); ++it4)
+                        {
+                            auto rslinks2 = *it4;
+                            
+                            topo_optimize_check_conflict(rslinks1, rslinks2, conflict_map);
+                        }
+                    }
+
+                    // and the second node
+                    for (auto it3 = node2_rslinks.begin(); it3 != node2_rslinks.end(); ++it3)
+                    {
+                        auto rslinks1 = *it3;
+                        for (auto it4 = it3 + 1; it4 != node2_rslinks.end(); ++it4)
+                        {
+                            auto rslinks2 = *it4;
+
+                            topo_optimize_check_conflict(rslinks1, rslinks2, conflict_map);
+                        }
+                    }
+
+                    // The baseline level of conflict has been established. Now look to see if,
+                    // by merging the two merge nodes together, a new set of conflicts would arise.
+                    bool new_conflict = false;
+                    for (unsigned i = 0; !new_conflict && i < node1_rslinks.size(); i++)
+                    {
+                        auto& rslinks1 = node1_rslinks[i];
+
+                        for (unsigned j = 0; !new_conflict && j < node2_rslinks.size(); j++)
+                        {
+                            auto& rslinks2 = node2_rslinks[j];
+
+                            // rslinks1 and rslinks2 are bundles of RSlinks associated with a specific physical
+                            // merge node input.
+                            // If these two physical links have the same source, we don't have to test for conflicts
+                            // because they are guaranteed to have none.
+
+                            auto src1 = node1_topos[i]->get_src();
+                            auto src2 = node2_topos[j]->get_src();
+
+                            if (src1 == src2)
+                                continue;
+
+                            // Otherwise, do the conflict check. If 'true' is returned, then new conflicts
+                            // were added to the map, meaning that merging these two merge nodes is not good.
+                            new_conflict |= topo_optimize_check_conflict(rslinks1, rslinks2, conflict_map);
+                            if (new_conflict)
+                            {
+                                break;
+                            }
+                        }
+                    } // end checking conflicts between hypothetically-merged merge nodes
+
+                    // If NO NEW CONFLICTS are introduced, then this is a legal mergemerge.
+                    // Record quality as: sum of # of inputs of first and second merge nodes
+                    if (!new_conflict)
+                    {
+                        unsigned this_cost = node1_topos.size() + node2_topos.size();
+                        if (this_cost > best_cost)
+                        {
+                            best_found = true;
+                            best_cost = this_cost;
+                            best_node1 = node1;
+                            best_node2 = node2;
+                        }
+                    }
+                }
+            } // end looping through all pairs of merge nodes
+
+            // If a legal mergemerge candidate was found, focus on the two 'best' merge nodes
+            // and perform the actual mergemerge operation.
+            //
+            // If not? Then escape from outermost while loop and return from this function
+            if (!best_found)
+            {
+                break;
+            }
+
+            // Arbitrarily choose which of the two merge nodes will remain, as the other one will
+            // be destroyed. Let's make node1 the survivor
+
+            // Grab all the input links of the two merge nodes
+            auto node1_inputs = best_node1->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
+            auto node2_inputs = best_node2->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
+
+            // Get the transmissions (RS Links) on each topo link (used later)
+            std::vector<std::vector<Link*>> node1_rslinks, node2_rslinks;
+
+            for (auto tlink : node1_inputs)
+            {
+                auto links = tlink->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+                node1_rslinks.push_back(links);
+            }
+
+            for (auto tlink : node2_inputs)
+            {
+                auto links = tlink->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+                node2_rslinks.push_back(links);
+            }
+
+            // Disconnect node2's input links and reconnect their sources to node1's input
+            for (unsigned i = 0; i < node2_inputs.size(); i++)
+            {
+                auto input = node2_inputs[i];
+                auto input_src = input->get_src();
+
+                sys->disconnect(input);
+                auto link = sys->connect(input_src, best_node1->get_topo_input());
+
+                // Move transmissions
+                link->asp_get<ALinkContainment>()->add_parent_links(node2_rslinks[i]);
+            }
+
+            // Combine outputs: create a split node. its input: output of remaining merge node
+            // its outputs: original outputs of two merge nodes
+            {
+                
+                NodeSplit* sp = new NodeSplit();
+                sp->set_name(sys->make_unique_child_name("split_auto"));
+                sys->add_child(sp);
+
+                // Get merge node destination links
+                auto node1_out = best_node1->get_topo_output()->get_endpoint_sysface(NET_TOPO)->get_link0();
+                auto node2_out = best_node2->get_topo_output()->get_endpoint_sysface(NET_TOPO)->get_link0();
+
+                auto node1_sink = node1_out->get_sink();
+                auto node2_sink = node2_out->get_sink();
+
+                // Disconnect the outputs of the merge nodes
+                sys->disconnect(node1_out);
+                sys->disconnect(node2_out);
+
+                // Split node's input is merge node1's output
+                auto mg_to_sp = sys->connect(best_node1->get_topo_output(), sp->get_topo_input());
+
+                // Split node's outputs go to original merge node outputs
+                auto sp_to_sink1 = sys->connect(sp->get_topo_output(), node1_sink);
+                auto sp_to_sink2 = sys->connect(sp->get_topo_output(), node2_sink);
+
+                // Re-route carried RS links
+                for (auto rslinks : node1_rslinks)
+                {
+                    mg_to_sp->asp_get<ALinkContainment>()->add_parent_links(rslinks);
+                    sp_to_sink1->asp_get<ALinkContainment>()->add_parent_links(rslinks);
+                }
+
+                for (auto rslinks : node2_rslinks)
+                {
+                    mg_to_sp->asp_get<ALinkContainment>()->add_parent_links(rslinks);
+                    sp_to_sink2->asp_get<ALinkContainment>()->add_parent_links(rslinks);
+                }
+
+                // Combine downstream split nodes with the new split node, if possible
+                topo_optimize_fix_split(sys, sp);
+            }
+
+            // Delete the second merge node.
+            sys->delete_object(best_node2->get_name());
+
+        } // end while there are still merge nodes to merge
+    }
+
 	// Do all work for one System
 	void flow_do_system(System* sys)
 	{
@@ -1281,6 +1597,12 @@ namespace
 		// Assign Flow IDs to RS links and RS Ports based on topology and RS domain membership.
 		// Must be done after TOPO network has been created.
 		rs_assign_flow_ids(sys);
+
+        // Further simplify the topology after flows have been determined
+        if (flow_options().no_opt_topo == false)
+        {
+            topo_optimize(sys);
+        }
 
 		// Create RVD network from TOPO network
 		topo_refine_to_rvd(sys);

@@ -13,6 +13,7 @@ public:
 struct FlowOptions
 {
 	bool force_full_merge = false;
+    bool no_opt_topo = false;
 };
 
 FlowOptions& flow_options();

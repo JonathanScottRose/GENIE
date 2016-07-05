@@ -201,6 +201,7 @@ void NodeMerge::do_exclusion_check()
 		for (auto link : links_at_port)
 		{
 			VertexID v = G.newv();
+            assert(link_to_v.count(link) == 0);
 			link_to_v[link] = v;
 		}
 	}

@@ -136,6 +136,9 @@ namespace genie
 			});
 		}
 
+        // Return a unique child name
+        std::string make_unique_child_name(const std::string& base);
+
 	protected:
 		void set_parent(HierObject*);
 
