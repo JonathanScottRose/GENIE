@@ -13,9 +13,10 @@ public:
 struct FlowOptions
 {
 	bool force_full_merge = false;
-    bool no_opt_topo = false;
+    bool no_topo_opt = false;
 };
 
 FlowOptions& flow_options();
 void flow_main();
+void flow_print_stats(class genie::System* sys);
 

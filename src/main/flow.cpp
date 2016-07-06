@@ -1303,9 +1303,11 @@ namespace
                     continue;
                 
                 int fid1 = link1_rs->get_flow_id();
+                int dom1 = link1_rs->get_domain_id();
                 int fid2 = link2_rs->get_flow_id();
+                int dom2 = link2_rs->get_domain_id();
 
-                if (fid1 == fid2)
+                if (dom1 == dom2 && fid1 == fid2)
                     continue;
 
                 auto aex = link1->asp_get<ARSExclusionGroup>();
@@ -1599,7 +1601,7 @@ namespace
 		rs_assign_flow_ids(sys);
 
         // Further simplify the topology after flows have been determined
-        if (flow_options().no_opt_topo == false)
+        if (flow_options().no_topo_opt == false)
         {
             topo_optimize(sys);
         }
@@ -1652,7 +1654,59 @@ void flow_main()
 
 			sys->write_dot(sys->get_name() + "." + network->get_name(), network->get_id());
 		}
+
+        flow_print_stats(sys);
 	}
+}
+
+void flow_print_stats(System* sys)
+{
+    {
+        unsigned nc = printf("Statistics for system %s:\n", sys->get_name().c_str());
+        for (unsigned i = 0; i < nc-1; i++)
+            putc('=', stdout);
+        putc('\n', stdout);
+    }
+
+    // Count merge nodes
+    auto objs = sys->get_children();
+
+    std::map<std::string, unsigned> counts_map;
+    unsigned total_comb = 0;
+    unsigned total_regs = 0;
+
+    for (auto obj : objs)
+    {
+        auto obj_mg = as_a<NodeMerge*>(obj);
+        if (obj_mg)
+        {
+            auto& rvd_proto = obj_mg->get_rvd_output()->get_proto();
+            auto n_bits = rvd_proto.get_carried_protocol()->get_total_width();
+
+            auto n_inputs = obj_mg->get_n_inputs();
+            std::string key = "merge" + std::to_string(n_inputs);
+            counts_map[key] += n_bits;
+
+            continue;
+        }
+
+        auto obj_rg = as_a<NodeReg*>(obj);
+        if (obj_rg)
+        {
+            auto& rvd_proto = obj_rg->get_input()->get_proto();
+            total_regs += rvd_proto.get_carried_protocol()->get_total_width();
+
+            continue;
+        }
+    }
+
+    for (auto it = counts_map.begin(); it != counts_map.end(); ++it)
+    {
+        printf("%s: %u\n", it->first.c_str(), it->second);
+    }
+    printf("data registers: %u\n", total_regs);
+
+    printf("\n");
 }
 
 FlowOptions& flow_options()
