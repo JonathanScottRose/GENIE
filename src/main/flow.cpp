@@ -25,12 +25,12 @@ using namespace genie::graphs;
 
 namespace std
 {
-    template<> class std::hash<std::pair<int,int>>
+    template<> class hash<pair<int,int>>
     {
     public:
-        size_t operator() (const std::pair<int,int>& p) const
+        size_t operator() (const pair<int,int>& p) const
         {
-            std::hash<int> h;
+            hash<int> h;
             return h(p.first) ^ h(p.second);
         }
     };
