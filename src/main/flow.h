@@ -14,6 +14,7 @@ struct FlowOptions
 {
 	bool force_full_merge = false;
     bool no_topo_opt = false;
+    std::vector<std::string> no_topo_opt_systems;
 };
 
 FlowOptions& flow_options();

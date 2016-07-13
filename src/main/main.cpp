@@ -36,6 +36,26 @@ namespace
 		return args;
 	}
 
+    std::vector<std::string> parse_list(const std::string& list)
+    {
+        std::vector<std::string> result;
+
+        // Extract item,item,item... from string
+        for (auto cur_pos = list.cbegin(), end_pos = list.cend(); cur_pos != end_pos; )
+        {
+            static std::regex pattern(R"(((\w+)(,)?).*)");
+            std::smatch mr;
+
+            if (!std::regex_match(cur_pos, end_pos, mr, pattern))
+                break;
+
+            result.emplace_back(mr[2]);
+            cur_pos = mr[1].second;
+        }
+        
+        return result;
+    }
+
 	void parse_args(int argc, char** argv)
 	{
 		GetOpt::GetOpt_pp args(argc, argv);
@@ -46,7 +66,13 @@ namespace
 		args >> GetOpt::Option("dump_dot", Globals::inst()->dump_dot_network);
 		args >> GetOpt::Option("args", s_lua_args);
 		args >> GetOpt::OptionPresent("force_full_merge", flow_options().force_full_merge);
-        args >> GetOpt::OptionPresent("no_topo_opt", flow_options().no_topo_opt);
+        
+        {
+            std::string no_topo_opt_sys;
+            args >> GetOpt::OptionPresent("no_topo_opt", flow_options().no_topo_opt);
+            args >> GetOpt::Option("no_topo_opt", no_topo_opt_sys);
+            flow_options().no_topo_opt_systems = parse_list(no_topo_opt_sys);
+        }
 
 		if (!(args >> GetOpt::GlobalOption(s_script)))
 			throw Exception("Must specify Lua script");
