@@ -88,7 +88,7 @@ ClockPort* RVDPort::get_clock_port() const
 	return result;
 }
 
-genie::RVDLink::RVDLink()
+RVDLink::RVDLink()
 {
     asp_add(new ALinkContainment());
 }
@@ -98,4 +98,13 @@ Link* RVDLink::clone() const
     auto result = new RVDLink(*this);
     result->asp_add(new ALinkContainment());
     return result;
+}
+
+int RVDLink::get_width() const
+{
+    // Get endpoints
+    auto src = (RVDPort*)get_src();
+    auto sink = (RVDPort*)get_sink();
+
+    return PortProtocol::calc_transmitted_width(src->get_proto(), sink->get_proto());
 }

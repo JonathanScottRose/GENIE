@@ -172,6 +172,9 @@
     <ClInclude Include="..\..\include\genie\flow_utils.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_mdelay.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />
@@ -276,5 +279,6 @@
       <Filter>lp_solve</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\core\flow_utils.cpp" />
+    <ClCompile Include="..\..\src\core\node_mdelay.cpp" />
   </ItemGroup>
 </Project>

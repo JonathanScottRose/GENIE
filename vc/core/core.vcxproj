@@ -35,6 +35,7 @@
     <ClInclude Include="..\..\include\genie\net_topo.h" />
     <ClInclude Include="..\..\include\genie\node_clockx.h" />
     <ClInclude Include="..\..\include\genie\node_flowconv.h" />
+    <ClInclude Include="..\..\include\genie\node_mdelay.h" />
     <ClInclude Include="..\..\include\genie\node_merge.h" />
     <ClInclude Include="..\..\include\genie\node_reg.h" />
     <ClInclude Include="..\..\include\genie\node_split.h" />
@@ -118,6 +119,7 @@
     <ClCompile Include="..\..\src\core\flow_utils.cpp" />
     <ClCompile Include="..\..\src\core\node_clockx.cpp" />
     <ClCompile Include="..\..\src\core\node_flowconv.cpp" />
+    <ClCompile Include="..\..\src\core\node_mdelay.cpp" />
     <ClCompile Include="..\..\src\core\node_merge.cpp" />
     <ClCompile Include="..\..\src\core\node_reg.cpp" />
     <ClCompile Include="..\..\src\core\node_split.cpp" />

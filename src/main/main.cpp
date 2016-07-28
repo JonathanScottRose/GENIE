@@ -66,6 +66,7 @@ namespace
 		args >> GetOpt::Option("dump_dot", Globals::inst()->dump_dot_network);
 		args >> GetOpt::Option("args", s_lua_args);
 		args >> GetOpt::OptionPresent("force_full_merge", flow_options().force_full_merge);
+        args >> GetOpt::OptionPresent("no_mdelay", flow_options().no_mdelay);
         
         {
             std::string no_topo_opt_sys;

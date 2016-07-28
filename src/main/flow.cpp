@@ -8,6 +8,7 @@
 #include "genie/node_merge.h"
 #include "genie/node_split.h"
 #include "genie/node_clockx.h"
+#include "genie/node_mdelay.h"
 #include "genie/lua/genie_lua.h"
 #include "genie/graph.h"
 #include "genie/value.h"
@@ -989,16 +990,34 @@ namespace
         int pipe_no = 0;
         for (auto orig_link : links_to_process)
         {
+            int width = orig_link->get_width();
             int latency = orig_link->get_latency();
 
-            auto cur_link = orig_link;
-            for (int i = latency-1; i >= 0; i--)
-            {
-                auto rg = new NodeReg(true);
-                rg->set_name("pipe" + std::to_string(pipe_no) + "_" + std::to_string(i));
-                sys->add_child(rg);
+            // Insert a chain of regs, or a mem, depending on which is cheaper
+            int reg_cost = width * latency;
+            int mem_cost = width + latency + 8;
 
-                cur_link = (RVDLink*)sys->splice(orig_link, rg->get_input(), rg->get_output());                
+            if (!flow_options().no_mdelay && mem_cost < reg_cost)
+            {
+                auto md = new NodeMDelay();
+                md->set_delay(latency);
+                md->set_name("pipe" + std::to_string(pipe_no));
+                sys->add_child(md);
+
+                sys->splice(orig_link, md->get_input(), md->get_output());
+            }
+            else
+            {
+                auto cur_link = orig_link;
+                for (int i = 0; i < latency; i++)
+                {
+                    // Constructor flag: it's a post-topology register
+                    auto rg = new NodeReg(true);
+                    rg->set_name("pipe" + std::to_string(pipe_no) + "_" + std::to_string(i));
+                    sys->add_child(rg);
+
+                    cur_link = (RVDLink*)sys->splice(cur_link, rg->get_input(), rg->get_output());                
+                }
             }
 
             orig_link->set_latency(0);

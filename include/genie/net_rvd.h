@@ -61,6 +61,7 @@ namespace genie
 		PROP_GET_SET(latency, int, m_latency);
 
         Link* clone() const override;
+        int get_width() const;
 
 	protected:
 		int m_latency = 0;

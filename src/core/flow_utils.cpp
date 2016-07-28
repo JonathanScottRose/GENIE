@@ -236,10 +236,7 @@ void apply_latency_constraints(System* sys)
 
             // Coefficient = width of RVD link in bits.
             // Add 1 to width to include overhead of valid bits, etc
-            auto link_src = (RVDPort*)link->get_src();
-            auto link_sink = (RVDPort*)link->get_sink();
-            int cost = PortProtocol::calc_transmitted_width(
-                link_src->get_proto(), link_sink->get_proto()) + 1;
+            int cost = link->get_width() + 1;
 
             cns_coef.push_back((double)cost);
             cns_varno.push_back(varno);
