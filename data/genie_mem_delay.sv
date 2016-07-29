@@ -14,9 +14,10 @@ module genie_mem_delay #
 	output logic [WIDTH-1:0] o_data,
 	output logic o_valid,
 	input logic i_ready
-)
+);
 
 localparam CYCLES3 = $clog2(CYCLES);
+localparam MEMSIZE = 1 << CYCLES3;
 
 logic [CYCLES3-1:0] rdptr;
 logic [CYCLES3-1:0] wrptr;
@@ -32,11 +33,11 @@ always_ff @ (posedge clk or posedge reset) begin
 	end
 	else if (pipe_enable) begin
 		// Shift register for valid signal
-		valid <= {valid[CYCLES-2:1], i_valid};
+		valid <= {valid[CYCLES-2:0], i_valid};
 		
 		// Pointers always increasing
-		rdptr <= (rdptr == (CYCLES3)'(CYCLES-1))? '0 : rdptr + (CYCLES3)'(1);
-		wrptr <= (wrptr == (CYCLES3)'(CYCLES-1))? '0 : wrptr + (CYCLES3)'(1);
+		rdptr <= (rdptr == (CYCLES3)'(MEMSIZE-1))? '0 : rdptr + (CYCLES3)'(1);
+		wrptr <= (wrptr == (CYCLES3)'(MEMSIZE-1))? '0 : wrptr + (CYCLES3)'(1);
 	end
 end
 
@@ -49,6 +50,7 @@ always_ff @ (posedge clk)
 
 assign o_valid = valid[CYCLES-1];
 assign o_data = mem[rdptr];
+assign o_ready = pipe_enable;
 
 
 endmodule
