@@ -126,6 +126,7 @@ cur_input_calc #
 );
 
 // Output muxes
+generate if (WIDTH > 0)
 genie_mux #
 (
 	.lpm_width(WIDTH),
@@ -138,6 +139,7 @@ genie_mux #
 	.sel(cur_input),
 	.result(o_data)
 );
+endgenerate
 
 genie_mux #
 (
@@ -199,6 +201,7 @@ wire data_sent = (i_valid && o_ready);
 always_comb begin
     nextstate = state;
     last_input_load = '0;
+    cur_input = 'x;
     
     case (state)
         S_FLOW_THROUGH: begin

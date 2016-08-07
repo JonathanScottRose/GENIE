@@ -41,7 +41,7 @@ namespace
 		s_file << line;
 
 		if (newline)
-			s_file << std::endl;
+			s_file << '\n';
 	}
 
 	void write_port(Port* port)
@@ -65,7 +65,11 @@ namespace
 
 	void write_param(genie::ParamBinding* param)
 	{
-		write_line("parameter " + param->get_name(), true, false);
+		std::string line = "parameter " + param->get_name();
+		if (param->is_bound())
+			line += " = " + param->get_expr().to_string();
+
+		write_line(line, true, false);
 	}
 
 	void write_wire(Net* net)
@@ -123,7 +127,7 @@ namespace
 
 	void write_sys_params(SystemVlogInfo* mod)
 	{
-		auto params = mod->get_node()->get_params(false);
+		const auto& params = mod->get_node()->params();
 		
 		if (!params.empty())
 		{
@@ -132,9 +136,9 @@ namespace
 			s_cur_indent++;
 
 			int parmno = params.size();
-			for (auto i : params)
+			for (const auto& i : params)
 			{
-				write_param(i);
+				write_param(i.second);
 				if (--parmno > 0) write_line(",", false, true);
 			}
 			write_line("", false, true);
@@ -361,7 +365,7 @@ namespace
 	{
 		s_cur_indent++;
 
-		write_sys_localparams(mod);
+		//write_sys_localparams(mod);
 		write_sys_wires(mod);
 		write_sys_insts(mod);
 		write_sys_assigns(mod);

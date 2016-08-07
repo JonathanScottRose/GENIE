@@ -17,16 +17,22 @@ namespace genie
 	class Endpoint
 	{
 	public:
+		static const unsigned int UNLIMITED = 1<<31;
+
 		typedef std::vector<Port*> Objects;
 		typedef std::vector<Endpoint*> Endpoints;
 		typedef std::vector<Link*> Links;
 
-		Endpoint(NetType type, Dir dir);
+		Endpoint(NetType type, Dir dir, LinkFace face);
+		Endpoint(const Endpoint&);
 		~Endpoint();
 		
 		PROP_GET(type, NetType, m_type);
 		PROP_GET(dir, Dir, m_dir);
 		PROP_GET_SET(obj, Port*, m_obj);
+        PROP_GET(face, LinkFace, m_face);
+
+		PROP_GET_SET(max_links, unsigned int, m_max_links);
 
 		void add_link(Link*);
 		void remove_link(Link*);
@@ -49,6 +55,8 @@ namespace genie
 		Dir m_dir;
 		NetType m_type;
 		Links m_links;
+        LinkFace m_face;
+		unsigned int m_max_links;
 
 		Network* get_network() const;
 	};
@@ -72,18 +80,17 @@ namespace genie
 		void set_sink(Endpoint*);
 
 		NetType get_type() const;
+        bool is_internal() const;
 
 		// Duplicate link.
 		virtual Link* clone() const;
 
 	protected:
-		void copy_containment(const Link&);
-
 		Endpoint* m_src;
 		Endpoint* m_sink;
 	};
 
-	// An aspect that can be attached to links which says:
+    // An aspect that can be attached to links which says:
 	// which (higher abstraction level) links does this link implement?
 	// which (lower abstraciton level) links does this link contain?
 	class ALinkContainment : public AspectWithRef<Link>
@@ -95,13 +102,15 @@ namespace genie
 		~ALinkContainment();
 		
 		void add_parent_link(Link* other) { add_link(other, PARENT); }
-		void remove_parent_link(Link* other) { remove_link(other, PARENT); }
+        void add_parent_links(const Links& other) { add_links(other, PARENT); }
+        void remove_parent_link(Link* other) { remove_link(other, PARENT); }
 		Link* get_parent_link0() const { return get_link0(PARENT); }
 		const Links& get_parent_links() const { return m_links[PARENT]; }
 		bool has_parent_links() const { return !m_links[PARENT].empty(); }
 		Links get_all_parent_links(NetType type) const { return get_all_links(type, PARENT); }
 
 		void add_child_link(Link* other) { add_link(other, CHILD); }
+        void add_child_links(const Links& other) { add_links(other, CHILD); }
 		void remove_child_link(Link* other) { remove_link(other, CHILD); }
 		Link* get_child_link0() const { return get_link0(CHILD); }
 		const Links& get_child_links() const { return m_links[CHILD]; }
@@ -117,6 +126,7 @@ namespace genie
 
 		PorC rev_rel(PorC porc) { return (PorC)(1 - porc); }
 
+        void add_links(const Links&, PorC);
 		void add_link(Link*, PorC);
 		void remove_link(Link*, PorC);
 		Link* get_link0(PorC) const;

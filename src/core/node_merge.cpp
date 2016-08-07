@@ -45,6 +45,7 @@ void NodeMerge::init_vlog()
 }
 
 NodeMerge::NodeMerge()
+    : m_is_exclusive(false)
 {	
 	init_vlog();
 
@@ -56,8 +57,14 @@ NodeMerge::NodeMerge()
 	port->add_role_binding(ResetPort::ROLE_RESET, new VlogStaticBinding("reset"));
 
 	// Input port and output port start out as Topo ports
-	add_port(new TopoPort(Dir::IN, INPORT_NAME));
-	add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+	auto inport = add_port(new TopoPort(Dir::IN, INPORT_NAME));
+	auto outport = add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+
+    // input topo port feeds output topo port with an internal link
+    connect(inport, outport);
+
+	// input topo port can have multiple connections (to outside world)
+	inport->set_max_links(NET_TOPO, Dir::IN, Endpoint::UNLIMITED);
 }
 
 NodeMerge::~NodeMerge()
@@ -96,32 +103,35 @@ void NodeMerge::refine(NetType target)
 
 	if (target == NET_RVD)
 	{
+        int n = get_n_inputs();
+        define_param("NI", n);
+
 		// Make bindings for the RVD ports
 		auto outport = get_rvd_output();
+        outport->set_max_links(NET_RVD, Dir::IN, n);
 		outport->set_clock_port_name(CLOCKPORT_NAME);
 		outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
-		outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
+        outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 		outport->add_role_binding(RVDPort::ROLE_DATA, "eop", new VlogStaticBinding("o_eop"));
 		outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
 		outport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
+        outport->get_bp_status().make_configurable();
 		outport->get_proto().set_carried_protocol(&m_proto);
-	
-		int n = get_n_inputs();
-		define_param("NI", n);
 
-		for (int i = 0; i < get_n_inputs(); i++)
+		for (int i = 0; i < n; i++)
 		{
 			auto inport = get_rvd_input(i);
 
 			inport->set_clock_port_name(CLOCKPORT_NAME);
 			inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid", 1, i));
-			inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
+            inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
 			inport->add_role_binding(RVDPort::ROLE_DATA, "eop", new VlogStaticBinding("i_eop", 1, i));
 			inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, nullptr);
 			inport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
+            inport->get_bp_status().force_enable();
 			inport->get_proto().set_carried_protocol(&m_proto);
 
-			connect(inport, outport, NET_RVD_INTERNAL);
+			connect(inport, outport, NET_RVD);
 		}
 	}
 }
@@ -147,6 +157,22 @@ void NodeMerge::do_post_carriage()
 		auto rb = port->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
 		rb->set_hdl_binding(new VlogStaticBinding("i_data", dwidth, i*dwidth));
 	}
+}
+
+void NodeMerge::configure()
+{
+    // Route RS Links over internal RVD links created during refinement
+    RVDPort* rvd_out = get_rvd_output();
+    for (int i = 0; i < get_n_inputs(); i++)
+    {
+        RVDPort* rvd_in = get_rvd_input(i);
+
+        auto rs_links = RSLink::get_from_rvd_port(rvd_in);
+        auto int_link = (RVDLink*)get_links(rvd_in, rvd_out).front();
+        
+        for (auto rs_link : rs_links)
+            int_link->asp_get<ALinkContainment>()->add_parent_link(rs_link);
+    }
 }
 
 void NodeMerge::do_exclusion_check()
@@ -175,15 +201,14 @@ void NodeMerge::do_exclusion_check()
 		for (auto link : links_at_port)
 		{
 			VertexID v = G.newv();
+            assert(link_to_v.count(link) == 0);
 			link_to_v[link] = v;
 		}
 	}
 
 	// Create edges based on exclusivity groups
-	for (int i = 0; i < n_inputs; i++)
+	for (const auto& links_at_port : links)
 	{
-		const List<RSLink*>& links_at_port = links[i];
-		
 		for (auto link1 : links_at_port)
 		{
 			VertexID v1 = link_to_v[link1];
@@ -194,6 +219,10 @@ void NodeMerge::do_exclusion_check()
 
 			for (auto link2 : asp->get_others())
 			{
+				// We only care about exclusion group entries that refer to links we know about
+				if (!link_to_v.count(link2))
+					continue;
+
 				VertexID v2 = link_to_v[link2];
 				assert(v1 != v2);
 
@@ -207,10 +236,13 @@ void NodeMerge::do_exclusion_check()
 	G.complement();
 
 	// Collapse all vertices belonging to each port. This leaves one vertex representing all the
-	// links at each port, and edges between the ports representing which ports are exclusive.
+	// links at each port, and edges between the ports representing which ports are possibly non-exclusive.
 	for (int i = 0; i < n_inputs; i++)
 	{
 		const List<RSLink*>& links_at_port = links[i];
+		if (links_at_port.empty())
+			continue;
+
 		VertexID v0 = link_to_v[links_at_port[0]];
 		for (unsigned j = 1; j < links_at_port.size(); j++)
 		{
@@ -222,9 +254,34 @@ void NodeMerge::do_exclusion_check()
 	// Count connected components. If this equals the number of ports, then all ports are
 	// mutually exclusive.
 	int comps = connected_comp(G, nullptr, nullptr);
-	bool exclusive = comps == n_inputs;
+	m_is_exclusive = comps == n_inputs;
 
-	// Set the type of merge node based on this result
-	if (exclusive)
+	if (m_is_exclusive)
+    {
+        // Set the type of merge node based on this result
 		((NodeVlogInfo*)get_hdl_info())->set_module_name(MODULE_EX);
+
+        // Loosen backpressure restrictions on inputs
+        for (int i = 0; i < n_inputs; i++)
+        {
+            auto in = get_rvd_input(i);
+            in->get_bp_status().make_configurable();
+        }
+    }
+}
+
+genie::Port* NodeMerge::locate_port(Dir dir, NetType type)
+{
+	// We accept TOPO connections directed at the node itself. This resolves
+	// to either the input or output TOPO ports depending on dir.
+	if (type != NET_INVALID && type != NET_TOPO)
+		return HierObject::locate_port(dir, type);
+
+	if (dir == Dir::IN) return get_topo_input();
+	else if (dir == Dir::OUT) return get_topo_output();
+	else
+	{
+		assert(false);
+		return nullptr;
+	}
 }

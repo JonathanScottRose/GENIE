@@ -35,6 +35,8 @@ namespace genie
 		PROP_GET(uses_tags, bool, m_uses_tags);
 		PROP_GET(sense, Sense, m_sense);
 
+		static Sense rev_sense(Sense);
+
 	protected:
 		static List<SigRole>& get_all_roles();
 
@@ -77,6 +79,8 @@ namespace genie
 		const SigRole* get_role_def() const;
 		std::string to_string();
 		bool has_tag() const;
+
+		SigRole::Sense get_absolute_sense();
 
 	protected:
 		Port* m_parent;

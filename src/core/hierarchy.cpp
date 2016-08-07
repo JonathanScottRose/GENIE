@@ -83,6 +83,16 @@ const std::string& HierObject::get_name() const
 	return m_name;
 }
 
+std::string genie::HierObject::make_unique_child_name(const std::string & base)
+{
+    for (unsigned i = 0; ; i++)
+    {
+        std::string result = base + std::to_string(i);
+        if (m_children.count(result) == 0)
+            return result;
+    }
+}
+
 void HierObject::set_parent(HierObject* parent)
 {
 	m_parent = parent;
@@ -205,6 +215,13 @@ HierObject* HierObject::remove_child(const HierPath& path)
 	obj->set_parent(nullptr);
 
 	return obj;
+}
+
+Port* HierObject::locate_port(Dir dir, NetType type)
+{
+	// If this it not overridden, throw error
+	throw HierException(this, "could not find a suitable Port to connect to");
+	return nullptr;
 }
 
 //

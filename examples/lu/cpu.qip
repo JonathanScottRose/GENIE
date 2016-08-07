@@ -1,0 +1,17 @@
+set SRCDIR $::quartus(qip_path)
+
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR lu_new_pkg.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_ram_we_swiz.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_main_ctrl.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_ram_addr_swiz.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_pipe_ctrl.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_pipeline.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_cache.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_net_to_cache.sv] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR cpu_cache_to_net.sv] -library lib_system
+set_global_assignment -name VERILOG_FILE [file join $SRCDIR divsp.v] -library lib_system
+set_global_assignment -name VERILOG_FILE [file join $SRCDIR multsplat11.v] -library lib_system
+set_global_assignment -name VERILOG_FILE [file join $SRCDIR pipe_delay.v] -library lib_system
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $SRCDIR pipe_interlock.sv] -library lib_system
+set_global_assignment -name VERILOG_FILE [file join $SRCDIR subsplat11.v] -library lib_system
+set_global_assignment -name SDC_FILE [file join $SRCDIR cpu.sdc] -library lib_system

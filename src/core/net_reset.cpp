@@ -14,8 +14,8 @@ namespace
 		{
 			m_name = "reset";
 			m_desc = "Reset";
-			m_src_multibind = true;
-			m_sink_multibind = false;
+			m_default_max_in = 1;
+			m_default_max_out = Endpoint::UNLIMITED;
 
 			add_sig_role(ResetPort::ROLE_RESET);
 		}

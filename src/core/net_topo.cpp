@@ -15,15 +15,13 @@ namespace
 		{
 			m_name = "topo";
 			m_desc = "Topology";
-			m_src_multibind = true;
-			m_sink_multibind = true;
+			m_default_max_in = 1;
+			m_default_max_out = 1;
 		}
 
 		Link* create_link() override
 		{
-			auto result = new Link();
-			result->asp_add(new ALinkContainment());
-			return result;
+			return new TopoLink();
 		}
 
 		Port* create_port(Dir dir) override
@@ -43,6 +41,7 @@ const NetType genie::NET_TOPO = Network::reg<NetTopo>();
 TopoPort::TopoPort(Dir dir)
 	: Port(dir, NET_TOPO), m_n_rvd(0)
 {
+    asp_add(new ALinkContainment());
 }
 
 TopoPort::TopoPort(Dir dir, const std::string& name)
@@ -64,9 +63,13 @@ void TopoPort::refine(NetType nettype)
 		return;
 
 	// Make an RVD for each connected TOPO link
-	auto ep = get_endpoint(NET_TOPO, is_export()? LinkFace::INNER : LinkFace::OUTER);
+    m_n_rvd = 0;
+    for (LinkFace face : {LinkFace::INNER, LinkFace::OUTER})
+    {
+        auto ep = get_endpoint(NET_TOPO, face);
+        m_n_rvd = std::max(m_n_rvd, (int)ep->links().size());
+    }
 	
-	m_n_rvd = ep->links().size();
 	for (int i = 0; i < m_n_rvd; i++)
 	{
 		RVDPort* subp = new RVDPort(this->get_dir());
@@ -97,4 +100,16 @@ RVDPort* TopoPort::get_rvd_port(int i) const
 HierObject* TopoPort::instantiate()
 {
 	return new TopoPort(*this);
+}
+
+genie::TopoLink::TopoLink()
+{
+    asp_add(new ALinkContainment());
+}
+
+Link* TopoLink::clone() const
+{
+    auto result = new TopoLink(*this);
+    result->asp_add(new ALinkContainment());
+    return result;
 }

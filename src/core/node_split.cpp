@@ -52,8 +52,13 @@ NodeSplit::NodeSplit()
 	port->add_role_binding(ResetPort::ROLE_RESET, new VlogStaticBinding("reset"));
 
 	// Input port and output port start out as Topo ports
-	add_port(new TopoPort(Dir::IN, INPORT_NAME));
-	add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+	auto inport = add_port(new TopoPort(Dir::IN, INPORT_NAME));
+	auto outport = add_port(new TopoPort(Dir::OUT, OUTPORT_NAME));
+
+    connect(inport, outport);
+
+	// Output may have multiple connections
+	outport->set_max_links(NET_TOPO, Dir::OUT, Endpoint::UNLIMITED);
 }
 
 NodeSplit::~NodeSplit()
@@ -102,6 +107,7 @@ void NodeSplit::refine(NetType target)
 		inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 		inport->add_role_binding(RVDPort::ROLE_DATA, "flowid", new VlogStaticBinding("i_flow"));
 		inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
+        inport->get_bp_status().make_configurable();
 		inport->get_proto().set_carried_protocol(&m_proto);
 
 		for (int i = 0; i < n_out; i++)
@@ -113,9 +119,10 @@ void NodeSplit::refine(NetType target)
 			outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready", 1, i));
 			outport->add_role_binding(RVDPort::ROLE_DATA, "flowid", new VlogStaticBinding("o_flow"));
 			outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+            outport->get_bp_status().make_configurable();
 			outport->get_proto().set_carried_protocol(&m_proto);
 
-			connect(inport, outport, NET_RVD_INTERNAL);
+			connect(inport, outport, NET_RVD);
 		}
 	}
 }
@@ -127,15 +134,24 @@ HierObject* NodeSplit::instantiate()
 
 void NodeSplit::configure()
 {
+    RVDPort* inport = get_rvd_input();	      
+
 	int n_outputs = get_n_outputs();
+	
+    // Route RS Links over internal RVD links created during refinement
+    for (int i = 0; i < n_outputs; i++)
+    {
+        RVDPort* rvd_out = get_rvd_output(i);
 
-	// Get all RS links that travel through the split node's input
-	RVDPort* inport = get_rvd_input();	
-	Link* in_rvd_link = inport->get_endpoint(NET_RVD, LinkFace::OUTER)->get_link0();
-	if (!in_rvd_link)
-		throw HierException(inport, "not connected, can't configure split node");
+        auto rs_links = RSLink::get_from_rvd_port(rvd_out);
+        auto int_link = get_links(inport, rvd_out).front();
 
-	auto in_rs_links = in_rvd_link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+        for (auto rs_link : rs_links)
+            int_link->asp_get<ALinkContainment>()->add_parent_link(rs_link);
+    }
+
+    // Get all RS links that travel through the split node's input
+    auto in_rs_links = RSLink::get_from_rvd_port(inport);
 
 	// For each Flow ID, find out which split node outputs continue to carry it forward.
 	// This map holds which flow IDs go to which outputs. First gather all the unique Flow IDs
@@ -247,4 +263,20 @@ void NodeSplit::do_post_carriage()
 
 	// Fix data width parameter
 	define_param("WO", dwidth);
+}
+
+genie::Port* NodeSplit::locate_port(Dir dir, NetType type)
+{
+	// We accept TOPO connections directed at the node itself. This resolves
+	// to either the input or output TOPO ports depending on dir.
+	if (type != NET_INVALID && type != NET_TOPO)
+		return HierObject::locate_port(dir, type);
+
+	if (dir == Dir::IN) return get_topo_input();
+	else if (dir == Dir::OUT) return get_topo_output();
+	else
+	{
+		assert(false);
+		return nullptr;
+	}
 }

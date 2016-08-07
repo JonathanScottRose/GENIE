@@ -6,6 +6,7 @@
 namespace genie
 {
 	class HierObject;
+	class Port;
 
 	// Represents a hierarchy path. Just a string for now.
 	typedef std::string HierPath;
@@ -71,6 +72,9 @@ namespace genie
 		// Network refinement
 		virtual void refine(NetType target);
 
+		// Connectivity
+		virtual Port* locate_port(Dir dir, NetType type = NET_INVALID);
+
 		// Add a child object
 		virtual void add_child(HierObject*);
 
@@ -131,6 +135,9 @@ namespace genie
 				return obj->asp_has<A>();
 			});
 		}
+
+        // Return a unique child name
+        std::string make_unique_child_name(const std::string& base);
 
 	protected:
 		void set_parent(HierObject*);

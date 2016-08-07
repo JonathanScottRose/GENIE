@@ -12,96 +12,136 @@ namespace genie
 {
 namespace lua
 {
-	typedef std::vector<std::pair<const char*, lua_CFunction>> FuncList;
-	typedef std::function<bool(const Object*)> RTTICheckFunc;
-	typedef std::function<void(void)> RTTIThrowFunc;
-	typedef std::function<bool(const RTTIThrowFunc&)> RTTICatchFunc;
+    namespace priv
+    {
+        // A list of name->luaCFunction pairs
+        using FuncList = std::vector<std::pair<const char*, lua_CFunction>>;
 
-	// Information for an exported C++ class
-	struct ClassRegEntry
-	{
-		const char* name;
-		FuncList methods;
-		FuncList statics;
-		RTTICheckFunc cfunc;
-		RTTIThrowFunc throwfunc;
-		RTTICatchFunc catchfunc;
-	};
+        // A function that checks if a given Object is castable to a certain type
+        using RTTICheckFunc = std::function<bool(Object*)>;
 
-	// Templated version whose constructor sets up the structure for a specific C++ class
-	template<class T>
-	struct ClassRegEntryT : public ClassRegEntry
-	{
-		ClassRegEntryT(const char* _name, const FuncList& _methods, 
-			const FuncList& _statics = FuncList())
-		{
-			name = _name;
-			methods = _methods;
-			statics = _statics;
+        // Vector of typeindex
+        using TindexList = std::vector<std::type_index>;
 
-			// Check func: returns whether o is castable to type T
-			cfunc = [](const Object* o)
-			{
-				return dynamic_cast<const T*>(o) != nullptr;
-			};
+        // priv function declarations
+        Object* to_object(int narg);
+        void create_classreg(const char* name, std::type_index tindex, 
+            const RTTICheckFunc& cfunc, const TindexList& supers, const FuncList& methods, 
+            const FuncList& statics);
+        
+        //
+        // Called by LCLASS macro to register a class
+        //
 
-			// Throw func: throws an object of type T*
-			throwfunc = []()
-			{
-				throw static_cast<T*>(nullptr);
-			};
+        // Variadic base case: registration of class T, with an empty
+        // list Ts... of superclasses
+        template<class T, class... Ts>
+        class ClassReg
+        {
+        public:
+            // Called by macro - forward to constructor that takes a supers list,
+            // with an empty supers list
+            ClassReg(const char* name, const FuncList& methods,
+                const FuncList& statics = {})
+                : ClassReg(name, methods, statics, {})
+            {
+            }
 
-			// Catch func: returns whether the given throwfunc throws an object of type T*
-			catchfunc = [](const RTTIThrowFunc& th)
-			{
-				try	{ th();	}
-				catch(T*) { return true; }
-				catch (...) {}
+        protected:
+            // This does the actual registration
+            ClassReg(const char* name, const FuncList& methods,
+                const FuncList& statics, const TindexList& supers)
+            {
+                // type_index of T, the class-to-be-registered
+                std::type_index this_index = std::type_index(typeid(T));
 
-				return false;
-			};
-		}
-	};
+                // check function: returns true if an object is castable to T*
+                RTTICheckFunc cfunc = [](Object* o)
+                {
+                    return dynamic_cast<T*>(o) != nullptr;
+                };
 
-	// Staticinit registries for classes and globals, respectively
-	typedef StaticInitBase<ClassRegEntry> ClassReg;
-	typedef StaticInitBase<FuncList> GlobalsReg;
+                create_classreg(name, this_index, cfunc, supers, methods, statics);
+            }
+        };
 
-	namespace priv
-	{
-		Object* check_object(int narg);
-	}
+        // Variadic recursive case: registering class T, with a nonempty
+        // list of superclasses S,Ts... where S is the first superclass in said list
+        template<class T, class S, class... Ts>
+        class ClassReg<T, S, Ts...> : ClassReg<T, Ts...>
+        {
+        public:
+            using ThisClass = ClassReg<T, S, Ts...>;
 
-	template<class T>
-	T* is_object(int narg)
-	{
-		Object* obj = priv::check_object(narg);
-		T* result = as_a<T*>(obj);
+            // This is actually called by the macro - forward to other constructor
+            ClassReg(const char* name, const FuncList& methods, 
+                const FuncList& statics = {})
+                : ThisClass(name, methods, statics, {})
+            {
+            }
 
-		return result;
-	}
+        protected:
+            using SuperClass = ClassReg<T, Ts...>;
+
+            // Peel off class S from supers list, convert it into a typeindex, append it
+            // to a vector of typeindices, and forward that vector to a recursive
+            // constructor invocation.
+            ClassReg(const char* name, const FuncList& methods, 
+                const FuncList& statics, TindexList supers)
+                : SuperClass(name, methods, statics, append<S>(supers))
+            {
+            }
+
+        private:
+            // Returns copy of vector 'lst' with new item appended at the end
+            template<class C>
+            TindexList append(const TindexList& lst)
+            {
+                TindexList result(lst);
+                result.push_back(std::type_index(typeid(C)));
+                return result;
+            }
+        };
+
+        // Used for registering globals
+        using GlobalsReg = StaticInitBase<FuncList>;
+    } // end priv namespace
+   
+    // Implementations of public functions
+    template<class T>
+    T* is_object(int narg)
+    {
+        Object* obj = priv::to_object(narg);
+        T* result = as_a<T*>(obj);
+
+        return result;
+    }
     
     template<class T>
-	std::string obj_typename(T* ptr)
-	{
-		if (ptr) return typeid(*ptr).name();
-		else return typeid(T).name();
-	}
+    std::string obj_typename(T* ptr)
+    {
+        if (ptr) return typeid(*ptr).name();
+        else return typeid(T).name();
+    }
 
-	template<class T>
-	T* check_object(int narg)
-	{
-		Object* obj = priv::check_object(narg);
-		T* result = is_object<T>(narg);
-		if (!result)
-		{
-			std::string msg = "can't convert to " + 
-				obj_typename<T>() + " from " +
-				obj_typename(obj);
-			luaL_argerror(get_state(), narg, msg.c_str());
-		}
+    template<class T>
+    T* check_object(int narg)
+    {
+        luaL_checktype(get_state(), narg, LUA_TUSERDATA);
 
-		return result;
-	}
+        Object* obj = priv::to_object(narg);
+        assert(obj);
+
+        T* result = as_a<T*>(obj);
+        if (!result)
+        {
+            std::string msg = "can't convert to " + 
+                obj_typename<T>() + " from " +
+                obj_typename(obj);
+            luaL_argerror(get_state(), narg, msg.c_str());
+        }
+
+        return result;
+    }
 }
 }

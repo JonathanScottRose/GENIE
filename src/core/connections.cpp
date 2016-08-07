@@ -9,8 +9,14 @@ using namespace genie;
 // Endpoint
 //
 
-Endpoint::Endpoint(NetType type, Dir dir)
-: m_dir(dir), m_obj(nullptr), m_type(type)
+Endpoint::Endpoint(NetType type, Dir dir, LinkFace face)
+: m_dir(dir), m_obj(nullptr), m_type(type), m_max_links(0), m_face(face)
+{
+}
+
+Endpoint::Endpoint(const Endpoint& o)
+	: m_dir(o.m_dir), m_obj(nullptr), m_type(o.m_type), m_max_links(o.m_max_links),
+    m_face(o.m_face)
 {
 }
 
@@ -34,14 +40,14 @@ void Endpoint::add_link(Link* link)
 		throw HierException(m_obj, "link is already bound to endpoint");
 
 	// Check connection rules
-	Network* def = get_network();
+	assert(m_max_links != 0);
 
-	if (is_connected())
+	auto n_cur_links = m_links.size();
+	if (m_max_links != UNLIMITED && n_cur_links >= m_max_links)
 	{
-		if (m_dir == Dir::OUT && !def->get_src_multibind())
-			throw HierException(m_obj, "source endpoint does not support multiple bindings");
-		else if (m_dir == Dir::IN && !def->get_sink_multibind())
-			throw HierException(m_obj, "sink endpoint does not support multiple bindings");
+		std::string dir = m_dir == Dir::OUT? "source" : "sink";
+		throw HierException(m_obj, dir + " endpoint already has " + std::to_string(n_cur_links)
+			+ " connections");
 	}
 
 	m_links.push_back(link);
@@ -220,22 +226,15 @@ NetType Link::get_type() const
 	return ep->get_type();
 }
 
-void Link::copy_containment(const Link& other)
+bool Link::is_internal() const
 {
-	auto ac = other.asp_get<ALinkContainment>();
-	if (!ac)
-		return;
-
-	auto new_ac = new ALinkContainment(*ac);
-	asp_add(new_ac);
+    return get_src_ep()->get_face() == LinkFace::INNER &&
+        get_sink_ep()->get_face() == LinkFace::INNER;
 }
 
 Link* Link::clone() const
 {
-	// Default clone function for generic Links
-	auto result = new Link();
-	result->copy_containment(*this);
-	return result;
+    return new Link(*this);
 }
 
 //
@@ -248,6 +247,14 @@ ALinkContainment::ALinkContainment()
 
 ALinkContainment::~ALinkContainment()
 {
+}
+
+void genie::ALinkContainment::add_links(const Links& others, PorC porc)
+{
+    for (auto& other : others)
+    {
+        add_link(other, porc);
+    }
 }
 
 void ALinkContainment::add_link(Link* other, PorC porc)

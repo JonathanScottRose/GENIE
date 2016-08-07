@@ -4,6 +4,9 @@
     <Filter Include="Public">
       <UniqueIdentifier>{0217f364-c611-4575-92d5-ff0e68a30902}</UniqueIdentifier>
     </Filter>
+    <Filter Include="lp_solve">
+      <UniqueIdentifier>{b5574eb4-b2aa-4c99-96d6-be9280583ef8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\core\expressions_nodes.h" />
@@ -94,6 +97,84 @@
     <ClInclude Include="..\..\include\genie\node_reg.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\colamd.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\commonlib.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\ini.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_bit.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_crash.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_Hash.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_lib.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_LUSOL.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_matrix.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_MDO.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_mipbb.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_MPS.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_presolve.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_report.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_scale.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_simplex.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_SOS.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_utils.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_wlp.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\mmio.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\myblas.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lusol.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_types.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\core\lp_solve\lp_BFP.h">
+      <Filter>lp_solve</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\flow_utils.h">
+      <Filter>Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\genie\node_mdelay.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />
@@ -124,5 +205,80 @@
     <ClCompile Include="..\..\src\core\net_rs.cpp" />
     <ClCompile Include="..\..\src\core\node_flowconv.cpp" />
     <ClCompile Include="..\..\src\core\node_reg.cpp" />
+    <ClCompile Include="..\..\src\core\dijkstra.cpp" />
+    <ClCompile Include="..\..\src\core\lp_solve\colamd.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\commonlib.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\ini.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_crash.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_Hash.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_lib.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_LUSOL.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_matrix.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_MDO.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_mipbb.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_MPS.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_params.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_presolve.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_price.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_pricePSE.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_report.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_scale.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_simplex.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_SOS.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_utils.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lp_wlp.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\lusol.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\mmio.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\lp_solve\myblas.c">
+      <Filter>lp_solve</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\core\flow_utils.cpp" />
+    <ClCompile Include="..\..\src\core\node_mdelay.cpp" />
   </ItemGroup>
 </Project>

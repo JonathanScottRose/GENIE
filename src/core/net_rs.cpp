@@ -17,8 +17,8 @@ namespace
 		{
 			m_name = "rs";
 			m_desc = "Routed Streaming";
-			m_src_multibind = true;
-			m_sink_multibind = true;
+			m_default_max_in =  Endpoint::UNLIMITED;
+			m_default_max_out = Endpoint::UNLIMITED;
 
 			add_sig_role(RSPort::ROLE_READY);
 			add_sig_role(RSPort::ROLE_VALID);
@@ -31,9 +31,7 @@ namespace
 
 		Link* create_link() override
 		{
-			auto result = new RSLink();
-			result->asp_add(new ALinkContainment());
-			return result;
+            return new RSLink();
 		}
 
 		Port* create_port(Dir dir) override
@@ -149,6 +147,9 @@ void RSPort::refine_rvd()
 	// Configure the RVD Port Protocol
 	auto& proto = rvd_port->get_proto();
 
+    // Set to true if we have a Ready signal
+    bool uses_backpressure = false;
+
 	// Set up role bindings on RVD port, by copying ours
 	for (auto& rs_rb : get_role_bindings())
 	{
@@ -167,6 +168,7 @@ void RSPort::refine_rvd()
 		else if (rs_role == RSPort::ROLE_READY)
 		{
 			rvd_port->add_role_binding(RVDPort::ROLE_READY, rvd_hdlb);
+            uses_backpressure = true;
 		}
 		else
 		{
@@ -205,10 +207,31 @@ void RSPort::refine_rvd()
 		}
 	}
 
+    // Set up backpressure.
+    // Configurable=false meaning this is a hard constraint and not negotiable.
+    auto& bp_status = rvd_port->get_bp_status();
+    bp_status.configurable = false;
+    bp_status.status = uses_backpressure? 
+        RVDBackpressure::ENABLED : RVDBackpressure::DISABLED;
+
 	// Copy associated clock port
 	const std::string& clkportname = this->get_clock_port_name();
 	if (clkportname.empty())
 		throw HierException(this, "missing associated clock port");
+
+    // Do some validation
+    {
+        bool has_clkport = this->get_parent()->has_child(clkportname);
+        if (!has_clkport)
+        {
+            throw HierException(this, "associated clock port '" + clkportname +
+                "' does not exist");
+        }
+
+        auto clkport = this->get_parent()->get_child(clkportname);
+        if (!clkport || !is_a<ClockPort*>(clkport))
+            throw HierException(this, clkportname + " is not a valid associated clock port");
+    }
 
 	rvd_port->set_clock_port_name(clkportname);
 }
@@ -352,12 +375,13 @@ RSLinkpoint::Type RSLinkpoint::type_from_str(const char* str)
 RSLink::RSLink()
 	: m_domain_id(-1)
 {
+    asp_add(new ALinkContainment());
 }
 
 Link* RSLink::clone() const
 {
 	auto result = new RSLink(*this);
-	result->copy_containment(*this);
+    result->asp_add(new ALinkContainment());
 	return result;
 }
 
@@ -413,6 +437,11 @@ void ARSExclusionGroup::add(const List<RSLink*>& list)
 
 		m_set.push_back(link);
 	}
+}
+
+bool ARSExclusionGroup::has(const RSLink* test) const
+{
+	return util::exists(m_set, test);		
 }
 
 void ARSExclusionGroup::process_and_create(const List<RSLink*>& links)

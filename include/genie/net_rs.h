@@ -27,10 +27,12 @@ namespace genie
 
 		PROP_GET_SETR(flow_id, Value&, m_flow_id);
 		PROP_GET_SET(domain_id, int, m_domain_id);
+        PROP_GET_SET(latency, int, m_latency);
 
 		Link* clone() const override;
 
 	protected:
+        int m_latency = 0; // for internal links
 		int m_domain_id;
 		Value m_flow_id;
 	};
@@ -44,6 +46,9 @@ namespace genie
 
 		// Union-adds new members (this/owning link filtered out)
 		void add(const List<RSLink*>&);
+
+		// Test membership
+		bool has(const RSLink*) const;
 
 		// Given a list of RSLinks, adds an ARSExclusionGroup to each one
 		// and adds everyone to each member's set
@@ -130,4 +135,36 @@ namespace genie
 		Type m_type;
 		Value m_encoding;
 	};
+
+    using RSPath = List<RSLink*>;
+
+    struct RSLatencyConstraint
+    {
+        enum TermSign
+        {
+            PLUS,
+            MINUS
+        };
+
+        enum CompareOp
+        {
+            LT,
+            LEQ,
+            EQ,
+            GEQ,
+            GT
+        };
+
+        using PathTerm = std::pair<TermSign, RSPath>;
+
+        List<PathTerm> path_terms;
+        CompareOp op;
+        int rhs;
+    };
+
+    class ARSLatencyConstraints : public Aspect
+    {
+    public:
+        List<RSLatencyConstraint> constraints;
+    };
 }

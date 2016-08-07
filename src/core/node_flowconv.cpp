@@ -50,22 +50,24 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 	auto inport = new RVDPort(Dir::IN, INPORT_NAME);
 	inport->set_clock_port_name(CLOCKPORT_NAME);
 	inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
-	inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
+    inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
 	inport->add_role_binding(RVDPort::ROLE_DATA, intag, new VlogStaticBinding("i_field"));
 	inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
+    inport->get_bp_status().make_configurable();
 	inport->get_proto().set_carried_protocol(&m_proto);
 	add_port(inport);
 
 	auto outport = new RVDPort(Dir::OUT, OUTPORT_NAME);
 	outport->set_clock_port_name(CLOCKPORT_NAME);
 	outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
-	outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
+    outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
 	outport->add_role_binding(RVDPort::ROLE_DATA, outtag, new VlogStaticBinding("o_field"));
 	outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+    outport->get_bp_status().make_configurable();
 	outport->get_proto().set_carried_protocol(&m_proto);
 	add_port(outport);
 
-	connect(inport, outport, NET_RVD_INTERNAL);
+	connect(inport, outport, NET_RVD);
 }
 
 void NodeFlowConv::configure()
@@ -198,3 +200,4 @@ void NodeFlowConv::do_post_carriage()
 {
 	define_param("WD", m_proto.get_total_width());
 }
+

@@ -92,12 +92,24 @@ void Port::set_connectable(NetType type, Dir dir)
 	if (is_connectable(type))
 		throw HierException(this, "already connectable for nettype " + ndef->get_name());
 
-	Endpoint* outer = new Endpoint(type, dir);
-	Endpoint* inner = new Endpoint(type, dir_rev(dir));
+	Endpoint* outer = new Endpoint(type, dir, LinkFace::OUTER);
+	Endpoint* inner = new Endpoint(type, dir_rev(dir), LinkFace::INNER);
 
 	outer->set_obj(this);
 	inner->set_obj(this);
 
+	// Set default # of connection limits
+	int max_sink = ndef->get_default_max_in();
+	int max_src = ndef->get_default_max_out();
+	Endpoint* sink = outer;
+	Endpoint* src = inner;
+	if (dir == Dir::OUT)
+		std::swap(sink, src);
+
+	src->set_max_links(max_src);
+	sink->set_max_links(max_sink);
+	
+	// Put it in
 	EndpointsEntry entry;
 	set_ep_by_face(entry, LinkFace::OUTER, outer);
 	set_ep_by_face(entry, LinkFace::INNER, inner);
@@ -274,13 +286,40 @@ Port::Port(const Port& o)
 	// Copy connectivity
 	for (const auto& i : o.m_endpoints)
 	{
-		NetType type = i.first;
-		set_connectable(type, m_dir);
+		auto new_inner = new Endpoint(*i.second.first);
+		auto new_outer = new Endpoint(*i.second.second);
+
+		new_inner->set_obj(this);
+		new_outer->set_obj(this);
+
+		auto type = i.first;
+		m_endpoints.emplace(std::make_pair(type, EndpointsEntry(new_inner, new_outer)));
 	}
 
 	// Copy the role bindings
 	for (auto& b : o.m_role_bindings)
 		add_role_binding(new RoleBinding(*b));
+}
+
+void Port::set_max_links(NetType type, Dir dir, int max_links)
+{
+	// Get endpoint
+	if (!is_connectable(type))
+		throw HierException(this, " not connectable on type " + Network::to_string(type));
+
+	auto& entry = m_endpoints[type];
+	Endpoint* ep = entry.first->get_dir() == dir ? entry.first : entry.second;
+	assert(ep->get_dir() == dir);
+
+	ep->set_max_links(max_links);
+}
+
+Port* Port::locate_port(Dir dir, NetType type)
+{
+	if (type == NET_INVALID || is_connectable(type))
+		return this;
+	else
+		return HierObject::locate_port(dir, type);
 }
 
 //
@@ -307,6 +346,44 @@ Node::Node(const Node& o)
 	{
 		add_child(p->instantiate());
 	}  
+
+    // Copy internal links (between top ports only)
+    auto links = o.get_links();
+    for (auto& link : links)
+    {
+        Port* src = link->get_src();
+        Port* sink = link->get_sink();
+
+        // Ignore internal structure
+        if (src->get_node() != &o || sink->get_node() != &o)
+            continue;
+
+        Port* newsrc;
+        Port* newsink;
+
+        // It's okay for the ports to not exist in the copy.
+        try
+        {
+            newsrc = this->get_port(src->get_name());
+            newsink = this->get_port(sink->get_name());
+        } 
+        catch (HierNotFoundException&)
+        {
+            continue;
+        }
+
+        auto newlink = link->clone();
+        auto newsrc_ep = newsrc->get_endpoint(link->get_type(), LinkFace::INNER);
+        auto newsink_ep = newsink->get_endpoint(link->get_type(), LinkFace::INNER);
+        
+        newsrc_ep->add_link(newlink);
+        newsink_ep->add_link(newlink);
+
+        newlink->set_src(newsrc_ep);
+        newlink->set_sink(newsink_ep);
+
+        m_links[link->get_type()].push_back(newlink);
+    }
 }
 
 Node::~Node()
@@ -447,7 +524,7 @@ Node::Links Node::get_links(NetType type) const
 	return (it == m_links.end())? Links() : it->second;
 }
 
-Node::Links Node::get_links(Port* src, Port* sink, NetType nettype) const
+Node::Links Node::get_links(HierObject* src, HierObject* sink, NetType nettype) const
 {
 	Links result;
 	Endpoint* src_ep;
@@ -468,7 +545,7 @@ Node::Links Node::get_links(Port* src, Port* sink, NetType nettype) const
 	return result;
 }
 
-Node::Links Node::get_links(Port* src, Port* sink) const
+Node::Links Node::get_links(HierObject* src, HierObject* sink) const
 {
 	NetType nettype = find_auto_net_type(src, sink);
 	if (nettype == NET_INVALID)
@@ -477,15 +554,19 @@ Node::Links Node::get_links(Port* src, Port* sink) const
 	return get_links(src, sink, nettype);
 }
 
-void Node::get_eps(Port*& src, Port*& sink, NetType nettype,
+void Node::get_eps(HierObject*& src, HierObject*& sink, NetType nettype,
 	Endpoint*& src_ep, Endpoint*& sink_ep) const
 {
+	// Find the ports to connect.
+	Port* src_port = src->locate_port(Dir::OUT, nettype);
+	Port* sink_port = sink->locate_port(Dir::IN, nettype);
+
 	// Find out where each Port lies within this Node:
 	// 1) Port is at the boundary of this Node: use inward-facing endpoint to connect
 	// 2) Port is at the boundary of a Node whose parent is this Node: use outward-facing endpoint
 	// 3) Anything else: error
 	LinkFace src_face, sink_face;
-	for (auto& i : { std::make_pair(&src_face, src), std::make_pair(&sink_face, sink) })
+	for (auto& i : { std::make_pair(&src_face, src_port), std::make_pair(&sink_face, sink_port) })
 	{
 		LinkFace* pface = i.first;
 		Port* port = i.second;
@@ -506,15 +587,15 @@ void Node::get_eps(Port*& src, Port*& sink, NetType nettype,
 	}
 
 	// Get the respective endpoints
-	src_ep = src->get_endpoint(nettype, src_face);
-	sink_ep = sink->get_endpoint(nettype, sink_face);
+	src_ep = src_port->get_endpoint(nettype, src_face);
+	sink_ep = sink_port->get_endpoint(nettype, sink_face);
 
 	// Validate that both src/sink eps exist are connectable with the given nettype
 	if (!src_ep || !sink_ep)
 	{
 		std::string netname = Network::to_string(nettype);
 		std::string who_role = !src_ep ? " source" : " sink";
-		HierObject* who_obj = !src_ep ? src : sink;
+		HierObject* who_obj = !src_ep ? src_port : sink_port;
 		throw HierException(who_obj, "not a " + netname + who_role);
 	}
 
@@ -526,13 +607,22 @@ void Node::get_eps(Port*& src, Port*& sink, NetType nettype,
 	}
 }
 
-Link* Node::connect(Port* src, Port* sink, NetType net)
+Link* Node::connect(HierObject* src, HierObject* sink, NetType net)
 {
 	Network* def = Network::get(net);
 	Endpoint* src_ep;
 	Endpoint* sink_ep;
 
 	get_eps(src, sink, net, src_ep, sink_ep);
+
+    // Check if a link already exists, and return it if so
+    for (auto existing_link : src_ep->links())
+    {
+        if (existing_link->get_sink_ep() == sink_ep)
+        {
+            return existing_link;
+        }
+    }
 
 	// Create link and set its src/sink
 	Link* link = def->create_link();
@@ -549,11 +639,11 @@ Link* Node::connect(Port* src, Port* sink, NetType net)
 	return link;
 }
 
-NetType Node::find_auto_net_type(Port* src, Port* sink) const
+NetType Node::find_auto_net_type(HierObject* src, HierObject* sink) const
 {
 	// Use the Port's nominal net type, and make sure both ports have it
-	NetType result = src->get_type();
-	if (sink->get_type() != result)
+	NetType result = src->locate_port(Dir::OUT)->get_type();
+	if (sink->locate_port(Dir::IN)->get_type() != result)
 		result = NET_INVALID;
 
 	return result;
@@ -578,7 +668,7 @@ NetType Node::find_auto_net_type(Port* src, Port* sink) const
 	*/
 }
 
-Link* Node::connect(Port* src, Port* sink)
+Link* Node::connect(HierObject* src, HierObject* sink)
 {
 	NetType nettype = find_auto_net_type(src, sink);
 
@@ -588,7 +678,7 @@ Link* Node::connect(Port* src, Port* sink)
 	return connect(src, sink, nettype);
 }
 
-void Node::disconnect(Port* src, Port* sink, NetType nettype)
+void Node::disconnect(HierObject* src, HierObject* sink, NetType nettype)
 {
 	Endpoint* src_ep;
 	Endpoint* sink_ep;
@@ -617,6 +707,14 @@ void Node::disconnect(Link* link)
 	src_ep->remove_link(link);
 	sink_ep->remove_link(link);
 
+    // Tell any parent links we're not existing anymore
+    auto cont = link->asp_get<ALinkContainment>();
+    auto parents = cont->get_parent_links();
+    for (auto parent : parents)
+    {
+        cont->remove_parent_link(parent);
+    }
+
 	// Remove the link from the System and destroy it
 	util::erase(m_links[nettype], link);
 	delete link;
@@ -626,7 +724,7 @@ void Node::disconnect(Link* link)
 		m_links.erase(nettype);
 }
 
-void Node::disconnect(Port* src, Port* sink)
+void Node::disconnect(HierObject* src, HierObject* sink)
 {
 	NetType nettype = find_auto_net_type(src, sink);
 
@@ -636,7 +734,7 @@ void Node::disconnect(Port* src, Port* sink)
 	disconnect(src, sink, nettype);
 }
 
-Link* Node::splice(Link* orig, Port* new_sink, Port* new_src)
+Link* Node::splice(Link* orig, HierObject* new_sink, HierObject* new_src)
 {
 	//
 	// orig_src --> orig --> orig_sink
@@ -647,9 +745,10 @@ Link* Node::splice(Link* orig, Port* new_sink, Port* new_src)
 	//
 
 	// Check containment: we cannot splice if this link has child links
-	ALinkContainment* acont = orig->asp_get<ALinkContainment>();
-	if (acont && acont->has_child_links())
-		throw Exception("can not splice link: has child links");
+    // edit: nevermind. let the caller deal with it manually if they want
+	ALinkContainment* acont_orig = orig->asp_get<ALinkContainment>();
+	//if (acont_orig && acont_orig->has_child_links())
+		//throw Exception("can not splice link: has child links");
 
 	Endpoint* orig_src_ep = orig->get_src_ep();
 	Endpoint* orig_sink_ep = orig->get_sink_ep();
@@ -673,6 +772,16 @@ Link* Node::splice(Link* orig, Port* new_sink, Port* new_src)
 	
 	// Add link to the system
 	m_links[net].push_back(new_link);
+
+    // Transfer containment relationships. Just immediate parents.
+    ALinkContainment* acont_new = new_link->asp_get<ALinkContainment>();
+    if (acont_orig && acont_new)
+    {
+        for (auto parent : acont_orig->get_parent_links())
+        {
+            acont_new->add_parent_link(parent);
+        }
+    }
 
 	return new_link;
 }

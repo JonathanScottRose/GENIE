@@ -14,8 +14,8 @@ namespace
 		{
 			m_name = "conduit";
 			m_desc = "Point-to-Point Conduit";
-			m_src_multibind = false;
-			m_sink_multibind = false;
+			m_default_max_in = 1;
+			m_default_max_out = Endpoint::UNLIMITED;
 
 			add_sig_role(ConduitPort::ROLE_FWD);
 			add_sig_role(ConduitPort::ROLE_REV);
@@ -63,25 +63,3 @@ HierObject* ConduitPort::instantiate()
 	return new ConduitPort(*this);
 }
 
-RoleBinding* ConduitPort::get_matching_role_binding(RoleBinding* other)
-{
-	// With ConduitPorts, the following connectivity is possible:
-	// FWD->FWD
-	// REV->REV
-	// INOUT->INOUT
-	// IN->OUT
-	// OUT->IN
-
-	SigRoleID matching_id;
-	SigRoleID other_id = other->get_id();
-	const std::string& tag = other->get_tag();
-
-	if (other_id == ConduitPort::ROLE_FWD) matching_id = ConduitPort::ROLE_FWD;
-	else if (other_id == ConduitPort::ROLE_REV) matching_id = ConduitPort::ROLE_REV;
-	else if (other_id == ConduitPort::ROLE_IN) matching_id = ConduitPort::ROLE_OUT;
-	else if (other_id == ConduitPort::ROLE_OUT) matching_id = ConduitPort::ROLE_IN;
-	else if (other_id == ConduitPort::ROLE_INOUT) matching_id = ConduitPort::ROLE_INOUT;
-	else assert(false);
-
-	return get_role_binding(matching_id, tag);
-}

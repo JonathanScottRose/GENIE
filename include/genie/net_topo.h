@@ -25,4 +25,17 @@ namespace genie
 	protected:
 		int m_n_rvd;
 	};
+
+    class TopoLink : public Link
+    {
+    public:
+        TopoLink();
+
+        PROP_GET_SET(latency, int, m_latency);
+
+        Link* clone() const override;
+
+    protected:
+        int m_latency = 0;
+    };
 }

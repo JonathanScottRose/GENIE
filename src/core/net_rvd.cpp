@@ -15,8 +15,8 @@ namespace
 		{
 			m_name = "rvd";
 			m_desc = "Point-to-Point Ready/Valid/Data";
-			m_src_multibind = false;
-			m_sink_multibind = false;
+			m_default_max_in = 1;
+			m_default_max_out = 1;
 
 			add_sig_role(RVDPort::ROLE_READY);
 			add_sig_role(RVDPort::ROLE_VALID);
@@ -26,9 +26,7 @@ namespace
 
 		Link* create_link() override
 		{
-			auto result = new Link();
-			result->asp_add(new ALinkContainment());
-			return result;
+            return new RVDLink();
 		}
 
 		Port* create_port(Dir dir) override
@@ -36,34 +34,10 @@ namespace
 			return new RVDPort(dir);
 		}
 	};
-
-	class NetRVDInternal : public Network
-	{
-	public:
-		NetRVDInternal(NetType id)
-			: Network(id)
-		{
-			m_name = "rvd_internal";
-			m_desc = "Represents RVD connectivity internal to Nodes";
-			m_src_multibind = true;
-			m_sink_multibind = true;
-		}
-
-		Port* create_port(Dir dir) override
-		{
-			throw Exception("don't do that.");
-		}
-
-		Link* create_link() override
-		{
-			return new RVDInternalLink();
-		}
-	};
 }
 
 // Register the network type
 const NetType genie::NET_RVD = Network::reg<NetRVD>();
-const NetType genie::NET_RVD_INTERNAL = Network::reg<NetRVDInternal>();
 const SigRoleID genie::RVDPort::ROLE_DATA = SigRole::reg("data", SigRole::FWD, true);
 const SigRoleID genie::RVDPort::ROLE_DATA_CARRIER = SigRole::reg("xdata", SigRole::FWD, false);
 const SigRoleID genie::RVDPort::ROLE_VALID = SigRole::reg("valid", SigRole::FWD, false);
@@ -76,7 +50,9 @@ const SigRoleID genie::RVDPort::ROLE_READY = SigRole::reg("ready", SigRole::REV,
 RVDPort::RVDPort(Dir dir)
 : Port(dir, NET_RVD)
 {
-	set_connectable(NET_RVD_INTERNAL, dir);
+    // Allow unlimited _internal_ fanin/fanout
+    set_max_links(NET_RVD, dir_rev(dir), Endpoint::UNLIMITED);
+    asp_add(new ALinkContainment());
 }
 
 RVDPort::RVDPort(Dir dir, const std::string& name)
@@ -112,3 +88,23 @@ ClockPort* RVDPort::get_clock_port() const
 	return result;
 }
 
+RVDLink::RVDLink()
+{
+    asp_add(new ALinkContainment());
+}
+
+Link* RVDLink::clone() const
+{
+    auto result = new RVDLink(*this);
+    result->asp_add(new ALinkContainment());
+    return result;
+}
+
+int RVDLink::get_width() const
+{
+    // Get endpoints
+    auto src = (RVDPort*)get_src();
+    auto sink = (RVDPort*)get_sink();
+
+    return PortProtocol::calc_transmitted_width(src->get_proto(), sink->get_proto());
+}
