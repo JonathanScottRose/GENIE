@@ -9,7 +9,7 @@
   </PropertyGroup>
   <Import Project="..\common.props" />
   <PropertyGroup Label="Configuration">
-    <TargetName>genie_lua$(LibSuffix)</TargetName>
+    <TargetName>genie_lua$(DebugSuffix)</TargetName>
   </PropertyGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\genie\lua\genie_lua.h" />
@@ -76,7 +76,7 @@
   </ItemGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)../include;$(SolutionDir)../include/genie/lua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(IncludeDir);$(IncludeDir)/genie/lua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
   </ItemDefinitionGroup>

@@ -9,11 +9,11 @@
   </PropertyGroup>
   <Import Project="..\common.props" />
   <PropertyGroup Label="Configuration">
-    <TargetName>genie_core$(LibSuffix)</TargetName>
+    <TargetName>genie_core$(DebugSuffix)</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)../include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(IncludeDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
     </ClCompile>
   </ItemDefinitionGroup>
