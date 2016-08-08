@@ -3,41 +3,37 @@
 
 using namespace genie;
 
-namespace
+NetType genie::NET_CONDUIT = NET_INVALID;
+SigRoleID genie::ConduitPort::ROLE_FWD = ROLE_INVALID;
+SigRoleID genie::ConduitPort::ROLE_REV = ROLE_INVALID;
+SigRoleID genie::ConduitPort::ROLE_IN = ROLE_INVALID;
+SigRoleID genie::ConduitPort::ROLE_OUT = ROLE_INVALID;
+SigRoleID genie::ConduitPort::ROLE_INOUT = ROLE_INVALID;
+
+void NetConduit::init()
 {
-	// Define network
-	class NetConduit : public Network
-	{
-	public:
-		NetConduit(NetType id)
-			: Network(id)
-		{
-			m_name = "conduit";
-			m_desc = "Point-to-Point Conduit";
-			m_default_max_in = 1;
-			m_default_max_out = Endpoint::UNLIMITED;
-
-			add_sig_role(ConduitPort::ROLE_FWD);
-			add_sig_role(ConduitPort::ROLE_REV);
-			add_sig_role(ConduitPort::ROLE_OUT);
-			add_sig_role(ConduitPort::ROLE_IN);
-			add_sig_role(ConduitPort::ROLE_INOUT);
-		}
-
-		Port* create_port(Dir dir) override
-		{
-			return new ConduitPort(dir);
-		}
-	};
+    // Register the network type
+    NET_CONDUIT = Network::reg<NetConduit>();
 }
 
-// Register the network type
-const NetType genie::NET_CONDUIT = Network::reg<NetConduit>();
-const SigRoleID genie::ConduitPort::ROLE_FWD = SigRole::reg("fwd", SigRole::FWD, true);
-const SigRoleID genie::ConduitPort::ROLE_REV = SigRole::reg("rev", SigRole::REV, true);
-const SigRoleID genie::ConduitPort::ROLE_OUT = SigRole::reg("out", SigRole::OUT, true);
-const SigRoleID genie::ConduitPort::ROLE_IN = SigRole::reg("in", SigRole::IN, true);
-const SigRoleID genie::ConduitPort::ROLE_INOUT = SigRole::reg("inout", SigRole::INOUT, true);
+NetConduit::NetConduit()
+{
+    m_name = "conduit";
+    m_desc = "Point-to-Point Conduit";
+    m_default_max_in = 1;
+    m_default_max_out = Endpoint::UNLIMITED;
+
+    add_sig_role(ConduitPort::ROLE_FWD = SigRole::reg("fwd", SigRole::FWD, true));
+    add_sig_role(ConduitPort::ROLE_REV = SigRole::reg("rev", SigRole::REV, true));
+    add_sig_role(ConduitPort::ROLE_OUT = SigRole::reg("out", SigRole::OUT, true));
+    add_sig_role(ConduitPort::ROLE_IN = SigRole::reg("in", SigRole::IN, true));
+    add_sig_role(ConduitPort::ROLE_INOUT = SigRole::reg("inout", SigRole::INOUT, true));
+}
+
+Port* NetConduit::create_port(Dir dir) 		
+{
+    return new ConduitPort(dir);
+}
 
 //
 // ConduitPort

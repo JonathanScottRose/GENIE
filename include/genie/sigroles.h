@@ -16,6 +16,8 @@ namespace genie
 	class SigRole
 	{
 	public:
+        static void init();
+
 		enum Sense
 		{
 			// Go with Port direction
@@ -38,8 +40,6 @@ namespace genie
 		static Sense rev_sense(Sense);
 
 	protected:
-		static List<SigRole>& get_all_roles();
-
 		SigRole(SigRoleID, const std::string&, Sense, bool);
 
 		std::string m_name;

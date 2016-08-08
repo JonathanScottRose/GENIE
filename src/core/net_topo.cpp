@@ -4,35 +4,30 @@
 
 using namespace genie;
 
-namespace
+NetType genie::NET_TOPO = NET_INVALID;
+
+void NetTopo::init()
 {
-	// Define network
-	class NetTopo : public Network
-	{
-	public:
-		NetTopo(NetType id)
-			: Network(id)
-		{
-			m_name = "topo";
-			m_desc = "Topology";
-			m_default_max_in = 1;
-			m_default_max_out = 1;
-		}
-
-		Link* create_link() override
-		{
-			return new TopoLink();
-		}
-
-		Port* create_port(Dir dir) override
-		{
-			return new TopoPort(dir);
-		}
-	};
+    NET_TOPO = Network::reg<NetTopo>();
 }
 
-// Register the network type
-const NetType genie::NET_TOPO = Network::reg<NetTopo>();
+NetTopo::NetTopo()
+{
+	m_name = "topo";
+	m_desc = "Topology";
+	m_default_max_in = 1;
+	m_default_max_out = 1;
+}
+
+Link* NetTopo::create_link()
+{
+	return new TopoLink();
+}
+
+Port* NetTopo::create_port(Dir dir)
+{
+	return new TopoPort(dir);
+}
 
 //
 // TopoPort

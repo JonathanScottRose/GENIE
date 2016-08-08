@@ -4,44 +4,40 @@
 
 using namespace genie;
 
-namespace
+NetType genie::NET_RVD = NET_INVALID;
+SigRoleID genie::RVDPort::ROLE_VALID = ROLE_INVALID;
+SigRoleID genie::RVDPort::ROLE_READY = ROLE_INVALID;
+SigRoleID genie::RVDPort::ROLE_DATA = ROLE_INVALID;
+SigRoleID genie::RVDPort::ROLE_DATA_CARRIER = ROLE_INVALID;
+
+void NetRVD::init()
 {
-	// Define network
-	class NetRVD : public Network
-	{
-	public:
-		NetRVD(NetType id)
-			: Network(id)
-		{
-			m_name = "rvd";
-			m_desc = "Point-to-Point Ready/Valid/Data";
-			m_default_max_in = 1;
-			m_default_max_out = 1;
-
-			add_sig_role(RVDPort::ROLE_READY);
-			add_sig_role(RVDPort::ROLE_VALID);
-			add_sig_role(RVDPort::ROLE_DATA);
-			add_sig_role(RVDPort::ROLE_DATA_CARRIER);
-		}
-
-		Link* create_link() override
-		{
-            return new RVDLink();
-		}
-
-		Port* create_port(Dir dir) override
-		{
-			return new RVDPort(dir);
-		}
-	};
+    NET_RVD = Network::reg<NetRVD>();
 }
 
-// Register the network type
-const NetType genie::NET_RVD = Network::reg<NetRVD>();
-const SigRoleID genie::RVDPort::ROLE_DATA = SigRole::reg("data", SigRole::FWD, true);
-const SigRoleID genie::RVDPort::ROLE_DATA_CARRIER = SigRole::reg("xdata", SigRole::FWD, false);
-const SigRoleID genie::RVDPort::ROLE_VALID = SigRole::reg("valid", SigRole::FWD, false);
-const SigRoleID genie::RVDPort::ROLE_READY = SigRole::reg("ready", SigRole::REV, false);
+NetRVD::NetRVD()
+{
+	m_name = "rvd";
+	m_desc = "Point-to-Point Ready/Valid/Data";
+	m_default_max_in = 1;
+	m_default_max_out = 1;
+
+    add_sig_role(RVDPort::ROLE_DATA = SigRole::reg("data", SigRole::FWD, true));
+    add_sig_role( RVDPort::ROLE_DATA_CARRIER = SigRole::reg("xdata", SigRole::FWD, false));
+    add_sig_role(RVDPort::ROLE_VALID = SigRole::reg("valid", SigRole::FWD, false));
+    add_sig_role(RVDPort::ROLE_READY = SigRole::reg("ready", SigRole::REV, false));
+}
+
+Link* NetRVD::create_link()
+{
+    return new RVDLink();
+}
+
+Port* NetRVD::create_port(Dir dir)
+{
+	return new RVDPort(dir);
+}
+
 
 //
 // RVDPort

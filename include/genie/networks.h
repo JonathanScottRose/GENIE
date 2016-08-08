@@ -45,21 +45,13 @@ namespace genie
 	class Network : public Object
 	{
 	public:
-		// Call this in a static initializer to register a network type
-		template<class NET_DEF>
-		static NetType reg()
-		{
-			NetType id = alloc_def_internal();
-			NetTypeRegistry::entries().emplace_front([=]()
-			{ 
-				return new NET_DEF(id);
-			});
-
-			return id;
-		}
-
 		// Called by genie::init() to do business
 		static void init();
+        // Call to register a new network type
+        template<class T> static NetType reg()
+        {
+            return reg_internal(new T());
+        }
 
 		// Call to retrieve information about a network type
 		static Network* get(NetType id);
@@ -67,9 +59,8 @@ namespace genie
 		static NetType type_from_str(const std::string& name);
 		static const std::string& to_string(NetType);
 
-		// Create a new definition with the given id
-		Network(NetType id);
-		virtual ~Network();
+		// Virtual destructor
+		virtual ~Network() = default;
 
 		// Read-only properties
 		PROP_GET(id, NetType, m_id);
@@ -106,11 +97,9 @@ namespace genie
 		// Register an allowable signal role for ports of this network type
 		void add_sig_role(SigRoleID);
 
-		// Network type registration
-		typedef StaticRegistry<Network> NetTypeRegistry;
-		static NetType alloc_def_internal();
-
 	private:
+        static NetType reg_internal(Network* n);
+
 		// Made private so that derived classes can't accidentally modify it.
 		// It's set correctly in the constructor, presumably by the static registration mechanism
 		// via add().

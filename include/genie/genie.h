@@ -3,7 +3,6 @@
 #include "genie/hierarchy.h"
 #include "genie/structure.h"
 #include "genie/networks.h"
-#include "genie/static_init.h"
 
 namespace genie
 {

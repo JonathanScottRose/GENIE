@@ -6,7 +6,16 @@
 
 namespace genie
 {
-	extern const NetType NET_TOPO;
+	extern NetType NET_TOPO;
+
+    class NetTopo : public Network
+    {
+    public:
+        static void init();
+        NetTopo();
+        Link* create_link() override;
+        Port* create_port(Dir dir) override;
+    };
 
 	class TopoPort : public Port
 	{

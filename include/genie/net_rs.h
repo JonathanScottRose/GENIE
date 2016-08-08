@@ -14,7 +14,17 @@ namespace genie
 	class TopoPort;
 	class RVDPort;
 
-	extern const NetType NET_RS;
+	extern NetType NET_RS;
+
+    class NetRS : public Network
+    {
+    public:
+        static void init();
+        NetRS();
+        Link* create_link() override;
+        Port* create_port(Dir dir) override;
+        Port* export_port(System* sys, Port* port, const std::string& name) override;
+    };
 
 	class RSLink : public Link
 	{
@@ -74,19 +84,18 @@ namespace genie
 	class RSPort : public Port
 	{
 	public:
-		static const SigRoleID ROLE_READY;
-		static const SigRoleID ROLE_VALID;
-		static const SigRoleID ROLE_DATA;
-		static const SigRoleID ROLE_DATA_BUNDLE;
-		static const SigRoleID ROLE_LPID;
-		static const SigRoleID ROLE_EOP;
-		static const SigRoleID ROLE_SOP;
+		static SigRoleID ROLE_READY;
+		static SigRoleID ROLE_VALID;
+		static SigRoleID ROLE_DATA;
+		static SigRoleID ROLE_DATA_BUNDLE;
+		static SigRoleID ROLE_LPID;
+		static SigRoleID ROLE_EOP;
+		static SigRoleID ROLE_SOP;
 
-		static const FieldID FIELD_LPID;
-		static const FieldID FIELD_DATA;
+		static FieldID FIELD_LPID;
+		static FieldID FIELD_DATA;
 
 		RSPort(Dir dir);
-		RSPort(Dir dir, const std::string& name);
 		RSPort(const RSPort&);
 		~RSPort();
 

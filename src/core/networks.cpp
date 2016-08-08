@@ -11,6 +11,8 @@ using namespace genie;
 //
 namespace
 {
+    static NetType s_last_net_type;
+
 	// Holds all registered network types. Instantiated once, here. Upon program unload,
 	// destructor is called to free registered types.
 	struct NetTypeRegistry
@@ -63,46 +65,38 @@ const char* genie::dir_to_str(Dir dir)
 // Static
 //
 
-NetType Network::alloc_def_internal()
-{
-	// Allocates a new, unique network ID
-	static NetType last_net = 0;
-	return last_net++;
-}
-
 void Network::init()
 {
-	for (auto& net_reg_func : NetTypeRegistry::entries())
-	{
-		// Call the Network's constructor
-		auto def = net_reg_func();
+    s_registry.net_types.clear();
+    s_last_net_type = 0;
+}
 
-		// Store definition in the registry. As a key, use the NetType 
-		// that the Def returns.
-		NetType id = def->get_id();
+NetType Network::reg_internal(Network* def)
+{
+    NetType id = s_last_net_type++;
 
-		// See if duplicate ID or name already exists
-		for (auto& i : s_registry.net_types)
-		{
-			Network* test_def = i.second;
-			NetType test_id = i.first;
+    // See if duplicate ID or name already exists
+    for (auto& i : s_registry.net_types)
+    {
+        Network* test_def = i.second;
+        NetType test_id = i.first;
 
-			if (test_id == id || def->get_name() == test_def->get_name())
-			{
-				throw Exception(
-					"Can't register network " + 
-					def->get_name() + " (ID " + std::to_string(id) + ") " +
-					" because network " +
-					test_def->get_name() + " (ID " + std::to_string(test_id) + ") " +
-					" is already registered"
-					);
-			}
-			
-		}
+        if (test_id == id || def->get_name() == test_def->get_name())
+        {
+            throw Exception(
+                "Can't register network " + 
+                def->get_name() + " (ID " + std::to_string(id) + ") " +
+                " because network " +
+                test_def->get_name() + " (ID " + std::to_string(test_id) + ") " +
+                " is already registered"
+            );
+        }
+    }
 
-		// Register def
-		s_registry.net_types.emplace(id, def);
-	}
+    def->m_id = id;
+	s_registry.net_types.emplace(id, def);
+
+    return id;
 }
 
 Network* Network::get(NetType id)
@@ -152,15 +146,6 @@ const std::string& Network::to_string(NetType type)
 //
 // Network Definition
 //
-
-Network::Network(NetType id)
-: m_id(id)
-{
-}
-
-Network::~Network()
-{
-}
 
 Port* Network::create_port(Dir dir)
 {

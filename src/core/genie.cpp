@@ -1,11 +1,11 @@
 #include "genie/genie.h"
-#include "genie/static_init.h"
 
 #include "genie/net_clock.h"
 #include "genie/net_reset.h"
 #include "genie/net_rvd.h"
 #include "genie/net_topo.h"
 #include "genie/net_conduit.h"
+#include "genie/net_rs.h"
 #include "genie/node_split.h"
 #include "genie/node_merge.h"
 
@@ -23,14 +23,14 @@ namespace
 
 void genie::init()
 {
-	// Register all network types
+	// Register built-in network types
 	Network::init();
+    NetClock::init();
+    NetReset::init();
+    NetRS::init();
+    NetRVD::init();
+    NetTopo::init();
 
-	{ auto foo = NET_CLOCK ; }
-	{ auto foo = NET_RVD; }
-	{ auto foo = NET_RESET; }
-	{ auto foo = NET_TOPO; }
-	{ auto foo = NET_CONDUIT; }
 }
 	
 HierRoot* genie::get_root()

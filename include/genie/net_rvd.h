@@ -8,6 +8,19 @@ namespace genie
 {
 	class ClockPort;
 
+    // Globally-accessible network type ID. Maybe move to a static member?
+    extern NetType NET_RVD;
+
+    class NetRVD : public Network
+    {
+    public:
+        static void init();
+        NetRVD();
+
+        Link* create_link() override;
+        Port* create_port(Dir dir) override;
+    };
+
     // Backpressure capabilities
     struct RVDBackpressure
     {
@@ -25,16 +38,13 @@ namespace genie
         void force_disable() { configurable = false; status = DISABLED; }
     };
 
-	// Globally-accessible network type ID. Maybe move to a static member?
-	extern const NetType NET_RVD;
-
 	class RVDPort : public Port
 	{
 	public:
-		static const SigRoleID ROLE_VALID;
-		static const SigRoleID ROLE_READY;
-		static const SigRoleID ROLE_DATA;
-		static const SigRoleID ROLE_DATA_CARRIER;
+		static SigRoleID ROLE_VALID;
+		static SigRoleID ROLE_READY;
+		static SigRoleID ROLE_DATA;
+		static SigRoleID ROLE_DATA_CARRIER;
 
 		RVDPort(Dir dir);
 		RVDPort(Dir dir, const std::string& name);

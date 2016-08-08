@@ -6,12 +6,21 @@
 namespace genie
 {
 	// Globally-accessible network type ID. Maybe move to a static member?
-	extern const NetType NET_CLOCK;
+	extern NetType NET_CLOCK;
+
+    // Define network
+    class NetClock : public Network
+    {
+    public:
+        static void init();
+        NetClock();
+        Port* create_port(Dir dir) override;
+    };
 
 	class ClockPort : public Port
 	{
 	public:
-		static const SigRoleID ROLE_CLOCK;
+		static SigRoleID ROLE_CLOCK;
 
 		ClockPort(Dir dir);
 		ClockPort(Dir dir, const std::string& name);

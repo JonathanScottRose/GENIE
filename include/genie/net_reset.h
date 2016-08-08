@@ -5,12 +5,20 @@
 
 namespace genie
 {
-	extern const NetType NET_RESET;
+	extern NetType NET_RESET;
+
+    class NetReset : public Network
+    {
+    public:
+        static void init();
+        NetReset();
+        Port* create_port(Dir dir) override;
+    };
 
 	class ResetPort : public Port
 	{
 	public:
-		static const SigRoleID ROLE_RESET;
+		static SigRoleID ROLE_RESET;
 
 		ResetPort(Dir dir);
 		ResetPort(Dir dir, const std::string& name);

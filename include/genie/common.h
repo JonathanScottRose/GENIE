@@ -13,7 +13,6 @@
 #include <memory>
 
 #include "genie/util.h"
-#include "genie/static_init.h"
 
 
 // These macros create trivial getters and/or setters for a given member variable

@@ -3,34 +3,32 @@
 
 using namespace genie;
 
-namespace
+//
+// NetClock
+//
+
+NetType genie::NET_CLOCK = NET_INVALID;
+SigRoleID genie::ClockPort::ROLE_CLOCK = ROLE_INVALID;
+
+void NetClock::init()
 {
-	// Define network
-	class NetClock : public Network
-	{
-	public:
-		NetClock(NetType id)
-			: Network(id)
-		{
-			m_name = "clock";
-			m_desc = "Clock";
-			m_default_max_in = 1;
-			m_default_max_out = Endpoint::UNLIMITED;
-
-			add_sig_role(ClockPort::ROLE_CLOCK);
-		}
-
-		Port* create_port(Dir dir) override
-		{
-			return new ClockPort(dir);
-		}
-	};
+    NET_CLOCK = Network::reg<NetClock>();
 }
 
-// Register the network type
-const NetType genie::NET_CLOCK = Network::reg<NetClock>();
-const SigRoleID genie::ClockPort::ROLE_CLOCK = SigRole::reg("clock", SigRole::FWD);
+NetClock::NetClock()
+{
+    m_name = "clock";
+    m_desc = "Clock";
+    m_default_max_in = 1;
+    m_default_max_out = Endpoint::UNLIMITED;
 
+    add_sig_role(ClockPort::ROLE_CLOCK = SigRole::reg("clock", SigRole::FWD));
+}
+
+Port* NetClock::create_port(Dir dir)
+{
+    return new ClockPort(dir);
+}
 
 //
 // ClockPort

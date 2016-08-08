@@ -3,34 +3,28 @@
 
 using namespace genie;
 
-namespace
+NetType genie::NET_RESET = NET_INVALID;
+SigRoleID genie::ResetPort::ROLE_RESET = ROLE_INVALID;
+
+void NetReset::init()
 {
-	// Define network
-	class NetReset : public Network
-	{
-	public:
-		NetReset(NetType id)
-			: Network(id)
-		{
-			m_name = "reset";
-			m_desc = "Reset";
-			m_default_max_in = 1;
-			m_default_max_out = Endpoint::UNLIMITED;
-
-			add_sig_role(ResetPort::ROLE_RESET);
-		}
-
-		Port* create_port(Dir dir) override
-		{
-			return new ResetPort(dir);
-		}
-	};
+    NET_RESET = Network::reg<NetReset>();
 }
 
-// Register the network type
-const NetType genie::NET_RESET = Network::reg<NetReset>();
-const SigRoleID genie::ResetPort::ROLE_RESET = SigRole::reg("reset", SigRole::FWD);
+NetReset::NetReset()
+{
+    m_name = "reset";
+    m_desc = "Reset";
+    m_default_max_in = 1;
+    m_default_max_out = Endpoint::UNLIMITED;
 
+    add_sig_role(ResetPort::ROLE_RESET = SigRole::reg("reset", SigRole::FWD));
+}
+
+Port* NetReset::create_port(Dir dir)
+{
+    return new ResetPort(dir);
+}
 
 //
 // ResetPort

@@ -6,16 +6,24 @@
 namespace genie
 {
 	// Globally-accessible network type ID. Maybe move to a static member?
-	extern const NetType NET_CONDUIT;
+	extern NetType NET_CONDUIT;
+
+    class NetConduit : public Network
+    {
+    public:
+        static void init();
+        NetConduit();
+        Port* create_port(Dir dir) override;
+    };
 
 	class ConduitPort : public Port
 	{
 	public:
-		static const SigRoleID ROLE_FWD;
-		static const SigRoleID ROLE_REV;
-		static const SigRoleID ROLE_IN;
-		static const SigRoleID ROLE_OUT;
-		static const SigRoleID ROLE_INOUT;
+		static SigRoleID ROLE_FWD;
+		static SigRoleID ROLE_REV;
+		static SigRoleID ROLE_IN;
+		static SigRoleID ROLE_OUT;
+		static SigRoleID ROLE_INOUT;
 
 		ConduitPort(Dir dir);
 		ConduitPort(Dir dir, const std::string& name);

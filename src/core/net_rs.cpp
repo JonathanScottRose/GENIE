@@ -6,103 +6,100 @@
 
 using namespace genie;
 
-namespace
+NetType genie::NET_RS = NET_INVALID;
+SigRoleID genie::RSPort::ROLE_READY = ROLE_INVALID;
+SigRoleID genie::RSPort::ROLE_VALID = ROLE_INVALID;
+SigRoleID genie::RSPort::ROLE_DATA = ROLE_INVALID;
+SigRoleID genie::RSPort::ROLE_DATA_BUNDLE = ROLE_INVALID;
+SigRoleID genie::RSPort::ROLE_LPID = ROLE_INVALID;
+SigRoleID genie::RSPort::ROLE_EOP = ROLE_INVALID;
+SigRoleID genie::RSPort::ROLE_SOP = ROLE_INVALID;
+FieldID genie::RSPort::FIELD_DATA = FIELD_INVALID;
+FieldID genie::RSPort::FIELD_LPID = FIELD_INVALID;
+
+void NetRS::init()
 {
-	// Define network
-	class NetRS : public Network
-	{
-	public:
-		NetRS(NetType id)
-			: Network(id)
-		{
-			m_name = "rs";
-			m_desc = "Routed Streaming";
-			m_default_max_in =  Endpoint::UNLIMITED;
-			m_default_max_out = Endpoint::UNLIMITED;
+    // Register the network type
+    NET_RS = Network::reg<NetRS>();
 
-			add_sig_role(RSPort::ROLE_READY);
-			add_sig_role(RSPort::ROLE_VALID);
-			add_sig_role(RSPort::ROLE_DATA);
-			add_sig_role(RSPort::ROLE_DATA_BUNDLE);
-			add_sig_role(RSPort::ROLE_LPID);
-			add_sig_role(RSPort::ROLE_EOP);
-			add_sig_role(RSPort::ROLE_SOP);
-		}
-
-		Link* create_link() override
-		{
-            return new RSLink();
-		}
-
-		Port* create_port(Dir dir) override
-		{
-			return new RSPort(dir);
-		}
-
-		Port* export_port(System* sys, Port* port, const std::string& name) override
-		{
-			auto orig_port = as_a<RSPort*>(port);
-			assert(orig_port);
-
-			// First do the default actions for creating an export
-			RSPort* result = static_cast<RSPort*>(Network::export_port(sys, port, name));
-
-			// If the original port had linkpoints, we need to export those as well. This was not done
-			// automatically by the generic export_port().
-			// Additionally, we'll need to undo the Link made by export_port and instead make links between
-			// the individual origina/exported linkpoints.
-			auto lps = orig_port->get_linkpoints();
-			if (lps.size() > 0)
-			{
-				sys->disconnect(orig_port, result);
-
-				// For each of the original linkpoints...
-				for (auto& orig_lp : lps)
-				{
-					// Create a copy for the exported RSPort.
-					auto result_lp = as_a<RSLinkpoint*>(orig_lp->instantiate());
-					result->add_child(result_lp);
-
-					// Connect the original/new linkpoints together
-					sys->connect(orig_lp, result_lp, NET_RS);
-				}
-			}
-
-			// Finally, find the correct associated clock port for this export.
-			// Step 1: find the associated clock sink for the original port
-			auto orig_clk_sink = orig_port->get_clock_port();
-			if (!orig_clk_sink || orig_clk_sink->get_dir() != Dir::IN)
-				throw HierException(orig_port, "can't export - no associated clock sink");
-
-			// Step 2: get the thing it's connected to
-			auto orig_clk_ep = orig_clk_sink->get_endpoint(NET_CLOCK, LinkFace::OUTER);
-			auto result_clk_sink = as_a<ClockPort*>(orig_clk_ep->get_remote_obj0());
-			if (!result_clk_sink)
-				throw HierException(orig_port, "can't export - associated clock sink is unconnected");
-
-			// Step 3: associate it with our result port
-			result->set_clock_port_name(result_clk_sink->get_name());
-
-			return result;
-		}
-	};
+    // Register data field types
+    RSPort::FIELD_LPID = Field::reg();
+    RSPort::FIELD_DATA = Field::reg();
 }
 
-// Register the network type
-const NetType genie::NET_RS = Network::reg<NetRS>();
+NetRS::NetRS()
+{
+	m_name = "rs";
+	m_desc = "Routed Streaming";
+	m_default_max_in =  Endpoint::UNLIMITED;
+	m_default_max_out = Endpoint::UNLIMITED;
 
-// Register port signal roles
-const SigRoleID RSPort::ROLE_DATA = SigRole::reg("data", SigRole::FWD, false);
-const SigRoleID RSPort::ROLE_DATA_BUNDLE = SigRole::reg("databundle", SigRole::FWD, true);
-const SigRoleID RSPort::ROLE_VALID = SigRole::reg("valid", SigRole::FWD, false);
-const SigRoleID RSPort::ROLE_READY = SigRole::reg("ready", SigRole::REV, false);
-const SigRoleID RSPort::ROLE_EOP = SigRole::reg("eop", SigRole::FWD, false);
-const SigRoleID RSPort::ROLE_SOP = SigRole::reg("sop", SigRole::FWD, false);
-const SigRoleID RSPort::ROLE_LPID = SigRole::reg("lpid", SigRole::FWD, false);
+    // Register port signal roles
+    add_sig_role(RSPort::ROLE_DATA = SigRole::reg("data", SigRole::FWD, false));
+    add_sig_role(RSPort::ROLE_DATA_BUNDLE = SigRole::reg("databundle", SigRole::FWD, true));
+    add_sig_role(RSPort::ROLE_VALID = SigRole::reg("valid", SigRole::FWD, false));
+    add_sig_role(RSPort::ROLE_READY = SigRole::reg("ready", SigRole::REV, false));
+    add_sig_role(RSPort::ROLE_EOP = SigRole::reg("eop", SigRole::FWD, false));
+    add_sig_role(RSPort::ROLE_SOP = SigRole::reg("sop", SigRole::FWD, false));
+    add_sig_role(RSPort::ROLE_LPID = SigRole::reg("lpid", SigRole::FWD, false));
+}
 
-// Register data field types
-const FieldID RSPort::FIELD_LPID = Field::reg();
-const FieldID RSPort::FIELD_DATA = Field::reg();
+Link* NetRS::create_link()
+{
+    return new RSLink();
+}
+
+Port* NetRS::create_port(Dir dir)
+{
+	return new RSPort(dir);
+}
+
+Port* NetRS::export_port(System* sys, Port* port, const std::string& name)
+{
+	auto orig_port = as_a<RSPort*>(port);
+	assert(orig_port);
+
+	// First do the default actions for creating an export
+	RSPort* result = static_cast<RSPort*>(Network::export_port(sys, port, name));
+
+	// If the original port had linkpoints, we need to export those as well. This was not done
+	// automatically by the generic export_port().
+	// Additionally, we'll need to undo the Link made by export_port and instead make links between
+	// the individual origina/exported linkpoints.
+	auto lps = orig_port->get_linkpoints();
+	if (lps.size() > 0)
+	{
+		sys->disconnect(orig_port, result);
+
+		// For each of the original linkpoints...
+		for (auto& orig_lp : lps)
+		{
+			// Create a copy for the exported RSPort.
+			auto result_lp = as_a<RSLinkpoint*>(orig_lp->instantiate());
+			result->add_child(result_lp);
+
+			// Connect the original/new linkpoints together
+			sys->connect(orig_lp, result_lp, NET_RS);
+		}
+	}
+
+	// Finally, find the correct associated clock port for this export.
+	// Step 1: find the associated clock sink for the original port
+	auto orig_clk_sink = orig_port->get_clock_port();
+	if (!orig_clk_sink || orig_clk_sink->get_dir() != Dir::IN)
+		throw HierException(orig_port, "can't export - no associated clock sink");
+
+	// Step 2: get the thing it's connected to
+	auto orig_clk_ep = orig_clk_sink->get_endpoint(NET_CLOCK, LinkFace::OUTER);
+	auto result_clk_sink = as_a<ClockPort*>(orig_clk_ep->get_remote_obj0());
+	if (!result_clk_sink)
+		throw HierException(orig_port, "can't export - associated clock sink is unconnected");
+
+	// Step 3: associate it with our result port
+	result->set_clock_port_name(result_clk_sink->get_name());
+
+	return result;
+}
 
 //
 // RSPort

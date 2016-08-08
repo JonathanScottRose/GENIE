@@ -4,30 +4,41 @@
 
 using namespace genie;
 
+namespace
+{
+    SigRoleID s_next_id = 0;
+
+    List<SigRole>& s_get_all_roles()
+    {
+        static List<SigRole> all_roles;
+        return all_roles;
+    }
+}
+
 //
 // SigRole
 //
 
-List<SigRole>& SigRole::get_all_roles()
+void SigRole::init()
 {
-	static List<SigRole> all_roles;
-	return all_roles;
+    s_get_all_roles().clear();    
+    s_next_id = 0;
 }
 
 SigRoleID SigRole::reg(const std::string& name, Sense sense, bool tags)
 {
-	static SigRoleID next_id = 0;
-	get_all_roles().push_back(SigRole(next_id, name, sense, tags));
+    SigRoleID id = s_next_id++;
+	s_get_all_roles().push_back(SigRole(id, name, sense, tags));
 
-	return next_id++;
+	return id;
 }
 
 const SigRole* SigRole::get(SigRoleID id)
 {
-	if (id > get_all_roles().size())
+	if (id > s_get_all_roles().size())
 		return nullptr;
 
-	return &get_all_roles()[id];
+	return &s_get_all_roles()[id];
 }
 
 SigRole::SigRole(SigRoleID id, const std::string& name, Sense sense, bool tags)
