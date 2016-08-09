@@ -6,10 +6,30 @@
 
 namespace genie
 {
+    struct FlowOptions
+    {
+        bool dump_dot = false;
+        std::string dump_dot_network;
+
+        bool force_full_merge = false;
+
+        bool no_topo_opt = false;
+        std::vector<std::string> no_topo_opt_systems;
+
+        bool no_mdelay = false;
+    };
+
 	// Initialize library
 	void init();
 
-	// Hierarchy root
+    // Get options
+    FlowOptions& options();
+
+    // Do everything
+    void flow_main();
+    void print_stats(System* sys);
+
+	// Get hierarchy root
 	HierRoot* get_root();
 }
 

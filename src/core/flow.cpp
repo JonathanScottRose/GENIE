@@ -1,6 +1,7 @@
 #include <unordered_set>
 #include <stack>
 #include <iostream>
+#include <iterator>
 #include "genie/genie.h"
 #include "genie/net_topo.h"
 #include "genie/net_clock.h"
@@ -14,12 +15,10 @@
 #include "genie/value.h"
 #include "genie/vlog.h"
 #include "genie/vlog_bind.h"
-#include "flow.h"
 #include "genie/net_rs.h"
-#include "globals.h"
 #include "genie/node_flowconv.h"
 #include "genie/node_reg.h"
-#include "genie/flow_utils.h"
+#include "flow.h"
 
 using namespace genie;
 using namespace genie::graphs;
@@ -39,6 +38,89 @@ namespace std
 
 namespace
 {
+    using N2GRemapFunc = std::function<Port*(Port*)>;
+
+    Graph net_to_graph(System* sys, NetType ntype, 
+        bool include_internal,
+        VAttr<Port*>* v_to_obj,
+        RVAttr<Port*>* obj_to_v,
+        EAttr<Link*>* e_to_link,
+        REAttr<Link*>* link_to_e,
+        const N2GRemapFunc& remap = N2GRemapFunc())
+    {
+        Graph result;
+
+        // Gather all edges from system
+        auto links = sys->get_links(ntype);
+
+        // Gather all internal edges from nodes
+        if (include_internal)
+        {
+            for (auto node : sys->get_nodes())
+            {
+                auto links_int = node->get_links(ntype);
+                std::copy_if(links_int.begin(), links_int.end(), std::back_inserter(links), [=](Link* lnk)
+                {
+                    return lnk->is_internal();
+                });
+            }
+        }
+
+        // Whether or not the caller needs one, we require an obj->v map.
+        // If the caller doesn't provide one, allocate (and then later free) a local one.
+        bool local_map = !obj_to_v;
+        if (local_map)
+            obj_to_v = new RVAttr<Port*>;
+
+        for (auto link : links)
+        {
+            // Get link's endpoints
+            Port* src = link->get_src();
+            Port* sink = link->get_sink();
+
+            // Remap if a remap function was provided
+            if (remap)
+            {
+                src = remap(src);
+                sink = remap(sink);
+            }
+
+            // Create (or retrieve) associated vertex IDs for endpoints.
+            // Update reverse association if caller requested one.
+            VertexID src_v, sink_v;
+
+            for (auto& p : {std::make_pair(&src_v, src), std::make_pair(&sink_v, sink)})
+            {
+                // src_v or sink_v
+                VertexID* pv = p.first;
+                // src or sink
+                Port* obj = p.second;
+
+                auto it = obj_to_v->find(obj);
+                if (it == obj_to_v->end())
+                {
+                    *pv = result.newv();
+                    obj_to_v->emplace(obj, *pv);
+                    if (v_to_obj) v_to_obj->emplace(*pv, obj);
+                }
+                else
+                {
+                    *pv = it->second;
+                }		
+            }
+
+            // Create edge and update mappings if requested
+            EdgeID e = result.newe(src_v, sink_v);
+            if (e_to_link) e_to_link->emplace(e, link);
+            if (link_to_e) link_to_e->emplace(link, e);
+        }
+
+        if (local_map)
+            delete obj_to_v;
+
+        return result;
+    }
+
 	Port* net_to_graph_topo_remap(Port* o)
 	{
 		// Makes split, merge, and reg nodes behave as vertices in a Topo graph by
@@ -62,7 +144,7 @@ namespace
 	{
 		// Turn RS network into a graph.
 		// Pass in a remap function which effectively treats all linkpoints as their parent ports.
-		flow::N2GRemapFunc remap = [] (Port* o)
+		N2GRemapFunc remap = [] (Port* o)
 		{
 			return RSPort::get_rs_port(o);
 		};
@@ -70,7 +152,7 @@ namespace
 		// We care about port->vid mapping and link->eid mapping
 		REAttr<Link*> link_to_eid;
 		RVAttr<Port*> port_to_vid;
-		Graph rs_g = flow::net_to_graph(sys, NET_RS, false, nullptr, &port_to_vid, nullptr, &link_to_eid, remap);
+		Graph rs_g = net_to_graph(sys, NET_RS, false, nullptr, &port_to_vid, nullptr, &link_to_eid, remap);
 
 		// Identify connected components (domains).
 		// Capture vid->domainid mapping and eid->domainid mapping
@@ -115,7 +197,7 @@ namespace
 		EAttr<Link*> topo_eid_to_link;
 		VAttr<Port*> topo_vid_to_port;
 		RVAttr<Port*> topo_port_to_vid;
-		Graph topo_g = flow::net_to_graph(sys, NET_TOPO, true, &topo_vid_to_port, &topo_port_to_vid, 
+		Graph topo_g = net_to_graph(sys, NET_TOPO, true, &topo_vid_to_port, &topo_port_to_vid, 
 			&topo_eid_to_link, nullptr, nullptr);
 
         //topo_g.dump("debug", [=](VertexID v) {return topo_vid_to_port.at(v)->get_hier_path();});
@@ -304,7 +386,7 @@ namespace
 		// Get TOPO network as graph. We need link->eid and HObj->vid
 		EAttr<Link*> topo_eid_to_link;
 		RVAttr<Port*> topo_port_to_vid;
-		Graph topo_g = flow::net_to_graph(sys, NET_TOPO, true, nullptr, &topo_port_to_vid, &topo_eid_to_link, nullptr,
+		Graph topo_g = net_to_graph(sys, NET_TOPO, true, nullptr, &topo_port_to_vid, &topo_eid_to_link, nullptr,
 			nullptr);
 
 		// Split topo graph into connected domains
@@ -503,7 +585,7 @@ namespace
 	{
 		// If full merge nodes are forced with this option, just return. Merge nodes
 		// start off being the complex full ones by default.
-		if (flow_options().force_full_merge)
+		if (genie::options().force_full_merge)
 			return;
 
 		// Make each merge node check for mutual temporal exclusivity on its RS links, so
@@ -997,7 +1079,7 @@ namespace
             int reg_cost = width * latency;
             int mem_cost = width + latency + 8;
 
-            if (!flow_options().no_mdelay && mem_cost < reg_cost)
+            if (!genie::options().no_mdelay && mem_cost < reg_cost)
             {
                 auto md = new NodeMDelay();
                 md->set_delay(latency);
@@ -1213,7 +1295,7 @@ namespace
 
         RVAttr<Port*> port_to_v;
         VAttr<Port*> v_to_port;
-        Graph g = flow::net_to_graph(sys, NET_RVD, true,
+        Graph g = net_to_graph(sys, NET_RVD, true,
             &v_to_port, &port_to_v, nullptr, nullptr);
 
         // Populate initial visitation list with ports that are either:
@@ -1620,9 +1702,9 @@ namespace
 		rs_assign_flow_ids(sys);
 
         // Further simplify the topology after flows have been determined
-        if (flow_options().no_topo_opt == false ||
-            (!flow_options().no_topo_opt_systems.empty() &&
-            !util::exists(flow_options().no_topo_opt_systems, sys->get_name())))
+        if (genie::options().no_topo_opt == false ||
+            (!genie::options().no_topo_opt_systems.empty() &&
+            !util::exists(genie::options().no_topo_opt_systems, sys->get_name())))
         {
             topo_optimize(sys);
         }
@@ -1657,81 +1739,83 @@ namespace
 	}
 }
 
-
-// Main processing entry point!
-void flow_main()
+namespace genie
 {
-	auto systems = genie::get_root()->get_systems();
-
-	for (auto sys : systems)
-	{
-		flow_do_system(sys);
-
-		if (Globals::inst()->dump_dot)
-		{
-			auto network = Network::get(Globals::inst()->dump_dot_network);
-			if (!network)
-				throw Exception("Unknown network " + Globals::inst()->dump_dot_network);
-
-			sys->write_dot(sys->get_name() + "." + network->get_name(), network->get_id());
-		}
-
-        flow_print_stats(sys);
-	}
-}
-
-void flow_print_stats(System* sys)
-{
+    // Main processing entry point!
+    void flow_main()
     {
-        unsigned nc = printf("Statistics for system %s:\n", sys->get_name().c_str());
-        for (unsigned i = 0; i < nc-1; i++)
-            putc('=', stdout);
-        putc('\n', stdout);
+	    auto systems = genie::get_root()->get_systems();
+
+	    for (auto sys : systems)
+	    {
+		    flow_do_system(sys);
+
+		    if (genie::options().dump_dot)
+		    {
+			    auto network = Network::get(genie::options().dump_dot_network);
+			    if (!network)
+				    throw Exception("Unknown network " + genie::options().dump_dot_network);
+
+			    sys->write_dot(sys->get_name() + "." + network->get_name(), network->get_id());
+		    }
+
+            print_stats(sys);
+	    }
     }
 
-    // Count merge nodes
-    auto objs = sys->get_children();
-
-    std::map<std::string, unsigned> counts_map;
-    unsigned total_comb = 0;
-    unsigned total_regs = 0;
-
-    for (auto obj : objs)
+    void print_stats(System* sys)
     {
-        auto obj_mg = as_a<NodeMerge*>(obj);
-        if (obj_mg)
         {
-            auto& rvd_proto = obj_mg->get_rvd_output()->get_proto();
-            auto n_bits = rvd_proto.get_carried_protocol()->get_total_width();
-
-            auto n_inputs = obj_mg->get_n_inputs();
-            std::string key = "merge" + std::to_string(n_inputs);
-            counts_map[key] += n_bits;
-
-            continue;
+            unsigned nc = printf("Statistics for system %s:\n", sys->get_name().c_str());
+            for (unsigned i = 0; i < nc-1; i++)
+                putc('=', stdout);
+            putc('\n', stdout);
         }
 
-        auto obj_rg = as_a<NodeReg*>(obj);
-        if (obj_rg)
+        // Count merge nodes
+        auto objs = sys->get_children();
+
+        std::map<std::string, unsigned> counts_map;
+        unsigned total_comb = 0;
+        unsigned total_regs = 0;
+
+        for (auto obj : objs)
         {
-            auto& rvd_proto = obj_rg->get_input()->get_proto();
-            total_regs += rvd_proto.get_carried_protocol()->get_total_width();
+            auto obj_mg = as_a<NodeMerge*>(obj);
+            if (obj_mg)
+            {
+                auto& rvd_proto = obj_mg->get_rvd_output()->get_proto();
+                auto n_bits = rvd_proto.get_carried_protocol()->get_total_width();
 
-            continue;
+                auto n_inputs = obj_mg->get_n_inputs();
+                std::string key = "merge" + std::to_string(n_inputs);
+                counts_map[key] += n_bits;
+
+                continue;
+            }
+
+            auto obj_rg = as_a<NodeReg*>(obj);
+            if (obj_rg)
+            {
+                auto& rvd_proto = obj_rg->get_input()->get_proto();
+                total_regs += rvd_proto.get_carried_protocol()->get_total_width();
+
+                continue;
+            }
         }
+
+        for (auto it = counts_map.begin(); it != counts_map.end(); ++it)
+        {
+            printf("%s: %u\n", it->first.c_str(), it->second);
+        }
+        printf("data registers: %u\n", total_regs);
+
+        printf("\n");
     }
 
-    for (auto it = counts_map.begin(); it != counts_map.end(); ++it)
+    FlowOptions& options()
     {
-        printf("%s: %u\n", it->first.c_str(), it->second);
+	    static FlowOptions opts;
+	    return opts;
     }
-    printf("data registers: %u\n", total_regs);
-
-    printf("\n");
-}
-
-FlowOptions& flow_options()
-{
-	static FlowOptions opts;
-	return opts;
 }

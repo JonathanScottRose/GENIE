@@ -169,12 +169,10 @@
     <ClInclude Include="..\..\src\core\lp_solve\lp_BFP.h">
       <Filter>lp_solve</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\genie\flow_utils.h">
-      <Filter>Public</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\include\genie\node_mdelay.h">
       <Filter>Public</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\core\flow.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />
@@ -278,7 +276,8 @@
     <ClCompile Include="..\..\src\core\lp_solve\myblas.c">
       <Filter>lp_solve</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\core\flow_utils.cpp" />
     <ClCompile Include="..\..\src\core\node_mdelay.cpp" />
+    <ClCompile Include="..\..\src\core\flow.cpp" />
+    <ClCompile Include="..\..\src\core\lat_constraint.cpp" />
   </ItemGroup>
 </Project>

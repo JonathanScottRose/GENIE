@@ -1,13 +1,11 @@
 #include <iostream>
 
 #include "getoptpp/getopt_pp.h"
-#include "globals.h"
 #include "io.h"
 
 #include "genie/genie.h"
 #include "genie/lua/genie_lua.h"
 #include "genie/regex.h"
-#include "flow.h"
 
 using namespace genie;
 
@@ -58,21 +56,20 @@ namespace
 
 	void parse_args(int argc, char** argv)
 	{
+        auto& opts = genie::options();
 		GetOpt::GetOpt_pp args(argc, argv);
-
-		//args >> GetOpt::Option('p', "component_path", Globals::inst()->component_path);
 		
-		args >> GetOpt::OptionPresent("dump_dot", Globals::inst()->dump_dot);
-		args >> GetOpt::Option("dump_dot", Globals::inst()->dump_dot_network);
+		args >> GetOpt::OptionPresent("dump_dot", opts.dump_dot);
+		args >> GetOpt::Option("dump_dot", opts.dump_dot_network);
 		args >> GetOpt::Option("args", s_lua_args);
-		args >> GetOpt::OptionPresent("force_full_merge", flow_options().force_full_merge);
-        args >> GetOpt::OptionPresent("no_mdelay", flow_options().no_mdelay);
+		args >> GetOpt::OptionPresent("force_full_merge", opts.force_full_merge);
+        args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
         
         {
             std::string no_topo_opt_sys;
-            args >> GetOpt::OptionPresent("no_topo_opt", flow_options().no_topo_opt);
+            args >> GetOpt::OptionPresent("no_topo_opt", opts.no_topo_opt);
             args >> GetOpt::Option("no_topo_opt", no_topo_opt_sys);
-            flow_options().no_topo_opt_systems = parse_list(no_topo_opt_sys);
+            opts.no_topo_opt_systems = parse_list(no_topo_opt_sys);
         }
 
 		if (!(args >> GetOpt::GlobalOption(s_script)))
@@ -99,31 +96,6 @@ int main(int argc, char** argv)
 	}
 
 	lua::shutdown();
-
-	/*
-	try
-	{
-		LuaIface::init();
-		parse_args(argc, argv);
-		LuaIface::exec_script(s_script);
-
-		for (auto& i : Spec::systems())
-		{
-			Spec::System* spec_sys = i.second;
-			P2P::System* p2p_sys = genie::build_system(spec_sys);
-			Vlog::SystemVlogInfo* sys_mod = ImplVerilog::build_top_module(p2p_sys);
-			WriteVerilog::go(sys_mod);
-			
-			delete sys_mod;
-			delete p2p_sys;
-		}
-	}
-	catch (std::exception& e)
-	{
-		IO::msg_error(e.what());		
-	}
-
-	LuaIface::shutdown();*/
 
 	return 0;
 }

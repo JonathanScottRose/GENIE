@@ -1,5 +1,4 @@
-#include <iterator>
-#include "genie/flow_utils.h"
+#include "flow.h"
 #include "genie/net_rs.h"
 #include "genie/net_rvd.h"
 #include "lp_solve/lp_lib.h"
@@ -12,87 +11,6 @@ namespace genie
 {
 namespace flow
 {
-
-Graph net_to_graph(System* sys, NetType ntype, 
-    bool include_internal,
-    VAttr<Port*>* v_to_obj,
-    RVAttr<Port*>* obj_to_v,
-    EAttr<Link*>* e_to_link,
-    REAttr<Link*>* link_to_e,
-    const N2GRemapFunc& remap)
-{
-    Graph result;
-
-    // Gather all edges from system
-    auto links = sys->get_links(ntype);
-
-    // Gather all internal edges from nodes
-    if (include_internal)
-    {
-        for (auto node : sys->get_nodes())
-        {
-            auto links_int = node->get_links(ntype);
-            std::copy_if(links_int.begin(), links_int.end(), std::back_inserter(links), [=](Link* lnk)
-            {
-                return lnk->is_internal();
-            });
-        }
-    }
-
-    // Whether or not the caller needs one, we require an obj->v map.
-    // If the caller doesn't provide one, allocate (and then later free) a local one.
-    bool local_map = !obj_to_v;
-    if (local_map)
-        obj_to_v = new RVAttr<Port*>;
-
-    for (auto link : links)
-    {
-        // Get link's endpoints
-        Port* src = link->get_src();
-        Port* sink = link->get_sink();
-
-        // Remap if a remap function was provided
-        if (remap)
-        {
-            src = remap(src);
-            sink = remap(sink);
-        }
-
-        // Create (or retrieve) associated vertex IDs for endpoints.
-        // Update reverse association if caller requested one.
-        VertexID src_v, sink_v;
-
-        for (auto& p : {std::make_pair(&src_v, src), std::make_pair(&sink_v, sink)})
-        {
-            // src_v or sink_v
-            VertexID* pv = p.first;
-            // src or sink
-            Port* obj = p.second;
-
-            auto it = obj_to_v->find(obj);
-            if (it == obj_to_v->end())
-            {
-                *pv = result.newv();
-                obj_to_v->emplace(obj, *pv);
-                if (v_to_obj) v_to_obj->emplace(*pv, obj);
-            }
-            else
-            {
-                *pv = it->second;
-            }		
-        }
-
-        // Create edge and update mappings if requested
-        EdgeID e = result.newe(src_v, sink_v);
-        if (e_to_link) e_to_link->emplace(e, link);
-        if (link_to_e) link_to_e->emplace(link, e);
-    }
-
-    if (local_map)
-        delete obj_to_v;
-
-    return result;
-}
 
 void apply_latency_constraints(System* sys)
 {

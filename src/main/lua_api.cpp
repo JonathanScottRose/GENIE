@@ -9,7 +9,6 @@
 #include "genie/vlog_bind.h"
 #include "genie/lua/genie_lua.h"
 #include "genie/net_rs.h"
-#include "flow.h"
 
 using namespace genie;
 using namespace lua;

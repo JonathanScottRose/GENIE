@@ -47,4 +47,10 @@ namespace genie
     protected:
         int m_latency = 0;
     };
+
+    class ATopoFunc : public Aspect
+    {
+    public:
+        int func_ref;
+    };
 }

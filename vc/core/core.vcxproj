@@ -22,7 +22,6 @@
     <ClInclude Include="..\..\include\genie\common.h" />
     <ClInclude Include="..\..\include\genie\connections.h" />
     <ClInclude Include="..\..\include\genie\expressions.h" />
-    <ClInclude Include="..\..\include\genie\flow_utils.h" />
     <ClInclude Include="..\..\include\genie\genie.h" />
     <ClInclude Include="..\..\include\genie\graph.h" />
     <ClInclude Include="..\..\include\genie\hierarchy.h" />
@@ -50,6 +49,7 @@
     <ClInclude Include="..\..\include\genie\vlog.h" />
     <ClInclude Include="..\..\include\genie\vlog_bind.h" />
     <ClInclude Include="..\..\src\core\expressions_nodes.h" />
+    <ClInclude Include="..\..\src\core\flow.h" />
     <ClInclude Include="..\..\src\core\lp_solve\colamd.h" />
     <ClInclude Include="..\..\src\core\lp_solve\commonlib.h" />
     <ClInclude Include="..\..\src\core\lp_solve\ini.h" />
@@ -79,9 +79,11 @@
     <ClCompile Include="..\..\src\core\connections.cpp" />
     <ClCompile Include="..\..\src\core\dijkstra.cpp" />
     <ClCompile Include="..\..\src\core\expressions.cpp" />
+    <ClCompile Include="..\..\src\core\flow.cpp" />
     <ClCompile Include="..\..\src\core\genie.cpp" />
     <ClCompile Include="..\..\src\core\graph.cpp" />
     <ClCompile Include="..\..\src\core\hierarchy.cpp" />
+    <ClCompile Include="..\..\src\core\lat_constraint.cpp" />
     <ClCompile Include="..\..\src\core\lp_solve\colamd.c" />
     <ClCompile Include="..\..\src\core\lp_solve\commonlib.c" />
     <ClCompile Include="..\..\src\core\lp_solve\ini.c" />
@@ -116,7 +118,6 @@
     <ClCompile Include="..\..\src\core\net_rs.cpp" />
     <ClCompile Include="..\..\src\core\net_rvd.cpp" />
     <ClCompile Include="..\..\src\core\net_topo.cpp" />
-    <ClCompile Include="..\..\src\core\flow_utils.cpp" />
     <ClCompile Include="..\..\src\core\node_clockx.cpp" />
     <ClCompile Include="..\..\src\core\node_flowconv.cpp" />
     <ClCompile Include="..\..\src\core\node_mdelay.cpp" />
