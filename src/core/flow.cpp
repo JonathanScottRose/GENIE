@@ -1702,9 +1702,9 @@ namespace
 		rs_assign_flow_ids(sys);
 
         // Further simplify the topology after flows have been determined
-        if (genie::options().no_topo_opt == false ||
-            (!genie::options().no_topo_opt_systems.empty() &&
-            !util::exists(genie::options().no_topo_opt_systems, sys->get_name())))
+        if (genie::options().topo_opt &&
+            (genie::options().topo_opt_systems.empty() ||
+            util::exists(genie::options().topo_opt_systems, sys->get_name())))
         {
             topo_optimize(sys);
         }

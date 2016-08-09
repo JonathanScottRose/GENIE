@@ -67,9 +67,9 @@ namespace
         
         {
             std::string no_topo_opt_sys;
-            args >> GetOpt::OptionPresent("no_topo_opt", opts.no_topo_opt);
-            args >> GetOpt::Option("no_topo_opt", no_topo_opt_sys);
-            opts.no_topo_opt_systems = parse_list(no_topo_opt_sys);
+            args >> GetOpt::OptionPresent("topo_opt", opts.topo_opt);
+            args >> GetOpt::Option("topo_opt", no_topo_opt_sys);
+            opts.topo_opt_systems = parse_list(no_topo_opt_sys);
         }
 
 		if (!(args >> GetOpt::GlobalOption(s_script)))
