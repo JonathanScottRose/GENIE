@@ -30,7 +30,7 @@ void genie::init()
     NetRS::init();
     NetRVD::init();
     NetTopo::init();
-
+    NetConduit::init();
 }
 	
 HierRoot* genie::get_root()
