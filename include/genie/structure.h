@@ -5,6 +5,7 @@
 #include "genie/networks.h"
 #include "genie/connections.h"
 #include "genie/parameter.h"
+#include "genie/metrics.h"
 
 namespace genie
 {
@@ -103,6 +104,8 @@ namespace genie
 		Node(const Node&);
 		virtual ~Node();
 
+        virtual bool is_interconnect() const;
+
 		HierObject* instantiate() override;
 
 		// Hack: should be part of generic event handling system
@@ -139,6 +142,9 @@ namespace genie
 		void disconnect(HierObject* src, HierObject* sink, NetType net);
 		void disconnect(Link*);
 		Link* splice(Link* orig, HierObject* new_sink, HierObject* new_src);
+
+        // Metrics
+        virtual AreaMetrics get_area_usage() const;
 
 		// Debug
 		void write_dot(const std::string& filename, NetType nettype);

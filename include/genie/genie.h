@@ -11,6 +11,8 @@ namespace genie
         bool dump_dot = false;
         std::string dump_dot_network;
 
+        bool detailed_stats = false;
+
         bool force_full_merge = false;
 
         bool topo_opt = false;
@@ -19,11 +21,19 @@ namespace genie
         bool no_mdelay = false;
     };
 
+    struct ArchParams
+    {
+        unsigned lutsize = 6;
+        unsigned lutram_width = 20;
+        unsigned lutram_depth = 32;
+    };
+
 	// Initialize library
 	void init();
 
     // Get options
     FlowOptions& options();
+    ArchParams& arch_params();
 
     // Do everything
     void flow_main();

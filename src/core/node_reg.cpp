@@ -118,7 +118,20 @@ genie::Port* NodeReg::locate_port(Dir dir, NetType type)
     return HierObject::locate_port(dir, type);
 }
 
-void genie::NodeReg::create_rvd()
+AreaMetrics NodeReg::get_area_usage() const
+{
+    AreaMetrics result;
+
+    result.regs = m_proto.get_total_width();
+
+    // if backpressure, then need to double
+    if (get_output()->get_bp_status().status == RVDBackpressure::ENABLED)
+        result.regs *= 2;
+
+    return result;
+}
+
+void NodeReg::create_rvd()
 {
     // Create either naked RVD ports, or use the RVD ports within TOPO ports
 

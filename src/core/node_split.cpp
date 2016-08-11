@@ -41,6 +41,7 @@ void NodeSplit::init_vlog()
 }
 
 NodeSplit::NodeSplit()
+    : m_fid_width(-1)
 {
 	init_vlog();
 
@@ -210,6 +211,8 @@ void NodeSplit::configure()
 		fid_width = fid.get_width();
 	}
 
+    m_fid_width = fid_width;
+
 	// Set node parameters: WF (flow id width), NF (number of entries)
 	int n_entries = route_map.size();
 	define_param("NF", n_entries);
@@ -279,4 +282,14 @@ genie::Port* NodeSplit::locate_port(Dir dir, NetType type)
 		assert(false);
 		return nullptr;
 	}
+}
+
+AreaMetrics NodeSplit::get_area_usage() const
+{
+    AreaMetrics result;
+
+    unsigned per_out_luts = 4;
+    result.luts = (per_out_luts)*get_n_outputs() + 1;
+
+    return result;
 }

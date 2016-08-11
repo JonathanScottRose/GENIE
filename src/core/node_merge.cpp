@@ -285,3 +285,35 @@ genie::Port* NodeMerge::locate_port(Dir dir, NetType type)
 		return nullptr;
 	}
 }
+
+AreaMetrics genie::NodeMerge::get_area_usage() const
+{
+    AreaMetrics result;
+
+    const unsigned lutsize = genie::arch_params().lutsize;
+
+    unsigned n_inputs = get_n_inputs();
+    unsigned data_bits = m_proto.get_total_width();
+    
+    // calculate mux size
+    unsigned muxsize = 1;
+    while (muxsize + (1<<muxsize) <= lutsize)
+        muxsize++;
+    muxsize--;
+
+    // get log-base-muxsize of #inputs
+    while (n_inputs > 1)
+    {
+        // ceil(n_inputs/muxsize)
+        unsigned luts = (n_inputs + muxsize-1) / muxsize;
+
+        result.luts += luts;
+
+        // Outputs of these luts become inputs of next stage of muxing
+        n_inputs = luts;
+    }
+
+    result.luts *= data_bits;
+
+    return result;
+}

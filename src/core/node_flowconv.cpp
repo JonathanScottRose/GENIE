@@ -7,6 +7,7 @@
 #include "genie/node_flowconv.h"
 #include "genie/net_rs.h"
 #include "genie/node_split.h"
+#include "genie/genie.h"
 
 using namespace genie;
 using namespace vlog;
@@ -21,7 +22,7 @@ namespace
 }
 
 NodeFlowConv::NodeFlowConv(bool to_flow)
-	: Node(), m_to_flow(to_flow)
+	: Node(), m_to_flow(to_flow), m_in_width(-1), m_out_width(-1)
 {
 	// Create verilog ports
 	auto vinfo = new NodeVlogInfo(MODNAME);
@@ -135,6 +136,9 @@ void NodeFlowConv::configure()
 		val_width = val.get_width();
 	}
 
+    m_in_width = key_width;
+    m_out_width = val_width;
+
 	// 7) Set node parameters
 	int n_entries = (int)mapping.size();
 
@@ -199,5 +203,23 @@ HierObject* NodeFlowConv::instantiate()
 void NodeFlowConv::do_post_carriage()
 {
 	define_param("WD", m_proto.get_total_width());
+}
+
+AreaMetrics NodeFlowConv::get_area_usage() const
+{
+    AreaMetrics result;
+
+    if (m_in_width <= (int)genie::arch_params().lutsize)
+    {
+        result.luts = m_out_width;
+    }
+    else
+    {
+        // really hard to figure this out right now, so let's
+        // make up a number
+        result.luts = 23;
+    }
+
+    return result;
 }
 

@@ -491,6 +491,11 @@ void Node::delete_port(const std::string& name)
 	delete p;
 }
 
+bool Node::is_interconnect() const
+{
+    return false;
+}
+
 HierObject* Node::instantiate()
 {
 	return new Node(*this);
@@ -784,6 +789,20 @@ Link* Node::splice(Link* orig, HierObject* new_sink, HierObject* new_src)
     }
 
 	return new_link;
+}
+
+AreaMetrics Node::get_area_usage() const
+{
+    AreaMetrics result;
+
+    // Default: sum up children
+    auto nodes = get_children_by_type<Node>();
+    for (auto node : nodes)
+    {
+        result += node->get_area_usage();
+    }
+
+    return result;
 }
 
 void Node::write_dot(const std::string& filename, NetType nettype)

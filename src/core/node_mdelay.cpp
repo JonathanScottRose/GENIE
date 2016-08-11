@@ -4,6 +4,7 @@
 #include "genie/net_rvd.h"
 #include "genie/vlog_bind.h"
 #include "genie/node_mdelay.h"
+#include "genie/genie.h"
 
 using namespace genie;
 using namespace vlog;
@@ -92,5 +93,21 @@ HierObject* NodeMDelay::instantiate()
 void NodeMDelay::do_post_carriage()
 {
     define_param("WIDTH", m_proto.get_total_width());
+}
+
+AreaMetrics NodeMDelay::get_area_usage() const
+{
+    AreaMetrics result;
+
+    const unsigned lutram_width =  genie::arch_params().lutram_width;
+    const unsigned lutram_depth = genie::arch_params().lutram_depth;
+
+    unsigned dwidth = m_proto.get_total_width();
+    unsigned banks = (dwidth + lutram_width-1) / lutram_width;
+    unsigned depth = (m_delay + lutram_depth-1) / lutram_depth;
+
+    result.dist_ram = banks * depth;
+
+    return result;
 }
 
