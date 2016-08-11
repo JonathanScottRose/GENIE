@@ -1,8 +1,6 @@
 module genie_pipe_stage #
 (
-	parameter WIDTH = 1,
-	parameter MLAB = 0,
-    parameter NO_BUF = 0
+	parameter WIDTH = 1
 )
 (
 	input i_clk,
@@ -17,120 +15,38 @@ module genie_pipe_stage #
 	input i_ready
 );
 
-generate
-if (NO_BUF) begin : nobuf
-    logic pipe_enable;
-    assign pipe_enable = !(o_valid && !i_ready);
-    
-    always_ff @ (posedge i_clk or posedge i_reset) begin
-        if (i_reset) begin
-            o_valid <= '0;
-        end
-        else begin
-            if (pipe_enable) begin
-                o_valid <= i_valid;
-                o_data <= i_data;
-            end
-            
-            o_ready <= i_ready;
-        end
-    end
-end
-else if (MLAB) begin : mlab
-    (* ramstyle = "no_rw_check,MLAB" *)
-    reg [WIDTH-1:0] mem [0 : 1];
-    
-    logic [1:0] rdptr, wrptr;
-    
-    logic empty;
-    logic full;
-    logic reading;
-    logic writing;
-    
-    assign empty = rdptr == wrptr;
-    assign full = rdptr[0] == wrptr[0] && rdptr[1] != wrptr[1];
-    
-    assign writing = i_valid && !full;
-    assign reading = i_ready && !empty;
-    
-    always_ff @ (posedge i_clk or posedge i_reset) begin
-        if (i_reset) begin
-            rdptr <= '0;
-            wrptr <= '0;
-        end
-        else begin
-            if (writing) wrptr <= wrptr + 2'd1;
-            if (reading) rdptr <= rdptr + 2'd1;
-        end
-    end
-    
-    always_ff @ (posedge i_clk) begin
-        if (writing) mem[wrptr[0]] <= i_data;
-    end
-    
-    assign o_data = mem[rdptr[0]];
-    assign o_valid = !empty;
-    assign o_ready = !full;
-end
-else begin : regs
-	logic [WIDTH-1:0] i2o_saved_data;
-	(* keep *) logic [WIDTH-1:0] i2o_data;
-	logic i2o_valid;
-
-    always_ff @ (posedge i_clk or posedge i_reset) begin
-        if (i_reset) begin
-            i2o_valid <= 1'b0;
-        end
-        else if (o_ready) begin
-            i2o_valid <= i_valid;
-            i2o_data <= i_data;
-        end
-    end
+	logic [WIDTH-1:0] data0, data1;
+	logic valid0, valid1;
+	logic ready0;
+	
+	wire xfer0 = valid0 && i_ready;
+	wire xfer1 = valid1 && ready0;
 	
 	always_ff @ (posedge i_clk or posedge i_reset) begin
 		if (i_reset) begin
-			i2o_saved_data <= 'bx;
-		end
-		else if (o_ready) begin
-			i2o_saved_data <= i2o_data;
-		end
-	end
-
-	logic blocked;
-	always_ff @ (posedge i_clk or posedge i_reset) begin
-		if (i_reset) begin
-			blocked <= 1'b0;
+			valid0 <= '0;
+			valid1 <= '0;
+			ready0 <= '1;
+			data0 <= 'x;
+			data1 <= 'x;
 		end
 		else begin
-			case (blocked)
-				1'b0: begin
-					if (i2o_valid && !i_ready) blocked <= 1'b1;
-				end
-				
-				1'b1: begin
-					if (i_ready) blocked <= 1'b0;
-				end
-			endcase
-		end
-	end
-
-	always_comb begin
-		case (blocked)
-			1'b0: begin
-				o_valid = i2o_valid;
-				o_data = i2o_data;
-				o_ready = 1'b1;
+			ready0 <= !valid0 || i_ready;
+			
+			if (!valid0 || i_ready) begin
+				valid0 <= ready0? i_valid : valid1;
+				data0 <= ready0? i_data : data1;
 			end
 			
-			1'b1: begin
-				o_valid = 1'b1;
-				o_data = i2o_saved_data;
-				o_ready = 1'b0;
+			if (ready0) begin
+				valid1 <= i_valid;
+				data1 <= i_data;
 			end
-		endcase
+		end
 	end
-end
-endgenerate
-
-
+	
+	assign o_data = data0;
+	assign o_valid = valid0;
+	assign o_ready = ready0;
+	
 endmodule
