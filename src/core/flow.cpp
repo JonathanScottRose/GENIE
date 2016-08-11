@@ -1772,44 +1772,29 @@ namespace genie
             putc('\n', stdout);
         }
 
-        // Count merge nodes
-        auto objs = sys->get_children();
-
-        std::map<std::string, unsigned> counts_map;
-        unsigned total_comb = 0;
-        unsigned total_regs = 0;
-
-        for (auto obj : objs)
+        if (options().detailed_stats)
         {
-            auto obj_mg = as_a<NodeMerge*>(obj);
-            if (obj_mg)
+            printf("Name\tLUT\tREG\tLUTRAM\n");
+            auto nodes = sys->get_nodes();
+            for (auto node : nodes)
             {
-                auto& rvd_proto = obj_mg->get_rvd_output()->get_proto();
-                auto n_bits = rvd_proto.get_carried_protocol()->get_total_width();
+                if (!node->is_interconnect())
+                    continue;
 
-                auto n_inputs = obj_mg->get_n_inputs();
-                std::string key = "merge" + std::to_string(n_inputs);
-                counts_map[key] += n_bits;
-
-                continue;
-            }
-
-            auto obj_rg = as_a<NodeReg*>(obj);
-            if (obj_rg)
-            {
-                auto& rvd_proto = obj_rg->get_input()->get_proto();
-                total_regs += rvd_proto.get_carried_protocol()->get_total_width();
-
-                continue;
+                AreaMetrics area = node->get_area_usage();
+                printf("%s\t", node->get_name().c_str());
+                printf("%u\t%u\t%u\n",
+                    area.luts, area.regs, area.dist_ram);
             }
         }
-
-        for (auto it = counts_map.begin(); it != counts_map.end(); ++it)
+        else
         {
-            printf("%s: %u\n", it->first.c_str(), it->second);
+            AreaMetrics area = sys->get_area_usage();
+            printf("LUT: %u\n", area.luts);
+            printf("REG: %u\n", area.regs);
+            printf("LUTRAM: %u\n", area.dist_ram);
         }
-        printf("data registers: %u\n", total_regs);
-
+        
         printf("\n");
     }
 
@@ -1817,5 +1802,10 @@ namespace genie
     {
 	    static FlowOptions opts;
 	    return opts;
+    }
+    ArchParams & arch_params()
+    {
+        static ArchParams params;
+        return params;
     }
 }

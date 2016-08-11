@@ -1,5 +1,6 @@
 #include "genie/node_clockx.h"
 #include "genie/vlog_bind.h"
+#include "genie/genie.h"
 
 using namespace genie;
 using namespace vlog;
@@ -91,5 +92,17 @@ HierObject* NodeClockX::instantiate()
 void NodeClockX::do_post_carriage()
 {
 	define_param("WIDTH", m_proto.get_total_width());
+}
+
+AreaMetrics NodeClockX::get_area_usage() const
+{
+    AreaMetrics result;
+
+    auto& params = genie::arch_params();
+    unsigned data_bits = m_proto.get_total_width();
+
+    result.dist_ram = (data_bits + params.lutram_width-1) / params.lutram_width;
+
+    return result;
 }
 

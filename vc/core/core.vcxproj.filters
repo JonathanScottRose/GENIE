@@ -173,6 +173,9 @@
       <Filter>Public</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\core\flow.h" />
+    <ClInclude Include="..\..\include\genie\metrics.h">
+      <Filter>Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\core\expressions.cpp" />

@@ -15,6 +15,8 @@ namespace genie
 		NodeSplit();
 		~NodeSplit();
 
+        bool is_interconnect() const override { return true; }
+
 		int get_n_outputs() const;
 		TopoPort* get_topo_input() const;
 		TopoPort* get_topo_output() const;		
@@ -28,9 +30,12 @@ namespace genie
 
 		Port* locate_port(Dir dir, NetType type) override;
 
+        AreaMetrics get_area_usage() const override;
+
 	protected:
 		void init_vlog();
 
+        int m_fid_width;
 		CarrierProtocol m_proto;
 	};
 }

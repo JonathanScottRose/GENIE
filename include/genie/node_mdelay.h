@@ -13,6 +13,8 @@ namespace genie
     public:
         NodeMDelay();
 
+        bool is_interconnect() const override { return true; }
+
         RVDPort* get_input() const;
         RVDPort* get_output() const;
 
@@ -21,6 +23,8 @@ namespace genie
 
         HierObject* instantiate() override;
         void do_post_carriage() override;
+
+        AreaMetrics get_area_usage() const override;
 
     protected:
         RVDLink* m_int_link;

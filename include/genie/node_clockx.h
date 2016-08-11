@@ -13,6 +13,8 @@ namespace genie
 		NodeClockX();
 		~NodeClockX();
 
+        bool is_interconnect() const override { return true; }
+
 		RVDPort* get_indata_port() const;
 		RVDPort* get_outdata_port() const;
 		ClockPort* get_inclock_port() const;
@@ -20,6 +22,8 @@ namespace genie
 
 		HierObject* instantiate() override;
 		void do_post_carriage() override;
+
+        AreaMetrics get_area_usage() const override;
 
 	protected:
 		CarrierProtocol m_proto;

@@ -25,6 +25,7 @@
     <ClInclude Include="..\..\include\genie\genie.h" />
     <ClInclude Include="..\..\include\genie\graph.h" />
     <ClInclude Include="..\..\include\genie\hierarchy.h" />
+    <ClInclude Include="..\..\include\genie\metrics.h" />
     <ClInclude Include="..\..\include\genie\networks.h" />
     <ClInclude Include="..\..\include\genie\net_clock.h" />
     <ClInclude Include="..\..\include\genie\net_conduit.h" />
