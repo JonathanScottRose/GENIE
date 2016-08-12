@@ -102,6 +102,7 @@ AreaMetrics NodeClockX::get_area_usage() const
     unsigned data_bits = m_proto.get_total_width();
 
     result.dist_ram = (data_bits + params.lutram_width-1) / params.lutram_width;
+    result.regs = 53 + data_bits;
 
     return result;
 }
