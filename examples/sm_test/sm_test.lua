@@ -77,5 +77,6 @@ b:system('sm_test', make_topo_xbar(true, true, true))
 	b:link('the_dispatch.out.unit_b', 'the_reverser.in')
 	b:link('the_inverter.out', 'xorro.in.in0')
 	b:link('the_reverser.out', 'xorro.in.in1')
+	b:export ('xorro.out', 'out')
 
 
