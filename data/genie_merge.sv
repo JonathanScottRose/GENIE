@@ -196,7 +196,7 @@ always @ (posedge clk or posedge reset) begin
     else state <= nextstate;
 end
 
-wire data_sent = (i_valid && o_ready);
+wire data_sent = (o_valid && o_ready);
 
 always_comb begin
     nextstate = state;
