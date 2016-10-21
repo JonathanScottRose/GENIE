@@ -191,4 +191,8 @@ namespace genie
 		List<System*> get_systems();
 		List<Node*> get_non_systems();
 	};
+
+    class AAutoGen : public Aspect
+    {
+    };
 }

@@ -490,6 +490,132 @@ namespace
 		sys->asp_remove<ATopoFunc>();
 	}
 
+    void topo_create_default(System* sys)
+    {
+        // Find unconnected TOPO ports and connect with xbar topology.
+        
+        // This goes through all RS links. For each link, it checks
+        // whether the source and sink already have TOPO connections.
+        // If they both do, that's good - means they are already handled by a manual user topology
+        // If they both don't, that's good - we can connect them using an auto xbar topology here
+        // If only one is, that's bad and we catastrophically fail.
+
+        auto rslinks = sys->get_links(NET_RS);
+        decltype(rslinks) rslinks_unconnected;
+
+        for (auto rslink : rslinks)
+        {
+            auto topo_src = RSPort::get_rs_port(rslink->get_src())->get_topo_port();
+            auto topo_sink = RSPort::get_rs_port(rslink->get_sink())->get_topo_port();
+
+            bool src_conn = topo_src->is_connected(NET_TOPO);
+            bool sink_conn = topo_sink->is_connected(NET_TOPO);
+
+            if (src_conn && sink_conn)
+            {
+                continue;
+            }
+            else if (!src_conn && !sink_conn)
+            {
+                rslinks_unconnected.push_back(rslink);
+            }
+            else
+            {
+                std::string s_src = rslink->get_src()->get_hier_path(sys);
+                std::string s_sink = rslink->get_sink()->get_hier_path(sys);
+                throw HierException(sys, "link " + s_src + " -> " + s_sink + 
+                    "is only partially contained in a manual topology");
+            }
+        }
+
+        // Make topology
+
+        // For each original topo source, and sink record:
+        struct Entry
+        {
+            // The frontier port: equal to either the original topo source/sink,
+            // or the out/input of a split/merge node
+            TopoPort* head;
+            // The remote topo ports that this connects to
+            std::unordered_set<TopoPort*> remotes;
+        };
+
+        std::unordered_map<TopoPort*, Entry> srces, sinks;
+
+        // Gather sources, sinks
+        for (auto rslink : rslinks_unconnected)
+        {
+            auto rs_src = rslink->get_src();
+            auto rs_sink = rslink->get_sink();
+            auto topo_src = RSPort::get_rs_port(rs_src)->get_topo_port();
+            auto topo_sink =  RSPort::get_rs_port(rs_sink)->get_topo_port();
+
+            // Get or create entries for src/sink
+            Entry& en_src = srces[topo_src];
+            Entry& en_sink = sinks[topo_sink];
+
+            en_src.head = topo_src;
+            en_src.remotes.insert(topo_sink);
+
+            en_sink.head = topo_sink;
+            en_sink.remotes.insert(topo_src);
+        }
+
+        // Create split/merge nodes
+        for (auto& src : srces)
+        {
+            TopoPort* orig_src = src.first;
+            Entry& en = src.second;
+
+            if (en.remotes.size() > 1)
+            {
+                auto sp = new NodeSplit();
+                sp->set_name(sys->make_unique_child_name("split"));
+                sp->asp_add(new AAutoGen);
+                sys->add_child(sp);
+                sys->connect(orig_src, sp->get_topo_input());
+                
+                // Advance head to output of split node
+                en.head = sp->get_topo_output();
+            }
+        }
+
+        for (auto& sink : sinks)
+        {
+            TopoPort* orig_sink = sink.first;
+            Entry& en = sink.second;
+
+            if (en.remotes.size() > 1)
+            {
+                auto mg = new NodeMerge();
+                mg->set_name(sys->make_unique_child_name("merge"));
+                mg->asp_add(new AAutoGen);
+                sys->add_child(mg);
+                sys->connect(mg->get_topo_output(), orig_sink);
+
+                // Advance head to input of merge node
+                en.head = mg->get_topo_input();
+            }
+        }
+
+        // Connect heads
+        for (auto& src : srces)
+        {
+            Entry& src_en = src.second;
+            TopoPort* src_head = src_en.head;
+
+            for (auto sink : src_en.remotes)
+            {
+                // Get the entry for the sink, retrieve head
+                Entry& sink_en = sinks[sink];
+                TopoPort* sink_head = sink_en.head;
+
+                // Connect
+                sys->connect(src_head, sink_head);
+            }
+        }
+    }
+
 	void topo_refine_to_rvd(System* sys)
 	{
 		// Refine all System contents such that they are RVD-connectable
@@ -1161,6 +1287,7 @@ namespace
                 {
                     // Create and name node
                     NodeSplit* cur_sp = new NodeSplit();
+                    cur_sp->asp_add(new AAutoGen);
                     cur_sp->set_name(orig_name + "_systol" + std::to_string(cur_lat));
                     sys->add_child(cur_sp);
                     sp_nodes.push_back(cur_sp);
@@ -1637,6 +1764,7 @@ namespace
                 
                 NodeSplit* sp = new NodeSplit();
                 sp->set_name(sys->make_unique_child_name("split_auto"));
+                sp->asp_add(new AAutoGen);
                 sys->add_child(sp);
 
                 // Get merge node destination links
@@ -1690,6 +1818,7 @@ namespace
 
 		// Create TOPO network from RS network
 		rs_refine_to_topo(sys);
+        topo_create_default(sys);
 
 		// Route RS links over TOPO links
 		topo_do_routing(sys);
