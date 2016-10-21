@@ -284,7 +284,8 @@ void RSPort::refine(NetType target)
 
 TopoPort* RSPort::get_topo_port() const
 {
-	return as_a<TopoPort*>(get_child(genie::hier_make_reserved_name("topo")));
+    RSPort* real_port = get_rs_port(const_cast<RSPort*>(this));
+	return as_a<TopoPort*>(real_port->get_child(genie::hier_make_reserved_name("topo")));
 }
 
 RVDPort* RSPort::get_rvd_port() const
