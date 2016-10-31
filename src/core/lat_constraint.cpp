@@ -1,7 +1,7 @@
 #include "flow.h"
 #include "genie/net_rs.h"
 #include "genie/net_rvd.h"
-#include "lp_solve/lp_lib.h"
+#include "lp_lib.h"
 
 using namespace genie;
 using namespace graphs;

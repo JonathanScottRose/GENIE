@@ -3,11 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "core", "core\core.vcxproj", "{4133A8C2-E422-411C-B3DF-584094E8EFDA}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "core", "core.vcxproj", "{4133A8C2-E422-411C-B3DF-584094E8EFDA}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "lua\lua.vcxproj", "{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua", "lua.vcxproj", "{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "main", "main\main.vcxproj", "{27962422-932E-4A39-B06D-2A9B38B2A797}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "main", "main.vcxproj", "{27962422-932E-4A39-B06D-2A9B38B2A797}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lp_solve", "lp_solve.vcxproj", "{4133A8C2-E422-411C-B3DF-584094E8EFD0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{27962422-932E-4A39-B06D-2A9B38B2A797}.Debug|Win32.Build.0 = Debug|Win32
 		{27962422-932E-4A39-B06D-2A9B38B2A797}.Release|Win32.ActiveCfg = Release|Win32
 		{27962422-932E-4A39-B06D-2A9B38B2A797}.Release|Win32.Build.0 = Release|Win32
+		{4133A8C2-E422-411C-B3DF-584094E8EFD0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4133A8C2-E422-411C-B3DF-584094E8EFD0}.Debug|Win32.Build.0 = Debug|Win32
+		{4133A8C2-E422-411C-B3DF-584094E8EFD0}.Release|Win32.ActiveCfg = Release|Win32
+		{4133A8C2-E422-411C-B3DF-584094E8EFD0}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

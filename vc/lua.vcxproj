@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{882EC8D5-FD07-43AE-8E50-53CF3C6B9074}</ProjectGuid>
+    <RootNamespace>lua</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="common.props" />
+  <PropertyGroup Label="Configuration">
+    <TargetName>genie_lua$(LibSuffix)</TargetName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ClInclude Include="$(IncludeDir)\genie\lua\*.h" />
+    <ClInclude Include="$(SrcDir)\lua\*.h" />
+    <ClCompile Include="$(SrcDir)\lua\**\*.cpp" />
+    <ClCompile Include="$(SrcDir)\lua\**\*.c" />
+  </ItemGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(IncludeDir);$(IncludeDir)/genie/lua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>
