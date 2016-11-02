@@ -378,3 +378,12 @@ function Builder:latency_constraint(...)
 	self.cur_sys:create_latency_constraint(...)
 end
 
+--- Sets default packet size of an RS source/sink.
+-- Sets the default packet size of connected RS links, in clock cycles. If unspecified, the default is 1.
+-- @tparam int size transmission size in clock cycles
+function Builder:packet_size(size)
+	if not self.cur_port then error("no current port") end
+	if self.cur_port:get_type() ~= 'rs' then error("need an RS port") end
+	
+	self.cur_port:set_pktsize(size)
+end

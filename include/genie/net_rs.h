@@ -32,17 +32,22 @@ namespace genie
 		RSLink();
 
 		static List<RSLink*> get_from_rvd_port(RVDPort*);
+        static List<RSLink*> get_from_topo_port(TopoPort*);
 		
 		bool contained_in_rvd_port(RVDPort*) const;
 
 		PROP_GET_SETR(flow_id, Value&, m_flow_id);
 		PROP_GET_SET(domain_id, int, m_domain_id);
         PROP_GET_SET(latency, int, m_latency);
+        PROP_GET_SET(pkt_size, int, m_pkt_size);
+        PROP_GET_SET(importance, float, m_importance);
 
 		Link* clone() const override;
 
 	protected:
         int m_latency = 0; // for internal links
+        int m_pkt_size = 0;
+        float m_importance = -1; 
 		int m_domain_id;
 		Value m_flow_id;
 	};
@@ -175,5 +180,12 @@ namespace genie
     {
     public:
         List<RSLatencyConstraint> constraints;
+    };
+
+    class ATransmissionSpecs : public Aspect
+    {
+    public:
+        unsigned pkt_size = 1;
+        float importance = 1.0;
     };
 }

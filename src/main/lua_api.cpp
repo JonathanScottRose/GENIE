@@ -1453,12 +1453,62 @@ namespace
 		return 0;
 	}
 
+    // Sets an RS port's default packet size in clock cycles.
+    // ARGS: SELF, pktsize <int>
+    // RETURNS: nil
+    /// Sets an @{RSPort}'s default packet size.
+    ///
+    /// This sets the default packet size for all transmissions entering or
+    /// leaving this port or linkpoints. By default, packets are of size 1.
+    /// Packet size can be overridden on individual RS Links.
+    LFUNC(rsport_set_pktsize)
+    {
+        auto self = lua::check_object<RSPort>(1);
+        unsigned size = luaL_checkunsigned(L, 2);
+
+        auto spec = self->asp_get<ATransmissionSpecs>();
+        if (!spec)
+        {
+            spec = self->asp_add(new ATransmissionSpecs);
+        }
+
+        spec->pkt_size = size;
+
+        return 0;
+    }
+
+    // Sets an RS port's default transmission importance.
+    // ARGS: SELF, importance <float>
+    /// Sets an @(RSPort)'s default transmission importance.
+    ///
+    /// Applies a default importance (0-1) to all transmissions
+    /// sent or received from this RS port.
+    /// By default, this is 1.
+    LFUNC(rsport_set_importance)
+    {
+        auto self = lua::check_object<RSPort>(1);
+        double imp = luaL_checknumber(L, 2);
+
+        luaL_argcheck(L, imp >= 0 && imp <= 1, 2, "importance must be between 0 and 1");
+            
+        auto spec = self->asp_get<ATransmissionSpecs>();
+        if (!spec)
+        {
+            spec = self->asp_add(new ATransmissionSpecs);
+        }
+
+        spec->importance = (float)imp;
+
+        return 0;
+    }
+
 	LSUBCLASS(RSPort, (Port),
 	{
 		LM(add_linkpoint, rsport_add_linkpoint),
 		LM(get_rs_port, rsport_get_rs_port),
 		LM(get_topo_port, rsport_get_topo_port),
-		LM(set_clock_port_name, rsport_set_clock_port_name)
+		LM(set_clock_port_name, rsport_set_clock_port_name),
+        LM(set_pktsize, rsport_set_pktsize)
 	});
 
 	//

@@ -121,6 +121,13 @@ RSPort::RSPort(const RSPort& o)
 	{
 		add_child(c->instantiate());
 	}
+
+    // Copy transmission info
+    auto atrans = o.asp_get<ATransmissionSpecs>();
+    if (atrans)
+    {
+        asp_add(new ATransmissionSpecs(*atrans));
+    }
 }
 
 RSPort::~RSPort()
@@ -404,6 +411,33 @@ List<RSLink*> RSLink::get_from_rvd_port(RVDPort* port)
 	result = util::container_cast<List<RSLink*>>(ac->get_all_parent_links(NET_RS));
 
 	return result;
+}
+
+List<RSLink*> RSLink::get_from_topo_port(TopoPort* port)
+{
+    List<RSLink*> result;
+
+    // Endpoint
+    auto ep = port->get_endpoint_sysface(NET_TOPO);
+    if (!ep)
+        return result;
+
+    // Topo Links
+    auto topo_links = ep->links();
+
+    for (auto topo_link : topo_links)
+    {
+        // Containment
+        auto ac = topo_link->asp_get<ALinkContainment>();
+        if (!ac)
+            continue;
+
+        // Append RS links
+        auto rs_links = util::container_cast<List<RSLink*>>(ac->get_all_parent_links(NET_RS));
+        result.insert(result.end(), rs_links.begin(), rs_links.end());
+    }
+
+    return result;
 }
 
 bool RSLink::contained_in_rvd_port(RVDPort* port) const
