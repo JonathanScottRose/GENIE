@@ -551,7 +551,7 @@ namespace
 	/// @type System
 	
 	// CONSTRUCTOR: Creates a new System with the given name and registers it in GENIE's Hierarchy
-	// ARGS: system name <string>, topology function <functoin>
+	// ARGS: system name <string>
 	// RETURNS: the system <userdata>
 	
 	/// Constructor.
@@ -563,7 +563,6 @@ namespace
 	LFUNC(system_new)
 	{
 		const char* sysname = luaL_checkstring(L, 1);
-		luaL_checktype(L, 2, LUA_TFUNCTION);
 
 		// Create new verilog module definition
 		auto vinfo = new vlog::SystemVlogInfo(sysname);
@@ -572,12 +571,7 @@ namespace
 		System* sys = new System();
 		sys->set_name(sysname);
 		sys->set_hdl_info(vinfo);
-		genie::get_root()->add_child(sys);
-
-		// Makes a ref for topo function, attach to system
-		auto atopo = new ATopoFunc();
-		atopo->func_ref = lua::make_ref();
-		sys->asp_add(atopo);		
+		genie::get_root()->add_child(sys);	
 
 		lua::push_object(sys);
 		return 1;

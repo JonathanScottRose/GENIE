@@ -108,6 +108,12 @@ Port* NetRS::export_port(System* sys, Port* port, const std::string& name)
 RSPort::RSPort(Dir dir)
 : Port(dir, NET_RS), m_domain_id(-1)
 {
+    // Create a topo subport
+    TopoPort* subp = new TopoPort(this->get_dir());
+    std::string subp_name = genie::hier_make_reserved_name("topo");
+    subp->set_name(subp_name, true);
+
+    add_child(subp);
 }
 
 RSPort::RSPort(const RSPort& o)
@@ -117,7 +123,7 @@ RSPort::RSPort(const RSPort& o)
 	m_domain_id = -1;
 
 	// Only copy linkpoints upon instantiation
-	for (auto& c : o.get_children_by_type<RSLinkpoint>())
+	for (auto& c : o.get_children())
 	{
 		add_child(c->instantiate());
 	}
@@ -270,13 +276,6 @@ void RSPort::refine_topo()
 			lp->set_encoding(lpid_val);
 		}
 	}
-
-	// Create a topo subport
-	TopoPort* subp = new TopoPort(this->get_dir());
-	std::string subp_name = genie::hier_make_reserved_name("topo");
-	subp->set_name(subp_name, true);
-
-	add_child(subp);
 }
 
 void RSPort::refine(NetType target)

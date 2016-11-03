@@ -1,5 +1,4 @@
 require 'builder'
-require 'topo_xbar'
 require 'topo_ring'
 
 local b = genie.Builder.new()
@@ -58,7 +57,7 @@ b:component('reverser', 'reverser')
 		b:signal('ready', 'i_ready')
 		b:signal('data', 'o_data', 'WIDTH')
 
-b:system('sm_test', make_topo_xbar(true, true, true))
+local sys = b:system('sm_test')
     b:clock_sink('clk', 'clk')
     b:reset_sink('reset', 'reset')
 	b:instance('the_dispatch', 'dispatch')
@@ -80,3 +79,4 @@ b:system('sm_test', make_topo_xbar(true, true, true))
 	b:export ('xorro.out', 'out')
 
 
+topo_xbar(sys, true, true, true)

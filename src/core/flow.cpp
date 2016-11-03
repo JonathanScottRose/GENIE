@@ -577,20 +577,6 @@ namespace
 	{
 		// Create system contents ready for TOPO connectivity
 		sys->refine(NET_TOPO);
-
-		// Get the aspect that contains a reference to the System's Lua topology function
-		auto atopo = sys->asp_get<ATopoFunc>();
-		if (!atopo)
-			throw HierException(sys, "no topology function defined for system");
-
-		// Call topology function, passing the system as the first and only argument
-		lua::push_ref(atopo->func_ref);
-		lua::push_object(sys);
-		lua::pcall_top(1, 0);
-
-		// Unref topology function, and remove Aspect
-		lua::free_ref(atopo->func_ref);
-		sys->asp_remove<ATopoFunc>();
 	}
 
     void topo_create_default(System* sys)

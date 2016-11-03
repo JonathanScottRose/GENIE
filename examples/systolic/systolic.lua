@@ -1,5 +1,4 @@
 require 'builder'
-require 'topo_xbar'
 
 b = genie.Builder.new()
 
@@ -20,7 +19,7 @@ local send
 local recv = {}		
 local snd_to_recv = {}
 		
-b:system('TheSys', topo_xbar)
+b:system('TheSys')
 	b:clock_sink('TopLevelClk', 'i_clk200mhz')
 	
 	-- one sender, N receivers

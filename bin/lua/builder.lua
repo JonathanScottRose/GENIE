@@ -194,12 +194,10 @@ function Builder:linkpoint(name, lpid)
 end
 
 --- Creates a System.
--- Can provide a GENIE-supplied topology function, or a custom one.
 -- @tparam string name name of System
--- @tparam function topofunc topology function
 -- @treturn genie.Node raw representation for advanced use
-function Builder:system(name, topofunc)
-	self.cur_sys = g.System.new(name, topofunc)
+function Builder:system(name)
+	self.cur_sys = g.System.new(name)
     self.cur_node = self.cur_sys
 	self.cur_param_tgt = self.cur_sys
     

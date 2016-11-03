@@ -1,5 +1,4 @@
 require 'builder'
-require 'topo_xbar'
 
 local b = genie.Builder.new()
 
@@ -45,7 +44,7 @@ b:component('add', 'add')
 
 -- Define a system called 'the_sys' that uses a crossbar topology for its network 
 -- (although this system is too simple for split/merge nodes to be needed anyway)
-b:system('the_sys', topo_xbar)
+b:system('the_sys')
     -- Create an instance of the 'mult' component called 'the_mult'
 	b:instance('the_mult', 'mult')
         -- Set the value of a parameter

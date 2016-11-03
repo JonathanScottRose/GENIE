@@ -1,5 +1,4 @@
 require 'builder'
-require 'topo_xbar'
 
 b = genie.Builder.new()
 
@@ -22,7 +21,7 @@ b:component('compB', 'comp_b_ver')
 		b:signal('data', 'i_data', DWIDTH)
 		b:signal('valid', 'i_vld')
 		
-b:system('TheSys', topo_xbar)
+b:system('TheSys')
 	b:clock_sink('TopLevelClk', 'i_clk200mhz')
 	
 	-- instantiate our two components once each

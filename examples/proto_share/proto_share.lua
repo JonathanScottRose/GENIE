@@ -76,7 +76,7 @@ end
 
 -- define system and instances and links
 
-b:system('sys', topo_shared_toob)
+local sys = b:system('sys')
 
     b:clock_sink('clk', 'clk')
     b:reset_sink('reset', 'reset')
@@ -98,6 +98,6 @@ b:system('sys', topo_shared_toob)
     end
 		
 
-
+topo_shared_toob(sys)
 
 

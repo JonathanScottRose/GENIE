@@ -275,8 +275,8 @@ function define_cpu(b, N_MEM, IS_BPU, sysname, PERF_SIM)
         pipe_clock_domain = Set.make{'pipe_ctrl'}
     end
     
-    -- Create the actual CE system (use a crossbar toplogy for now)
-    b:system(sysname, topo_xbar)
+    -- Create the actual CE system 
+    local sys = b:system(sysname)
         b:parameter('IS_BPU', IS_BPU and '1' or '0')
         b:parameter('DISABLE_BCAST')
         
@@ -453,6 +453,8 @@ function define_cpu(b, N_MEM, IS_BPU, sysname, PERF_SIM)
             -- Pipeline <-> Pipeline Control conduit link
             b:link('pipe_ctrl.pipe','pipe.ctrl')
         end
+	
+	topo_xbar(sys)
 end
 
 

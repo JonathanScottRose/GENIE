@@ -3,11 +3,10 @@
 -- Attaches a Merge node to every input that has more than one physical fanin.
 -- Connects the Splits to the Merges, with optional Buffer Nodes after each Split or Merge.
 --@usage
---b:system('mysys', topo_xbar)
---@usage
---b:system('mysys', make_topo_xbar(true, false, true))
+--local sys = b:system('mysys')
+--...
+--topo_xbar(sys, true, false, true)
 -- @module topo_xbar
-
 
 require 'util'
 
@@ -16,21 +15,20 @@ require 'util'
 -- and up to 1 layer of merge nodes
 --
 
---- Default version that adds buffers after merge nodes only.
--- @tparam System sys
-function topo_xbar(sys)
-    make_topo_xbar(false, true, false)(sys)
-end
-
---- Returns a customized topo_xbar topology function.
--- You get to control where buffer nodes are placed.
--- @tparam boolean reg_split Add buffer at input to split nodes.
--- @tparam boolean reg_merge Add buffer at output of merge nodes.
--- @tparam boolean reg_internal Add buffer between each split and each merge.
+--- Crossbar topology function.
+-- Uses logical connectivity to create a crossbar in each communication domain.
+-- By default, only the output of merge nodes is registered, but this can be
+-- changed through extra parameters.
+-- @tparam System sys The @(System) to operate on.
+-- @tparam[opt=false] boolean reg_split Add buffer at input to split nodes.
+-- @tparam[opt=true] boolean reg_merge Add buffer at output of merge nodes.
+-- @tparam[opt=false] boolean reg_internal Add buffer between each split and each merge.
 -- @treturn function
-function make_topo_xbar(reg_split, reg_merge, reg_internal)
-return function(sys)
-    
+function topo_xbar(sys, reg_split, reg_merge, reg_internal)
+	if type(reg_split) == 'nil' then reg_split = false end
+	if type(reg_merge) == 'nil' then reg_merge = true end
+	if type(reg_internal) == 'nil' then reg_internal = false end
+	
     -- maps each RS link to the furthest-along (forward or backward) TOPO port
     -- that's carrying that RS link
 	local heads = {}
@@ -147,5 +145,4 @@ return function(sys)
         end
 	end
 	
-end
 end

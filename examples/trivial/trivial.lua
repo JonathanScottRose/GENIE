@@ -1,5 +1,4 @@
 require 'builder'
-require 'topo_xbar'
 
 b = genie.Builder.new()
 
@@ -21,9 +20,8 @@ b:component('compB', 'comp_b_ver')
 		b:signal('valid', 'i_vld')
 		
 -- Define a top-level system called TheSys.
--- This system uses the built-in Sparse Crossbar topology function topo_xbar,
--- even though we expect a single point-to-point link.
-b:system('TheSys', topo_xbar)
+
+b:system('TheSys')
 	-- Create a top-level clock sink interface for the system and
 	-- decide what the name of the associated Verilog signal will be 
 	-- in the GENIE-generated Verilog module that will be output.

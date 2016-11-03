@@ -3,8 +3,7 @@ require 'builder'
 require 'math'
 dofile 'cpu.lua'
 
-local function make_topo_lobe(N_CPU, N_MEM, DISABLE_BCAST)
-return function(sys)
+function topo_lobe(sys, N_CPU, N_MEM, DISABLE_BCAST)
     local function inp_ring(things, reg_input, has_extern_in, has_extern_out)
         local last = nil
         for i = 1,#things-1 do
@@ -165,7 +164,6 @@ return function(sys)
     end 
 	--]]
 end
-end
 
 local function is_pwr_of_2 (a) 
     local i = 0
@@ -182,7 +180,7 @@ local N_CPU = tonumber(genie.argv.N_CPU) or error("Must define N_CPU")
 local N_MEM = tonumber(genie.argv.N_MEM) or error("Must define N_MEM")
 local DISABLE_BCAST = tonumber(genie.argv.DISABLE_BCAST) or 0
 local PERF_SIM = tonumber(genie.argv.PERF_SIM)==1 or false
-local TOPOLOGY = tonumber(genie.argv.RING)==1 and make_topo_lobe(N_CPU,N_MEM,DISABLE_BCAST) or make_topo_xbar(true,true,false)
+local TOPOLOGY = tonumber(genie.argv.RING) or 0 
 assert (is_pwr_of_2(N_MEM)) 
 
 -- dependent parameters 
@@ -311,7 +309,7 @@ b:component('ctrl','ctrl_top')
 		b:signal('out','done','o_done','1')
 
 -- define system        
-b:system('lu', TOPOLOGY)
+local sys = b:system('lu')
     -- embed these to allow simulator testbench to pick them up
     b:parameter('N_CPU', N_CPU);
     b:parameter('N_MEM', N_MEM);
@@ -416,3 +414,9 @@ b:system('lu', TOPOLOGY)
             end
         end
     end 
+	
+	if TOPOLOGY == 0 then 
+		topo_xbar(sys, true, true, false)
+	else
+		topo_lobe(sys,N_CPU,N_MEM,DISABLE_BCAST)
+	end

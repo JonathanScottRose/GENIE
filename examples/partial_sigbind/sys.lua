@@ -1,5 +1,4 @@
 require 'builder'
-require 'topo_xbar'
 
 local b = genie.Builder.new()
 
@@ -17,7 +16,7 @@ b:component('comp','comp')
     b:conduit_src('iface')
         b:signal('out', 'field', 'o_sig', 4)
         
-b:system('sys', topo_xbar)
+b:system('sys')
     b:conduit_src('iface1')
         b:signal('out', 'field', 'o_sig', {12, 4, 0})
     b:conduit_src('iface2')

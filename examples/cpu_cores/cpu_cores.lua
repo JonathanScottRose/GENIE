@@ -40,7 +40,7 @@ b:component('CpuComp', 'cpu')
       lp = b:linkpoint(nm, enc, 'broadcast')
     end
 	
-b:system('fourcores', make_topo_ring(rings_cb))
+local sys = b:system('fourcores')
   b:clock_sink('clk', 'clk')
   b:reset_sink('rst', 'rst')
   
@@ -62,4 +62,5 @@ b:system('fourcores', make_topo_ring(rings_cb))
     end
   end
 
+topo_ring(sys, rings_cb())
 

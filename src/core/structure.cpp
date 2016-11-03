@@ -281,7 +281,7 @@ Port::Port(const Port& o)
 	: HierObject(o), m_type(o.m_type), m_dir(o.m_dir)
 {
 	// Instantiated ports have the same name, dir, type as the thing they are instantiating
-	set_name(o.get_name());
+	set_name(o.get_name(), true);
 
 	// Copy connectivity
 	for (const auto& i : o.m_endpoints)
