@@ -18,6 +18,7 @@
 #include "genie/net_rs.h"
 #include "genie/node_flowconv.h"
 #include "genie/node_reg.h"
+#include "genie/log.h"
 #include "flow.h"
 
 using namespace genie;
@@ -478,7 +479,7 @@ namespace
 				
 				// Remove the node
 				sys->remove_child(cur_node->get_name());
-				std::cout << "Superfluous node: removing " << cur_node->get_hier_path() << std::endl;
+                log::warn("Removing superfluous node %s", cur_node->get_hier_path().c_str());
 			}
 		}
 	}
@@ -1702,16 +1703,12 @@ namespace genie
 
     void print_stats(System* sys)
     {
-        {
-            unsigned nc = printf("Statistics for system %s:\n", sys->get_name().c_str());
-            for (unsigned i = 0; i < nc-1; i++)
-                putc('=', stdout);
-            putc('\n', stdout);
-        }
+        log::info("Statistics for system %s:", sys->get_name().c_str());
+        log::info("===");
 
         if (options().detailed_stats)
         {
-            printf("Name\tLUT\tREG\tLUTRAM\n");
+            log::info("Name\tLUT\tREG\tLUTRAM");
             auto nodes = sys->get_nodes();
             for (auto node : nodes)
             {
@@ -1719,23 +1716,18 @@ namespace genie
                     continue;
 
                 AreaMetrics area = node->get_area_usage();
-                printf("%s\t", node->get_name().c_str());
-                printf("%u\t%u\t%u\n",
+                log::info("%s\t%u\t%u\t%u", node->get_name().c_str(),
                     area.luts, area.regs, area.dist_ram);
             }
-
-            printf("\n");
 
             print_delays(sys);
         }
         else
         {
             AreaMetrics area = sys->get_area_usage();
-            printf("LUT: %u\n", area.luts);
-            printf("REG: %u\n", area.regs);
-            printf("LUTRAM: %u\n", area.dist_ram);
-
-            printf("\n");
+            log::info("LUT: %u", area.luts);
+            log::info("REG: %u", area.regs);
+            log::info("LUTRAM: %u", area.dist_ram);
         }
     }
 
@@ -1756,11 +1748,11 @@ namespace genie
             auto src_name = src->get_hier_path(sys);
             auto sink_name = sink->get_hier_path(sys);
 
-            printf("%s -> %s: %.2f\n", src_name.c_str(),
+            log::info("%s -> %s: %.2f", src_name.c_str(),
                 sink_name.c_str(), delays[rs_link]);
         }
 
-        printf("\n");
+        log::info("\n");
     }
 
     FlowOptions& options()

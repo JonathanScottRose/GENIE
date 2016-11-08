@@ -6,6 +6,7 @@
 #include "genie/genie.h"
 #include "genie/lua/genie_lua.h"
 #include "genie/regex.h"
+#include "genie/log.h"
 
 using namespace genie;
 
@@ -94,7 +95,7 @@ int main(int argc, char** argv)
 	}
 	catch (std::exception& e)
 	{
-		io::msg_error(e.what());
+        genie::log::error(e.what());
 	}
 
 	lua::shutdown();
