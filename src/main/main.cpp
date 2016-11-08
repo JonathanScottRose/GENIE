@@ -21,7 +21,7 @@ namespace
 		// Extract key=val,key=val,... pairs from string
 		for (auto cur_pos = s_lua_args.cbegin(), end_pos = s_lua_args.cend(); cur_pos != end_pos; )
 		{
-			static std::regex pattern(R"(((\w+)=(\w+)(,)?).*)");
+			static std::regex pattern(R"(((\w+)=([^,=]+)(,)?).*)");
 			std::smatch mr;
 
 			if (!std::regex_match(cur_pos, end_pos, mr, pattern))
@@ -65,6 +65,7 @@ namespace
 		args >> GetOpt::OptionPresent("force_full_merge", opts.force_full_merge);
         args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
         args >> GetOpt::OptionPresent("detailed_stats", opts.detailed_stats);
+        args >> GetOpt::OptionPresent("descriptive_spmg", opts.desc_spmg);
         
         {
             std::string no_topo_opt_sys;

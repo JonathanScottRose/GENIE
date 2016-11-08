@@ -89,7 +89,9 @@ void measure_latency(std::vector<std::vector<RSLink*>>& lists,
                 auto& other_list = lists[j];
                 for (auto other_xmis : other_list)
                 {
-                    if (!excl || !excl->has(other_xmis))
+                    bool conflict = !excl || !excl->has(other_xmis);
+                    bool same_xmis = this_xmis->get_flow_id() == other_xmis->get_flow_id();
+                    if (conflict && !same_xmis)
                     {
                         pktsize_sum += other_xmis->get_pkt_size();
                         pktsize_num++;
@@ -185,18 +187,13 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
             // Incoming topo links of first merge node
             auto& node1_topos = node1->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
 
-            // List of: list of transmissions on each input port from both merge nodes.
-            // Initialized to the ones from only the first merge node.
-            std::vector<std::vector<RSLink*>> combined_rslinks;
-
-            // A set containing the sources of node1_topos.
-            // We will check node2's sources against this.
-            std::unordered_set<Port*> node1_srces;
-            for (auto topo : node1_topos)
+            // Get lists of RS links, sorted by their physical source
+            std::unordered_map<Port*, std::vector<RSLink*>> node1_rslinks;
+            for (auto topo_link : node1_topos)
             {
-                node1_srces.insert(topo->get_src());
-                auto rs_links = topo->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
-                combined_rslinks.push_back(util::container_cast<List<RSLink*>>(rs_links));
+                auto rs_links = topo_link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+                auto topo_src = topo_link->get_src();
+                node1_rslinks[topo_src] = util::container_cast<List<RSLink*>>(rs_links);
             }
 
             for (auto it2 = it1 + 1; it2 != merges.end(); ++it2)
@@ -209,24 +206,30 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
                 // Incoming topo links of second merge node
                 auto& node2_topos = node2->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
 
-                // Reset combined_rslinks to only contain the things from node1, by just resizing the vector
-                combined_rslinks.resize(node1->get_n_inputs());
+                // Initialize to copy of node1's. Add node2's stuff.
+                auto combined_rslinks = node1_rslinks;
 
                 // Add the things from node2
-                for (auto topo : node2_topos)
+                for (auto topo_link : node2_topos)
                 {
-                    // Avoid duplicate sources
-                    auto src = topo->get_src();
-                    if (node1_srces.count(src))
-                        continue;
+                    auto rs_links = topo_link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
+                    auto topo_src = topo_link->get_src();
 
-                    auto rs_links = topo->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
-                    combined_rslinks.push_back(util::container_cast<List<RSLink*>>(rs_links));
+                    auto rs_links_casted = util::container_cast<List<RSLink*>>(rs_links);
+                    auto& bin = combined_rslinks[topo_src];
+                    bin.insert(bin.end(), rs_links_casted.begin(), rs_links_casted.end());
+                }
+
+                // Ugly: convert combined_rslinks into a vector or vectors
+                std::vector<std::vector<RSLink*>> cmb_rslinks_vec;
+                for (auto& bin : combined_rslinks)
+                {
+                    cmb_rslinks_vec.push_back(bin.second);
                 }
 
                 // Measure the incremental contention latencies in the hypothetical combined merge node
                 std::unordered_map<RSLink*, float> combined_inc_latency;
-                measure_latency(combined_rslinks, combined_inc_latency);
+                measure_latency(cmb_rslinks_vec, combined_inc_latency);
          
                 // Using the measured incremental latency on the combined node,
                 // the original incremental latency pre-combining, and the original end-to-end latency,
@@ -286,7 +289,7 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
                 }
                 else
                 {
-                    if (this_cost > best_cost)
+                    if (!best_found || this_cost > best_cost)
                     {
                         best_found = true;
                         best_cost = this_cost;
@@ -385,9 +388,6 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
             fix_split(sys, sp);
         }
 
-        // Delete the second merge node.
-        sys->delete_object(best_node2->get_name());
-
         // Recalculate the incremental and global delays
         std::unordered_map<RSLink*, float> new_incr1_delays;
         measure_latency_for_merge_node(best_node1, new_incr1_delays);
@@ -397,12 +397,24 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
             auto rslink = entry.first;
             auto new_incr = entry.second;
 
-            float old_incr = incremental_latency[best_node1][rslink];
+            auto& node1_bins = incremental_latency[best_node1];
+
+            auto old_incr_loc = incremental_latency[best_node1].find(rslink);
+            if (old_incr_loc == node1_bins.end())
+            {
+                old_incr_loc = incremental_latency[best_node2].find(rslink);
+            }
+
+            float old_incr = old_incr_loc->second;
 
             cur_total_latency[rslink] += new_incr - old_incr;
         }
 
+        // Delete the second merge node.
+        sys->delete_object(best_node2->get_name());
+        merges.erase(std::find(merges.begin(), merges.end(), best_node2));
         incremental_latency[best_node1] = new_incr1_delays;
+        incremental_latency.erase(best_node2);
 
     } // end while there are still merge nodes to merge
 }

@@ -19,6 +19,8 @@ namespace genie
         std::vector<std::string> topo_opt_systems;
 
         bool no_mdelay = false;
+
+        bool desc_spmg = false;
     };
 
     struct ArchParams

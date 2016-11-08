@@ -658,8 +658,19 @@ namespace
 
             if (en.remotes.size() > 1)
             {
+                std::string sp_name;
+                if (genie::options().desc_spmg)
+                {
+                    sp_name = orig_src->get_node()->get_name() + "_" +
+                        orig_src->get_primary_port()->get_name() + "_sp";
+                }
+                else
+                {
+                    sp_name = sys->make_unique_child_name("split");
+                }
+
                 auto sp = new NodeSplit();
-                sp->set_name(sys->make_unique_child_name("split"));
+                sp->set_name(sp_name);
                 sp->asp_add(new AAutoGen);
                 sys->add_child(sp);
                 sys->connect(orig_src, sp->get_topo_input());
@@ -676,8 +687,19 @@ namespace
 
             if (en.remotes.size() > 1)
             {
+                std::string mg_name;
+                if (genie::options().desc_spmg)
+                {
+                    mg_name = orig_sink->get_node()->get_name() + "_" +
+                        orig_sink->get_primary_port()->get_name() + "_mg";
+                }
+                else
+                {
+                    mg_name = sys->make_unique_child_name("merge");
+                }
+
                 auto mg = new NodeMerge();
-                mg->set_name(sys->make_unique_child_name("merge"));
+                mg->set_name(mg_name);
                 mg->asp_add(new AAutoGen);
                 sys->add_child(mg);
                 sys->connect(mg->get_topo_output(), orig_sink);
@@ -1621,6 +1643,7 @@ namespace
             util::exists(genie::options().topo_opt_systems, sys->get_name())))
         {
             flow::topo_optimize(sys);
+            topo_prune_unused(sys);
         }
 
 		// Create RVD network from TOPO network

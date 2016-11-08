@@ -385,3 +385,13 @@ function Builder:packet_size(size)
 	
 	self.cur_port:set_pktsize(size)
 end
+
+--- Sets default importance of an RS source/sink.
+-- Sets the default importance of connected RS links from 0-1. If unspecified, the default is 1.
+-- @tparam int imp importance from 0-1
+function Builder:importance(importance)
+	if not self.cur_port then error("no current port") end
+	if self.cur_port:get_type() ~= 'rs' then error("need an RS port") end
+	
+	self.cur_port:set_importance(importance)
+end

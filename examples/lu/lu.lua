@@ -181,6 +181,7 @@ local N_MEM = tonumber(genie.argv.N_MEM) or error("Must define N_MEM")
 local DISABLE_BCAST = tonumber(genie.argv.DISABLE_BCAST) or 0
 local PERF_SIM = tonumber(genie.argv.PERF_SIM)==1 or false
 local TOPOLOGY = tonumber(genie.argv.RING) or 0 
+local IMP = tonumber(genie.argv.IMP) or 1
 assert (is_pwr_of_2(N_MEM)) 
 
 -- dependent parameters 
@@ -206,6 +207,7 @@ b:component('mem','mem_lu2phy')
 	b:reset_sink('reset','reset')
     
     b:rs_sink('rdreq', 'clk')
+		b:importance(IMP)
         b:signal('valid','i_net_rdreq_valid')
         b:signal('ready','o_net_rdreq_ready')
         b:signal('databundle','blkx', 'i_net_rdreq_blkx',MAX_BDIMBITS)
@@ -265,6 +267,7 @@ b:component('ctrl','ctrl_top')
 	b:clock_sink('clk','clk')
 	b:reset_sink('reset','reset')
     b:rs_sink('i_rdreq','clk')
+		b:importance(IMP)
         b:signal('valid','i_rdreq')
         b:signal('databundle','blkx','i_rdreq_blkx',MAX_BDIMBITS)
         b:signal('databundle','blky','i_rdreq_blky',MAX_BDIMBITS)
@@ -392,6 +395,7 @@ local sys = b:system('lu')
         end
     
         -- links to memory controllers
+		local rdresp_bcasts = {}
         for j = 0, N_MEM-1 do
             local mem_inst = 'mem' .. j
             
@@ -410,13 +414,18 @@ local sys = b:system('lu')
             
             -- read reply broadcasts: goes to all ce
             if DISABLE_BCAST==0 then
-                b:link(mem_inst .. '.rdresp.bcast', cpu_inst .. '.rdresp')
+                local l = b:link(mem_inst .. '.rdresp.bcast', cpu_inst .. '.rdresp')
+				table.insert(rdresp_bcasts, l)
             end
         end
+		
+		if DISABLE_BCAST==0 then
+			b:make_exclusive(rdresp_bcasts)
+		end
     end 
 	
-	if TOPOLOGY == 0 then 
-		topo_xbar(sys, true, true, false)
-	else
-		topo_lobe(sys,N_CPU,N_MEM,DISABLE_BCAST)
-	end
+	--if TOPOLOGY == 0 then 
+	--	topo_xbar(sys, true, true, false)
+	--else
+	--	topo_lobe(sys,N_CPU,N_MEM,DISABLE_BCAST)
+	--end

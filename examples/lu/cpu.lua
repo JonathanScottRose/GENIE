@@ -26,7 +26,7 @@ local pipe_wrreq_linkpoints = {tcl0="4'b1110", cl0="4'b0110", tc0="4'b1100", c0=
 -- used to autmate the creation of the various linkpoints on the Net-to-Cache block to let it simultaneously target
 -- all the combinations of cache buffers for writing
 local n2c_wrreq_linkpoints = {cl0="4'b0110", tcl0="4'b1110", tc0="4'b1100", c0="4'b0100", l0="4'b0010", 
-                                 tcl1="4'b1111", cl1="4'b0111", c1="4'b0101", l1="4'b0011"};
+                                 cl1="4'b0111", c1="4'b0101", l1="4'b0011"};
 
 -- creates definitions for all the components inside a CE (but not the CE system itself)
 -- it depends on the number of memory controllers in the outside system
@@ -398,37 +398,37 @@ function define_cpu(b, N_MEM, IS_BPU, sysname, PERF_SIM)
         
             -- Gather sets of links that compete for each cache buffer's write port. These will later be made exclusive.
             local wr_groups = 
-            {
-                ['left0.wrreq'] = {}, ['left1.wrreq'] = {}, ['top.wrreq'] = {}, ['cur0.wrreq'] = {}, ['cur1.wrreq'] = {}
-            }
+			{
+				['0'] = {}, ['1'] = {}
+			}
             
             -- Connect all write request interfaces (from both the pipeline and from n2c) to the caches
-            for source,v in pairs({["pipe.wrreq."]=pipe_wrreq_linkpoints, ["n2c.wrreq."]=n2c_wrreq_linkpoints}) do 
-                for tuple in keys(v) do
-                    local whichpage = '0'
-                    local target
-                    local link
-                    --PARSE the linkpoint name 
-                    if string.find(tuple,'1') then
-                        whichpage = '1'
-                    end
-                    if string.find(tuple,'l') then
-                        target = 'left'..whichpage..'.wrreq'
-                        link = b:link(source..tuple, target, label)
-                        table.insert(wr_groups[target], link)
-                    end
-                    if string.find(tuple,'t') then
-                        target = 'top'..'.wrreq'
-                        link = b:link(source..tuple, target, label)
-                        table.insert(wr_groups[target], link)
-                    end
-                    if string.find(tuple,'c') then
-                        target = 'cur'..whichpage..'.wrreq'
-                        link = b:link(source..tuple, target, label)
-                        table.insert(wr_groups[target], link)
-                    end
-                end
-            end
+			for source,v in pairs({["pipe.wrreq."]=pipe_wrreq_linkpoints, ["n2c.wrreq."]=n2c_wrreq_linkpoints}) do 
+				for tuple in keys(v) do
+					local whichpage = '0'
+					local target
+					local link
+					--PARSE the linkpoint name 
+					if string.find(tuple,'1') then
+						whichpage = '1'
+					end
+					if string.find(tuple,'l') then
+						target = 'left'..whichpage..'.wrreq'
+						link = b:link(source..tuple, target, label)
+						table.insert(wr_groups[whichpage], link)
+					end
+					if string.find(tuple,'t') then
+						target = 'top'..'.wrreq'
+						link = b:link(source..tuple, target, label)
+						table.insert(wr_groups[whichpage], link)
+					end
+					if string.find(tuple,'c') then
+						target = 'cur'..whichpage..'.wrreq'
+						link = b:link(source..tuple, target, label)
+						table.insert(wr_groups[whichpage], link)
+					end
+				end
+			end
             
             -- exclusive-ize write requests
             for group in svaluesk(wr_groups) do
@@ -453,8 +453,6 @@ function define_cpu(b, N_MEM, IS_BPU, sysname, PERF_SIM)
             -- Pipeline <-> Pipeline Control conduit link
             b:link('pipe_ctrl.pipe','pipe.ctrl')
         end
-	
-	topo_xbar(sys)
 end
 
 

@@ -1502,7 +1502,8 @@ namespace
 		LM(get_rs_port, rsport_get_rs_port),
 		LM(get_topo_port, rsport_get_topo_port),
 		LM(set_clock_port_name, rsport_set_clock_port_name),
-        LM(set_pktsize, rsport_set_pktsize)
+        LM(set_pktsize, rsport_set_pktsize),
+        LM(set_importance, rsport_set_importance)
 	});
 
 	//
