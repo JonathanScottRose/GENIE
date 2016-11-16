@@ -1719,8 +1719,6 @@ namespace genie
                 log::info("%s\t%u\t%u\t%u", node->get_name().c_str(),
                     area.luts, area.regs, area.dist_ram);
             }
-
-            print_delays(sys);
         }
         else
         {
@@ -1729,30 +1727,6 @@ namespace genie
             log::info("REG: %u", area.regs);
             log::info("LUTRAM: %u", area.dist_ram);
         }
-    }
-
-    void print_delays(System* sys)
-    {
-        std::unordered_map<RSLink*, float> delays;
-        flow::topo_optimize_measure_final(sys, delays);
-
-        auto rs_links = sys->get_links(NET_RS);
-
-        for (auto link : rs_links)
-        {
-            auto rs_link = (RSLink*)link;
-
-            auto src = link->get_src();
-            auto sink = link->get_sink();
-
-            auto src_name = src->get_hier_path(sys);
-            auto sink_name = sink->get_hier_path(sys);
-
-            log::info("%s -> %s: %.2f", src_name.c_str(),
-                sink_name.c_str(), delays[rs_link]);
-        }
-
-        log::info("\n");
     }
 
     FlowOptions& options()

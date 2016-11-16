@@ -59,8 +59,8 @@ void fix_split(System* sys, NodeSplit* sp)
     }
 }
 
-void measure_latency(std::vector<std::vector<RSLink*>>& lists,
-    std::unordered_map<RSLink*, float>& result)
+void measure_contention(std::vector<std::vector<RSLink*>>& lists,
+    std::unordered_map<int, unsigned>& result)
 {
     unsigned n_inputs = lists.size();
 
@@ -69,10 +69,9 @@ void measure_latency(std::vector<std::vector<RSLink*>>& lists,
     {
         auto& this_list = lists[i];
 
-        // Get each transmission to compete with the biggest transmissions from the other inputs
         for (auto this_xmis : this_list)
         {
-            float avg_latency = 0;
+            unsigned total_contention = 0;
 
             auto excl = this_xmis->asp_get<ARSExclusionGroup>();
 
@@ -81,11 +80,7 @@ void measure_latency(std::vector<std::vector<RSLink*>>& lists,
             {
                 if (i == j) continue;
 
-                // Add up the total packet sizes of the transmissions that
-                // we have a chance of conflicting with
-                float pktsize_sum = 0;
-                unsigned pktsize_num = 1; // count the 'null' case
-
+                // Add packet sizes of contending transmissions to total contention
                 auto& other_list = lists[j];
                 for (auto other_xmis : other_list)
                 {
@@ -93,23 +88,49 @@ void measure_latency(std::vector<std::vector<RSLink*>>& lists,
                     bool same_xmis = this_xmis->get_flow_id() == other_xmis->get_flow_id();
                     if (conflict && !same_xmis)
                     {
-                        pktsize_sum += other_xmis->get_pkt_size();
-                        pktsize_num++;
-                        break;
+                        total_contention += other_xmis->get_pkt_size();
                     }
                 }
 
-                avg_latency += pktsize_sum / (float)pktsize_num;
             }
 
             // Add the worst case competition delay
-            result[this_xmis] += avg_latency;
+            int this_fid = this_xmis->get_flow_id();
+            result[this_fid] += total_contention;
         } // end foreach transmission in list
     } // end foreach list
 }
 
-void measure_latency_for_merge_node(NodeMerge* mg, 
-    std::unordered_map<RSLink*, float>& result)
+void gather_unique_xmis(std::vector<Link*>& in, std::vector<RSLink*>& out)
+{
+    unsigned n = in.size();
+
+    for (unsigned i = 0; i < n; i++)
+    {
+        auto link_rs = (RSLink*)in[i];
+
+        int i_fid = link_rs->get_flow_id();
+        bool found = false;
+
+        for (auto link_existing : out)
+        {
+            int j_fid = link_existing->get_flow_id();
+            if (i_fid == j_fid)
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            out.push_back(link_rs);
+        }
+    }
+}
+
+void measure_contention_for_merge_node(NodeMerge* mg, 
+    std::unordered_map<int, unsigned>& result)
 {
     // Keep a list of transmissions by input
     std::vector<std::vector<RSLink*>> xmis_by_input;
@@ -129,42 +150,43 @@ void measure_latency_for_merge_node(NodeMerge* mg,
             auto ac = topo_link->asp_get<ALinkContainment>();
             if (ac)
             {
-                auto rs_links = util::container_cast<List<RSLink*>>(ac->get_all_parent_links(NET_RS));
-                xmis_by_input[i] = rs_links;
+                auto rs_links = ac->get_all_parent_links(NET_RS);
+                gather_unique_xmis(rs_links, xmis_by_input[i]);
             }
             i++;
         }
     }
 
-    measure_latency(xmis_by_input, result);
+    measure_contention(xmis_by_input, result);
 }
 
-void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
+void optimize_domain(System* sys, std::vector<NodeMerge*>& merges,
+    std::unordered_map<int, std::vector<RSLink*>>& fid_to_links)
 {
     // Global cumulative latency within this domain. This never gets
     // updated.
-    std::unordered_map<RSLink*, float> baseline_latency;
+    std::unordered_map<int, unsigned> baseline_contention;
 
     // Incremental latency per merge node. This is initialized based
     // on the pre-optimization topology, and is updated during optimization.
     std::unordered_map<NodeMerge*, 
-        std::unordered_map<RSLink*, float>> incremental_latency;
+        std::unordered_map<int, unsigned>> incremental_contention;
 
     // Populate these initial things
     for (auto& mg : merges)
     {
-        auto& incr = incremental_latency[mg];
-        measure_latency_for_merge_node(mg, incr);
+        auto& incr = incremental_contention[mg];
+        measure_contention_for_merge_node(mg, incr);
 
         // Add to cumulative
         for (auto& entry : incr)
         {
-            baseline_latency[entry.first] += entry.second;
+            baseline_contention[entry.first] += entry.second;
         }
     }
 
     // This copy gets updated
-    auto cur_total_latency = baseline_latency;
+    auto cur_total_contention = baseline_contention;
 
     // While can still combine more merge nodes...
     while(true)
@@ -193,7 +215,7 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
             {
                 auto rs_links = topo_link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
                 auto topo_src = topo_link->get_src();
-                node1_rslinks[topo_src] = util::container_cast<List<RSLink*>>(rs_links);
+                gather_unique_xmis(rs_links, node1_rslinks[topo_src]);
             }
 
             for (auto it2 = it1 + 1; it2 != merges.end(); ++it2)
@@ -214,10 +236,7 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
                 {
                     auto rs_links = topo_link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
                     auto topo_src = topo_link->get_src();
-
-                    auto rs_links_casted = util::container_cast<List<RSLink*>>(rs_links);
-                    auto& bin = combined_rslinks[topo_src];
-                    bin.insert(bin.end(), rs_links_casted.begin(), rs_links_casted.end());
+                    gather_unique_xmis(rs_links, combined_rslinks[topo_src]);
                 }
 
                 // Ugly: convert combined_rslinks into a vector or vectors
@@ -228,8 +247,8 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
                 }
 
                 // Measure the incremental contention latencies in the hypothetical combined merge node
-                std::unordered_map<RSLink*, float> combined_inc_latency;
-                measure_latency(cmb_rslinks_vec, combined_inc_latency);
+                std::unordered_map<int, unsigned> combined_inc_contention;
+                measure_contention(cmb_rslinks_vec, combined_inc_contention);
          
                 // Using the measured incremental latency on the combined node,
                 // the original incremental latency pre-combining, and the original end-to-end latency,
@@ -237,39 +256,43 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
                 // importance constraints.
                 
                 bool violation = false;
-                float this_cost = 0.0f;
+                float this_cost = 0;
 
-                for (auto& new_comb_it : combined_inc_latency)
+                for (auto& new_comb_it : combined_inc_contention)
                 {
-                    auto rslink = new_comb_it.first;
-                    float new_incr = new_comb_it.second;
+                    auto fid = new_comb_it.first;
+                    unsigned new_incr = new_comb_it.second;
                 
-                    // Original end-to-end average latency
-                    float old_baseline = baseline_latency[rslink];
-                    float old_total = cur_total_latency[rslink];
+                    // Original total contention
+                    unsigned old_baseline = baseline_contention[fid];
+                    unsigned old_total = cur_total_contention[fid];
                         
                     // Find original incremental contribution to that value, pre-combine.
-                    // This transmission belongs to either node1 or node2, try both
-                    auto& incrs1 = incremental_latency[node1];
+                    // This transmission can appear in node1 AND/OR node2, so sum up both
 
-                    auto old_incr_loc = incrs1.find(rslink);
-                    if (old_incr_loc == incrs1.end())
+                    unsigned old_incr = 0;
+
+                    for (auto node : {node1, node2})
                     {
-                        auto& incrs2 = incremental_latency[node2];
-                        old_incr_loc = incrs2.find(rslink);
+                        auto& incrs = incremental_contention[node];
+                        auto old_incr_loc = incrs.find(fid);
+
+                        if (old_incr_loc != incrs.end())
+                        {
+                            old_incr += old_incr_loc->second;
+                        }
                     }
 
-                    float old_incr = old_incr_loc->second;
-
-                    // Calculate the new hypothetical total latency
-                    float new_total = old_total - old_incr + new_incr;
+                    // Calculate the new hypothetical total contention
+                    unsigned new_total = old_total - old_incr + new_incr;
 
                     // See if it violates importance constraints
+                    auto rslink = fid_to_links[fid].front();
                     float link_imp = rslink->get_importance();
                     unsigned link_size = rslink->get_pkt_size();
 
                     // Check if any link constraint is violated
-                    float ratio = (link_size + old_baseline) / (link_size + new_total);
+                    float ratio = (link_size + old_baseline) / (float)(link_size + new_total);
                     if (ratio < link_imp)
                     {
                         violation = true;
@@ -389,32 +412,40 @@ void optimize_domain(System* sys, std::vector<NodeMerge*>& merges)
         }
 
         // Recalculate the incremental and global delays
-        std::unordered_map<RSLink*, float> new_incr1_delays;
-        measure_latency_for_merge_node(best_node1, new_incr1_delays);
+        std::unordered_map<int, unsigned> new_incr1_contention;
+        measure_contention_for_merge_node(best_node1, new_incr1_contention);
 
-        for (auto& entry : new_incr1_delays)
+        for (auto& entry : new_incr1_contention)
         {
-            auto rslink = entry.first;
-            auto new_incr = entry.second;
+            int fid = entry.first;
+            unsigned new_incr = entry.second;
+            unsigned old_incr = 0;
 
-            auto& node1_bins = incremental_latency[best_node1];
+            // node2 is going away, and node1 is now the combination of the old node1 and node2.
+            // Two operations:
+            // 1) Remove the transmission's former contributions (which came from old node1 or old node2 OR BOTH)
+            // 2) Add the new contribution based on the new combined node1
 
-            auto old_incr_loc = incremental_latency[best_node1].find(rslink);
-            if (old_incr_loc == node1_bins.end())
+            // 1) sum up old node1 and/or old node2's contributions for this flow
+            for (auto node : {best_node1, best_node2})
             {
-                old_incr_loc = incremental_latency[best_node2].find(rslink);
+                auto& node_bins = incremental_contention[node];
+                auto incr_loc = node_bins.find(fid);
+                if (incr_loc != node_bins.end())
+                {
+                    old_incr += incr_loc->second;
+                }
             }
 
-            float old_incr = old_incr_loc->second;
-
-            cur_total_latency[rslink] += new_incr - old_incr;
+            // Remove 1) and add 2)
+            cur_total_contention[fid] += new_incr - old_incr;
         }
 
         // Delete the second merge node.
         sys->delete_object(best_node2->get_name());
         merges.erase(std::find(merges.begin(), merges.end(), best_node2));
-        incremental_latency[best_node1] = new_incr1_delays;
-        incremental_latency.erase(best_node2);
+        incremental_contention[best_node1] = new_incr1_contention;
+        incremental_contention.erase(best_node2);
 
     } // end while there are still merge nodes to merge
 }
@@ -435,6 +466,18 @@ void topo_optimize(System* sys)
     //std::unordered_map<RSLink*, float> cur_delays;
     //measure_latency(sys, cur_delays);
 
+    // Map flow id -> links
+    std::unordered_map<int, 
+        std::unordered_map<int,std::vector<RSLink*>>> fid_to_links;
+    auto all_rslinks = sys->get_links(NET_RS);
+    for (auto link : all_rslinks)
+    {
+        auto rslink = (RSLink*)link;
+        auto domain = rslink->get_domain_id();
+        auto fid = rslink->get_flow_id();
+        fid_to_links[domain][fid].push_back(rslink);
+    }
+
     // Sort merge nodes into domains
     auto all_merges = sys->get_children_by_type<NodeMerge>();
     std::unordered_map<int, std::vector<NodeMerge*>> merge_by_domain;
@@ -449,29 +492,8 @@ void topo_optimize(System* sys)
 
     for (auto& entry : merge_by_domain)
     {
-        optimize_domain(sys, entry.second);
+        optimize_domain(sys, entry.second, fid_to_links[entry.first]);
     }
-}
-
-void topo_optimize_measure_final(System* sys, std::unordered_map<RSLink*, float>& result)
-{
-    // Measure the latency due to contention of every logical link
-
-    // Initialize
-    for (auto& link : sys->get_links(NET_RS))
-    {
-        auto rs_link = (RSLink*)link;
-        result[rs_link] = 0;
-    }
-
-    // Get all merge nodes, where contention hapens
-    auto mg_nodes = sys->get_children_by_type<NodeMerge>();
-
-    // For each merge node
-    for (auto mg_node : mg_nodes)
-    {
-        measure_latency_for_merge_node(mg_node, result);
-    }       
 }
 
 }

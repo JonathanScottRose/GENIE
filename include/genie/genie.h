@@ -40,7 +40,6 @@ namespace genie
     // Do everything
     void flow_main();
     void print_stats(System* sys);
-    void print_delays(System* sys);
 
 	// Get hierarchy root
 	HierRoot* get_root();
