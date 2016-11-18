@@ -58,7 +58,7 @@ hdl::Port* HDLBinding::get_port() const
 	Node* node = get_parent()->get_parent()->get_node();
 	assert(node);
 
-	auto vinfo = as_a<hdl::NodeVlogInfo*>(node->get_hdl_info());
+	auto vinfo = node->get_hdl_info();
 	assert(vinfo);
 
 	return vinfo->get_port(m_port_name);

@@ -1143,7 +1143,7 @@ namespace
 			sys->add_port(reset_src);
 
 			// Don't forget the actual HDL port too
-			auto vinfo = (hdl::NodeVlogInfo*)sys->get_hdl_info();
+			auto vinfo = sys->get_hdl_info();
 			assert(vinfo);
 			vinfo->add_port(new hdl::Port("reset", 1, hdl::Port::IN));
 		}

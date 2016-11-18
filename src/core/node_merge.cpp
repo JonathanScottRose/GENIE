@@ -28,7 +28,7 @@ void NodeMerge::init_vlog()
 {
 	using namespace hdl;
 
-	auto vinfo = new NodeVlogInfo(MODULE);
+	auto vinfo = new NodeHDLInfo(MODULE);
 
 	vinfo->add_port(new hdl::Port("clk", 1, hdl::Port::IN));
 	vinfo->add_port(new hdl::Port("reset", 1, hdl::Port::IN));
@@ -259,7 +259,7 @@ void NodeMerge::do_exclusion_check()
 	if (m_is_exclusive)
     {
         // Set the type of merge node based on this result
-		((NodeVlogInfo*)get_hdl_info())->set_module_name(MODULE_EX);
+		get_hdl_info()->set_module_name(MODULE_EX);
 
         // Loosen backpressure restrictions on inputs
         for (int i = 0; i < n_inputs; i++)

@@ -422,7 +422,7 @@ namespace
 		const char* mod_name = luaL_checkstring(L, 2);
 
 		// Create new verilog module definition
-		auto vinfo = new hdl::NodeVlogInfo(mod_name);
+		auto vinfo = new hdl::NodeHDLInfo(mod_name);
 
 		// Create and register the node
 		Node* node = new Node();
@@ -565,7 +565,7 @@ namespace
 		const char* sysname = luaL_checkstring(L, 1);
 
 		// Create new verilog module definition
-		auto vinfo = new hdl::SystemVlogInfo(sysname);
+		auto vinfo = new hdl::NodeHDLInfo(sysname);
 
 		// Create the System
 		System* sys = new System();
@@ -1313,7 +1313,7 @@ namespace
 
 		// Access Port's Node's vlog module and create a new vlog port if it does not exist yet
 		Node* node = self->get_node();
-		auto vinfo = as_a<hdl::NodeVlogInfo*>(node->get_hdl_info());
+		auto vinfo = node->get_hdl_info();
 		hdl::Port* vport = vinfo->get_port(vlog_portname);
 
 		if (!vport)

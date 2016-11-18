@@ -18,7 +18,7 @@ namespace
 
 NodeClockX::NodeClockX()
 {
-	auto vinfo = new NodeVlogInfo(MODULE);
+	auto vinfo = new NodeHDLInfo(MODULE);
 	vinfo->add_port(new hdl::Port("arst", 1, hdl::Port::IN));
 	vinfo->add_port(new hdl::Port("wrclk", 1, hdl::Port::IN));
 	vinfo->add_port(new hdl::Port("rdclk", 1, hdl::Port::IN));

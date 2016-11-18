@@ -4,17 +4,17 @@
 #include "genie/expressions.h"
 #include "genie/networks.h"
 #include "genie/value.h"
-#include "genie/structure.h"
 
 namespace genie
 {
+    class Node;
+
 namespace hdl
 {
 	using Expression = expressions::Expression;
 	using NameResolver = expressions::NameResolver;
 
-	class NodeVlogInfo;
-	class SystemVlogInfo;
+	class NodeHDLInfo;
 	class Port;
 	class PortBinding;
 
@@ -74,7 +74,7 @@ namespace hdl
 
 		PROP_GET_SET(name, const std::string&, m_name);
 		PROP_GET_SET(dir, Dir, m_dir);
-		PROP_GET_SET(parent, NodeVlogInfo*, m_parent);
+		PROP_GET_SET(parent, NodeHDLInfo*, m_parent);
 		PROP_GET_SET(width, const Expression&, m_width);
 
 		int eval_width();
@@ -87,7 +87,7 @@ namespace hdl
 		Port* instantiate() const;
 
 	protected:
-		NodeVlogInfo* m_parent;
+		NodeHDLInfo* m_parent;
 		Expression m_width;
 		std::string m_name;
 		Dir m_dir;
@@ -132,35 +132,27 @@ namespace hdl
 		int m_width;
 	};
 
-	class NodeVlogInfo : public NodeHDLInfo
+    class NodeHDLInfo
 	{
 	public:
-		NodeVlogInfo(const std::string&);
-		~NodeVlogInfo();
+        NodeHDLInfo(const std::string&);
+		~NodeHDLInfo();
 
 		PROP_GET_SET(module_name, const std::string&, m_mod_name);
 		PROP_DICT_NOSET(Ports, port, Port);
+        PROP_GET_SET(node, Node*, m_node);
+        PROP_DICT(Nets, net, Net);
 
-		NodeHDLInfo* instantiate() override;
+		NodeHDLInfo* instantiate();
 		Port* add_port(Port*);
 
+        void connect(Port* src, Port* sink, int src_lsb, int sink_lsb, int width);
+        void connect(Port* sink, const Value&, int sink_lsb);
+
 	protected:
+        Node* m_node;
 		std::string m_mod_name;
-	};
-
-	class SystemVlogInfo : public NodeVlogInfo
-	{
-	public:
-		SystemVlogInfo(const std::string&);
-		~SystemVlogInfo();
-
-		PROP_DICT(Nets, net, Net);
-
-		void connect(Port* src, Port* sink, int src_lsb, int sink_lsb, int width);
-		void connect(Port* sink, const Value&, int sink_lsb);
-
-	protected:
-		List<ConstValue*> m_const_values;
+        List<ConstValue*> m_const_values;
 	};
 
 	void write_system(System*);

@@ -6,6 +6,7 @@
 #include "genie/connections.h"
 #include "genie/parameter.h"
 #include "genie/metrics.h"
+#include "genie/hdl.h"
 
 namespace genie
 {
@@ -13,7 +14,6 @@ namespace genie
 	class Port;
 	class System;
 	class HierRoot;
-	class NodeHDLInfo;
 	
 	class Port : public HierObject
 	{
@@ -79,20 +79,6 @@ namespace genie
 		EndpointsMap m_endpoints;
 	};
 
-	class NodeHDLInfo
-	{
-	public:
-		NodeHDLInfo();
-		virtual ~NodeHDLInfo() = default;
-
-		virtual NodeHDLInfo* instantiate() = 0;
-
-		PROP_GET_SET(node, Node*, m_node);
-
-	protected:
-		Node* m_node;
-	};
-
 	class Node : public HierObject
 	{
 	public:
@@ -126,8 +112,8 @@ namespace genie
 		expressions::NameResolver get_exp_resolver();
 
 		// HDL Info
-		PROP_GET(hdl_info, NodeHDLInfo*, m_hdl_info);
-		void set_hdl_info(NodeHDLInfo*);
+		PROP_GET(hdl_info, genie::hdl::NodeHDLInfo*, m_hdl_info);
+		void set_hdl_info(genie::hdl::NodeHDLInfo*);
 
 		// Link-related
 		NetTypes get_net_types() const;
@@ -153,7 +139,7 @@ namespace genie
 		NetType find_auto_net_type(HierObject*, HierObject*) const;
 		void get_eps(HierObject*&, HierObject*&, NetType, Endpoint*&, Endpoint*&) const;
 
-		NodeHDLInfo* m_hdl_info;
+		genie::hdl::NodeHDLInfo* m_hdl_info;
 		std::unordered_map<NetType, Links> m_links;
 	};
 

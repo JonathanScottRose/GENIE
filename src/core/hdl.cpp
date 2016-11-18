@@ -114,20 +114,22 @@ void Port::bind(Bindable* target, int port_lsb, int targ_lsb)
 }
 
 //
-// NodeVlogInfo
+// NodeHDLInfo
 //
 
-NodeVlogInfo::NodeVlogInfo(const std::string& name)
+NodeHDLInfo::NodeHDLInfo(const std::string& name)
 	: m_mod_name(name)
 {
 }
 
-NodeVlogInfo::~NodeVlogInfo()
+NodeHDLInfo::~NodeHDLInfo()
 {
 	util::delete_all_2(m_ports);
+    util::delete_all(m_const_values);
+    util::delete_all_2(m_nets);
 }
 
-Port* NodeVlogInfo::add_port(Port* p)
+Port* NodeHDLInfo::add_port(Port* p)
 {
 	assert(!util::exists_2(m_ports, p->get_name()));
 	m_ports[p->get_name()] = p;
@@ -136,10 +138,10 @@ Port* NodeVlogInfo::add_port(Port* p)
 }
 
 
-genie::NodeHDLInfo* NodeVlogInfo::instantiate()
+NodeHDLInfo* NodeHDLInfo::instantiate()
 {
 	// Use same module name
-	auto result = new NodeVlogInfo(m_mod_name);
+	auto result = new NodeHDLInfo(m_mod_name);
 
 	// Copy all Ports
 	for (auto& i : ports())
@@ -148,6 +150,60 @@ genie::NodeHDLInfo* NodeVlogInfo::instantiate()
 	}
 
 	return result;
+}
+
+void NodeHDLInfo::connect(Port* src, Port* sink, int src_lsb, int sink_lsb, int width)
+{
+    // Create or grab a net that's bound to the entire src.
+    // This process depends on whether the Port is top-level to this System or not.
+    bool src_is_export = src->get_parent() == this;
+    bool sink_is_export = sink->get_parent() == this;
+
+    // Validate directions of src/sink
+    auto src_effective_dir = src->get_dir();
+    auto sink_effective_dir = sink->get_dir();
+
+    if (src_is_export) src_effective_dir = Port::rev_dir(src_effective_dir);
+    if (sink_is_export) sink_effective_dir = Port::rev_dir(sink_effective_dir);
+
+    assert(src_effective_dir != Port::IN);
+    assert(sink_effective_dir != Port::OUT);
+
+    // This is the name of the net. Non-export nets are named nodename_portname and exports are
+    // just named exactly after the portname.
+    std::string src_netname = src_is_export? 
+        src->get_name() : src->get_parent()->get_node()->get_name() + "_" + src->get_name();
+
+    // Try to find existing one
+    Net* net = get_net(src_netname);
+    if (!net)
+    {
+        // Not found? Create and bind to src.
+        int src_width = src->eval_width();
+
+        auto nettype = src_is_export? Net::EXPORT : Net::WIRE;
+        net = new Net(nettype, src_netname);
+        net->set_width(src_width);
+        this->add_net(net);
+
+        // Bind net to entire src.
+        src->bind(net, src_width, 0, 0); 
+    }
+
+    // Now bind the net to the sink.
+    // Specifically, bind [src_lsb+width-1, src_lsb] of the net to [sink_lsb+width-1, sink_lsb] of sink.
+    sink->bind(net, width, sink_lsb, src_lsb);
+}
+
+void NodeHDLInfo::connect(Port* sink, const genie::Value& val, int sink_lsb)
+{
+    // Wrap the value in a ConstValue Bindable object and bind it to :
+    //   sink[val.width + sink_lsb - 1 : sink_lsb]
+    auto cv = new ConstValue(val);
+    sink->bind(cv, sink_lsb, 0);
+
+    // Keep track of it for memory cleanup later
+    m_const_values.push_back(cv);
 }
 
 //
@@ -233,74 +289,6 @@ void Net::set_width(int width)
 }
 
 
-//
-// SystemVlogInfo
-//
-
-SystemVlogInfo::SystemVlogInfo(const std::string& name)
-	: NodeVlogInfo(name)
-{
-}
-
-SystemVlogInfo::~SystemVlogInfo()
-{
-	util::delete_all(m_const_values);
-	util::delete_all_2(m_nets);
-}
-
-void SystemVlogInfo::connect(Port* src, Port* sink, int src_lsb, int sink_lsb, int width)
-{
-	// Create or grab a net that's bound to the entire src.
-	// This process depends on whether the Port is top-level to this System or not.
-	bool src_is_export = src->get_parent() == this;
-	bool sink_is_export = sink->get_parent() == this;
-
-	// Validate directions of src/sink
-	auto src_effective_dir = src->get_dir();
-	auto sink_effective_dir = sink->get_dir();
-
-	if (src_is_export) src_effective_dir = Port::rev_dir(src_effective_dir);
-	if (sink_is_export) sink_effective_dir = Port::rev_dir(sink_effective_dir);
-
-	assert(src_effective_dir != Port::IN);
-	assert(sink_effective_dir != Port::OUT);
-
-	// This is the name of the net. Non-export nets are named nodename_portname and exports are
-	// just named exactly after the portname.
-	std::string src_netname = src_is_export? 
-		src->get_name() : src->get_parent()->get_node()->get_name() + "_" + src->get_name();
-
-	// Try to find existing one
-	Net* net = get_net(src_netname);
-	if (!net)
-	{
-		// Not found? Create and bind to src.
-		int src_width = src->eval_width();
-
-		auto nettype = src_is_export? Net::EXPORT : Net::WIRE;
-		net = new Net(nettype, src_netname);
-		net->set_width(src_width);
-		this->add_net(net);
-
-		// Bind net to entire src.
-		src->bind(net, src_width, 0, 0); 
-	}
-
-	// Now bind the net to the sink.
-	// Specifically, bind [src_lsb+width-1, src_lsb] of the net to [sink_lsb+width-1, sink_lsb] of sink.
-	sink->bind(net, width, sink_lsb, src_lsb);
-}
-
-void SystemVlogInfo::connect(Port* sink, const genie::Value& val, int sink_lsb)
-{
-	// Wrap the value in a ConstValue Bindable object and bind it to :
-	//   sink[val.width + sink_lsb - 1 : sink_lsb]
-	auto cv = new ConstValue(val);
-	sink->bind(cv, sink_lsb, 0);
-
-	// Keep track of it for memory cleanup later
-	m_const_values.push_back(cv);
-}
 
 
 

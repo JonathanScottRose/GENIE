@@ -25,7 +25,7 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 	: Node(), m_to_flow(to_flow), m_in_width(-1), m_out_width(-1)
 {
 	// Create verilog ports
-	auto vinfo = new NodeVlogInfo(MODNAME);
+	auto vinfo = new NodeHDLInfo(MODNAME);
 	vinfo->add_port(new hdl::Port("clk", 1, hdl::Port::IN));
 	vinfo->add_port(new hdl::Port("reset", 1, hdl::Port::IN));
 	vinfo->add_port(new hdl::Port("i_data", "WD", hdl::Port::IN));

@@ -5,21 +5,17 @@
 #include "genie/net_reset.h"
 #include "genie/net_conduit.h"
 #include "genie/net_rvd.h"
+#include "genie/hdl.h"
 
 using namespace genie;
 using namespace genie::hdl;
 
 namespace
 {
-	SystemVlogInfo* get_sysinfo(System* sys)
-	{
-		return static_cast<SystemVlogInfo*>(sys->get_hdl_info());
-	}
-
 	void connect_rb(System* sys, 
 		RoleBinding* src_rb, int src_lsb, RoleBinding* sink_rb, int sink_lsb, int width)
 	{
-		auto sysinfo = get_sysinfo(sys);
+		auto sysinfo = sys->get_hdl_info();
 
 		// Obtain the Verilog Port objects associated with each RoleBinding
 		auto src_hdlb = as_a<HDLBinding*>(src_rb->get_hdl_binding());
@@ -54,7 +50,7 @@ namespace
 
 	void tie_rb(System* sys, RoleBinding* sink, const Value& val, int lsb)
 	{
-		auto sysinfo = get_sysinfo(sys);
+		auto sysinfo = sys->get_hdl_info();
 
 		auto sink_hdlb = as_a<HDLBinding*>(sink->get_hdl_binding());
 		assert(sink_hdlb);
@@ -293,7 +289,7 @@ namespace
 
 	void do_clockreset(System* sys)
 	{
-		auto sysmod = get_sysinfo(sys);
+		auto sysmod = sys->get_hdl_info();
 
 		// Gather links
 		System::Links links;
@@ -327,7 +323,7 @@ namespace
 
 	void do_conduit(System* sys)
 	{
-		auto sysmod = get_sysinfo(sys);
+		auto sysmod = sys->get_hdl_info();
 
 		// Gather links
 		auto links = sys->get_links(NET_CONDUIT);
@@ -401,7 +397,7 @@ void hdl::flow_process_system(System* sys)
 HDLBinding* hdl::export_binding(System* sys, genie::Port* new_port, HDLBinding* b)
 {
 	auto old_b = as_a<HDLBinding*>(b);
-	auto sysinfo = as_a<SystemVlogInfo*>(sys->get_hdl_info());
+	auto sysinfo = sys->get_hdl_info();
 	
 	// Create automatic name for exported signal
 	auto old_rb = b->get_parent();

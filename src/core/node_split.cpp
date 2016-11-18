@@ -24,7 +24,7 @@ namespace
 
 void NodeSplit::init_vlog()
 {
-	auto vinfo = new NodeVlogInfo(MODULE);
+	auto vinfo = new NodeHDLInfo(MODULE);
 
 	vinfo->add_port(new hdl::Port("clk",  1, hdl::Port::IN));
 	vinfo->add_port(new hdl::Port("reset",  1, hdl::Port::IN));

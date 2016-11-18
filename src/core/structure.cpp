@@ -501,7 +501,7 @@ HierObject* Node::instantiate()
 	return new Node(*this);
 }
 
-void Node::set_hdl_info(NodeHDLInfo* info)
+void Node::set_hdl_info(hdl::NodeHDLInfo* info)
 {
 	delete m_hdl_info;
 	m_hdl_info = info;
@@ -917,11 +917,3 @@ void System::do_post_carriage()
 	}
 }
 
-//
-// NodeHDLInfo
-//
-
-NodeHDLInfo::NodeHDLInfo()
-	: m_node(nullptr)
-{
-}

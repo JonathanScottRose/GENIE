@@ -21,7 +21,7 @@ NodeReg::NodeReg(bool notopo)
 	: Node(), m_notopo(notopo)
 {
 	// Create verilog ports
-	auto vinfo = new NodeVlogInfo(MODNAME);
+	auto vinfo = new NodeHDLInfo(MODNAME);
 	vinfo->add_port(new hdl::Port("i_clk", 1, hdl::Port::IN));
 	vinfo->add_port(new hdl::Port("i_reset", 1, hdl::Port::IN));
 	vinfo->add_port(new hdl::Port("i_data", "WIDTH", hdl::Port::IN));

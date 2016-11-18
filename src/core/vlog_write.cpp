@@ -21,14 +21,14 @@ namespace
 	void write_inst_portbindings(Port* binding);
 	void write_inst_parambinding(genie::ParamBinding* binding);
 
-	void write_sys_ports(SystemVlogInfo* mod);
-	void write_sys_params(SystemVlogInfo* mod);
-	void write_sys_wires(SystemVlogInfo* mod);
-	void write_sys_insts(SystemVlogInfo* mod);
-	void write_sys_file(SystemVlogInfo* mod);
-	void write_sys_body(SystemVlogInfo* mod);
-	void write_sys_localparams(SystemVlogInfo* mod);
-	void write_sys_assigns(SystemVlogInfo* mod);
+	void write_sys_ports(NodeHDLInfo* mod);
+	void write_sys_params(NodeHDLInfo* mod);
+	void write_sys_wires(NodeHDLInfo* mod);
+	void write_sys_insts(NodeHDLInfo* mod);
+	void write_sys_file(NodeHDLInfo* mod);
+	void write_sys_body(NodeHDLInfo* mod);
+	void write_sys_localparams(NodeHDLInfo* mod);
+	void write_sys_assigns(NodeHDLInfo* mod);
 
 	void write_line(const std::string& line, bool indent, bool newline)
 	{
@@ -89,7 +89,7 @@ namespace
 		write_line("wire " + size_str + net->get_name() + ";");
 	}
 
-	void write_sys_assigns(SystemVlogInfo* mod)
+	void write_sys_assigns(NodeHDLInfo* mod)
 	{
 		// All bindings to 'output/inout' top-level Ports are done through 'assign' statements.
 
@@ -109,7 +109,7 @@ namespace
 		}
 	}
 
-	void write_sys_ports(SystemVlogInfo* mod)
+	void write_sys_ports(NodeHDLInfo* mod)
 	{
 		s_cur_indent++;
 		
@@ -125,7 +125,7 @@ namespace
 		s_cur_indent--;
 	}
 
-	void write_sys_params(SystemVlogInfo* mod)
+	void write_sys_params(NodeHDLInfo* mod)
 	{
 		const auto& params = mod->get_node()->params();
 		
@@ -151,7 +151,7 @@ namespace
 	}
 
 
-	void write_sys_wires(SystemVlogInfo* mod)
+	void write_sys_wires(NodeHDLInfo* mod)
 	{
 		for (auto& i : mod->nets())
 		{
@@ -283,7 +283,7 @@ namespace
 		write_line("." + paramname + "(" + paramval + ")", true, false);
 	}
 
-	void write_sys_insts(SystemVlogInfo* mod)
+	void write_sys_insts(NodeHDLInfo* mod)
 	{
 		auto sys = static_cast<genie::System*>(mod->get_node());
 
@@ -294,7 +294,7 @@ namespace
 		auto nodes = sys->get_nodes();
 		for (auto& node : nodes)
 		{
-			auto vinfo = static_cast<NodeVlogInfo*>(node->get_hdl_info());
+			auto vinfo = node->get_hdl_info();
 
 			// Gather bound params only (ones with a value attached to them)
 			auto bound_params = node->get_params(true);
@@ -347,7 +347,7 @@ namespace
 		}
 	}
 
-	void write_sys_localparams(SystemVlogInfo* mod)
+	void write_sys_localparams(NodeHDLInfo* mod)
 	{
 		// Write Params of the System that have concrete values bound already.
 		genie::Node* sysnode = mod->get_node();
@@ -361,7 +361,7 @@ namespace
 		write_line("");
 	}
 
-	void write_sys_body(SystemVlogInfo* mod)
+	void write_sys_body(NodeHDLInfo* mod)
 	{
 		s_cur_indent++;
 
@@ -373,7 +373,7 @@ namespace
 		s_cur_indent--;
 	}
 
-	void write_sys_file(SystemVlogInfo* mod)
+	void write_sys_file(NodeHDLInfo* mod)
 	{
 		const std::string& mod_name = mod->get_module_name();
 
@@ -393,7 +393,7 @@ namespace
 
 void genie::hdl::write_system(genie::System* sys)
 {
-	auto top = as_a<SystemVlogInfo*>(sys->get_hdl_info());
+	auto top = as_a<NodeHDLInfo*>(sys->get_hdl_info());
 	std::string filename = top->get_module_name() + ".sv";
 
 	s_file.open(filename);
