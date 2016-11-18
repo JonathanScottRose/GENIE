@@ -8,7 +8,7 @@
 
 namespace genie
 {
-namespace vlog
+namespace hdl
 {
 	using Expression = expressions::Expression;
 	using NameResolver = expressions::NameResolver;

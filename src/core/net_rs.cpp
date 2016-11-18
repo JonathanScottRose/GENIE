@@ -3,6 +3,7 @@
 #include "genie/net_clock.h"
 #include "genie/node_merge.h"
 #include "genie/net_rs.h"
+#include "genie/hdl_bind.h"
 
 using namespace genie;
 

@@ -5,8 +5,8 @@
 #include "genie/node_split.h"
 #include "genie/node_merge.h"
 #include "genie/node_reg.h"
-#include "genie/vlog.h"
-#include "genie/vlog_bind.h"
+#include "genie/hdl.h"
+#include "genie/hdl_bind.h"
 #include "genie/lua/genie_lua.h"
 #include "genie/net_rs.h"
 
@@ -422,7 +422,7 @@ namespace
 		const char* mod_name = luaL_checkstring(L, 2);
 
 		// Create new verilog module definition
-		auto vinfo = new vlog::NodeVlogInfo(mod_name);
+		auto vinfo = new hdl::NodeVlogInfo(mod_name);
 
 		// Create and register the node
 		Node* node = new Node();
@@ -565,7 +565,7 @@ namespace
 		const char* sysname = luaL_checkstring(L, 1);
 
 		// Create new verilog module definition
-		auto vinfo = new vlog::SystemVlogInfo(sysname);
+		auto vinfo = new hdl::SystemVlogInfo(sysname);
 
 		// Create the System
 		System* sys = new System();
@@ -1313,18 +1313,18 @@ namespace
 
 		// Access Port's Node's vlog module and create a new vlog port if it does not exist yet
 		Node* node = self->get_node();
-		auto vinfo = as_a<vlog::NodeVlogInfo*>(node->get_hdl_info());
-		vlog::Port* vport = vinfo->get_port(vlog_portname);
+		auto vinfo = as_a<hdl::NodeVlogInfo*>(node->get_hdl_info());
+		hdl::Port* vport = vinfo->get_port(vlog_portname);
 
 		if (!vport)
 		{
-			auto vpdir = vlog::Port::make_dir(self->get_dir(), sigrole->get_sense());
-			vport = new vlog::Port(vlog_portname, widthexpr_total, vpdir);
+			auto vpdir = hdl::Port::make_dir(self->get_dir(), sigrole->get_sense());
+			vport = new hdl::Port(vlog_portname, widthexpr_total, vpdir);
 			vinfo->add_port(vport);
 		}
 
 		// Add a new signal role binding, bound to the entire verilog port
-		self->add_role_binding(sigrole_id, tag, new vlog::VlogStaticBinding(vlog_portname, widthexpr_bind, lsbexpr));
+		self->add_role_binding(sigrole_id, tag, new HDLBinding(vlog_portname, widthexpr_bind, lsbexpr));
 
 		return 0;
 	}

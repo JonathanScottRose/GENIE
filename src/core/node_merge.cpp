@@ -4,12 +4,12 @@
 #include "genie/net_reset.h"
 #include "genie/net_topo.h"
 #include "genie/genie.h"
-#include "genie/vlog_bind.h"
+#include "genie/hdl_bind.h"
 #include "genie/graph.h"
 #include "genie/net_rs.h"
 
 using namespace genie;
-using namespace vlog;
+using namespace hdl;
 
 const FieldID NodeMerge::FIELD_EOP = Field::reg();
 
@@ -26,20 +26,20 @@ namespace
 
 void NodeMerge::init_vlog()
 {
-	using namespace vlog;
+	using namespace hdl;
 
 	auto vinfo = new NodeVlogInfo(MODULE);
 
-	vinfo->add_port(new vlog::Port("clk", 1, vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("reset", 1, vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("i_data", "NI*WIDTH", vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("i_valid", "NI", vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("i_eop", "NI", vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("o_ready", "NI", vlog::Port::OUT));
-	vinfo->add_port(new vlog::Port("o_valid", 1, vlog::Port::OUT));
-	vinfo->add_port(new vlog::Port("o_eop", 1, vlog::Port::OUT));
-	vinfo->add_port(new vlog::Port("o_data", "WIDTH", vlog::Port::OUT));
-	vinfo->add_port(new vlog::Port("i_ready", 1, vlog::Port::IN));
+	vinfo->add_port(new hdl::Port("clk", 1, hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("reset", 1, hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("i_data", "NI*WIDTH", hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("i_valid", "NI", hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("i_eop", "NI", hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("o_ready", "NI", hdl::Port::OUT));
+	vinfo->add_port(new hdl::Port("o_valid", 1, hdl::Port::OUT));
+	vinfo->add_port(new hdl::Port("o_eop", 1, hdl::Port::OUT));
+	vinfo->add_port(new hdl::Port("o_data", "WIDTH", hdl::Port::OUT));
+	vinfo->add_port(new hdl::Port("i_ready", 1, hdl::Port::IN));
 
 	set_hdl_info(vinfo);
 }
@@ -51,10 +51,10 @@ NodeMerge::NodeMerge()
 
 	// Clock and reset ports are straightforward
 	auto port = add_port(new ClockPort(Dir::IN, CLOCKPORT_NAME));
-	port->add_role_binding(ClockPort::ROLE_CLOCK, new VlogStaticBinding("clk"));
+	port->add_role_binding(ClockPort::ROLE_CLOCK, new HDLBinding("clk"));
 
 	port = add_port(new ResetPort(Dir::IN, RESETPORT_NAME));
-	port->add_role_binding(ResetPort::ROLE_RESET, new VlogStaticBinding("reset"));
+	port->add_role_binding(ResetPort::ROLE_RESET, new HDLBinding("reset"));
 
 	// Input port and output port start out as Topo ports
 	auto inport = add_port(new TopoPort(Dir::IN, INPORT_NAME));
@@ -110,10 +110,10 @@ void NodeMerge::refine(NetType target)
 		auto outport = get_rvd_output();
         outport->set_max_links(NET_RVD, Dir::IN, n);
 		outport->set_clock_port_name(CLOCKPORT_NAME);
-		outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
-        outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
-		outport->add_role_binding(RVDPort::ROLE_DATA, "eop", new VlogStaticBinding("o_eop"));
-		outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+		outport->add_role_binding(RVDPort::ROLE_VALID, new HDLBinding("o_valid"));
+        outport->add_role_binding(RVDPort::ROLE_READY, new HDLBinding("i_ready"));
+		outport->add_role_binding(RVDPort::ROLE_DATA, "eop", new HDLBinding("o_eop"));
+		outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new HDLBinding("o_data"));
 		outport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
         outport->get_bp_status().make_configurable();
 		outport->get_proto().set_carried_protocol(&m_proto);
@@ -123,9 +123,9 @@ void NodeMerge::refine(NetType target)
 			auto inport = get_rvd_input(i);
 
 			inport->set_clock_port_name(CLOCKPORT_NAME);
-			inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid", 1, i));
-            inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready", 1, i));
-			inport->add_role_binding(RVDPort::ROLE_DATA, "eop", new VlogStaticBinding("i_eop", 1, i));
+			inport->add_role_binding(RVDPort::ROLE_VALID, new HDLBinding("i_valid", 1, i));
+            inport->add_role_binding(RVDPort::ROLE_READY, new HDLBinding("o_ready", 1, i));
+			inport->add_role_binding(RVDPort::ROLE_DATA, "eop", new HDLBinding("i_eop", 1, i));
 			inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, nullptr);
 			inport->get_proto().add_terminal_field(Field(FIELD_EOP, 1), "eop");
             inport->get_bp_status().force_enable();
@@ -155,7 +155,7 @@ void NodeMerge::do_post_carriage()
 	{
 		auto port = get_rvd_input(i);
 		auto rb = port->get_role_binding(RVDPort::ROLE_DATA_CARRIER);
-		rb->set_hdl_binding(new VlogStaticBinding("i_data", dwidth, i*dwidth));
+		rb->set_hdl_binding(new HDLBinding("i_data", dwidth, i*dwidth));
 	}
 }
 

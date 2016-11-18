@@ -1,5 +1,5 @@
-#include "genie/vlog.h"
-#include "genie/vlog_bind.h"
+#include "genie/hdl.h"
+#include "genie/hdl_bind.h"
 
 #include "genie/net_clock.h"
 #include "genie/net_reset.h"
@@ -7,7 +7,7 @@
 #include "genie/net_rvd.h"
 
 using namespace genie;
-using namespace genie::vlog;
+using namespace genie::hdl;
 
 namespace
 {
@@ -22,8 +22,8 @@ namespace
 		auto sysinfo = get_sysinfo(sys);
 
 		// Obtain the Verilog Port objects associated with each RoleBinding
-		auto src_hdlb = as_a<VlogBinding*>(src_rb->get_hdl_binding());
-		auto sink_hdlb = as_a<VlogBinding*>(sink_rb->get_hdl_binding());
+		auto src_hdlb = as_a<HDLBinding*>(src_rb->get_hdl_binding());
+		auto sink_hdlb = as_a<HDLBinding*>(sink_rb->get_hdl_binding());
 		assert(src_hdlb && sink_hdlb);
 
 		auto src_vport = src_hdlb->get_port();
@@ -56,7 +56,7 @@ namespace
 	{
 		auto sysinfo = get_sysinfo(sys);
 
-		auto sink_hdlb = as_a<VlogBinding*>(sink->get_hdl_binding());
+		auto sink_hdlb = as_a<HDLBinding*>(sink->get_hdl_binding());
 		assert(sink_hdlb);
 
 		auto sink_vport = sink_hdlb->get_port();
@@ -389,7 +389,7 @@ namespace
 	}
 }
 
-void vlog::flow_process_system(System* sys)
+void hdl::flow_process_system(System* sys)
 {
 	do_clockreset(sys);
 	do_conduit(sys);
@@ -398,9 +398,9 @@ void vlog::flow_process_system(System* sys)
 	write_system(sys);
 }
 
-HDLBinding* vlog::export_binding(System* sys, genie::Port* new_port, HDLBinding* b)
+HDLBinding* hdl::export_binding(System* sys, genie::Port* new_port, HDLBinding* b)
 {
-	auto old_b = as_a<VlogBinding*>(b);
+	auto old_b = as_a<HDLBinding*>(b);
 	auto sysinfo = as_a<SystemVlogInfo*>(sys->get_hdl_info());
 	
 	// Create automatic name for exported signal
@@ -432,6 +432,6 @@ HDLBinding* vlog::export_binding(System* sys, genie::Port* new_port, HDLBinding*
 	sysinfo->add_port(new_vport);
 	
 	// Create new binding to the entire verilog port
-	auto result = new VlogStaticBinding(new_vportname, width, 0);
+	auto result = new HDLBinding(new_vportname, width, 0);
 	return result;
 }

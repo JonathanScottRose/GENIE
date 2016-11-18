@@ -3,14 +3,14 @@
 #include "genie/net_clock.h"
 #include "genie/net_reset.h"
 #include "genie/net_rvd.h"
-#include "genie/vlog_bind.h"
+#include "genie/hdl_bind.h"
 #include "genie/node_flowconv.h"
 #include "genie/net_rs.h"
 #include "genie/node_split.h"
 #include "genie/genie.h"
 
 using namespace genie;
-using namespace vlog;
+using namespace hdl;
 
 namespace
 {
@@ -26,44 +26,44 @@ NodeFlowConv::NodeFlowConv(bool to_flow)
 {
 	// Create verilog ports
 	auto vinfo = new NodeVlogInfo(MODNAME);
-	vinfo->add_port(new vlog::Port("clk", 1, vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("reset", 1, vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("i_data", "WD", vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("i_field", "WIF", vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("i_valid", 1, vlog::Port::IN));
-	vinfo->add_port(new vlog::Port("o_ready", 1, vlog::Port::OUT));
-	vinfo->add_port(new vlog::Port("o_data", "WD", vlog::Port::OUT));
-	vinfo->add_port(new vlog::Port("o_field", "WOF", vlog::Port::OUT));
-	vinfo->add_port(new vlog::Port("o_valid", 1, vlog::Port::OUT));
-	vinfo->add_port(new vlog::Port("i_ready", 1, vlog::Port::IN));
+	vinfo->add_port(new hdl::Port("clk", 1, hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("reset", 1, hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("i_data", "WD", hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("i_field", "WIF", hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("i_valid", 1, hdl::Port::IN));
+	vinfo->add_port(new hdl::Port("o_ready", 1, hdl::Port::OUT));
+	vinfo->add_port(new hdl::Port("o_data", "WD", hdl::Port::OUT));
+	vinfo->add_port(new hdl::Port("o_field", "WOF", hdl::Port::OUT));
+	vinfo->add_port(new hdl::Port("o_valid", 1, hdl::Port::OUT));
+	vinfo->add_port(new hdl::Port("i_ready", 1, hdl::Port::IN));
 	set_hdl_info(vinfo);
 
 	// Create genie ports and port bindings
 	auto clkport = add_port(new ClockPort(Dir::IN, CLOCKPORT_NAME));
-	clkport->add_role_binding(ClockPort::ROLE_CLOCK, new VlogStaticBinding("clk"));
+	clkport->add_role_binding(ClockPort::ROLE_CLOCK, new HDLBinding("clk"));
 
 	auto resetport = add_port(new ResetPort(Dir::IN, RESETPORT_NAME));
-	resetport->add_role_binding(ResetPort::ROLE_RESET, new VlogStaticBinding("reset"));
+	resetport->add_role_binding(ResetPort::ROLE_RESET, new HDLBinding("reset"));
 
 	const std::string& intag = to_flow? "lpid" : "flow_id";
 	const std::string& outtag = to_flow? "flow_id" : "lpid";
 
 	auto inport = new RVDPort(Dir::IN, INPORT_NAME);
 	inport->set_clock_port_name(CLOCKPORT_NAME);
-	inport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("i_valid"));
-    inport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("o_ready"));
-	inport->add_role_binding(RVDPort::ROLE_DATA, intag, new VlogStaticBinding("i_field"));
-	inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("i_data"));
+	inport->add_role_binding(RVDPort::ROLE_VALID, new HDLBinding("i_valid"));
+    inport->add_role_binding(RVDPort::ROLE_READY, new HDLBinding("o_ready"));
+	inport->add_role_binding(RVDPort::ROLE_DATA, intag, new HDLBinding("i_field"));
+	inport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new HDLBinding("i_data"));
     inport->get_bp_status().make_configurable();
 	inport->get_proto().set_carried_protocol(&m_proto);
 	add_port(inport);
 
 	auto outport = new RVDPort(Dir::OUT, OUTPORT_NAME);
 	outport->set_clock_port_name(CLOCKPORT_NAME);
-	outport->add_role_binding(RVDPort::ROLE_VALID, new VlogStaticBinding("o_valid"));
-    outport->add_role_binding(RVDPort::ROLE_READY, new VlogStaticBinding("i_ready"));
-	outport->add_role_binding(RVDPort::ROLE_DATA, outtag, new VlogStaticBinding("o_field"));
-	outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new VlogStaticBinding("o_data"));
+	outport->add_role_binding(RVDPort::ROLE_VALID, new HDLBinding("o_valid"));
+    outport->add_role_binding(RVDPort::ROLE_READY, new HDLBinding("i_ready"));
+	outport->add_role_binding(RVDPort::ROLE_DATA, outtag, new HDLBinding("o_field"));
+	outport->add_role_binding(RVDPort::ROLE_DATA_CARRIER, new HDLBinding("o_data"));
     outport->get_bp_status().make_configurable();
 	outport->get_proto().set_carried_protocol(&m_proto);
 	add_port(outport);

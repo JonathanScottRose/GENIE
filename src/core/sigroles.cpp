@@ -1,6 +1,7 @@
 #include "genie/sigroles.h"
 #include "genie/networks.h"
 #include "genie/structure.h"
+#include "genie/hdl_bind.h"
 
 using namespace genie;
 

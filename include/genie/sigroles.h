@@ -48,20 +48,6 @@ namespace genie
 		Sense m_sense;
 	};
 
-	class HDLBinding
-	{
-	public:
-		virtual ~HDLBinding() = default;
-		virtual HDLBinding* clone() = 0;
-		virtual int get_width() const = 0;
-		virtual std::string to_string() const = 0;
-
-		PROP_GET_SET(parent, RoleBinding*, m_parent);
-
-	protected:
-		RoleBinding* m_parent;
-	};
-
 	class RoleBinding
 	{
 	public:

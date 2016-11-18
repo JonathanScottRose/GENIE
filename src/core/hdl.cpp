@@ -1,9 +1,9 @@
 #include "genie/common.h"
-#include "genie/vlog.h"
+#include "genie/hdl.h"
 #include "genie/structure.h"
 #include "genie/value.h"
 
-using namespace genie::vlog;
+using namespace genie::hdl;
 
 //
 // Port

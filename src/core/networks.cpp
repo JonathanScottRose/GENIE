@@ -2,7 +2,7 @@
 #include "genie/connections.h"
 #include "genie/structure.h"
 
-#include "genie/vlog.h" // uuugly
+#include "genie/hdl.h" // uuugly
 
 using namespace genie;
 
@@ -238,7 +238,7 @@ Port* Network::export_port(System* sys, Port* port, const std::string& name)
 		auto new_rb = new RoleBinding(old_rb->get_id(), old_rb->get_tag());
 
 		// Export the HDL binding (need to abstract this...)
-		auto new_hdlb = vlog::export_binding(sys, result, old_rb->get_hdl_binding());
+		auto new_hdlb = hdl::export_binding(sys, result, old_rb->get_hdl_binding());
 		new_rb->set_hdl_binding(new_hdlb);
 
 		// Add to the exported port

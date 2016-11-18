@@ -1,39 +1,39 @@
-#include "genie/vlog_bind.h"
+#include "genie/hdl_bind.h"
 
-using namespace genie::vlog;
+using namespace genie;
 
 
 //
 // VlogStaticBinding
 //
 
-VlogStaticBinding::VlogStaticBinding()
+HDLBinding::HDLBinding()
 	: m_full_width(true)
 {
 }
 
-VlogStaticBinding::VlogStaticBinding(const std::string& portname, 
+HDLBinding::HDLBinding(const std::string& portname, 
 	const Expression& width, const Expression& lsb)
 	: m_port_name(portname), m_width(width), m_lsb(lsb), m_full_width(false)
 {
 }
 
-VlogStaticBinding::VlogStaticBinding(const std::string& portname, const Expression& width)
-	: VlogStaticBinding(portname, width, 0)
+HDLBinding::HDLBinding(const std::string& portname, const Expression& width)
+	: HDLBinding(portname, width, 0)
 {
 }
 
-VlogStaticBinding::VlogStaticBinding(const std::string& portname)
+HDLBinding::HDLBinding(const std::string& portname)
 	: m_port_name(portname), m_full_width(true), m_lsb(0)
 {
 }
 
-genie::HDLBinding* VlogStaticBinding::clone()
+genie::HDLBinding* HDLBinding::clone()
 {
-	return new VlogStaticBinding(*this);
+	return new HDLBinding(*this);
 }
 
-int VlogStaticBinding::get_lsb() const
+int HDLBinding::get_lsb() const
 {
 	// evaluate expression using parent Node to plug-in parameter values
 	Node* node = get_parent()->get_parent()->get_node();
@@ -41,7 +41,7 @@ int VlogStaticBinding::get_lsb() const
 	return m_lsb.get_value(node->get_exp_resolver());
 }
 
-int VlogStaticBinding::get_width() const
+int HDLBinding::get_width() const
 {
 	// If we're a full-width binding, our m_width is useless and we need to query the port.
 	const Expression& widthexpr = m_full_width? get_port()->get_width() : m_width;
@@ -51,31 +51,31 @@ int VlogStaticBinding::get_width() const
 	return widthexpr.get_value(node->get_exp_resolver());
 }
 
-Port* VlogStaticBinding::get_port() const
+hdl::Port* HDLBinding::get_port() const
 {
 	// We have the port's name, so we just need to look up the actual Port in the Node's
 	// NodeHDLInfo thingy.
 	Node* node = get_parent()->get_parent()->get_node();
 	assert(node);
 
-	auto vinfo = as_a<NodeVlogInfo*>(node->get_hdl_info());
+	auto vinfo = as_a<hdl::NodeVlogInfo*>(node->get_hdl_info());
 	assert(vinfo);
 
 	return vinfo->get_port(m_port_name);
 }
 
-std::string VlogStaticBinding::to_string() const
+std::string HDLBinding::to_string() const
 {
 	return m_port_name;
 }
 
-void VlogStaticBinding::set_lsb(const Expression& e)
+void HDLBinding::set_lsb(const Expression& e)
 {
 	m_lsb = e;
 	m_full_width = false;
 }
 
-void VlogStaticBinding::set_width(const Expression& e)
+void HDLBinding::set_width(const Expression& e)
 {
 	m_width = e;
 	m_full_width = false;

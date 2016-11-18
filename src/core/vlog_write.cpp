@@ -1,8 +1,8 @@
 #include <fstream>
-#include "genie/vlog.h"
+#include "genie/hdl.h"
 #include "genie/structure.h"
 
-using namespace genie::vlog;
+using namespace genie::hdl;
 
 // Humble Verilog Writer
 
@@ -391,7 +391,7 @@ namespace
 	}
 }
 
-void genie::vlog::write_system(genie::System* sys)
+void genie::hdl::write_system(genie::System* sys)
 {
 	auto top = as_a<SystemVlogInfo*>(sys->get_hdl_info());
 	std::string filename = top->get_module_name() + ".sv";

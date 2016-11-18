@@ -13,8 +13,8 @@
 #include "genie/lua/genie_lua.h"
 #include "genie/graph.h"
 #include "genie/value.h"
-#include "genie/vlog.h"
-#include "genie/vlog_bind.h"
+#include "genie/hdl.h"
+#include "genie/hdl_bind.h"
 #include "genie/net_rs.h"
 #include "genie/node_flowconv.h"
 #include "genie/node_reg.h"
@@ -1139,13 +1139,13 @@ namespace
 			// Create one.
 			reset_src = new ResetPort(Dir::IN, "reset");
 			reset_src->add_role_binding(ResetPort::ROLE_RESET, 
-				new vlog::VlogStaticBinding("reset"));
+				new HDLBinding("reset"));
 			sys->add_port(reset_src);
 
 			// Don't forget the actual HDL port too
-			auto vinfo = (vlog::NodeVlogInfo*)sys->get_hdl_info();
+			auto vinfo = (hdl::NodeVlogInfo*)sys->get_hdl_info();
 			assert(vinfo);
-			vinfo->add_port(new vlog::Port("reset", 1, vlog::Port::IN));
+			vinfo->add_port(new hdl::Port("reset", 1, hdl::Port::IN));
 		}
 
 		// Find any unbound reset sinks on any nodes
@@ -1673,7 +1673,7 @@ namespace
 		rvd_do_latency_queries(sys);
 
 		// Hand off to Verilog processing and output
-		vlog::flow_process_system(sys);
+		hdl::flow_process_system(sys);
 	}
 }
 
