@@ -1,5 +1,4 @@
 #include "genie/node_clockx.h"
-#include "genie/hdl_bind.h"
 #include "genie/genie.h"
 
 using namespace genie;

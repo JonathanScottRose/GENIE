@@ -3,7 +3,6 @@
 #include "genie/net_reset.h"
 #include "genie/net_rvd.h"
 #include "genie/net_topo.h"
-#include "genie/hdl_bind.h"
 
 using namespace genie;
 using namespace hdl;

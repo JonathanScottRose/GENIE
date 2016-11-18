@@ -6,7 +6,6 @@
 #include "genie/node_merge.h"
 #include "genie/node_reg.h"
 #include "genie/hdl.h"
-#include "genie/hdl_bind.h"
 #include "genie/lua/genie_lua.h"
 #include "genie/net_rs.h"
 

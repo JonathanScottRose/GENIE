@@ -1,5 +1,4 @@
 #include "genie/hdl.h"
-#include "genie/hdl_bind.h"
 
 #include "genie/net_clock.h"
 #include "genie/net_reset.h"

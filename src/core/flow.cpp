@@ -14,7 +14,6 @@
 #include "genie/graph.h"
 #include "genie/value.h"
 #include "genie/hdl.h"
-#include "genie/hdl_bind.h"
 #include "genie/net_rs.h"
 #include "genie/node_flowconv.h"
 #include "genie/node_reg.h"

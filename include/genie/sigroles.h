@@ -2,9 +2,15 @@
 
 #include <memory>
 #include "genie/common.h"
+#include "genie/expressions.h"
 
 namespace genie
 {
+    namespace hdl
+    {
+        class Port;
+    }
+
 	class HierObject;
 	class Port;
 	class RoleBinding;
@@ -47,6 +53,37 @@ namespace genie
 		bool m_uses_tags;
 		Sense m_sense;
 	};
+
+    class HDLBinding
+    {
+    public:
+        // Empty, default
+        HDLBinding();
+        // Binds to entirety of provided port
+        HDLBinding(const std::string&);
+        // Binds to [width-1:0] of provided port
+        HDLBinding(const std::string&, const expressions::Expression&);
+        // Full control
+        HDLBinding(const std::string&, const expressions::Expression&, const expressions::Expression&);
+
+        PROP_GET_SET(port_name, const std::string&, m_port_name);
+        PROP_GET_SET(parent, RoleBinding*, m_parent);
+        void set_lsb(const expressions::Expression&);
+        void set_width(const expressions::Expression&);
+
+        HDLBinding* clone();
+        int get_lsb() const;
+        int get_width() const;
+        genie::hdl::Port* get_port() const;
+        std::string to_string() const;
+
+    protected:
+        RoleBinding* m_parent;
+        bool m_full_width;
+        std::string m_port_name;
+        expressions::Expression m_lsb;
+        expressions::Expression m_width;
+    };
 
 	class RoleBinding
 	{

@@ -3,7 +3,6 @@
 #include "genie/net_clock.h"
 #include "genie/net_reset.h"
 #include "genie/net_rvd.h"
-#include "genie/hdl_bind.h"
 #include "genie/node_flowconv.h"
 #include "genie/net_rs.h"
 #include "genie/node_split.h"

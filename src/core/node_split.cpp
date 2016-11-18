@@ -4,7 +4,6 @@
 #include "genie/net_reset.h"
 #include "genie/net_topo.h"
 #include "genie/genie.h"
-#include "genie/hdl_bind.h"
 #include "genie/net_rs.h"
 
 using namespace genie;
