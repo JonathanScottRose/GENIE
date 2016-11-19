@@ -7,6 +7,7 @@
 #include "genie/common.h"
 #include "genie/lua/lua.h"
 #include "genie/lua/lauxlib.h"
+#include "genie/lua/static_init.h"
 
 namespace genie
 {

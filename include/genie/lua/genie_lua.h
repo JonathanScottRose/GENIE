@@ -1,7 +1,6 @@
 #pragma once
 
 #include "genie/common.h"
-#include "genie/static_init.h"
 #include "genie/lua/lua.h"
 
 namespace genie
