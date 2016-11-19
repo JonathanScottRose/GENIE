@@ -53,11 +53,11 @@ void log::msg(Message::Level lvl, const char* fmt, ...)
 }
 
 #define templ(name,e) \
-void log::##name(const char* fmt, ...) \
+void log::name(const char* fmt, ...) \
 { \
     va_list vl; \
     va_start(vl, fmt); \
-    msg_internal(Message::##e, fmt, vl); \
+    msg_internal(Message::e, fmt, vl); \
     va_end(vl); \
 }
 
