@@ -1,10 +1,10 @@
 #include "genie/hdl.h"
-
+#include "genie/log.h"
 #include "genie/net_clock.h"
 #include "genie/net_reset.h"
 #include "genie/net_conduit.h"
 #include "genie/net_rvd.h"
-#include "genie/hdl.h"
+
 
 using namespace genie;
 using namespace genie::hdl;
@@ -367,12 +367,12 @@ namespace
 						}
 					}
 
-					// Make sure it exists! Conduits can't have unmatched bindings.
+					// If it doesn't exist, don't connect it, but also throw a warning
 					if (!sink_rb)
 					{
-                        // TODO: warning instead?
-						//throw HierException(sink, "no matching counterpart role binding for " + 
-						//	src_rb->to_string());
+                        log::warn("While connecting %s to %s: source is missing signal role %s, leaving unconnected",
+                            src->get_hier_path().c_str(), sink->get_hier_path().c_str(), src_rb->to_string());
+
                         continue;
 					}
 
