@@ -371,7 +371,7 @@ namespace
 					if (!sink_rb)
 					{
                         log::warn("While connecting %s to %s: source is missing signal role %s, leaving unconnected",
-                            src->get_hier_path().c_str(), sink->get_hier_path().c_str(), src_rb->to_string());
+                            src->get_hier_path().c_str(), sink->get_hier_path().c_str(), src_rb->to_string().c_str());
 
                         continue;
 					}
