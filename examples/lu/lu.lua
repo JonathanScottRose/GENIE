@@ -419,13 +419,14 @@ local sys = b:system('lu')
             end
         end
 		
+		-- the rdresp broadcasts never occur simultaneously
 		if DISABLE_BCAST==0 then
 			b:make_exclusive(rdresp_bcasts)
 		end
     end 
 	
-	--if TOPOLOGY == 0 then 
-	--	topo_xbar(sys, true, true, false)
-	--else
-	--	topo_lobe(sys,N_CPU,N_MEM,DISABLE_BCAST)
-	--end
+	if TOPOLOGY == 1 then 
+		topo_xbar(sys, true, true, false)
+	elseif TOPOLOGY == 2 then
+		topo_lobe(sys,N_CPU,N_MEM,DISABLE_BCAST)
+	end
