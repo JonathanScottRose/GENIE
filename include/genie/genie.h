@@ -21,6 +21,7 @@ namespace genie
         bool no_mdelay = false;
 
         bool desc_spmg = false;
+        unsigned register_spmg = 0;
     };
 
     struct ArchParams

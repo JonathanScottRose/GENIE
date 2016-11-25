@@ -673,7 +673,20 @@ namespace
                 sp->set_name(sp_name);
                 sp->asp_add(new AAutoGen);
                 sys->add_child(sp);
-                sys->connect(orig_src, sp->get_topo_input());
+
+                if (genie::options().register_spmg & 2)
+                {
+                    auto rg = new NodeReg();
+                    rg->set_name(sp_name + "_reg");
+                    rg->asp_add(new AAutoGen);
+                    sys->add_child(rg);
+                    sys->connect(orig_src, rg->get_topo_input());
+                    sys->connect(rg->get_topo_output(), sp->get_topo_input());
+                }
+                else
+                {
+                    sys->connect(orig_src, sp->get_topo_input());
+                }
                 
                 // Advance head to output of split node
                 en.head = sp->get_topo_output();
@@ -702,7 +715,21 @@ namespace
                 mg->set_name(mg_name);
                 mg->asp_add(new AAutoGen);
                 sys->add_child(mg);
-                sys->connect(mg->get_topo_output(), orig_sink);
+
+                // Add a reg node possibly
+                if (genie::options().register_spmg & 1)
+                {
+                    auto rg = new NodeReg();
+                    rg->set_name(mg_name + "_reg");
+                    rg->asp_add(new AAutoGen);
+                    sys->add_child(rg);
+                    sys->connect(mg->get_topo_output(), rg->get_topo_input());
+                    sys->connect(rg->get_topo_output(), orig_sink);
+                }
+                else
+                {
+                    sys->connect(mg->get_topo_output(), orig_sink);
+                }
 
                 // Advance head to input of merge node
                 en.head = mg->get_topo_input();
@@ -1636,7 +1663,7 @@ namespace
 		// Assign Flow IDs to RS links and RS Ports based on topology and RS domain membership.
 		// Must be done after TOPO network has been created.
 		rs_assign_flow_ids(sys);
-
+                
         // Further simplify the topology after flows have been determined
         if (genie::options().topo_opt &&
             (genie::options().topo_opt_systems.empty() ||

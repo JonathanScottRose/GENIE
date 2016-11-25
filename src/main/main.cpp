@@ -67,6 +67,7 @@ namespace
         args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
         args >> GetOpt::OptionPresent("detailed_stats", opts.detailed_stats);
         args >> GetOpt::OptionPresent("descriptive_spmg", opts.desc_spmg);
+        args >> GetOpt::Option("register_spmg", opts.register_spmg);
         
         {
             std::string no_topo_opt_sys;
