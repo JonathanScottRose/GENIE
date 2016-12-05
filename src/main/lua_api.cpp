@@ -1203,6 +1203,23 @@ namespace
 
 		return 1;
 	}
+
+    /// Sets an @{RSLink}'s importance.
+    ///
+    /// The importance, from 0-1. Default is 1.
+    /// @function set_importance
+    /// @tparam number imp importance
+    LFUNC(link_set_importance)
+    {
+        RSLink* self = lua::check_object<RSLink>(1);
+        double imp = luaL_checknumber(L, 2);
+
+        luaL_argcheck(L, imp >= 0 && imp <= 1, 2, "importance must be between 0 and 1");
+
+        self->set_importance((float)imp);
+
+        return 0;
+    }
 	
 	LCLASS(Link,
 	{
@@ -1213,7 +1230,8 @@ namespace
 		LM(add_parent, link_add_parent),
 		LM(add_child, link_add_child),
 		LM(get_all_parents, link_get_parents),
-		LM(get_all_children, link_get_children)
+		LM(get_all_children, link_get_children),
+        LM(set_importance, link_set_importance)
 	});
 
 	//
@@ -1454,6 +1472,8 @@ namespace
     /// This sets the default packet size for all transmissions entering or
     /// leaving this port or linkpoints. By default, packets are of size 1.
     /// Packet size can be overridden on individual RS Links.
+    /// @function set_pktsize
+    /// @tparam number pktsize packet size in cycles
     LFUNC(rsport_set_pktsize)
     {
         auto self = lua::check_object<RSPort>(1);
@@ -1477,6 +1497,8 @@ namespace
     /// Applies a default importance (0-1) to all transmissions
     /// sent or received from this RS port.
     /// By default, this is 1.
+    /// @function set_importance
+    /// @tparam number importance importance from 0-1
     LFUNC(rsport_set_importance)
     {
         auto self = lua::check_object<RSPort>(1);
