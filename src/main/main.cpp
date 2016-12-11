@@ -2,6 +2,7 @@
 
 #include "getoptpp/getopt_pp.h"
 #include "io.h"
+#include "debugger.h"
 
 #include "genie/genie.h"
 #include "genie/lua/genie_lua.h"
@@ -14,6 +15,10 @@ namespace
 {
 	std::string s_script;
 	std::string s_lua_args;
+
+	bool s_debug = false;
+	std::string s_debug_host = "localhost";
+	int s_debug_port = 8172;
 
 	lua::ArgsVec parse_lua_args()
 	{
@@ -33,6 +38,21 @@ namespace
 		}
 
 		return args;
+	}
+
+	void parse_host_port(const std::string& str, std::string& out_host, int& out_port)
+	{
+		static std::regex pattern(R"(([^0-9:][^:]*)(:([0-9]+))?)");
+		std::smatch mr;
+		
+		if (!std::regex_match(str.begin(), str.end(), mr, pattern))
+			throw Exception("invalid host(:port) - " + str);
+
+		if (mr[1].matched)
+			out_host = mr[1];
+
+		if (mr[3].matched)
+			out_port = std::stoi(mr[3]);
 	}
 
     std::vector<std::string> parse_list(const std::string& list)
@@ -69,6 +89,15 @@ namespace
         args >> GetOpt::OptionPresent("descriptive_spmg", opts.desc_spmg);
         args >> GetOpt::Option("register_spmg", opts.register_spmg);
         
+		args >> GetOpt::OptionPresent("debug", s_debug);
+		if (s_debug)
+		{
+			std::string hostport;
+			args >> GetOpt::Option("debug", hostport);
+			if (!hostport.empty())
+				parse_host_port(hostport, s_debug_host, s_debug_port);
+		}
+
         {
             std::string no_topo_opt_sys;
             args >> GetOpt::OptionPresent("topo_opt", opts.topo_opt);
@@ -89,6 +118,11 @@ int main(int argc, char** argv)
 
 		genie::init();
 		lua::init(parse_lua_args());		
+
+		if (s_debug)
+		{
+			start_debugger(s_debug_host.c_str(), s_debug_port);
+		}
 
 		lua::exec_script(s_script);		
 

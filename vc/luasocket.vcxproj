@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">    
+  <PropertyGroup>
+    <ProjectGuid>{4133A8C2-E422-411C-B3DF-584094E8EFD1}</ProjectGuid>
+    <RootNamespace>luasocket</RootNamespace>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+  </PropertyGroup>
+  
+  <Import Project="common.props" />
+  
+  <PropertyGroup Label="Configuration">
+    <TargetName>luasocket$(LibSuffix)</TargetName>
+  </PropertyGroup>
+      
+  <ItemGroup>
+    <ProjectReference Include="lua.vcxproj">
+      <Project>{882ec8d5-fd07-43ae-8e50-53cf3c6b9074}</Project>
+    </ProjectReference>
+
+    <ClInclude Include="$(SrcDir)\luasocket\*.h" />
+    <ClCompile Include="$(SrcDir)\luasocket\auxiliar.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\buffer.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\except.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\inet.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\io.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\luasocket.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\options.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\select.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\tcp.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\timeout.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\udp.c" />
+    <ClCompile Include="$(SrcDir)\luasocket\wsocket.c" />
+  </ItemGroup>
+  
+  <ItemDefinitionGroup>
+    <ClCompile> 
+      <AdditionalIncludeDirectories>$(IncludeDir)/genie/lua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;LUASOCKET_API=extern;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile> 
+      <PreprocessorDefinitions>LUASOCKET_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

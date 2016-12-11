@@ -18,6 +18,9 @@
     <ProjectReference Include="lua.vcxproj">
       <Project>{882ec8d5-fd07-43ae-8e50-53cf3c6b9074}</Project>
     </ProjectReference>
+    <ProjectReference Include="luasocket.vcxproj">
+      <Project>{4133a8c2-e422-411c-b3df-584094e8efd1}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(SrcDir)\main\**\*.cpp" />
@@ -25,10 +28,10 @@
   </ItemGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SrcDir)/lua;$(IncludeDir);$(SrcDir)/main;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(IncludeDir);$(SrcDir)/luasocket;$(IncludeDir)/genie/lua%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

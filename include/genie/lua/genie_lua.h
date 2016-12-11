@@ -33,6 +33,7 @@ namespace lua
 	int make_ref();
 	void push_ref(int ref);
 	void free_ref(int ref);
+	void stackdump();
 	void lerror(const std::string& what);
 }
 }
