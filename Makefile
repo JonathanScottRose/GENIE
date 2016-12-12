@@ -1,9 +1,10 @@
 CC=g++
-CFLAGS=-std=c++11 -Iinclude -Isrc/lua -Isrc/main $(if $(DEBUG),-g,-O2) -Wno-write-strings
+CFLAGS=-std=c++11 -Iinclude $(if $(DEBUG),-g,-O2) -Wno-write-strings
 LFLAGS=-ldl -lboost_regex
 
 EXE=$(EXEDIR)/genie
 LIB_LUA=$(LIBDIR)/lua.a
+LIB_LUASOCK=$(LIBDIR)/luasock.a
 LIB_CORE=$(LIBDIR)/core.a
 EXEDIR=bin
 LIBDIR=lib
@@ -33,6 +34,19 @@ $(LIB_LUA): $(LUA_OBJS)
 	@mkdir -p $(LIBDIR)
 	ar rcs $(LIB_LUA) $(LUA_OBJS)
 	
+LUASOCK_SRCDIRS=src/luasocket
+LUASOCK_CFILES=$(addprefix $(LUASOCK_SRCDIRS)/, auxiliar.c buffer.c compat.c except.c \
+inet.c io.c luasocket.c mime.c options.c select.c serial.c tcp.c timeout.c udp.c \
+unix.c unixtcp.c unixudp.c usocket.c)
+LUASOCK_HFILES=$(wildcard $(addsuffix /*.h, $(LUASOCK_SRCDIRS)))
+LUASOCK_OBJS=$(patsubst %.c,%.o,$(LUASOCK_CFILES))
+
+$(LUASOCK_OBJS): $(LUASOCK_CFILES) $(LUASOCK_HFILES)
+	$(CC) $(CFLAGS) -c $*.c -o $@ -Iinclude/genie/lua -DLUASOCKET_API="extern \"C\""
+
+$(LIB_LUASOCK): $(LUASOCK_OBJS)
+	@mkdir -p $(LIBDIR)
+	ar rcs $(LIB_LUASOCK) $(LUASOCK_OBJS)
 #
 # lp_solve files
 #
@@ -68,10 +82,10 @@ EXE_SRCDIRS=src/main src/main/getoptpp
 EXE_CFILES=$(wildcard $(addsuffix /*.cpp, $(EXE_SRCDIRS)))
 EXE_HFILES=$(wildcard $(addsuffix /*.h, $(EXE_SRCDIRS)))
 EXE_OBJS=$(patsubst %.cpp,%.o,$(EXE_CFILES))
-EXE_LIBS=$(LIB_LUA) $(LIB_CORE)
+EXE_LIBS=$(LIB_LUA) $(LIB_CORE) $(LIB_LUASOCK)
 
 $(EXE_OBJS): %.o : %.cpp $(EXE_HFILES) $(CORE_HFILES_PUB)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@ -Isrc/luasocket -Iinclude/genie/lua
 
 $(EXE): $(EXE_OBJS) $(EXE_LIBS)
 	$(CC) $(CFLAGS) -o $(EXE) $(EXE_OBJS) $(EXE_LIBS) $(LFLAGS)
