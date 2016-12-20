@@ -6,6 +6,8 @@
 
 namespace genie
 {
+namespace impl
+{
 	namespace util
 	{
 		// Check if file exists
@@ -102,8 +104,8 @@ namespace genie
 		}
 
 		// Wrapper for std::find that takes just the container and assumes begin()/end() for range
-		template<class IT, class CONT, class V>
-		static IT find(const CONT& cont, const V& v)
+		template<class CONT, class V>
+		static auto find(CONT& cont, const V& v) -> decltype(std::find(cont.begin(), cont.end(), v))
 		{
 			return std::find(cont.begin(), cont.end(), v);
 		}
@@ -221,4 +223,5 @@ namespace genie
 			return result;
 		}
 	}
+}
 }

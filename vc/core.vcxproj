@@ -20,12 +20,17 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(IncludeDir);$(SrcDir)/lp_solve;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
+	  <PrecompiledHeader>Use</PrecompiledHeader>
+	  <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="$(IncludeDir)\genie\*.h" />
     <ClInclude Include="$(SrcDir)\core\**\*.h" />
-    <ClCompile Include="$(SrcDir)\core\**\*.cpp" />
+    <ClCompile Include="$(SrcDir)\core\**\*.cpp" Exclude="$(SrcDir)\core\pch.cpp"/>
+	<ClCompile Include="$(SrcDir)\core\pch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

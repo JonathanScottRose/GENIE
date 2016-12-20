@@ -1,11 +1,21 @@
 #pragma once
 
-#include "genie/hierarchy.h"
-#include "genie/structure.h"
-#include "genie/networks.h"
+#include <vector>
+#include <string>
 
 namespace genie
 {
+    class Node;
+
+    class Exception : public std::runtime_error
+    {
+    public:
+        Exception(const char* what)
+            : std::runtime_error(what) { }
+        Exception(const std::string& what)
+            : std::runtime_error(what.c_str()) { }
+    };
+
     struct FlowOptions
     {
         bool dump_dot = false;
@@ -32,17 +42,14 @@ namespace genie
     };
 
 	// Initialize library
-	void init();
+	void init(FlowOptions* opts = nullptr, ArchParams* arch = nullptr);
 
-    // Get options
-    FlowOptions& options();
-    ArchParams& arch_params();
+    // API functions
+    Node* create_system(const std::string& name);
+    Node* create_module(const std::string& name);
+    Node* create_module(const std::string& name, const std::string& hdl_name);
 
-    // Do everything
-    void flow_main();
-    void print_stats(System* sys);
-
-	// Get hierarchy root
-	HierRoot* get_root();
+    void do_flow();
+    void print_stats(Node*);
 }
 

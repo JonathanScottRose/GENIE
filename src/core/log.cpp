@@ -1,6 +1,4 @@
-#include <cstdio>
-#include <cassert>
-#include <cstdarg>
+#include "pch.h"
 #include "genie/log.h"
 
 using namespace genie;
