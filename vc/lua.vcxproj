@@ -9,17 +9,15 @@
   </PropertyGroup>
   <Import Project="common.props" />
   <PropertyGroup Label="Configuration">
-    <TargetName>genie_lua$(LibSuffix)</TargetName>
+    <TargetName>lua$(LibSuffix)</TargetName>
   </PropertyGroup>
   <ItemGroup>
-    <ClInclude Include="$(IncludeDir)\genie\lua\*.h" />
-    <ClInclude Include="$(SrcDir)\lua\*.h" />
-    <ClCompile Include="$(SrcDir)\lua\**\*.cpp" />
+    <ClInclude Include="$(SrcDir)\lua\*.h*" />
     <ClCompile Include="$(SrcDir)\lua\**\*.c" />
   </ItemGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(IncludeDir);$(IncludeDir)/genie/lua;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
   </ItemDefinitionGroup>

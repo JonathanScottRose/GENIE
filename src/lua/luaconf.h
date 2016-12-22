@@ -760,8 +760,27 @@
 */
 
 
+#if defined(_WIN32)	/* { */
+#define LUA_SLEXT ".dll"
+#else
+#define LUA_SLEXT ".so"
+#endif
 
+#undef LUA_LDIR
+#undef LUA_CDIR
+#undef LUA_PATH_DEFAULT
+#undef LUA_CPATH_DEFAULT
 
+#define LUA_LDIR	"!" LUA_DIRSEP "lua" LUA_DIRSEP
+#define LUA_CDIR	"!" LUA_DIRSEP
+
+#define LUA_PATH_DEFAULT  \
+		LUA_LDIR"?.lua;"  LUA_LDIR"?" LUA_DIRSEP "init.lua;" \
+		LUA_CDIR"?.lua;"  LUA_CDIR"?" LUA_DIRSEP "init.lua;" \
+		"." LUA_DIRSEP "?.lua;" "." LUA_DIRSEP "?" LUA_DIRSEP "init.lua"
+#define LUA_CPATH_DEFAULT \
+		LUA_CDIR"?" LUA_SLEXT ";" \
+		LUA_CDIR"loadall" LUA_SLEXT ";" "." LUA_DIRSEP "?" LUA_SLEXT
 
 #endif
 
