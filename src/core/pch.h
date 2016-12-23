@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <list>
 #include <map>
+#include <stack>
+#include <fstream>
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
