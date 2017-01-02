@@ -5,25 +5,15 @@
 using namespace genie::impl;
 
 Node::Node(const std::string & name, const std::string & hdl_name)
-    : m_name(name), m_hdl_name(hdl_name), m_parent(nullptr)
+    : m_hdl_name(hdl_name)
 {
-}
-
-void Node::set_parent(Node* parent)
-{
-    // Can't just move things!
-    if (m_parent != nullptr)
-    {
-        // TODO: throw exception with full node path
-        throw Exception("node already has a parent");
-    }
-
-    m_parent = parent;
+	set_name(name);
 }
 
 Node::Node(const Node& o, const std::string& name)
-    : m_name(name), m_hdl_name(o.m_hdl_name)
+    : HierObject(o), m_hdl_name(o.m_hdl_name)
 {
+	set_name(name);
     // Copy over all the things that every Node has
 }
 

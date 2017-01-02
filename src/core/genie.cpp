@@ -3,6 +3,7 @@
 #include "genie_priv.h"
 #include "node.h"
 #include "util.h"
+#include "hierarchy.h"
 #include "node_system.h"
 #include "node_user.h"
 #include "node_split.h"
@@ -17,7 +18,7 @@ using namespace genie::impl;
 namespace
 {
     // Holds all nodes
-    std::unordered_map<std::string, Node*> m_nodes;
+	HierObject m_root;
 
     // Stores options
     genie::FlowOptions m_flow_opts;
@@ -32,17 +33,17 @@ namespace
         const std::string& hdl_name = node->get_hdl_name();
 
         // Check for existing names
-        if (util::exists_2(m_nodes, name))
+        if (m_root.has_child(name))
             throw genie::Exception("module with name " + name + " already exists");
 
-        for (auto it : m_nodes)
+        for (auto node : m_root.get_children_by_type<Node>())
         {
-            if (it.second->get_hdl_name() == hdl_name)
+            if (node->get_hdl_name() == hdl_name)
                 throw genie::Exception("module with hdl_name " + hdl_name + " already exists");
         }
 
-        // Store it in the context
-        m_nodes[name] = node;
+		m_root.add_child(node);
+
         return node;
     }
 }
@@ -54,13 +55,21 @@ void genie::impl::register_builtin(Node* node)
 
 Node* genie::impl::get_node(const std::string& name)
 {
-    Node* result = nullptr;
+	return m_root.get_child_as<Node>(name);
+}
 
-    auto it = m_nodes.find(name);
-    if (it != m_nodes.end())
-        result = it->second;
+void genie::impl::delete_node(Node * node)
+{
+	auto obj = m_root.remove_child(node);
+	if (obj)
+		delete obj;
+}
 
-    return result;
+void genie::impl::delete_node(const std::string & name)
+{
+	auto obj = m_root.remove_child(name);
+	if (obj)
+		delete obj;
 }
 
 genie::FlowOptions& genie::impl::get_flow_options()

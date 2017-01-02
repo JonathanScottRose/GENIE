@@ -1,43 +1,41 @@
 #include <iostream>
+#include <regex>
+
 
 #include "getoptpp/getopt_pp.h"
 #include "io.h"
 #include "debugger.h"
+#include "lua_if.h"
 
 #include "genie/genie.h"
-#include "genie/lua/genie_lua.h"
-#include "genie/regex.h"
 #include "genie/log.h"
+
 
 using namespace genie;
 
 namespace
 {
 	std::string s_script;
-	std::string s_lua_args;
-
+	lua_if::ArgsVec s_lua_args;
+	genie::FlowOptions s_genie_opts;
 	bool s_debug = false;
 	std::string s_debug_host = "localhost";
 	int s_debug_port = 8172;
 
-	lua::ArgsVec parse_lua_args()
+	void parse_lua_args(const std::string& argstr)
 	{
-		lua::ArgsVec args;
-
 		// Extract key=val,key=val,... pairs from string
-		for (auto cur_pos = s_lua_args.cbegin(), end_pos = s_lua_args.cend(); cur_pos != end_pos; )
+		for (auto cur_pos = argstr.cbegin(), end_pos = argstr.cend(); cur_pos != end_pos; )
 		{
 			static std::regex pattern(R"(((\w+)=([^,=]+)(,)?).*)");
 			std::smatch mr;
 
 			if (!std::regex_match(cur_pos, end_pos, mr, pattern))
-				throw Exception("malformed Lua args: " + s_lua_args);
+				throw Exception("malformed Lua args: " + argstr);
 
-			args.emplace_back(std::make_pair(mr[2], mr[3]));
+			s_lua_args.emplace_back(std::make_pair(mr[2], mr[3]));
 			cur_pos = mr[1].second;
 		}
-
-		return args;
 	}
 
 	void parse_host_port(const std::string& str, std::string& out_host, int& out_port)
@@ -77,18 +75,23 @@ namespace
 
 	void parse_args(int argc, char** argv)
 	{
-        auto& opts = genie::options();
+        auto& opts = s_genie_opts;
 		GetOpt::GetOpt_pp args(argc, argv);
 		
 		args >> GetOpt::OptionPresent("dump_dot", opts.dump_dot);
 		args >> GetOpt::Option("dump_dot", opts.dump_dot_network);
-		args >> GetOpt::Option("args", s_lua_args);
 		args >> GetOpt::OptionPresent("force_full_merge", opts.force_full_merge);
         args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
         args >> GetOpt::OptionPresent("detailed_stats", opts.detailed_stats);
         args >> GetOpt::OptionPresent("descriptive_spmg", opts.desc_spmg);
         args >> GetOpt::Option("register_spmg", opts.register_spmg);
         
+		{
+			std::string argstr;
+			args >> GetOpt::Option("args", argstr);
+			parse_lua_args(argstr);
+		}
+
 		args >> GetOpt::OptionPresent("debug", s_debug);
 		if (s_debug)
 		{
@@ -116,24 +119,23 @@ int main(int argc, char** argv)
 	{
 		parse_args(argc, argv);
 
-		genie::init();
-		lua::init(parse_lua_args());		
+		genie::init(&s_genie_opts);
+		lua_if::init(s_lua_args);
 
 		if (s_debug)
 		{
 			start_debugger(s_debug_host.c_str(), s_debug_port);
 		}
 
-		lua::exec_script(s_script);		
-
-		flow_main();
+		lua_if::exec_script(s_script);		
+		genie::do_flow();
 	}
 	catch (std::exception& e)
 	{
         genie::log::error(e.what());
 	}
 
-	lua::shutdown();
+	lua_if::shutdown();
 
 	return 0;
 }

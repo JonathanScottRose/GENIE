@@ -10,6 +10,19 @@ namespace impl
 {
 	namespace util
 	{
+		// Dynamic cast helper
+		template<class T, class TARG>
+		T* as_a(TARG* x)
+		{
+			return dynamic_cast<T*>(x);
+		}
+
+		template<class T, class TARG>
+		bool is_a(TARG* x)
+		{
+			return is_a<T>(x) != nullptr;
+		}
+
 		// Check if file exists
 		static bool fexists(const std::string& filename)
 		{

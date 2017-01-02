@@ -1,7 +1,10 @@
+#include <cassert>
 #include "genie/genie.h"
 #include "genie/log.h"
-#include "genie/lua/genie_lua.h"
+#include "lua.h"
+#include "lauxlib.h"
 #include "luasocket.h"
+#include "lua_if.h"
 
 using namespace genie;
 
@@ -12,7 +15,7 @@ namespace
 
 void start_debugger(const char* host, int port)
 {
-	lua_State* L = lua::get_state();
+	lua_State* L = lua_if::get_state();
 
 	log::info("Connecting to remote debugger at %s:%d", host, port);
 
@@ -30,7 +33,7 @@ void start_debugger(const char* host, int port)
 
 	// Execute the code, expect one return value
 	// Will throw an exception if some bad things happen
-	lua::pcall_top(0, 1);
+	lua_if::pcall_top(0, 1);
 
 	// If the call is successful, there might still be an error
 	// in the form of a nil return value. Check for that.
