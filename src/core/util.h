@@ -145,30 +145,32 @@ namespace impl
 		}
 
 		// String upper/lowercasing
-		static void str_makelower(std::string& str)
+		static std::string& str_makelower(std::string& str)
 		{
 			// Transforms in-place
 			std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+            return str;
 		}
 
-		static void str_makeupper(std::string& str)
+		static std::string& str_makeupper(std::string& str)
 		{
 			// Transforms in-place
 			std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+            return str;
 		}
 
-		static std::string str_tolower(std::string str)
+		static std::string str_tolower(const std::string& str)
 		{
 			// Returns new string
-			str_makelower(str);
-			return str;
+            std::string result(str);
+			return str_makelower(result);
 		}
 
-		static std::string str_toupper(std::string str)
+		static std::string str_toupper(const std::string& str)
 		{
 			// Returns new string
-			str_makeupper(str);
-			return str;
+            std::string result(str);
+			return str_makeupper(result);
 		}
 
 		// Parse a string into an enum (case-insensitive)
