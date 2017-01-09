@@ -16,4 +16,9 @@
 #include <cstdarg>
 #include <cstdio>
 
+// GENIE stuff
+#include "genie/genie.h"
+#include "genie/log.h"
+#include "util.h"
+
 
