@@ -4,10 +4,8 @@
 // Private implementations of templated things and data structures for genie_lua.h. Do not use directly.
 //
 
-#include "genie/common.h"
-#include "genie/lua/lua.h"
-#include "genie/lua/lauxlib.h"
-#include "genie/lua/static_init.h"
+#include <typeindex>
+#include "static_init.h"
 
 namespace genie
 {
@@ -18,16 +16,13 @@ namespace lua_if
         // A list of name->luaCFunction pairs
         using FuncList = std::vector<std::pair<const char*, lua_CFunction>>;
 
-        // A function that checks if a given Object is castable to a certain type
-        using RTTICheckFunc = std::function<bool(Object*)>;
-
         // Vector of typeindex
         using TindexList = std::vector<std::type_index>;
 
         // priv function declarations
-        Object* to_object(int narg);
+        void* to_object(int narg);
         void create_classreg(const char* name, std::type_index tindex, 
-            const RTTICheckFunc& cfunc, const TindexList& supers, const FuncList& methods, 
+            const TindexList& supers, const FuncList& methods, 
             const FuncList& statics);
         
         //
@@ -112,8 +107,8 @@ namespace lua_if
     template<class T>
     T* is_object(int narg)
     {
-        Object* obj = priv::to_object(narg);
-        T* result = as_a<T*>(obj);
+        void* obj = priv::to_object(narg);
+		T* result = dynamic_cast<T*>(obj);
 
         return result;
     }
@@ -128,12 +123,12 @@ namespace lua_if
     template<class T>
     T* check_object(int narg)
     {
-        luaL_checktype(get_state(), narg, LUA_TUSERDATA);
+        luaL_checktype(get_state(), narg, LUA_TLIGHTUSERDATA);
 
-        Object* obj = priv::to_object(narg);
+        void* obj = priv::to_object(narg);
         assert(obj);
 
-        T* result = as_a<T*>(obj);
+        T* result = dynamic_cast<T*>(obj);
         if (!result)
         {
             std::string msg = "can't convert to " + 
