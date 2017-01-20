@@ -58,6 +58,11 @@ Node* genie::impl::get_node(const std::string& name)
 	return m_root.get_child_as<Node>(name);
 }
 
+std::vector<NodeSystem*> genie::impl::get_systems()
+{
+    return m_root.get_children_by_type<NodeSystem>();
+}
+
 void genie::impl::delete_node(Node * node)
 {
 	auto obj = m_root.remove_child(node);

@@ -40,20 +40,18 @@ namespace impl
 	public:
 		static const char PATH_SEP = '.';
 
-		// Used by the filtered version of get_children() to choose specific children
-		// that satisfy some criteria.
-		typedef std::function<bool(const HierObject*)> FilterFunc;
+        // Used by the filtered version of get_children() to choose specific children
+        // that satisfy some criteria.
+        typedef std::function<bool(const HierObject*)> FilterFunc;
 
 		HierObject();
 		HierObject(const HierObject&);
 		virtual ~HierObject();
 
 		// Name
-		virtual const std::string& get_name() const;
-		virtual void set_name(const std::string&);
-
-		// Gets hierarchy path, relative to another parent (default is root)
-		HierPath get_hier_path(const HierObject* rel_to = nullptr) const;
+        const std::string& get_name() const;
+		void set_name(const std::string&);
+        std::string get_hier_path(const HierObject* rel_to = nullptr) const;
 
 		// Parent
 		HierObject* get_parent() const;
@@ -106,16 +104,6 @@ namespace impl
 			}
 			return result;
 		}
-
-		// Convenience function to get children that implement a particular Aspect
-	/*	template<class A, class T>
-		List<T*> get_children_with_aspect() const
-		{
-			return get_children([] (const HierObject* obj)
-			{
-				return obj->asp_has<A>();
-			});
-		}*/
 
         // Return a unique child name
         std::string make_unique_child_name(const std::string& base);

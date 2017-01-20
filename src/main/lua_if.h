@@ -5,6 +5,8 @@
 
 namespace genie
 {
+    class APIObject;
+
 namespace lua_if
 {
 	// Macros for function/class definition
@@ -16,7 +18,7 @@ namespace lua_if
 	#define LGLOBALS(...) priv::GlobalsReg s_globals_reg(__VA_ARGS__)	
 	
 	// Class registration and C++ interop
-	void push_object(void* inst);
+	void push_object(APIObject* inst);
 	template<class T> T* check_object(int narg);
 	template<class T> T* is_object(int narg);
 	template<class T> std::string obj_typename(T* = nullptr);

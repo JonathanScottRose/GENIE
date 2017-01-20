@@ -173,6 +173,17 @@ namespace impl
 			return str_makeupper(result);
 		}
 
+        static std::string str_con_cat(const std::string& s)
+        {
+            return s;
+        }
+
+        template<class... Ts>
+        static std::string str_con_cat(const std::string& s, Ts... rest)
+        {
+            return s + "_" + str_con_cat(rest...);
+        }
+
 		// Parse a string into an enum (case-insensitive)
 		// Return true if successful, result goes in *out
 		// (might change this to map later)

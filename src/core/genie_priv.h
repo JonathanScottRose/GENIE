@@ -7,11 +7,15 @@ namespace genie
 {
 namespace impl
 {
+    class NodeSystem;
+
 	// Node management
     void register_builtin(Node* node);
     Node* get_node(const std::string& name);
-	void delete_node(Node* node);
+    std::vector<NodeSystem*> get_systems();
+    void delete_node(Node* node);
 	void delete_node(const std::string& name);
+    
 
     // Get options
     genie::FlowOptions& get_flow_options();

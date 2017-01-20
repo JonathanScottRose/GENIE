@@ -5,10 +5,14 @@
 //
 
 #include <typeindex>
+#include <cassert>
+#include <vector>
 #include "static_init.h"
 
 namespace genie
 {
+    class APIObject;
+
 namespace lua_if
 {
     namespace priv
@@ -16,13 +20,17 @@ namespace lua_if
         // A list of name->luaCFunction pairs
         using FuncList = std::vector<std::pair<const char*, lua_CFunction>>;
 
+        // A function that checks if a given Object is castable to a certain type
+        using RTTICheckFunc = std::function<bool(APIObject*)>;
+
         // Vector of typeindex
         using TindexList = std::vector<std::type_index>;
 
         // priv function declarations
-        void* to_object(int narg);
+        APIObject* to_object(int narg);
+        void check_object_fail(int narg, const std::type_index& t);
         void create_classreg(const char* name, std::type_index tindex, 
-            const TindexList& supers, const FuncList& methods, 
+            const RTTICheckFunc& cfunc, const TindexList& supers, const FuncList& methods, 
             const FuncList& statics);
         
         //
@@ -52,7 +60,7 @@ namespace lua_if
                 std::type_index this_index = std::type_index(typeid(T));
 
                 // check function: returns true if an object is castable to T*
-                RTTICheckFunc cfunc = [](Object* o)
+                RTTICheckFunc cfunc = [](APIObject* o)
                 {
                     return dynamic_cast<T*>(o) != nullptr;
                 };
@@ -105,10 +113,19 @@ namespace lua_if
    
     // Implementations of public functions
     template<class T>
-    T* is_object(int narg)
+    T* to_object(int narg)
     {
-        void* obj = priv::to_object(narg);
-		T* result = dynamic_cast<T*>(obj);
+        T* result = nullptr;
+
+        try
+        {
+            auto obj = (genie::APIObject*)priv::to_object(narg);
+		    result = dynamic_cast<T*>(obj);
+        }
+        catch (...)
+        {
+            result = nullptr;
+        }
 
         return result;
     }
@@ -123,18 +140,10 @@ namespace lua_if
     template<class T>
     T* check_object(int narg)
     {
-        luaL_checktype(get_state(), narg, LUA_TLIGHTUSERDATA);
-
-        void* obj = priv::to_object(narg);
-        assert(obj);
-
-        T* result = dynamic_cast<T*>(obj);
+        T* result = to_object<T>(narg);
         if (!result)
         {
-            std::string msg = "can't convert to " + 
-                obj_typename<T>() + " from " +
-                obj_typename(obj);
-            luaL_argerror(get_state(), narg, msg.c_str());
+            priv::check_object_fail(narg, std::type_index(typeid(T)));
         }
 
         return result;

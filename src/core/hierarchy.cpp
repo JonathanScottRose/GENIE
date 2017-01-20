@@ -101,7 +101,7 @@ HierObject* HierObject::get_parent() const
 	return m_parent;
 }
 
-HierPath HierObject::get_hier_path(const HierObject* rel_to) const
+std::string HierObject::get_hier_path(const HierObject* rel_to) const
 {
 	// For now, HierPath is just a string.
 	std::string result = get_name();

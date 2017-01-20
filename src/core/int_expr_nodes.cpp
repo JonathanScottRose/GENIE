@@ -2,7 +2,7 @@
 #include "genie/genie.h"
 #include "int_expr_nodes.h"
 #include "int_expr.h"
-#include "node_params.h"
+#include "params.h"
 #include "util.h"
 
 using namespace genie::impl;
@@ -192,7 +192,7 @@ int NameNode::evaluate(ParamResolver& r) const
     NodeParam* resolved_param = r.resolve(m_ref);
 
     if (resolved_param->get_type() != NodeParam::INT)
-        throw Exception(m_ref + " not an integer expression");
+        throw Exception(m_ref + " not a const-evaluatable integer expression");
 
     auto parm_int = util::as_a<NodeIntParam>(resolved_param);
     assert(parm_int);

@@ -2,7 +2,7 @@
 #include "genie/genie.h"
 #include "int_expr.h"
 #include "int_expr_nodes.h"
-#include "node_params.h"
+#include "params.h"
 
 using namespace genie::impl;
 
@@ -111,9 +111,10 @@ int IntExpr::evaluate(ParamResolver& r)
     if (!m_is_const)
     {
         assert(m_expr_root);
-        m_const_val = m_expr_root->evaluate(r);
+        // Save to temporary first! m_const_val and m_expr_root share memory
+        int const_val = m_expr_root->evaluate(r);
         delete m_expr_root;
-        m_expr_root = nullptr;
+        m_const_val = const_val;
         m_is_const = true;
     }
 

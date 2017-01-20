@@ -21,6 +21,27 @@ BitsVal::~BitsVal()
 {
 }
 
+BitsVal & BitsVal::operator=(const BitsVal &rhs)
+{
+    m_base = rhs.m_base;
+    m_n_dims = rhs.m_n_dims;
+    m_dim_size[0] = rhs.m_dim_size[0];
+    m_dim_size[1] = rhs.m_dim_size[1];
+    m_data = rhs.m_data;
+    return *this;
+}
+
+BitsVal & BitsVal::operator=(BitsVal &&rhs)
+{
+    m_base = rhs.m_base;
+    m_n_dims = rhs.m_n_dims;
+    m_dim_size[0] = rhs.m_dim_size[0];
+    m_dim_size[1] = rhs.m_dim_size[1];
+    m_data = std::move(rhs.m_data);
+
+    return *this;
+}
+
 void BitsVal::set_preferred_base(Base b)
 {
     m_base = b;
@@ -31,16 +52,20 @@ BitsVal::Base BitsVal::get_preferred_base() const
     return m_base;
 }
 
+unsigned genie::impl::BitsVal::get_n_chunks(unsigned bits) const
+{
+    return (bits + CHUNK_SIZE - 1) / CHUNK_SIZE;
+}
+
 void BitsVal::set_slice_size(unsigned slice, unsigned size)
 {
-    unsigned BLKSIZE = sizeof(size_t)*8;
-    unsigned size_in_blks = (size + BLKSIZE - 1) / BLKSIZE;
+    unsigned size_in_blks = get_n_chunks(size);
     
     // Coarse resize
     m_data[slice].resize(size_in_blks);
 
     // Chop of trailing bits
-    unsigned ofs = size % BLKSIZE;
+    unsigned ofs = size % CHUNK_SIZE;
     size_t mask = (1 << size) - 1;
     m_data[slice].back() &= mask;
 }
@@ -81,7 +106,7 @@ unsigned BitsVal::get_size(unsigned dim) const
 unsigned BitsVal::get_bit(unsigned pos, unsigned slice) const
 {
     size_t chunk = m_data[slice][pos];
-    unsigned ofs = pos % (sizeof(size_t)*8);
+    unsigned ofs = pos % CHUNK_SIZE;
     return (chunk >> ofs) & 1;
 }
 
@@ -93,7 +118,7 @@ void BitsVal::set_bit(unsigned pos, unsigned bit)
 void BitsVal::set_bit(unsigned pos, unsigned slice, unsigned bit)
 {
     size_t chunk = m_data[slice][pos];
-    unsigned ofs = pos % (sizeof(size_t)*8);
+    unsigned ofs = pos % CHUNK_SIZE;
     chunk &= (size_t)(-1) ^ (1 << ofs);
     chunk |= (bit & 1) << ofs;
 }
@@ -104,10 +129,48 @@ void BitsVal::shift_in_lsb(unsigned bit, unsigned slice)
 
     for (unsigned i = 0; i < m_dim_size[0]; i++)
     {
-        unsigned shift_out = m_data[slice][i] >> (sizeof(size_t)*8 - 1);
+        unsigned shift_out = m_data[slice][i] >> (CHUNK_SIZE - 1);
         m_data[slice][i] = (m_data[slice][i] << 1) | bit;
         bit = shift_out;
     }
+}
+
+std::string BitsVal::to_str_bin(unsigned slice) const
+{
+    std::string result;
+    for (unsigned b = m_dim_size[0]; b >= 0; b--)
+    {
+        result += std::to_string(get_bit(b, slice));
+    }
+    return result;
+}
+
+std::string BitsVal::to_str_dec(unsigned slice) const
+{
+    // This won't work for anything larger than 64 bits
+    unsigned long long result = 0;
+    unsigned chunks = get_n_chunks(m_dim_size[0]);
+    assert(chunks * CHUNK_SIZE <= 64);
+    for (unsigned i = 0; i < chunks; i++)
+    {
+        result += m_data[slice][i] << (CHUNK_SIZE*i);
+    }
+    
+    return std::to_string(result);
+}
+
+std::string BitsVal::to_str_hex(unsigned slice) const
+{
+    std::stringstream ss;
+    
+    unsigned chunks = get_n_chunks(m_dim_size[0]);
+    for (unsigned i = chunks-1; i >= 0; i--)
+    {
+        size_t chunkval = m_data[slice][i];
+        ss << std::hex << chunkval;
+    }
+
+    return ss.str();
 }
 
 

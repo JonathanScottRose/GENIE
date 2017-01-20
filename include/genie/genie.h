@@ -7,6 +7,12 @@ namespace genie
 {
     class Node;
 
+    class APIObject
+    {
+    protected:
+        virtual ~APIObject() = 0 {};
+    };
+
     class Exception : public std::runtime_error
     {
     public:

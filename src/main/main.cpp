@@ -111,6 +111,22 @@ namespace
 		if (!(args >> GetOpt::GlobalOption(s_script)))
 			throw Exception("Must specify Lua script");
 	}
+
+    void s_exec_script()
+    {
+        log::info("Executing script %s", s_script.c_str());
+
+        if (!s_lua_args.empty())
+        {
+            log::info("Script args:");
+            for (const auto& parm : s_lua_args)
+            {
+                log::info("  %s=%s", parm.first.c_str(), parm.second.c_str());
+            }
+        }
+
+        lua_if::exec_script(s_script);	
+    }
 }
 
 int main(int argc, char** argv)
@@ -127,7 +143,8 @@ int main(int argc, char** argv)
 			start_debugger(s_debug_host.c_str(), s_debug_port);
 		}
 
-		lua_if::exec_script(s_script);		
+        s_exec_script();
+
 		genie::do_flow();
 	}
 	catch (std::exception& e)

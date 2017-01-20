@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "node_params.h"
+#include "params.h"
 
 using namespace genie::impl;
 
@@ -17,7 +17,17 @@ NodeStringParam::NodeStringParam(std::string && s)
 {
 }
 
-void NodeStringParam::resolve(ParamResolver&)
+//
+// Literal param
+//
+
+NodeLiteralParam::NodeLiteralParam(const std::string & s)
+    : m_str(s)
+{
+}
+
+NodeLiteralParam::NodeLiteralParam(std::string && s)
+    : m_str(std::move(s))
 {
 }
 

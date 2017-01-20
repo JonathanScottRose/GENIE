@@ -18,6 +18,7 @@ namespace
 	using priv::FuncList;
 	using priv::TindexList;
 	using priv::GlobalsReg;
+    using priv::RTTICheckFunc;
 
 	// Information about a C++ class thas is registered with the Lua system
 	struct ClassRegEntry
@@ -27,14 +28,18 @@ namespace
 		FuncList methods;       // list of instance methods
 		FuncList statics;       // list of static methods
 		TindexList supers;      // list of superclass entries to derive from
+        unsigned depth;         // maximum depth of this node in inheritance/superclass hierarchy
+        RTTICheckFunc cfunc;    // RTTI cast-check function
+
+        FuncList dispatch_table; // Final list of functions for this class, populated later
 
 		// Need constructor because typeindex has no default constructor
-		ClassRegEntry(const char* _name, std::type_index _tindex, const FuncList& _methods, 
-			const FuncList& _statics, const TindexList& _supers)
-			: name(_name), tindex(_tindex), methods(_methods), statics(_statics), 
-			supers(_supers)
-		{
-		}
+        ClassRegEntry(const char* _name, std::type_index _tindex, const RTTICheckFunc& _cfunc, 
+            const FuncList& _methods, const FuncList& _statics, const TindexList& _supers)
+            : name(_name), tindex(_tindex), methods(_methods), statics(_statics), 
+            supers(_supers), depth(0), cfunc(_cfunc)
+        {
+        }
 	};
 
 	// Holds all registered class entries by value, keyed by type index.
@@ -45,6 +50,17 @@ namespace
 		static ClassRegEntries s_result;
 		return s_result;
 	}
+
+    // Matches an RTTI type to a class entry by pointer. Contains a superset of
+    // s_get_reg_entries(), because it can contain C++ types that are NOT registered
+    // with the system, yet are CASTABLE-DOWN into a registered type.
+    // Retrieved by function call for proper lazy initialization
+    using ClassRegCache = std::unordered_map<std::type_index, ClassRegEntry*>;
+    ClassRegCache& s_get_class_cache()
+    {
+        static ClassRegCache s_cache;
+        return s_cache;
+    }
 
     // Constants, Lua state
 	const char* API_TABLE_NAME = "genie";
@@ -68,27 +84,90 @@ namespace
 
 	// Main class member lookup entry point!
 	// This gets set as the __index function on the metatable for ALL lightuserdatas
-	LFUNC(s_lookup)
+	LFUNC(s_dispatch)
 	{
-		struct Dummy
-		{
-		};
-
 		// 'table' must be light userdata
 		if (lua_islightuserdata(L, -2) == 0)
 		{
-			lua_pushnil(L);
-			return 1;
+			return 0;
 		}
 
-		auto obj = (Dummy*)lua_touserdata(L, -2);
+        // Get the object, and get the desired method name
+		auto obj = (APIObject*)lua_touserdata(L, -2);
 		const char* fname = lua_tostring(L, -1);
 		assert(fname);
 
-		std::string fname_str(fname);
+		// Get the RTTI type of the object
+        auto obj_tindex = std::type_index(typeid(*obj));
 
+        auto& cache = s_get_class_cache();
+        auto it_cache = cache.find(obj_tindex);
 
-		return 1;
+        if (it_cache == cache.end())
+        {
+            // Didn't find an entry in the cache.
+            // What we do now is:
+            // 1) Look through all registered classes
+            // 1.5) If there's a direct typeid match between a registered class
+            //      and *inst, then use that for sure. Otherwise...
+            // 2) Find the ones that *inst can be cast to
+            // 3) Take the most-derived class found in 2)
+            // 4) Use this class. Store it in the cache for next time.
+
+            // 3) Is accomplished by finding the ClassRegEntry with the highest 'depth'
+            unsigned best_depth = 0;
+            ClassRegEntry* best_class = nullptr;
+
+            auto& classes = s_get_reg_entries();
+            for (auto& it_class : classes)
+            {
+                auto& clazz = it_class.second;
+
+                // Perfect match? Get outta here. Done.
+                if (clazz.tindex == obj_tindex)
+                {
+                    best_class = &clazz;
+                    break;
+                }
+
+                // Otherwise, see if it's family-related and keep
+                // track of the most-derived matches.
+                if (clazz.cfunc(obj))
+                {
+                    if (clazz.depth > best_depth)
+                    {
+                        best_depth = clazz.depth;
+                        best_class = &clazz;
+                    }
+                }
+            }
+
+            // No related classes found? Throw error
+            if (!best_class)
+            {
+                lerror("C++ class not registered with Lua interface: " + 
+                    std::string(obj_tindex.name()));
+            }
+
+            // Class found. Put in cache.
+            it_cache = cache.insert(cache.begin(), std::make_pair(obj_tindex, best_class));
+        }
+
+        ClassRegEntry* cached_class = it_cache->second;
+
+        // Search through class for method
+        for (auto& entry : cached_class->dispatch_table)
+        {
+            if (strcmp(entry.first, fname) == 0)
+            {
+                // Method found, return it
+                lua_pushcfunction(L, entry.second);
+                return 1;
+            }
+        }
+
+        // Method not found, return nil
+		return 0;
 	}
 
     // Adds a list of CFunctions as key/value pairs to the Lua table at the top of the stack
@@ -104,47 +183,54 @@ namespace
 		}
 	}
 
-    void s_register_supers_recursive(ClassRegEntry& target_entry, const ClassRegEntry& this_entry)
+    unsigned s_register_supers_recursive(ClassRegEntry& target_entry, const ClassRegEntry& this_entry)
     {
         // target_entry: class to ultimately add methods to, stays constant during recursion
         // this_entry: class we're adding methods from, changes during recursion
+        // returns: height of superclass tree
 
         auto& entries = s_get_reg_entries();
+        unsigned max_depth = 0;
 
 		// First, recurse, THEN do the real work
         for (auto super_tindex : this_entry.supers)
         {
             // Add instance methods of superclasses first
             auto& super_entry = entries.at(super_tindex);
-            s_register_supers_recursive(target_entry, super_entry);
+            unsigned depth = s_register_supers_recursive(target_entry, super_entry);
+
+            // Find highest ancestor tree
+            max_depth = std::max(max_depth, depth);
         }
 
         // The real work: add/replace instance methods from this_entry into target_entry
 		for (auto& fn : this_entry.methods)
 		{
 			// fn is the method we'd like to add. see if there's an existing method to replace
-			auto it = std::find_if(target_entry.methods.begin(), target_entry.methods.end(), 
+			auto it = std::find_if(target_entry.dispatch_table.begin(), 
+                target_entry.dispatch_table.end(), 
 				[=](const std::pair<const char*, lua_CFunction>& meth) 
 			{ 
 				return strcmp(meth.first, fn.first) == 0;
 			});
 
-			if (it != target_entry.methods.end())
+			if (it != target_entry.dispatch_table.end())
 			{
 				// Replace it
 				it->second = fn.second;
 			}
 			else
 			{
-				target_entry.methods.push_back(fn);
+				target_entry.dispatch_table.push_back(fn);
 			}
 		}
+
+        // Return the maximum number of found superclass levels
+        return max_depth + 1;
     }
 
     void s_register_classes()
     {
-        // ASSUMES: global API table is at top of Lua stack
-
         // Go through each ClassRegEntry
         auto& entries = s_get_reg_entries();
         for (auto& it : entries)
@@ -152,8 +238,24 @@ namespace
             auto& entry = it.second;
 
 			// Add methods of superclasses to our own
-            s_register_supers_recursive(entry, entry);
+            unsigned depth = s_register_supers_recursive(entry, entry);
+
+            // Record the depth of the inheritance tree.
+            // This quantifies how-derived this class is
+            entry.depth = depth;
+
+            // Add static functions
+            std::copy(entry.statics.begin(), entry.statics.end(), entry.dispatch_table.end());
         }
+
+        // Set s_entry as the global __index handler for all lightuserdata
+        lua_pushlightuserdata(s_state, nullptr);
+
+        lua_newtable(s_state);
+        lua_pushcfunction(s_state, s_dispatch);
+        lua_setfield(s_state, -2, "__index");
+        lua_setmetatable(s_state, -2);
+        lua_pop(s_state, 1);
     }
 }
 
@@ -202,9 +304,6 @@ void lua_if::init(const lua_if::ArgsVec& argv)
 
 	// Add argv table to API table
 	lua_setfield(s_state, -2, API_ARGV_TABLE);
-
-	lua_pushlightuserdata(s_state, (void*)0x1234);
-	lua_setfield(s_state, -2, "coolval");
 
 	// Pop API table
 	lua_pop(s_state, 1);
@@ -309,7 +408,7 @@ void lua_if::lerror(const std::string& what)
 }
 
 
-void lua_if::push_object(void* inst)
+void lua_if::push_object(APIObject* inst)
 {
 	// If null, push nil
 	if (!inst)
@@ -330,7 +429,8 @@ void lua_if::push_object(void* inst)
 //
 
 void lua_if::priv::create_classreg(const char* name, std::type_index tindex, 
-    const TindexList& supers, const FuncList& methods, const FuncList& statics)
+    const RTTICheckFunc& cfunc, const TindexList& supers, const FuncList& methods, 
+    const FuncList& statics)
 {
     auto& entries = s_get_reg_entries();
 
@@ -346,13 +446,18 @@ void lua_if::priv::create_classreg(const char* name, std::type_index tindex,
     }
 
     // Create new entry
-    ClassRegEntry entry(name, tindex, methods, statics, supers);
+    ClassRegEntry entry(name, tindex, cfunc, methods, statics, supers);
     entries.emplace(std::make_pair(tindex, entry));
 }
 
-void* lua_if::priv::to_object(int narg)
+void lua_if::priv::check_object_fail(int narg, const std::type_index& t)
 {
-	return lua_touserdata(s_state, narg);
+    luaL_argerror(s_state, narg, ("not a " + std::string(t.name())).c_str());
 }
 
+APIObject* priv::to_object(int narg)
+{
+    luaL_checktype(s_state, narg, LUA_TLIGHTUSERDATA);
+    return (APIObject*)lua_touserdata(s_state, narg);
+}
 

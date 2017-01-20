@@ -28,13 +28,44 @@ namespace impl
         {
             STRING,
             INT,
-            BITS
+            BITS,
+            SYS,
+            LITERAL
         };
 
         virtual ~NodeParam() = default;
         virtual Type get_type() const = 0;
         virtual NodeParam* clone() const = 0;
         virtual void resolve(ParamResolver&) = 0;
+    };
+
+    class NodeSysParam : public NodeParam
+    {
+    public:
+        Type get_type() const override { return SYS; }
+        NodeParam* clone() const override { return new NodeSysParam(*this); }
+        void resolve(ParamResolver&) override {}
+    };
+
+    class NodeLiteralParam : public NodeParam
+    {
+    public:
+        NodeLiteralParam() = default;
+        NodeLiteralParam(const NodeLiteralParam&) = default;
+        NodeLiteralParam(NodeLiteralParam&&) = default;
+        NodeLiteralParam(const std::string&);
+        NodeLiteralParam(std::string&&);
+        ~NodeLiteralParam() = default;
+
+        Type get_type() const override { return LITERAL; }
+        NodeParam* clone() const override { return new NodeLiteralParam(*this); }
+        void resolve(ParamResolver&) override {};
+
+        void set_val(const std::string& s) { m_str = s; }
+        const std::string& get_val() const { return m_str; }
+
+    protected:
+        std::string m_str;
     };
 
     class NodeStringParam : public NodeParam
@@ -49,7 +80,7 @@ namespace impl
 
         Type get_type() const override { return STRING; }
         NodeParam* clone() const override { return new NodeStringParam(*this); }
-        void resolve(ParamResolver&) override;
+        void resolve(ParamResolver&) override {};
 
         void set_val(const std::string& s) { m_str = s; }
         const std::string& get_val() const { return m_str; }

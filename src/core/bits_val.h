@@ -22,8 +22,8 @@ namespace impl
         BitsVal(unsigned inner_dim, unsigned outer_dim = 1);
         ~BitsVal();
 
-        BitsVal& operator=(const BitsVal&) = default;
-        BitsVal& operator=(BitsVal&&) = default;
+        BitsVal& operator=(const BitsVal&);
+        BitsVal& operator=(BitsVal&&);
 
         void set_preferred_base(Base b);
         Base get_preferred_base() const;
@@ -36,7 +36,13 @@ namespace impl
         void set_bit(unsigned pos, unsigned slice, unsigned bit);
         void shift_in_lsb(unsigned bit, unsigned slice=0);
 
+        std::string to_str_bin(unsigned slice) const;
+        std::string to_str_dec(unsigned slice) const;
+        std::string to_str_hex(unsigned slice) const;
+
     protected:
+        const unsigned CHUNK_SIZE = sizeof(size_t)*8;
+        unsigned get_n_chunks(unsigned bits) const;
         void set_slice_size(unsigned slice, unsigned size);
 
         Base m_base;

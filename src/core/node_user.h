@@ -6,8 +6,10 @@ namespace genie
 {
 namespace impl
 {
-    class NodeUser : public Node
+    class NodeUser : virtual public Node, virtual public Module
     {
+    public:
+
     public:
         NodeUser(const std::string& name, const std::string& hdl_name);
 
