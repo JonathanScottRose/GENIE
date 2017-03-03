@@ -82,6 +82,19 @@ IntExpr& IntExpr::operator=(IntExpr&& o)
     return *this;
 }
 
+bool IntExpr::operator==(const IntExpr &o) const
+{
+    if (m_is_const && o.m_is_const)
+    {
+        return m_const_val == o.m_const_val;
+    }
+    else if (!m_is_const && !o.m_is_const &&
+        m_expr_root && o.m_expr_root)
+    {
+        return m_expr_root->to_string() == o.m_expr_root->to_string();
+    }   
+}
+
 IntExpr::operator int() const
 {
     if (!m_is_const)

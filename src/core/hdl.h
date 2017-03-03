@@ -4,6 +4,7 @@
 #include "int_expr.h"
 #include "params.h"
 #include "prop_macros.h"
+#include "genie/port.h"
 
 namespace genie
 {
@@ -16,6 +17,7 @@ namespace hdl
 	class HDLState;
 	class Port;
 	class PortBinding;
+    class PortBindingRef;
 
 	class Bindable;
 	class ConstValue;
@@ -62,6 +64,34 @@ namespace hdl
         int m_bound_bits;
 	};
 
+    class PortBindingRef
+    {
+    public:
+        PortBindingRef();
+        ~PortBindingRef() = default;
+        PortBindingRef(const PortBindingRef&) = default;
+        PortBindingRef(PortBindingRef&&) = default;
+        PortBindingRef& operator= (const PortBindingRef&) = default;
+        PortBindingRef& operator= (PortBindingRef&&) = default;
+
+        void resolve_params(ParamResolver&);
+        bool is_resolved() const;
+        std::string to_string() const;
+
+        PROP_GET_SET(port_name, const std::string&, m_port_name);
+        PROP_GET_SET(slices, const IntExpr&, m_slices);
+        PROP_GET_SET(lo_slice, const IntExpr&, m_lo_slice);
+        PROP_GET_SET(bits, const IntExpr&, m_bits);
+        PROP_GET_SET(lo_bit, const IntExpr&, m_lo_bit);
+
+    protected:
+        std::string m_port_name;
+        IntExpr m_slices;
+        IntExpr m_lo_slice;
+        IntExpr m_bits;
+        IntExpr m_lo_bit;
+    };
+
 	class Port
 	{
 	public:
@@ -75,7 +105,7 @@ namespace hdl
 		};
 
 		static Dir rev_dir(Dir in);
-		//static Dir make_dir(genie::Dir, genie::SigRole::Sense);
+		static Dir from_logical_dir(genie::Port::Dir);
 
 		Port(const std::string& m_name);
 		Port(const std::string& m_name, const IntExpr& width, const IntExpr& depth, Dir dir);
@@ -165,8 +195,11 @@ namespace hdl
         void resolve_params(ParamResolver&);
         PROP_GET_SET(node, Node*, m_node);
 
+        Port& get_or_create_port(const std::string& name, const IntExpr& width, 
+            const IntExpr& depth, Port::Dir dir);
+
         Port& add_port(const std::string& name);
-        Port& add_port(const std::string& m_name, const IntExpr& width, 
+        Port& add_port(const std::string& name, const IntExpr& width, 
             const IntExpr& depth, Port::Dir dir);
         Port* get_port(const std::string&);
         const decltype(m_ports)& get_ports() const;
@@ -174,9 +207,11 @@ namespace hdl
         Net* get_net(const std::string&);
         const decltype(m_nets)& get_nets() const;
 
-        void connect(Port* src, Port* sink, int src_slice, int src_lsb,
+        void connect(const std::string& src, const std::string& sink, int src_slice, int src_lsb,
             int sink_slice, int sink_lsb, unsigned dim, int size);
-        void connect(Port* sink, const BitsVal&, int sink_slice, int sink_lsb);
+        void connect(const std::string& sink, const BitsVal&, int sink_slice, int sink_lsb);
+        void connect(const PortBindingRef& src, const PortBindingRef& sink);
+        void connect(const PortBindingRef& sink, const BitsVal&);
 	};
 }
 }

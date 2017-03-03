@@ -1,7 +1,10 @@
 #include "pch.h"
-#include "genie/genie.h"
 #include "node.h"
 #include "params.h"
+#include "port_clockreset.h"
+#include "port_conduit.h"
+#include "port_rs.h"
+#include "genie/genie.h"
 
 using namespace genie::impl;
 using genie::Exception;
@@ -33,6 +36,28 @@ namespace
             return result;
         }
     };
+
+    // Used for clock and reset ports
+    template<class P>
+    genie::Port * create_simple_port(Node* node, const std::string & name, genie::Port::Dir dir, 
+        const std::string & hdl_sig)
+    {
+        // Create the port
+        auto result = new P(name, dir);
+
+        // Create HDL port
+        node->get_hdl_state().add_port(hdl_sig, 1, 1, hdl::Port::from_logical_dir(dir));
+
+        // Create binding (using defaults for 1-bit binding)
+        hdl::PortBindingRef binding;
+        binding.set_port_name(hdl_sig);
+        result->set_binding(binding);
+
+        // Add port to hierarchy
+        node->add_child(result);
+
+        return result;
+    }
 }
 
 //
@@ -70,6 +95,35 @@ void Node::set_lit_param(const std::string & parm_name, const std::string & str)
 {
     set_param(parm_name, new NodeLiteralParam(str));
 }
+
+genie::Port * Node::create_clock_port(const std::string & name, genie::Port::Dir dir, 
+    const std::string & hdl_sig)
+{
+    return create_simple_port<ClockPort>(this, name, dir, hdl_sig);
+}
+
+genie::Port * Node::create_reset_port(const std::string & name, genie::Port::Dir dir, 
+    const std::string & hdl_sig)
+{
+    return create_simple_port<ResetPort>(this, name, dir, hdl_sig);
+}
+
+genie::ConduitPort * Node::create_conduit_port(const std::string & name, genie::Port::Dir dir)
+{
+    auto result = new ConduitPort(name, dir);
+    add_child(result);
+    return result;
+}
+
+genie::RSPort * Node::create_rs_port(const std::string & name, genie::Port::Dir dir, 
+    const std::string & clk_port_name)
+{
+    auto result = new RSPort(name, dir);
+    result->set_clk_port_name(clk_port_name);
+    return result;
+}
+
+
 
 //
 // Internal functions
@@ -112,11 +166,20 @@ void Node::resolve_params()
 {
     NodeParamResolver resolv(this);
 
+    // First, concreteize any expressions within the parameters themselves
     for (auto& p : m_params)
     {
         p.second->resolve(resolv);
     }
 
+    // Resolve expresisons within child ports
+    auto ports = get_children_by_type<Port>();
+    for (auto p : ports)
+    {
+        p->resolve_params(resolv);
+    }
+
+    // Resolve expressions within HDL-related stuff
     m_hdl_state.resolve_params(resolv);
 }
 

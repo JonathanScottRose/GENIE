@@ -1,8 +1,8 @@
 #pragma once
 
-#include "genie/node.h"
 #include "hierarchy.h"
-#include "hdl_state.h"
+#include "hdl.h"
+#include "genie/node.h"
 
 namespace genie
 {
@@ -11,7 +11,7 @@ namespace impl
 	class NodeParam;
     class ParamResolver;
 
-    class Node : virtual public genie::Node, public impl::HierObject
+    class Node : virtual public genie::Node, public HierObject
     {
     public:
         // Public API
@@ -21,6 +21,14 @@ namespace impl
         void set_int_param(const std::string& parm_name, const std::string& expr) override;
         void set_str_param(const std::string& parm_name, const std::string& str) override;
         void set_lit_param(const std::string& parm_name, const std::string& str) override;
+
+        genie::Port* create_clock_port(const std::string& name, genie::Port::Dir dir, 
+            const std::string& hdl_sig);
+        genie::Port* create_reset_port(const std::string& name, genie::Port::Dir dir, 
+            const std::string& hdl_sig);
+        genie::ConduitPort* create_conduit_port(const std::string& name, genie::Port::Dir dir);
+        genie::RSPort* create_rs_port(const std::string& name, genie::Port::Dir dir, 
+            const std::string& clk_port_name);
 
     public:
         // Internal API

@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "hdl_state.h"
+#include "hdl.h"
 #include "node.h"
 #include "bits_val.h"
 #include "int_expr.h"
@@ -21,8 +21,8 @@ Port::Port(const std::string& name)
 }
 
 Port::Port(const Port& o)
-    : m_width(o.m_width), m_depth(o.m_depth), m_name(o.m_name), m_dir(o.m_dir),
-    m_bindings(o.m_bindings), m_parent(nullptr)
+    : m_name(o.m_name), m_width(o.m_width), m_depth(o.m_depth), m_dir(o.m_dir), 
+    m_bindings(o.m_bindings)
 {
     for (auto& b : m_bindings)
     {
@@ -58,11 +58,24 @@ Port::Dir Port::rev_dir(Port::Dir in)
     case IN: return OUT;
     case OUT: return IN;
     case INOUT: return INOUT;
+    default: assert(false);
     }
 
-    assert(false);
     return INOUT;
 }
+
+Port::Dir Port::from_logical_dir(genie::Port::Dir dir)
+{
+    switch (dir)
+    {
+    case genie::Port::Dir::IN: return Port::IN;
+    case genie::Port::Dir::OUT: return Port::OUT;
+    default: assert(false);
+    }
+
+    return Port::INOUT;
+}
+
 
 /*
 Port::Dir Port::make_dir(genie::Dir pdir, genie::SigRole::Sense sense)
@@ -256,6 +269,34 @@ void HDLState::resolve_params(ParamResolver& resolv)
         p.second.resolve_params(resolv);
 }
 
+Port & HDLState::get_or_create_port(const std::string & name, const IntExpr & width, 
+    const IntExpr & depth, Port::Dir dir)
+{
+    Port* result = get_port(name);
+    if (!result)
+    {
+        return add_port(name, width, depth, dir);
+    }
+    //else
+
+    // validate
+    if (width != result->get_width())
+    {
+        throw Exception(get_node()->get_hier_path() + ": existing port " + name + 
+            " width of " + width.to_string() + " differs from given width of " +
+            width.to_string());
+    }
+
+    if (depth != result->get_depth())
+    {
+        throw Exception(get_node()->get_hier_path() + ": existing port " + name + 
+            " depth of " + depth.to_string() + " differs from given depth of " +
+            depth.to_string());
+    }
+
+    return *result;
+}
+
 Port& HDLState::add_port(const std::string& name)
 {
     if (util::exists_2(m_ports, name))
@@ -325,9 +366,16 @@ auto HDLState::get_nets() const -> const decltype(m_nets)&
     return m_nets;
 }
 
-void HDLState::connect(Port* src, Port* sink, int src_slice, int src_lsb,
-    int sink_slice, int sink_lsb, unsigned dim, int size)
+void HDLState::connect(const std::string& src_name, const std::string& sink_name, 
+    int src_slice, int src_lsb, int sink_slice, int sink_lsb, unsigned dim, int size)
 {
+    // Get the ports by name
+    Port* src = get_port(src_name);
+    Port* sink = get_port(sink_name);
+
+    assert(src);
+    assert(sink);
+
     // Create or grab a net that's bound to the entire src.
     // This process depends on whether the Port is top-level to this System or not.
     bool src_is_export = src->get_parent() == this;
@@ -369,8 +417,10 @@ void HDLState::connect(Port* src, Port* sink, int src_slice, int src_lsb,
     sink->bind(net, dim, size, sink_slice, sink_lsb, src_slice, src_lsb);
 }
 
-void HDLState::connect(Port* sink, const BitsVal& val, int sink_slice, int sink_lsb)
+void HDLState::connect(const std::string& sink_name, const BitsVal& val, int sink_slice, int sink_lsb)
 {
+    Port* sink = get_port(sink_name);
+
     // Create a new ConstValue bindable object
     m_const_values.emplace_back(val);
     auto& cv = m_const_values.back();
@@ -382,5 +432,89 @@ void HDLState::connect(Port* sink, const BitsVal& val, int sink_slice, int sink_
     unsigned size = val.get_size(dim);
 
     sink->bind(&cv, dim, size, 0, 0, sink_slice, sink_lsb);
+}
+
+void HDLState::connect(const PortBindingRef & src, const PortBindingRef & sink)
+{
+    assert(src.is_resolved());
+    assert(sink.is_resolved());
+
+    assert(src.get_slices() == sink.get_slices());
+    int slices = src.get_slices();
+
+    unsigned dim;
+    int size;
+    if (slices > 1)
+    {
+        dim = 1;
+        size = slices;
+        assert(src.get_bits() == sink.get_bits());
+    }
+    else
+    {
+        dim = 0;
+        size = std::min(src.get_bits(), sink.get_bits());
+    }
+
+    connect(src.get_port_name(), sink.get_port_name(), src.get_lo_slice(), src.get_lo_bit(),
+        sink.get_lo_slice(), sink.get_lo_bit(), dim, size);
+}
+
+void HDLState::connect(const PortBindingRef& sink, const BitsVal& val)
+{
+    connect(sink.get_port_name(), val, sink.get_lo_slice(), sink.get_lo_bit());
+}
+
+//
+// PortBindingRef
+//
+
+PortBindingRef::PortBindingRef()
+    : m_slices(1), m_lo_slice(0), m_bits(1), m_lo_bit(0)
+{
+}
+
+void PortBindingRef::resolve_params(ParamResolver& r)
+{
+    m_slices.evaluate(r);
+    m_lo_bit.evaluate(r);
+    m_lo_slice.evaluate(r);
+    m_slices.evaluate(r);
+}
+
+bool PortBindingRef::is_resolved() const
+{
+    return m_bits.is_const() && 
+        m_lo_bit.is_const() &&
+        m_lo_slice.is_const() &&
+        m_slices.is_const();
+}
+
+std::string PortBindingRef::to_string() const
+{
+    std::string result = m_port_name;
+
+    // Add optional [foo:bar] for slices and bits size
+    for (auto& p : {std::make_pair(m_lo_slice, m_slices), std::make_pair(m_lo_bit, m_bits)})
+    {
+        const IntExpr& lo = p.first;
+        const IntExpr& size = p.second;
+
+        if (lo.is_const() && size.is_const())
+        {
+            if (size > 1 && lo > 0)
+            {
+                int hi = lo + size - 1;
+                result += "[" + std::to_string(hi) + ":" + std::to_string(lo) + "]";
+            }
+        }
+        else
+        {
+            result += "[" + lo.to_string() + "+" + size.to_string() + "-1:" + 
+                lo.to_string() + "]";
+        }
+    }
+
+    return result;
 }
 

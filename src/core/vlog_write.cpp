@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "genie/log.h"
 #include "node_system.h"
-#include "hdl_state.h"
+#include "hdl.h"
 #include "vlog_write.h"
 #include "params.h"
 

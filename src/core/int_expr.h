@@ -26,6 +26,7 @@ namespace impl
 
         IntExpr& operator=(const IntExpr&);
         IntExpr& operator=(IntExpr&&);
+        bool operator==(const IntExpr&) const;
 
         operator int() const;
         std::string to_string() const;

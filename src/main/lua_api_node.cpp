@@ -70,12 +70,106 @@ namespace
         return 0;
     }
 
+    /// Create a clock port.
+    ///
+    /// @function create_clock_port
+    /// @tparam string name Port name
+    /// @tparam string dir Direction (in/out)
+    /// @tparam string sig HDL signal name
+    LFUNC(node_create_clock_port)
+    {
+        auto self = lua_if::check_object<Node>(1);
+        const char* name = luaL_checkstring(L, 2);
+        const char* dir_str = luaL_checkstring(L, 3);
+        const char* sig = luaL_checkstring(L, 4);
+
+        Port::Dir dir;
+        bool valid = Port::Dir::from_string(dir_str, dir);
+        if (!valid)
+            luaL_argerror(L, 3, "invalid port direction");
+
+        auto result = self->create_clock_port(name, dir, sig);
+        lua_if::push_object(result);
+        return 1;
+    }
+
+    /// Create a reset port.
+    ///
+    /// @function create_reset_port
+    /// @tparam string name Port name
+    /// @tparam string dir Direction (in/out)
+    /// @tparam string sig HDL signal name
+    LFUNC(node_create_reset_port)
+    {
+        auto self = lua_if::check_object<Node>(1);
+        const char* name = luaL_checkstring(L, 2);
+        const char* dir_str = luaL_checkstring(L, 3);
+        const char* sig = luaL_checkstring(L, 4);
+
+        Port::Dir dir;
+        bool valid = Port::Dir::from_string(dir_str, dir);
+        if (!valid)
+            luaL_argerror(L, 3, "invalid port direction");
+
+        auto result = self->create_reset_port(name, dir, sig);
+        lua_if::push_object(result);
+        return 1;
+    }
+
+    /// Create a conduit port.
+    ///
+    /// @function create_conduit_port
+    /// @tparam string name Port name
+    /// @tparam string dir Direction (in/out)
+    LFUNC(node_create_conduit_port)
+    {
+        auto self = lua_if::check_object<Node>(1);
+        const char* name = luaL_checkstring(L, 2);
+        const char* dir_str = luaL_checkstring(L, 3);
+
+        Port::Dir dir;
+        bool valid = Port::Dir::from_string(dir_str, dir);
+        if (!valid)
+            luaL_argerror(L, 3, "invalid port direction");
+
+        auto result = self->create_conduit_port(name, dir);
+        lua_if::push_object(result);
+        return 1;
+    }
+
+    /// Create a Routed Streaming port.
+    ///
+    /// @function create_rs_port
+    /// @tparam string name Port name
+    /// @tparam string dir Direction (in/out)
+    /// @tparam string clk_name Name of associated clock port on same Node
+    LFUNC(node_create_rs_port)
+    {
+        auto self = lua_if::check_object<Node>(1);
+        const char* name = luaL_checkstring(L, 2);
+        const char* dir_str = luaL_checkstring(L, 3);
+        const char* clk_name = luaL_checkstring(L, 4);
+
+        Port::Dir dir;
+        bool valid = Port::Dir::from_string(dir_str, dir);
+        if (!valid)
+            luaL_argerror(L, 3, "invalid port direction");
+
+        auto result = self->create_rs_port(name, dir, clk_name);
+        lua_if::push_object(result);
+        return 1;
+    }
+
     LCLASS(Node,
     {
         LM(get_name, node_get_name),
         LM(set_int_param, node_set_int_param),
         LM(set_str_param, node_set_str_param),
-        LM(set_lit_param, node_set_lit_param)
+        LM(set_lit_param, node_set_lit_param),
+        LM(create_clock_port, node_create_clock_port),
+        LM(create_reset_port, node_create_reset_port),
+        LM(create_conduit_port, node_create_conduit_port),
+        LM(create_rs_port, node_create_rs_port)
     });
 
     /// Represents a system
