@@ -1,16 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{4133A8C2-E422-411C-B3DF-584094E8EFDA}</ProjectGuid>
     <RootNamespace>core</RootNamespace>
   </PropertyGroup>
+  
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="common.props" />
+  
   <PropertyGroup Label="Configuration">
     <TargetName>genie_core$(LibSuffix)</TargetName>
   </PropertyGroup>
+  
   <ItemGroup>
     <ProjectReference Include="lp_solve.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efd0}</Project>
@@ -20,16 +23,16 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(IncludeDir);$(SrcDir)/lp_solve;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
-	  <PrecompiledHeader>Use</PrecompiledHeader>
-	  <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-	  <DisableSpecificWarnings>4250</DisableSpecificWarnings>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <DisableSpecificWarnings>4250</DisableSpecificWarnings>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="$(IncludeDir)\genie\*.h" />
     <ClInclude Include="$(SrcDir)\core\**\*.h" />
-    <ClCompile Include="$(SrcDir)\core\**\*.cpp" Exclude="$(SrcDir)\core\pch.cpp"/>
-	<ClCompile Include="$(SrcDir)\core\pch.cpp">
+    <ClCompile Include="$(SrcDir)\core\**\*.cpp" Exclude="$(SrcDir)\core\pch.cpp" />
+    <ClCompile Include="$(SrcDir)\core\pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>

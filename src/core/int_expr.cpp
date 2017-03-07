@@ -92,7 +92,9 @@ bool IntExpr::operator==(const IntExpr &o) const
         m_expr_root && o.m_expr_root)
     {
         return m_expr_root->to_string() == o.m_expr_root->to_string();
-    }   
+    }
+
+	return false;
 }
 
 IntExpr::operator int() const

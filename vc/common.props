@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -14,12 +14,13 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   
   <PropertyGroup>
-    <BaseDir>$(SolutionDir)/..</BaseDir>
+    <BaseDir>$(SolutionDir)..</BaseDir>
     <SrcDir>$(BaseDir)/src</SrcDir>
     <IncludeDir>$(BaseDir)/include</IncludeDir>
     <IntDir>$(SolutionDir)/$(ProjectName)/$(Configuration)$(PlatformArchitecture)\</IntDir>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
+	<WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
     <OutDir Condition="'$(ConfigurationType)'=='StaticLibrary'">$(BaseDir)/lib/</OutDir>
     <OutDir Condition="'$(ConfigurationType)'=='Application'">$(BaseDir)/bin/</OutDir>
   </PropertyGroup>
