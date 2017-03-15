@@ -2,16 +2,15 @@
 
 #include <string>
 #include <functional>
+#include "network.h"
 #include "genie/genie.h"
+#include "genie/port.h"
 
 namespace genie
 {
 namespace impl
 {
 	class HierObject;
-
-	// Represents a hierarchy path. Just a string for now.
-	typedef std::string HierPath;
 
 	// Global namespace functions.
 
@@ -35,8 +34,13 @@ namespace impl
 		HierDupException(const HierObject* parent, const HierObject* target);
 	};
     
-	class HierObject
+	class HierObject : public virtual genie::HierObject
 	{
+	public:
+		const std::string& get_name() const override;
+		std::string get_hier_path(const genie::HierObject* rel_to = nullptr) const override;
+		genie::HierObject* get_child(const std::string&) const override;
+
 	public:
 		static const char PATH_SEP = '.';
 
@@ -49,27 +53,25 @@ namespace impl
 		virtual ~HierObject();
 
 		// Name
-        const std::string& get_name() const;
 		void set_name(const std::string&);
-        std::string get_hier_path(const HierObject* rel_to = nullptr) const;
 
 		// Parent
 		HierObject* get_parent() const;
+		bool is_parent_of(const HierObject*) const;
 
 		// Add a child object
 		void add_child(HierObject*);
 
 		// Get or query existence of an existing child, by hierarchical path.
-		HierObject* get_child(const HierPath&) const;
-		bool has_child(const HierPath&) const;
+		bool has_child(const std::string&) const;
 		template<class T>
-		T* get_child_as(const HierPath& p) const
+		T* get_child_as(const std::string& p) const
 		{
 			return util::as_a<T>(get_child(p));
 		}
 
 		// Remove child but do not destroy (returns removed thing)
-		HierObject* remove_child(const HierPath&);
+		HierObject* remove_child(const std::string&);
 		HierObject* remove_child(HierObject* c);
 		void unlink_from_parent();
 
@@ -108,13 +110,27 @@ namespace impl
         // Return a unique child name
         std::string make_unique_child_name(const std::string& base);
 
+		// Connectivity
+		void make_connectable(NetType);
+		void make_connectable(NetType, genie::Port::Dir);
+		bool is_connectable(NetType, genie::Port::Dir);
+		Endpoint* get_endpoint(NetType, genie::Port::Dir);
+
 	protected:
 		void set_parent(HierObject*);
 
 	private:
+		struct EndpointPair
+		{
+			Endpoint* in;
+			Endpoint* out;
+			EndpointPair() : in(nullptr), out(nullptr) {}
+		};
+
 		std::string m_name;
 		HierObject* m_parent;
 		std::unordered_map <std::string, HierObject*> m_children;
+		std::unordered_map<NetType, EndpointPair> m_endpoints;
 	};
 }
 }

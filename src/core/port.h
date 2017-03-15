@@ -9,15 +9,13 @@ namespace genie
 {
 namespace impl
 {
-    class Port : virtual public genie::Port, public HierObject
+    class Port : virtual public genie::Port, virtual public HierObject
     {
     public:
         virtual const std::string& get_name() const override;
         virtual Dir get_dir() const override;
         
     public:
-        static Dir rev_dir(Dir);
-
         Port(const std::string& name, Dir dir);
         Port(const Port&);
         virtual ~Port();

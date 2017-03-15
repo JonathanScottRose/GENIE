@@ -68,8 +68,8 @@ namespace
 	void write_sys_port(const Port& port)
 	{
 		std::string dir_str = 
-			port.get_dir() == Port::OUT ? "output " : 
-			port.get_dir() == Port::IN ? "input " : "inout";
+			port.get_dir() == Port::Dir::OUT ? "output " : 
+			port.get_dir() == Port::Dir::IN ? "input " : "inout";
 
 		std::string size_str = format_size(port.get_depth(), port.get_width());
         write_line(dir_str + size_str + port.get_name(), true, false);
@@ -111,7 +111,7 @@ namespace
 		for (const auto& i : mod.get_ports())
 		{
 			const Port& port = i.second;
-			if (port.get_dir() == Port::IN)
+			if (port.get_dir() == Port::Dir::IN)
 				continue;
 
 			// Don't emit an assign statement when there's nothing to assign
@@ -318,7 +318,7 @@ namespace
 		std::vector<std::string> formatted_slices;
 
 		// Can we tie constants to this port?
-		bool can_tie = port.get_dir() != Port::OUT;
+		bool can_tie = port.get_dir() != Port::Dir::OUT;
 
         // If the port is not bound at all, skip any formatting. Otherwise, we'd end up with a
         // technically correct, but ugly, litany of zzzzzzzz's

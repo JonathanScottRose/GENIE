@@ -7,7 +7,11 @@
 #include "node_system.h"
 #include "node_user.h"
 #include "node_split.h"
-
+#include "net_clockreset.h"
+#include "net_conduit.h"
+#include "net_internal.h"
+#include "net_rs.h"
+#include "net_topo.h"
 
 using namespace genie::impl;
 
@@ -19,6 +23,9 @@ namespace
 {
     // Holds all nodes
 	HierObject m_root;
+
+	// Holds network defs
+	std::vector<Network*> m_networks;
 
     // Stores options
     genie::FlowOptions m_flow_opts;
@@ -77,6 +84,22 @@ void genie::impl::delete_node(const std::string & name)
 		delete obj;
 }
 
+NetType genie::impl::register_network(Network* def)
+{
+	NetType ret = (NetType)m_networks.size();
+	m_networks.push_back(def);
+	def->set_id(ret);
+	return ret;
+}
+
+const Network* genie::impl::get_network(NetType id)
+{
+	if (id < m_networks.size())
+		return m_networks[id];
+
+	return nullptr;
+}
+
 genie::FlowOptions& genie::impl::get_flow_options()
 {
     return m_flow_opts;
@@ -100,7 +123,19 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
     if (arch)
         m_arch_params = *arch;
 
+	// Initialize structs
+	m_networks.clear();
+
     // Register builtins
+	NetClock::init();
+	NetReset::init();
+	NetConduit::init();
+	NetConduitSub::init();
+	NetInternal::init();
+	NetRSLogical::init();
+	NetRS::init();
+	NetRSField::init();
+
     NodeSplit::init();
 }
 

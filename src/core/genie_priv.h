@@ -1,7 +1,8 @@
 #pragma once
 
-#include "genie/genie.h"
+#include "network.h"
 #include "node.h"
+#include "genie/genie.h"
 
 namespace genie
 {
@@ -16,6 +17,9 @@ namespace impl
     void delete_node(Node* node);
 	void delete_node(const std::string& name);
     
+	// Network management
+	NetType register_network(Network*);
+	const Network* get_network(NetType id);
 
     // Get options
     genie::FlowOptions& get_flow_options();

@@ -9,12 +9,12 @@ namespace genie
 {
 namespace impl
 {
-    class ClockPort : public Port
+    class PortClock : public Port
     {
     public:
-        ClockPort(const std::string& name, genie::Port::Dir dir);
-        ClockPort(const ClockPort&);
-        ~ClockPort() = default;
+        PortClock(const std::string& name, genie::Port::Dir dir);
+        PortClock(const PortClock&);
+        ~PortClock() = default;
 
         Port* instantiate() const override;
         void resolve_params(ParamResolver&) override;
@@ -25,12 +25,12 @@ namespace impl
         hdl::PortBindingRef m_binding;
     };
 
-    class ResetPort : public Port
+    class PortReset : public Port
     {
     public:
-        ResetPort(const std::string& name, genie::Port::Dir dir);
-        ResetPort(const ResetPort&);
-        ~ResetPort() = default;
+        PortReset(const std::string& name, genie::Port::Dir dir);
+        PortReset(const PortReset&);
+        ~PortReset() = default;
 
         Port* instantiate() const override;
         void resolve_params(ParamResolver&) override;

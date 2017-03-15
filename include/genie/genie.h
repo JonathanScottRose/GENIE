@@ -13,6 +13,17 @@ namespace genie
         virtual ~APIObject() = 0 {};
     };
 
+	class HierObject : public APIObject
+	{
+	public:
+		virtual const std::string& get_name() const = 0;
+		virtual std::string get_hier_path(const HierObject* rel_to = nullptr) const = 0;
+		virtual HierObject* get_child(const std::string&) const = 0;
+
+	protected:
+		~HierObject() = default;
+	};
+
     class Exception : public std::runtime_error
     {
     public:

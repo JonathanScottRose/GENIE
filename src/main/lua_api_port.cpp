@@ -124,13 +124,13 @@ namespace
     /// @tparam[opt='1'] string width width of the signal in bits (integer expression, may reference parameters), defaults to 1 bit
     LFUNC(conduitport_add_signal)
     {
-        auto self = lua_if::check_object<ConduitPort>(1);
+        auto self = lua_if::check_object<PortConduit>(1);
         const char* role_str = luaL_checkstring(L, 2);
         const char* tag = luaL_checkstring(L, 3);
         const char* hdl_sig = luaL_checkstring(L, 4);
         const char* width_str = luaL_optstring(L, 5, "1");
 
-        ConduitPort::Role role = parse_role<ConduitPort>(L, 2, role_str);
+        PortConduit::Role role = parse_role<PortConduit>(L, 2, role_str);
 
         self->add_signal(role, tag, hdl_sig, width_str);
         return 0;
@@ -162,14 +162,14 @@ namespace
     /// @see @{ConduitPort:add_signal>
     LFUNC(conduitport_add_signal_ex)
     {
-        auto self = lua_if::check_object<ConduitPort>(1);
+        auto self = lua_if::check_object<PortConduit>(1);
         const char* role_str = luaL_checkstring(L, 2);
         const char* tag = luaL_checkstring(L, 3);
         luaL_checktype(L, 4, LUA_TTABLE);
         luaL_checktype(L, 5, LUA_TTABLE);
 
         // Parse role
-        ConduitPort::Role role = parse_role<ConduitPort>(L, 2, role_str);
+        PortConduit::Role role = parse_role<PortConduit>(L, 2, role_str);
 
         // Populate PortSpec struct
         genie::HDLPortSpec pspec;
@@ -184,7 +184,7 @@ namespace
         return 0;
     }
 
-    LSUBCLASS(ConduitPort, (Port), 
+    LSUBCLASS(PortConduit, (Port), 
     {
         LM(add_signal, conduitport_add_signal),
         LM(add_signal_ex, conduitport_add_signal_ex)

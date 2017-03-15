@@ -5,6 +5,7 @@
 #include "params.h"
 #include "prop_macros.h"
 #include "genie/port.h"
+#include "genie/smart_enum.h"
 
 namespace genie
 {
@@ -97,15 +98,12 @@ namespace hdl
 	public:
         using Bindings = std::vector<PortBinding>;
 
-		enum Dir
-		{
-			IN,
-			OUT,
-			INOUT
-		};
-
-		static Dir rev_dir(Dir in);
-		static Dir from_logical_dir(genie::Port::Dir);
+		SMART_ENUM_EX(Dir,
+		(
+		public:
+			Dir rev() const;
+			static Dir from_logical(genie::Port::Dir);
+		), IN, OUT, INOUT);
 
 		Port(const std::string& m_name);
 		Port(const std::string& m_name, const IntExpr& width, const IntExpr& depth, Dir dir);

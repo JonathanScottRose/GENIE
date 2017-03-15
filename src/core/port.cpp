@@ -17,23 +17,22 @@ genie::Port::Dir Port::get_dir() const
     return m_dir;
 }
 
+genie::Port::Dir genie::Port::Dir::rev() const
+{
+	Dir d = *this; // kludge
+	switch (d)
+	{
+	case Dir::IN: return Dir::OUT; break;
+	case Dir::OUT: return Dir::IN; break;
+	default: assert(false);
+	}
+
+	return Dir::OUT;
+}
+
 //
 // Internal
 //
-
-genie::Port::Dir Port::rev_dir(genie::Port::Dir dir)
-{
-    using Dir = genie::Port::Dir;
-
-    switch (dir)
-    {
-    case Dir::IN: return Dir::OUT; break;
-    case Dir::OUT: return Dir::IN; break;
-    default: assert(false);
-    }
-
-    return Dir::OUT;
-}
 
 Port::~Port()
 {

@@ -8,10 +8,10 @@ namespace genie
 {
 namespace impl
 {
-    class RSPort;
-    class FieldPort;
+    class PortRS;
+    class PortRSField;
 
-    class RSPort : virtual public genie::RSPort, virtual public Port
+    class PortRS : virtual public genie::PortRS, virtual public Port
     {
     public:
         void add_signal(Role role, const std::string& sig_name, 
@@ -23,27 +23,27 @@ namespace impl
             const HDLPortSpec&, const HDLBindSpec&) override;
 
     public:
-        RSPort(const std::string& name, genie::Port::Dir dir);
-        RSPort(const RSPort&);
-        ~RSPort();
+        PortRS(const std::string& name, genie::Port::Dir dir);
+        PortRS(const PortRS&);
+        ~PortRS();
 
         Port* instantiate() const override;
         void resolve_params(ParamResolver&) override;
 
         PROP_GET_SET(clk_port_name, const std::string&, m_clk_port_name);
 
-        std::vector<FieldPort*> get_field_ports() const;
+        std::vector<PortRSField*> get_field_ports() const;
 
     protected:
         std::string m_clk_port_name;
     };
 
-    class FieldPort : public SubPortBase
+    class PortRSField : public SubPortBase
     {
     public:
-        FieldPort(const std::string& name, genie::Port::Dir dir);
-        FieldPort(const FieldPort&);
-        ~FieldPort() = default;
+        PortRSField(const std::string& name, genie::Port::Dir dir);
+        PortRSField(const PortRSField&);
+        ~PortRSField() = default;
 
         Port* instantiate() const override;
         void resolve_params(ParamResolver&) override;

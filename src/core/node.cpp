@@ -4,6 +4,7 @@
 #include "port_clockreset.h"
 #include "port_conduit.h"
 #include "port_rs.h"
+#include "genie_priv.h"
 #include "genie/genie.h"
 
 using namespace genie::impl;
@@ -46,7 +47,7 @@ namespace
         auto result = new P(name, dir);
 
         // Create HDL port
-        node->get_hdl_state().add_port(hdl_sig, 1, 1, hdl::Port::from_logical_dir(dir));
+        node->get_hdl_state().add_port(hdl_sig, 1, 1, hdl::Port::Dir::from_logical(dir));
 
         // Create binding (using defaults for 1-bit binding)
         hdl::PortBindingRef binding;
@@ -99,26 +100,26 @@ void Node::set_lit_param(const std::string & parm_name, const std::string & str)
 genie::Port * Node::create_clock_port(const std::string & name, genie::Port::Dir dir, 
     const std::string & hdl_sig)
 {
-    return create_simple_port<ClockPort>(this, name, dir, hdl_sig);
+    return create_simple_port<PortClock>(this, name, dir, hdl_sig);
 }
 
 genie::Port * Node::create_reset_port(const std::string & name, genie::Port::Dir dir, 
     const std::string & hdl_sig)
 {
-    return create_simple_port<ResetPort>(this, name, dir, hdl_sig);
+    return create_simple_port<PortReset>(this, name, dir, hdl_sig);
 }
 
-genie::ConduitPort * Node::create_conduit_port(const std::string & name, genie::Port::Dir dir)
+genie::PortConduit * Node::create_conduit_port(const std::string & name, genie::Port::Dir dir)
 {
-    auto result = new ConduitPort(name, dir);
+    auto result = new PortConduit(name, dir);
     add_child(result);
     return result;
 }
 
-genie::RSPort * Node::create_rs_port(const std::string & name, genie::Port::Dir dir, 
+genie::PortRS * Node::create_rs_port(const std::string & name, genie::Port::Dir dir, 
     const std::string & clk_port_name)
 {
-    auto result = new RSPort(name, dir);
+    auto result = new PortRS(name, dir);
     result->set_clk_port_name(clk_port_name);
     return result;
 }
@@ -128,6 +129,16 @@ genie::RSPort * Node::create_rs_port(const std::string & name, genie::Port::Dir 
 //
 // Internal functions
 //
+
+Node::~Node()
+{
+	// Clean up links
+	for (auto& links : m_links)
+	{
+		// m_links is a map of Lists. here we delete each List
+		util::delete_all(links.second);
+	}
+}
 
 Node::Node(const std::string & name, const std::string & hdl_name)
     : m_hdl_name(hdl_name), m_hdl_state(this)
@@ -151,6 +162,39 @@ Node::Node(const Node& o, const std::string& name)
 
     // Point HDL state back at us
     m_hdl_state.set_node(this);
+
+	// Copy links
+	auto links = o.get_links();
+	for (Link* orig_link : links)
+	{
+		HierObject* orig_src = orig_link->get_src();
+		HierObject* orig_sink = orig_link->get_sink();
+
+		// Use names of original link endpoints to locate the copies of those
+		// endpoints in the cloned system.
+		HierObject* new_src = dynamic_cast<HierObject*>(this->get_child(orig_src->get_hier_path(&o)));
+		HierObject* new_sink = dynamic_cast<HierObject*>(this->get_child(orig_sink->get_hier_path(&o)));
+
+		// If either cloned endpoint is not found, just ignore the link
+		if (!new_src || !new_sink)
+			continue;
+
+		// Ignore internal structure
+		//if (src->get_node() != &o || sink->get_node() != &o)
+		//	continue;
+
+		auto new_link = orig_link->clone();
+		auto new_src_ep = new_src->get_endpoint(orig_link->get_type(), Port::Dir::OUT);
+		auto new_sink_ep = new_sink->get_endpoint(orig_link->get_type(), Port::Dir::IN);
+
+		new_src_ep->add_link(new_link);
+		new_sink_ep->add_link(new_link);
+
+		new_link->set_src_ep(new_src_ep);
+		new_link->set_sink_ep(new_sink_ep);
+
+		m_links[orig_link->get_type()].push_back(new_link);
+	}
 }
 
 Node * Node::get_parent_node() const
@@ -197,6 +241,143 @@ NodeParam* Node::get_param(const std::string & name)
     }   
 }
 
+Node::Links Node::get_links() const
+{
+	Links result;
+	for (const auto& i : m_links)
+	{
+		result.insert(result.end(), i.second.begin(), i.second.end());
+	}
+	return result;
+}
+
+Node::Links Node::get_links(NetType type) const
+{
+	auto it = m_links.find(type);
+	return (it == m_links.end()) ? Links() : it->second;
+}
+
+Node::Links Node::get_links(HierObject* src, HierObject* sink, NetType nettype) const
+{
+	Links result;
+	Endpoint* src_ep;
+	Endpoint* sink_ep;
+
+	src_ep = src->get_endpoint(nettype, Port::Dir::OUT);
+	sink_ep = sink->get_endpoint(nettype, Port::Dir::IN);
+
+	// Go to source endpoint, do linear search through all outgoing links 
+	for (auto& link : src_ep->links())
+	{
+		if (link->get_sink_ep() == sink_ep)
+		{
+			result.push_back(link);
+			break;
+		}
+	}
+
+	return result;
+}
+
+Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
+{
+	const Network* def = impl::get_network(net);
+	
+	Endpoint* src_ep = src->get_endpoint(net, Port::Dir::OUT);
+	Endpoint* sink_ep = sink->get_endpoint(net, Port::Dir::IN);
+
+	for (auto obj_ep : { std::make_pair(src, src_ep), std::make_pair(sink, sink_ep)})
+	{
+		auto obj = obj_ep.first;
+		auto ep = obj_ep.second;
+
+		// Src and sink must both be children of this Node
+		if (!this->is_parent_of(obj))
+		{
+			throw Exception(get_hier_path() + ": can't connect " +
+				src->get_hier_path() + " to " + sink->get_hier_path() +
+				" because " + obj->get_hier_path() + " is not a child object");
+		}
+
+		// Check if connectable
+		if (!ep)
+		{
+			throw Exception(get_hier_path() + ": can't connect " +
+				src->get_hier_path() + " to " + sink->get_hier_path() +
+				" because " + obj->get_hier_path() +
+				" does not accept connections of type " +
+				def->get_name());
+		}
+	}
+
+	// Check if a link already exists, and return it if so
+	for (auto existing_link : src_ep->links())
+	{
+		if (existing_link->get_sink_ep() == sink_ep)
+		{
+			return existing_link;
+		}
+	}
+
+	// Create link and set its src/sink
+	Link* link = def->create_link();
+	link->set_src_ep(src_ep);
+	link->set_sink_ep(sink_ep);
+
+	// Hook up endpoints to the link
+	src_ep->add_link(link);
+	sink_ep->add_link(link);
+
+	// Add the link to the system
+	m_links[net].push_back(link);
+
+	return link;
+}
+
+void Node::disconnect(HierObject* src, HierObject* sink, NetType nettype)
+{
+	Endpoint* src_ep = src->get_endpoint(nettype, Port::Dir::OUT);
+	Endpoint* sink_ep = sink->get_endpoint(nettype, Port::Dir::IN);
+
+	// Go through src's links, find the one whose sink is 'sink'
+	for (auto link : src_ep->links())
+	{
+		if (link->get_sink_ep() == sink_ep)
+		{
+			// Found it. Disconnect and get out before we break the for loop
+			disconnect(link);
+			break;
+		}
+	}
+}
+
+void Node::disconnect(Link* link)
+{
+	Endpoint* src_ep = link->get_src_ep();
+	Endpoint* sink_ep = link->get_sink_ep();
+	NetType nettype = link->get_type();
+
+	// Disconnect the Link from its endpoints
+	src_ep->remove_link(link);
+	sink_ep->remove_link(link);
+
+	// Tell any parent links we're not existing anymore
+	//auto cont = link->asp_get<ALinkContainment>();
+	//auto parents = cont->get_parent_links();
+	//for (auto parent : parents)
+	//{
+//		cont->remove_parent_link(parent);
+//	}
+
+	// Remove the link from the System and destroy it
+	util::erase(m_links[nettype], link);
+	delete link;
+
+	// Don't leave zero-size vectors around
+	if (m_links[nettype].empty())
+		m_links.erase(nettype);
+}
+
 //
 // Protected functions
 //
@@ -225,6 +406,4 @@ void Node::set_param(const std::string& name, NodeParam * param)
 	m_params[name] = param;
 }
 
-Node::~Node()
-{
-}
+

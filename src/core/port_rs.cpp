@@ -9,12 +9,12 @@ using genie::HDLBindSpec;
 // Public
 //
 
-void RSPort::add_signal(Role role, const std::string & sig_name, const std::string & width)
+void PortRS::add_signal(Role role, const std::string & sig_name, const std::string & width)
 {
     add_signal(role, sig_name, "", width);
 }
 
-void RSPort::add_signal(Role role, const std::string & sig_name, const std::string & tag, 
+void PortRS::add_signal(Role role, const std::string & sig_name, const std::string & tag, 
     const std::string & width)
 {
     HDLPortSpec ps;
@@ -31,12 +31,12 @@ void RSPort::add_signal(Role role, const std::string & sig_name, const std::stri
     add_signal(role, tag, ps, bs);
 }
 
-void RSPort::add_signal(Role role, const HDLPortSpec& ps, const HDLBindSpec& bs)
+void PortRS::add_signal(Role role, const HDLPortSpec& ps, const HDLBindSpec& bs)
 {
     add_signal(role, "", ps, bs);
 }
 
-void RSPort::add_signal(Role role, const std::string & tag, const HDLPortSpec& pspec, 
+void PortRS::add_signal(Role role, const std::string & tag, const HDLPortSpec& pspec, 
     const HDLBindSpec& bspec)
 {
     // Check whether tag is required based on role
@@ -57,9 +57,9 @@ void RSPort::add_signal(Role role, const std::string & tag, const HDLPortSpec& p
 
     // Determine required HDL port dir form role.
     // Assume it's the same as the RSPort, and invert for READY
-    hdl::Port::Dir hdl_dir = hdl::Port::from_logical_dir(get_dir());
-    if (role == Role::READY)
-        hdl_dir = hdl::Port::rev_dir(hdl_dir);
+    hdl::Port::Dir hdl_dir = hdl::Port::Dir::from_logical(get_dir());
+	if (role == Role::READY)
+		hdl_dir = hdl_dir.rev();
 
     // Get or create HDL port
     auto& hdl_port = hdl_state.get_or_create_port(pspec.name, pspec.width, pspec.depth, hdl_dir);
@@ -71,7 +71,7 @@ void RSPort::add_signal(Role role, const std::string & tag, const HDLPortSpec& p
     switch(role)
     {
     case Role::READY:
-        subport_dir = Port::rev_dir(subport_dir);
+		subport_dir = subport_dir.rev();
         break;
     case Role::DATABUNDLE:
         subport_name = util::str_con_cat("data", tag);
@@ -81,7 +81,7 @@ void RSPort::add_signal(Role role, const std::string & tag, const HDLPortSpec& p
     util::str_makelower(subport_name);
 
     // Create the subport, set up HDL binding
-    auto subport = new FieldPort(subport_name, subport_dir);
+    auto subport = new PortRSField(subport_name, subport_dir);
 
     hdl::PortBindingRef hdl_pb;
     hdl_pb.set_port_name(pspec.name);
@@ -98,57 +98,57 @@ void RSPort::add_signal(Role role, const std::string & tag, const HDLPortSpec& p
 // Internal
 //
 
-RSPort::RSPort(const std::string & name, genie::Port::Dir dir)
+PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
     : Port(name, dir)
 {
 }
 
-RSPort::RSPort(const RSPort &o)
+PortRS::PortRS(const PortRS &o)
     : Port(o), m_clk_port_name(o.m_clk_port_name)
 {
 }
 
-RSPort::~RSPort()
+PortRS::~PortRS()
 {
 }
 
-Port * RSPort::instantiate() const
+Port * PortRS::instantiate() const
 {
-    return new RSPort(*this);
+    return new PortRS(*this);
 }
 
-void RSPort::resolve_params(ParamResolver& r)
+void PortRS::resolve_params(ParamResolver& r)
 {
     auto ports = get_field_ports();
     for (auto p : ports)
         p->resolve_params(r);
 }
 
-std::vector<FieldPort*> RSPort::get_field_ports() const
+std::vector<PortRSField*> PortRS::get_field_ports() const
 {
-    return get_children_by_type<FieldPort>();
+    return get_children_by_type<PortRSField>();
 }
 
 //
 // FieldPort
 //
 
-FieldPort::FieldPort(const std::string & name, genie::Port::Dir dir)
+PortRSField::PortRSField(const std::string & name, genie::Port::Dir dir)
     : SubPortBase(name, dir)
 {
 }
 
-FieldPort::FieldPort(const FieldPort &o)
+PortRSField::PortRSField(const PortRSField &o)
     : SubPortBase(o)
 {
 }
 
-Port * FieldPort::instantiate() const
+Port * PortRSField::instantiate() const
 {
-    return new FieldPort(*this);
+    return new PortRSField(*this);
 }
 
-void FieldPort::resolve_params(ParamResolver& r)
+void PortRSField::resolve_params(ParamResolver& r)
 {
     m_binding.resolve_params(r);
 }

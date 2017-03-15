@@ -10,6 +10,7 @@ namespace impl
 {
 	class NodeParam;
     class ParamResolver;
+	class Link;
 
     class Node : virtual public genie::Node, public HierObject
     {
@@ -24,13 +25,15 @@ namespace impl
 
         genie::Port* create_clock_port(const std::string& name, genie::Port::Dir dir, 
             const std::string& hdl_sig);
-        genie::Port* create_reset_port(const std::string& name, genie::Port::Dir dir, 
+        genie::Port* create_reset_port(const std::string& name, genie::Port::Dir dir,
             const std::string& hdl_sig);
-        genie::ConduitPort* create_conduit_port(const std::string& name, genie::Port::Dir dir);
-        genie::RSPort* create_rs_port(const std::string& name, genie::Port::Dir dir, 
+        genie::PortConduit* create_conduit_port(const std::string& name, genie::Port::Dir dir);
+        genie::PortRS* create_rs_port(const std::string& name, genie::Port::Dir dir,
             const std::string& clk_port_name);
 
     public:
+		using Links = std::vector<Link*>;
+
         // Internal API
         virtual Node* instantiate(const std::string& name) = 0;
 
@@ -46,6 +49,14 @@ namespace impl
         NodeParam* get_param(const std::string& name);
         const Params& get_params() const { return m_params; }
         
+		Links get_links() const;
+		Links get_links(NetType) const;
+		Links get_links(HierObject* src, HierObject* sink, NetType net) const;
+		Link* connect(HierObject* src, HierObject* sink, NetType net);
+		void disconnect(HierObject* src, HierObject* sink, NetType net);
+		void disconnect(Link*);
+		Link* splice(Link* orig, HierObject* new_sink, HierObject* new_src);
+
     protected:
         Node(const Node&, const std::string&);
 
@@ -54,6 +65,7 @@ namespace impl
         std::string m_hdl_name;
 		Params m_params;
         hdl::HDLState m_hdl_state;
+		std::unordered_map<NetType, Links> m_links;
     };
 }
 }

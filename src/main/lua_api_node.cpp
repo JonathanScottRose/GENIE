@@ -1,5 +1,6 @@
 #include "genie/genie.h"
 #include "genie/node.h"
+#include "lua_api_common.h"
 #include "lauxlib.h"
 #include "lua_if.h"
 
@@ -75,13 +76,13 @@ namespace
     /// @function create_clock_port
     /// @tparam string name Port name
     /// @tparam string dir Direction (in/out)
-    /// @tparam string sig HDL signal name
+    /// @tparam[opt] string sig HDL signal name, defaults to port name
     LFUNC(node_create_clock_port)
     {
         auto self = lua_if::check_object<Node>(1);
         const char* name = luaL_checkstring(L, 2);
         const char* dir_str = luaL_checkstring(L, 3);
-        const char* sig = luaL_checkstring(L, 4);
+		const char* sig = luaL_optstring(L, 4, name);
 
         Port::Dir dir;
         bool valid = Port::Dir::from_string(dir_str, dir);
@@ -98,13 +99,13 @@ namespace
     /// @function create_reset_port
     /// @tparam string name Port name
     /// @tparam string dir Direction (in/out)
-    /// @tparam string sig HDL signal name
+    /// @tparam[opt] string sig HDL signal name, defaults to port name
     LFUNC(node_create_reset_port)
     {
         auto self = lua_if::check_object<Node>(1);
         const char* name = luaL_checkstring(L, 2);
         const char* dir_str = luaL_checkstring(L, 3);
-        const char* sig = luaL_checkstring(L, 4);
+		const char* sig = luaL_optstring(L, 4, name);
 
         Port::Dir dir;
         bool valid = Port::Dir::from_string(dir_str, dir);
@@ -198,9 +199,136 @@ namespace
         return 0;
     }
 
+	/// Create a clock link.
+	///
+	/// @function create_clock_link
+	/// @tparam string|HierObject source hierarchy path or reference to source object
+	/// @tparam string|HierObject sink hierarchy path or reference to sink object
+	/// @treturn Link
+	LFUNC(sys_create_clock_link)
+	{
+		System* self = lua_if::check_object<System>(1);
+		auto src = lua_api::check_obj_or_str_hierpath<HierObject>(L, 2, self);
+		auto sink = lua_api::check_obj_or_str_hierpath<HierObject>(L, 3, self);
+
+		Link* link = self->create_clock_link(src, sink);
+		lua_if::push_object(link);
+
+		return 1;
+	}
+
+	/// Create a reset link.
+	///
+	/// @function create_reset_link
+	/// @tparam string|HierObject source hierarchy path or reference to source object
+	/// @tparam string|HierObject sink hierarchy path or reference to sink object
+	/// @treturn Link
+	LFUNC(sys_create_reset_link)
+	{
+		System* self = lua_if::check_object<System>(1);
+		auto src = lua_api::check_obj_or_str_hierpath<HierObject>(L, 2, self);
+		auto sink = lua_api::check_obj_or_str_hierpath<HierObject>(L, 3, self);
+
+		Link* link = self->create_reset_link(src, sink);
+		lua_if::push_object(link);
+
+		return 1;
+	}
+
+	/// Create a conduit link.
+	///
+	/// @function create_conduit_link
+	/// @tparam string|HierObject source hierarchy path or reference to source object
+	/// @tparam string|HierObject sink hierarchy path or reference to sink object
+	/// @treturn Link
+	LFUNC(sys_create_conduit_link)
+	{
+		System* self = lua_if::check_object<System>(1);
+		auto src = lua_api::check_obj_or_str_hierpath<HierObject>(L, 2, self);
+		auto sink = lua_api::check_obj_or_str_hierpath<HierObject>(L, 3, self);
+
+		Link* link = self->create_conduit_link(src, sink);
+		lua_if::push_object(link);
+
+		return 1;
+	}
+
+	/// Create an RS logical link.
+	///
+	/// @function create_rs_link
+	/// @tparam string|HierObject source hierarchy path or reference to source object
+	/// @tparam string|HierObject sink hierarchy path or reference to sink object
+	/// @treturn LinkRS
+	LFUNC(sys_create_rs_link)
+	{
+		System* self = lua_if::check_object<System>(1);
+		auto src = lua_api::check_obj_or_str_hierpath<HierObject>(L, 2, self);
+		auto sink = lua_api::check_obj_or_str_hierpath<HierObject>(L, 3, self);
+
+		Link* link = self->create_rs_link(src, sink);
+		lua_if::push_object(link);
+
+		return 1;
+	}
+
+	/// Create a topology link.
+	///
+	/// @function create_topo_link
+	/// @tparam string|HierObject source hierarchy path or reference to source object
+	/// @tparam string|HierObject sink hierarchy path or reference to sink object
+	/// @treturn Link
+	LFUNC(sys_create_topo_link)
+	{
+		System* self = lua_if::check_object<System>(1);
+		auto src = lua_api::check_obj_or_str_hierpath<HierObject>(L, 2, self);
+		auto sink = lua_api::check_obj_or_str_hierpath<HierObject>(L, 3, self);
+
+		Link* link = self->create_topo_link(src, sink);
+		lua_if::push_object(link);
+
+		return 1;
+	}
+
     LSUBCLASS(System, (Node),
     {
-        LM(create_sys_param, sys_create_sys_param)
+        LM(create_sys_param, sys_create_sys_param),
+		LM(create_clock_link, sys_create_clock_link),
+		LM(create_reset_link, sys_create_reset_link),
+		LM(create_conduit_link, sys_create_conduit_link),
+		LM(create_rs_link, sys_create_rs_link),
+		LM(create_topo_link, sys_create_topo_link)
     });
+
+	/// Represents a user-defined module.
+	///
+	/// A subclass of @{Node} that's returned by @{genie_create_module}.
+	/// @type Module
+
+	/// Create an internal link.
+	///
+	/// Informs GENIE of a semantic relationship between input and output RS ports
+	/// of a user-defined module.
+	/// @function create_internal_link
+	/// @tparam string|PortRS source hierarchy path or reference to source object
+	/// @tparam string|PortRS sink hierarchy path or reference to sink object
+	/// @tparam int latency latency in clock cycles
+	/// @treturn Link
+	LFUNC(module_create_internal_link)
+	{
+		Module* self = lua_if::check_object<Module>(1);
+		auto src = lua_api::check_obj_or_str_hierpath<PortRS>(L, 2, self);
+		auto sink = lua_api::check_obj_or_str_hierpath<PortRS>(L, 3, self);
+		unsigned latency = (unsigned)luaL_checkinteger(L, 4);
+
+		Link* link = self->create_internal_link(src, sink, latency);
+		lua_if::push_object(link);
+
+		return 1;
+	}
+
+	LSUBCLASS(Module, (Node),
+	{
+		LM(create_internal_link, module_create_internal_link)
+	});
 }
 

@@ -4,11 +4,11 @@ namespace genie
 {
 namespace impl
 {
-    class NodeSystem;
+	class NodeSystem;
 
 	namespace hdl
 	{
-		void write_system(NodeSystem*);
+		void elab_system(NodeSystem*);
 	}
 }
 }

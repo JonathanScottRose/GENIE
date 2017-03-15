@@ -51,9 +51,10 @@ Port::~Port()
 {
 }
 
-Port::Dir Port::rev_dir(Port::Dir in)
+Port::Dir Port::Dir::rev() const
 {
-    switch (in)
+	Port::Dir d = *this;
+    switch (d)
     {
     case IN: return OUT;
     case OUT: return IN;
@@ -64,16 +65,16 @@ Port::Dir Port::rev_dir(Port::Dir in)
     return INOUT;
 }
 
-Port::Dir Port::from_logical_dir(genie::Port::Dir dir)
+Port::Dir Port::Dir::from_logical(genie::Port::Dir dir)
 {
     switch (dir)
     {
-    case genie::Port::Dir::IN: return Port::IN;
-    case genie::Port::Dir::OUT: return Port::OUT;
+	case genie::Port::Dir::IN: return Port::Dir::IN;
+	case genie::Port::Dir::OUT: return Port::Dir::OUT;
     default: assert(false);
     }
 
-    return Port::INOUT;
+    return Port::Dir::INOUT;
 }
 
 
@@ -385,11 +386,11 @@ void HDLState::connect(const std::string& src_name, const std::string& sink_name
     auto src_effective_dir = src->get_dir();
     auto sink_effective_dir = sink->get_dir();
 
-    if (src_is_export) src_effective_dir = Port::rev_dir(src_effective_dir);
-    if (sink_is_export) sink_effective_dir = Port::rev_dir(sink_effective_dir);
+	if (src_is_export) src_effective_dir = src_effective_dir.rev();
+    if (sink_is_export) sink_effective_dir = sink_effective_dir.rev();
 
-    assert(src_effective_dir != Port::IN);
-    assert(sink_effective_dir != Port::OUT);
+    assert(src_effective_dir != Port::Dir::IN);
+    assert(sink_effective_dir != Port::Dir::OUT);
 
     // This is the name of the net. Non-export nets are named nodename_portname and exports are
     // just named exactly after the portname.

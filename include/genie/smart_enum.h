@@ -48,8 +48,10 @@ protected:
 };
 
 //
-// 
-#define SMART_ENUM(name, ...) \
+//
+#define ESC_PAREN(...) __VA_ARGS__
+
+#define SMART_ENUM_EX(name, bonus, ...) \
 	class name : private SmartEnumBase \
 	{ \
 	public: \
@@ -96,4 +98,7 @@ protected:
 		} \
 		\
 		name##_e _val; \
+	ESC_PAREN bonus \
 	};
+
+#define SMART_ENUM(name, ...) SMART_ENUM_EX(name, (), __VA_ARGS__)

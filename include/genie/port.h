@@ -24,10 +24,15 @@ namespace genie
         std::string depth;
     };
 
-    class Port : virtual public APIObject
+	// Port base class
+    class Port : virtual public HierObject
     {
     public:
-        SMART_ENUM(Dir, IN, OUT);
+		SMART_ENUM_EX(Dir, 
+		(
+			public:
+				Dir rev() const;
+		), IN, OUT);
 
         virtual const std::string& get_name() const = 0;
         virtual Dir get_dir() const = 0;
@@ -36,7 +41,7 @@ namespace genie
         virtual ~Port() = default;
     };
 
-    class ConduitPort : virtual public Port
+    class PortConduit : virtual public Port
     {
     public:
         SMART_ENUM(Role, FWD, REV, IN, OUT, INOUT);
@@ -47,7 +52,7 @@ namespace genie
             const HDLPortSpec&, const HDLBindSpec&) = 0;
     };
 
-    class RSPort : virtual public Port
+    class PortRS : virtual public Port
     {
     public:
         SMART_ENUM(Role, VALID, READY, DATA, DATABUNDLE, EOP, ADDRESS);

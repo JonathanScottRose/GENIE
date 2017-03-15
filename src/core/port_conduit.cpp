@@ -8,7 +8,7 @@ using namespace genie::impl;
 // Public
 //
 
-void ConduitPort::add_signal(Role role, const std::string & tag, 
+void PortConduit::add_signal(Role role, const std::string & tag, 
     const std::string& sig_name, const std::string& width)
 {
     HDLPortSpec ps;
@@ -25,7 +25,7 @@ void ConduitPort::add_signal(Role role, const std::string & tag,
     add_signal(role, tag, ps, bs);
 }
 
-void ConduitPort::add_signal(Role role, const std::string & tag, 
+void PortConduit::add_signal(Role role, const std::string & tag, 
     const genie::HDLPortSpec &pspec, const genie::HDLBindSpec &bspec)
 {
     if (tag.empty())
@@ -34,16 +34,16 @@ void ConduitPort::add_signal(Role role, const std::string & tag,
     // Get or create HDL port
     auto& hdl_state = get_node()->get_hdl_state();
 
-    hdl::Port::Dir hdl_dir = hdl::Port::INOUT;
+    hdl::Port::Dir hdl_dir = hdl::Port::Dir::INOUT;
     switch (role)
     {
-    case Role::IN: hdl_dir = hdl::Port::IN; break;
-    case Role::OUT: hdl_dir = hdl::Port::OUT; break;
-    case Role::INOUT: hdl_dir = hdl::Port::INOUT; break;
-    case Role::FWD: hdl_dir = hdl::Port::from_logical_dir(get_dir()); break;
+	case Role::IN: hdl_dir = hdl::Port::Dir::IN; break;
+	case Role::OUT: hdl_dir = hdl::Port::Dir::OUT; break;
+	case Role::INOUT: hdl_dir = hdl::Port::Dir::INOUT; break;
+	case Role::FWD: hdl_dir = hdl::Port::Dir::from_logical(get_dir()); break;
     case Role::REV: 
-        hdl_dir = hdl::Port::from_logical_dir(get_dir());
-        hdl_dir = hdl::Port::rev_dir(hdl_dir);
+        hdl_dir = hdl::Port::Dir::from_logical(get_dir());
+		hdl_dir = hdl_dir.rev();
         break;
     default:
         assert(false);
@@ -61,12 +61,13 @@ void ConduitPort::add_signal(Role role, const std::string & tag,
     case Role::FWD:
         // keep it the same as conduit port's dir
         break;
-    case Role::REV: subport_dir = Port::rev_dir(subport_dir);
+	case Role::REV: 
+		subport_dir = subport_dir.rev();
         break;
     }
 
     // Create the subport, set up HDL binding
-    auto subport = new ConduitSubPort(tag, subport_dir);
+    auto subport = new PortConduitSub(tag, subport_dir);
     
     hdl::PortBindingRef hdl_pb;
     hdl_pb.set_port_name(pspec.name);
@@ -83,27 +84,27 @@ void ConduitPort::add_signal(Role role, const std::string & tag,
 // Internal
 //
 
-ConduitPort::ConduitPort(const std::string & name, genie::Port::Dir dir)
+PortConduit::PortConduit(const std::string & name, genie::Port::Dir dir)
     : Port(name, dir)
 {
 }
 
-ConduitPort::ConduitPort(const ConduitPort &o)
+PortConduit::PortConduit(const PortConduit &o)
     : Port(o)
 {
     // Copy role-things?
 }
 
-ConduitPort::~ConduitPort()
+PortConduit::~PortConduit()
 {
 }
 
-Port * ConduitPort::instantiate() const
+Port * PortConduit::instantiate() const
 {
-    return new ConduitPort(*this);
+    return new PortConduit(*this);
 }
 
-void ConduitPort::resolve_params(ParamResolver& r)
+void PortConduit::resolve_params(ParamResolver& r)
 {
     auto subports = get_subports();
     for (auto p : subports)
@@ -112,23 +113,23 @@ void ConduitPort::resolve_params(ParamResolver& r)
     }
 }
 
-std::vector<ConduitSubPort*> ConduitPort::get_subports() const
+std::vector<PortConduitSub*> PortConduit::get_subports() const
 {
-    return get_children_by_type<ConduitSubPort>();
+    return get_children_by_type<PortConduitSub>();
 }
 
 //
 // SubPort
 //
 
-ConduitSubPort::ConduitSubPort(const std::string & name, genie::Port::Dir dir)
+PortConduitSub::PortConduitSub(const std::string & name, genie::Port::Dir dir)
     : SubPortBase(name, dir)
 {
 }
 
-Port * ConduitSubPort::instantiate() const
+Port * PortConduitSub::instantiate() const
 {
-    return new ConduitSubPort(*this);
+    return new PortConduitSub(*this);
 }
 
 

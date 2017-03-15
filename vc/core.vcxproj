@@ -4,16 +4,13 @@
     <ProjectGuid>{4133A8C2-E422-411C-B3DF-584094E8EFDA}</ProjectGuid>
     <RootNamespace>core</RootNamespace>
   </PropertyGroup>
-  
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
   </PropertyGroup>
   <Import Project="common.props" />
-  
   <PropertyGroup Label="Configuration">
     <TargetName>genie_core$(LibSuffix)</TargetName>
   </PropertyGroup>
-  
   <ItemGroup>
     <ProjectReference Include="lp_solve.vcxproj">
       <Project>{4133a8c2-e422-411c-b3df-584094e8efd0}</Project>

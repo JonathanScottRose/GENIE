@@ -3,6 +3,7 @@
 #include "genie/log.h"
 #include "genie_priv.h"
 #include "vlog_write.h"
+#include "hdl_elab.h"
 #include "node_system.h"
 
 using namespace genie::impl;
@@ -19,6 +20,8 @@ namespace
             node->resolve_params();
         }
     }
+
+	
 
     void do_system(NodeSystem* sys)
     {
@@ -37,6 +40,7 @@ void genie::do_flow()
 
     for (auto& sys : systems)
     {
+		hdl::elab_system(sys);
         hdl::write_system(sys);
     }
 }

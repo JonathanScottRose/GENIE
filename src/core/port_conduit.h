@@ -7,10 +7,10 @@ namespace genie
 {
 namespace impl
 {
-    class ConduitPort;
-    class ConduitSubPort;
+    class PortConduit;
+    class PortConduitSub;
 
-    class ConduitPort : virtual public genie::ConduitPort, virtual public Port
+    class PortConduit : virtual public genie::PortConduit, virtual public Port
     {
     public:
         void add_signal(Role role, const std::string& tag, const std::string& sig_name, 
@@ -19,23 +19,23 @@ namespace impl
             const HDLPortSpec&, const HDLBindSpec&) override;
 
     public:
-        ConduitPort(const std::string& name, genie::Port::Dir dir);
-        ConduitPort(const ConduitPort&);
-        ~ConduitPort();
+        PortConduit(const std::string& name, genie::Port::Dir dir);
+        PortConduit(const PortConduit&);
+        ~PortConduit();
 
         Port* instantiate() const override;
         void resolve_params(ParamResolver&) override;
 
-        std::vector<ConduitSubPort*> get_subports() const;
+        std::vector<PortConduitSub*> get_subports() const;
 
     protected:
     };
 
-    class ConduitSubPort : public SubPortBase
+    class PortConduitSub : public SubPortBase
     {
     public:
-        ConduitSubPort(const std::string& name, genie::Port::Dir dir);
-        ConduitSubPort(const ConduitSubPort&) = default;
+        PortConduitSub(const std::string& name, genie::Port::Dir dir);
+        PortConduitSub(const PortConduitSub&) = default;
 
         Port* instantiate() const override;
 

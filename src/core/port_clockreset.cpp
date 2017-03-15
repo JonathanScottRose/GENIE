@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "port_clockreset.h"
+#include "net_clockreset.h"
 
 using namespace genie::impl;
 
@@ -7,22 +8,23 @@ using namespace genie::impl;
 // Clock
 //
 
-ClockPort::ClockPort(const std::string & name, genie::Port::Dir dir)
+PortClock::PortClock(const std::string & name, genie::Port::Dir dir)
     : Port(name, dir)
 {
+	make_connectable(NET_CLOCK);
 }
 
-ClockPort::ClockPort(const ClockPort &o)
+PortClock::PortClock(const PortClock &o)
     : Port(o), m_binding(o.m_binding)
 {
 }
 
-Port * ClockPort::instantiate() const
+Port * PortClock::instantiate() const
 {
-    return new ClockPort(*this);
+    return new PortClock(*this);
 }
 
-void ClockPort::resolve_params(ParamResolver& r)
+void PortClock::resolve_params(ParamResolver& r)
 {
     m_binding.resolve_params(r);
 }
@@ -31,22 +33,23 @@ void ClockPort::resolve_params(ParamResolver& r)
 // Reset
 //
 
-ResetPort::ResetPort(const std::string & name, genie::Port::Dir dir)
+PortReset::PortReset(const std::string & name, genie::Port::Dir dir)
     : Port(name, dir)
 {
+	make_connectable(NET_RESET);
 }
 
-ResetPort::ResetPort(const ResetPort &o)
+PortReset::PortReset(const PortReset &o)
     : Port(o), m_binding(o.m_binding)
 {
 }
 
-Port * ResetPort::instantiate() const
+Port * PortReset::instantiate() const
 {
-    return new ResetPort(*this);
+    return new PortReset(*this);
 }
 
-void ResetPort::resolve_params(ParamResolver& r)
+void PortReset::resolve_params(ParamResolver& r)
 {
     m_binding.resolve_params(r);
 }
