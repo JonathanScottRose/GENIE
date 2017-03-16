@@ -281,14 +281,14 @@ Port & HDLState::get_or_create_port(const std::string & name, const IntExpr & wi
     //else
 
     // validate
-    if (width != result->get_width())
+    if (!width.equals(result->get_width()))
     {
         throw Exception(get_node()->get_hier_path() + ": existing port " + name + 
             " width of " + width.to_string() + " differs from given width of " +
             width.to_string());
     }
 
-    if (depth != result->get_depth())
+    if (!depth.equals(result->get_depth()))
     {
         throw Exception(get_node()->get_hier_path() + ": existing port " + name + 
             " depth of " + depth.to_string() + " differs from given depth of " +
@@ -415,7 +415,7 @@ void HDLState::connect(const std::string& src_name, const std::string& sink_name
     }
 
     // Now bind (part of) the net to the sink
-    sink->bind(net, dim, size, sink_slice, sink_lsb, src_slice, src_lsb);
+	sink->bind(net, dim, size, src_slice, src_lsb, sink_slice, sink_lsb);
 }
 
 void HDLState::connect(const std::string& sink_name, const BitsVal& val, int sink_slice, int sink_lsb)
@@ -450,6 +450,7 @@ void HDLState::connect(const PortBindingRef & src, const PortBindingRef & sink)
         dim = 1;
         size = slices;
         assert(src.get_bits() == sink.get_bits());
+		// TODO: enforce that binding bits == port bits for both ports
     }
     else
     {
@@ -477,7 +478,7 @@ PortBindingRef::PortBindingRef()
 
 void PortBindingRef::resolve_params(ParamResolver& r)
 {
-    m_slices.evaluate(r);
+    m_bits.evaluate(r);
     m_lo_bit.evaluate(r);
     m_lo_slice.evaluate(r);
     m_slices.evaluate(r);

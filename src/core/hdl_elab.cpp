@@ -26,10 +26,42 @@ namespace
 			sys->get_hdl_state().connect(src->get_binding(), sink->get_binding());
 		}
 	}
+
+	void do_conduit(NodeSystem* sys)
+	{
+		auto links = sys->get_links(NET_CONDUIT_SUB);
+
+		for (auto link : links)
+		{
+			auto src = dynamic_cast<PortConduitSub*>(link->get_src());
+			auto sink = dynamic_cast<PortConduitSub*>(link->get_sink());
+
+			sys->get_hdl_state().connect(src->get_hdl_binding(),
+				sink->get_hdl_binding());
+		}
+	}
+
+	void do_rs_field(NodeSystem* sys)
+	{
+		auto links = sys->get_links(NET_RS_FIELD);
+
+		for (auto link : links)
+		{
+			auto src = dynamic_cast<PortRSField*>(link->get_src());
+			auto sink = dynamic_cast<PortRSField*>(link->get_sink());
+
+			sys->get_hdl_state().connect(src->get_hdl_binding(),
+				sink->get_hdl_binding());
+		}
+
+		// TODO: const drivers!
+	}
 }
 
 void hdl::elab_system(NodeSystem* sys)
 {
 	do_clockreset<PortClock>(sys, NET_CLOCK);
 	do_clockreset<PortReset>(sys, NET_RESET);
+	do_conduit(sys);
+	do_rs_field(sys);
 }

@@ -82,7 +82,7 @@ IntExpr& IntExpr::operator=(IntExpr&& o)
     return *this;
 }
 
-bool IntExpr::operator==(const IntExpr &o) const
+bool IntExpr::equals(const IntExpr &o) const
 {
     if (m_is_const && o.m_is_const)
     {

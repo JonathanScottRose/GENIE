@@ -71,7 +71,7 @@ namespace
 			port.get_dir() == Port::Dir::OUT ? "output " : 
 			port.get_dir() == Port::Dir::IN ? "input " : "inout";
 
-		std::string size_str = format_size(port.get_depth(), port.get_width());
+		std::string size_str = format_size((int)port.get_depth(), (int)port.get_width());
         write_line(dir_str + size_str + port.get_name(), true, false);
 	}
 
@@ -224,13 +224,13 @@ namespace
         return result;
     }
 
-    std::string format_part_select(int lo, int size)
+    std::string format_part_select(int lo, int hi)
     {
         std::string result = "[";
-        if (size > 1)
+        if (lo != hi)
         {
             // If the part-select is greater than 1 bit, we need this
-            result += std::to_string(lo + size - 1);
+			result += std::to_string(hi);
             result += ":";
         }
         result += std::to_string(lo);
@@ -247,7 +247,7 @@ namespace
         // Format bound bit-ranges within a slice. bind_it is an iterator to the next binding.
         // start from the MSB of the slice and work down.
 
-        int cur_bit = port.get_width();
+        int cur_bit = (int)port.get_width();
         while (cur_bit > 0)
         {
             // Grab the next binding, in descending connected bit order
@@ -285,7 +285,7 @@ namespace
                     int bind_width = binding->get_bound_bits();
                     int bind_lsb = binding->get_target_lo_bit();
 
-                    bindstr += format_part_select(bind_lsb, bind_width);
+                    bindstr += format_part_select(bind_lsb, bind_lsb + bind_width - 1);
                 }
 
                 // Advance to whatever's after this binding (could be another binding or
@@ -317,9 +317,6 @@ namespace
 	{
 		std::vector<std::string> formatted_slices;
 
-		// Can we tie constants to this port?
-		bool can_tie = port.get_dir() != Port::Dir::OUT;
-
         // If the port is not bound at all, skip any formatting. Otherwise, we'd end up with a
         // technically correct, but ugly, litany of zzzzzzzz's
 		if (port.is_bound())
@@ -338,7 +335,7 @@ namespace
 			const auto& binding_iter_end = sorted_bindings.end();
 
             // cur_slice = last-bound slice, starts just beyond the port's range
-			int cur_slice = port.get_depth();
+			int cur_slice = (int)port.get_depth();
 
             while (cur_slice > 0)
             {
@@ -355,8 +352,8 @@ namespace
                 // Fill it with zs
                 if (binding_hi_slice < cur_slice)
                 {
-                    assert(can_tie);
-                    formatted_slices.push_back(format_unconn(port.get_width()));
+   
+                    formatted_slices.push_back(format_unconn((int)port.get_width()));
 
                     // This processed only a single unconnected slice. We'll return here
                     // multiple times if there were multiple unconnected slices. Do not advance
@@ -374,14 +371,26 @@ namespace
                         // Target name
                         std::string bnd = format_bindable(binding->get_target());
 
-                        // If only using some slices of the target, do indexing on the outer dim
-                        if (!binding->is_full1_target_binding())
-                        {
+						// Do we need to part-select the outer and/or inner dimensions of the target?
+						bool do_outer =
+							!binding->is_full1_target_binding() ||
+							!binding->is_full0_target_binding();
+
+						bool do_inner = !binding->is_full0_target_binding();
+
+                        if (do_outer)
+						{
                             int lo = binding->get_target_lo_slice();
-                            int hi = lo + binding->get_bound_slices() - 1;
-                            
-                            bnd += "[" + std::to_string(hi) + ":" + std::to_string(lo) + "]";
+                            int hi = lo + binding->get_bound_slices() - 1;   
+							bnd += format_part_select(lo, hi);
                         }
+
+						if (do_inner)
+						{
+							int lo = binding->get_target_lo_bit();
+							int hi = lo + binding->get_bound_bits() - 1;
+							bnd += format_part_select(lo, hi);
+						}
 
                         formatted_slices.push_back(bnd);
 

@@ -27,6 +27,7 @@ namespace impl
         void resolve_params(ParamResolver&) override;
 
         std::vector<PortConduitSub*> get_subports() const;
+		PortConduitSub* get_subport(const std::string& tag);
 
     protected:
     };
@@ -34,12 +35,18 @@ namespace impl
     class PortConduitSub : public SubPortBase
     {
     public:
-        PortConduitSub(const std::string& name, genie::Port::Dir dir);
+        PortConduitSub(const std::string& name, genie::Port::Dir dir, 
+			genie::PortConduit::Role role, const std::string& tag);
         PortConduitSub(const PortConduitSub&) = default;
 
         Port* instantiate() const override;
 
+		PROP_GET_SET(tag, const std::string&, m_tag);
+		PROP_GET_SET(role, genie::PortConduit::Role, m_role);
+
     protected:
+		genie::PortConduit::Role m_role;
+		std::string m_tag;
     };
 }
 }

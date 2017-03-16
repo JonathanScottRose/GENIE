@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "port_conduit.h"
+#include "net_conduit.h"
 #include "genie/port.h"
 
 using namespace genie::impl;
@@ -67,7 +68,7 @@ void PortConduit::add_signal(Role role, const std::string & tag,
     }
 
     // Create the subport, set up HDL binding
-    auto subport = new PortConduitSub(tag, subport_dir);
+	auto subport = new PortConduitSub(tag, subport_dir, role, tag);
     
     hdl::PortBindingRef hdl_pb;
     hdl_pb.set_port_name(pspec.name);
@@ -87,6 +88,7 @@ void PortConduit::add_signal(Role role, const std::string & tag,
 PortConduit::PortConduit(const std::string & name, genie::Port::Dir dir)
     : Port(name, dir)
 {
+	make_connectable(NET_CONDUIT);
 }
 
 PortConduit::PortConduit(const PortConduit &o)
@@ -118,13 +120,27 @@ std::vector<PortConduitSub*> PortConduit::get_subports() const
     return get_children_by_type<PortConduitSub>();
 }
 
+PortConduitSub * PortConduit::get_subport(const std::string & tag)
+{
+	auto subs = get_subports();
+	for (auto sub : subs)
+	{
+		if (sub->get_tag() == tag)
+			return sub;
+	}
+
+	return nullptr;
+}
+
 //
 // SubPort
 //
 
-PortConduitSub::PortConduitSub(const std::string & name, genie::Port::Dir dir)
-    : SubPortBase(name, dir)
+PortConduitSub::PortConduitSub(const std::string & name, genie::Port::Dir dir, 
+	genie::PortConduit::Role role, const std::string& tag)
+    : SubPortBase(name, dir), m_tag(tag), m_role(role)
 {
+	make_connectable(NET_CONDUIT_SUB);
 }
 
 Port * PortConduitSub::instantiate() const
