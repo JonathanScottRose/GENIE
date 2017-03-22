@@ -367,16 +367,9 @@ auto HDLState::get_nets() const -> const decltype(m_nets)&
     return m_nets;
 }
 
-void HDLState::connect(const std::string& src_name, const std::string& sink_name, 
+void HDLState::connect(Port* src, Port* sink, 
     int src_slice, int src_lsb, int sink_slice, int sink_lsb, unsigned dim, int size)
 {
-    // Get the ports by name
-    Port* src = get_port(src_name);
-    Port* sink = get_port(sink_name);
-
-    assert(src);
-    assert(sink);
-
     // Create or grab a net that's bound to the entire src.
     // This process depends on whether the Port is top-level to this System or not.
     bool src_is_export = src->get_parent() == this;
@@ -418,10 +411,8 @@ void HDLState::connect(const std::string& src_name, const std::string& sink_name
 	sink->bind(net, dim, size, src_slice, src_lsb, sink_slice, sink_lsb);
 }
 
-void HDLState::connect(const std::string& sink_name, const BitsVal& val, int sink_slice, int sink_lsb)
+void HDLState::connect(Port* sink, const BitsVal& val, int sink_slice, int sink_lsb)
 {
-    Port* sink = get_port(sink_name);
-
     // Create a new ConstValue bindable object
     m_const_values.emplace_back(val);
     auto& cv = m_const_values.back();
@@ -435,7 +426,8 @@ void HDLState::connect(const std::string& sink_name, const BitsVal& val, int sin
     sink->bind(&cv, dim, size, 0, 0, sink_slice, sink_lsb);
 }
 
-void HDLState::connect(const PortBindingRef & src, const PortBindingRef & sink)
+void HDLState::connect(Node* src_node, const PortBindingRef & src, 
+	Node* sink_node, const PortBindingRef & sink)
 {
     assert(src.is_resolved());
     assert(sink.is_resolved());
@@ -458,13 +450,22 @@ void HDLState::connect(const PortBindingRef & src, const PortBindingRef & sink)
         size = std::min(src.get_bits(), sink.get_bits());
     }
 
-    connect(src.get_port_name(), sink.get_port_name(), src.get_lo_slice(), src.get_lo_bit(),
+	auto src_port = src_node->get_hdl_state().get_port(src.get_port_name());
+	auto sink_port = sink_node->get_hdl_state().get_port(sink.get_port_name());
+
+	assert(src_port);
+	assert(sink_port);
+
+    connect(src_port, sink_port, src.get_lo_slice(), src.get_lo_bit(),
         sink.get_lo_slice(), sink.get_lo_bit(), dim, size);
 }
 
-void HDLState::connect(const PortBindingRef& sink, const BitsVal& val)
+void HDLState::connect(Node* node, const PortBindingRef& sink, const BitsVal& val)
 {
-    connect(sink.get_port_name(), val, sink.get_lo_slice(), sink.get_lo_bit());
+	auto port = node->get_hdl_state().get_port(sink.get_port_name());
+	assert(port);
+
+    connect(port, val, sink.get_lo_slice(), sink.get_lo_bit());
 }
 
 //

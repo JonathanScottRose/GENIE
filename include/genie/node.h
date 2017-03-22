@@ -13,8 +13,6 @@ namespace genie
     class Node : virtual public HierObject
     {
     public:
-        virtual const std::string& get_name() const = 0;
-		
 		// Parameters
 		virtual void set_int_param(const std::string& parm_name, int val) = 0;
 		virtual void set_int_param(const std::string& parm_name, const std::string& expr) = 0;
@@ -53,6 +51,10 @@ namespace genie
 		virtual Link* create_conduit_link(HierObject* src, HierObject* sink) = 0;
 		virtual LinkRS* create_rs_link(HierObject* src, HierObject* sink) = 0;
 		virtual Link* create_topo_link(HierObject* src, HierObject* sink) = 0;
+
+		virtual Node* create_instance(const std::string& mod_name,
+			const std::string& inst_name) = 0;
+		virtual Port* export_port(Port* orig, const std::string& new_name = "") = 0;
 
     protected:
         ~System() = default;

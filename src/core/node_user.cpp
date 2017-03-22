@@ -28,12 +28,12 @@ NodeUser::NodeUser(const std::string & name, const std::string & hdl_name)
 {
 }
 
-Node* NodeUser::instantiate(const std::string& name)
+Node* NodeUser::instantiate()
 {
-    return new NodeUser(*this, name);
+    return new NodeUser(*this);
 }
 
-NodeUser::NodeUser(const NodeUser& o, const std::string& name)
-    : Node(o, name)
+NodeUser::NodeUser(const NodeUser& o)
+    : Node(o)
 {
 }

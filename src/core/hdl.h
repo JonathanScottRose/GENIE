@@ -205,11 +205,12 @@ namespace hdl
         Net* get_net(const std::string&);
         const decltype(m_nets)& get_nets() const;
 
-        void connect(const std::string& src, const std::string& sink, int src_slice, int src_lsb,
+        void connect(Port* src, Port* sink, int src_slice, int src_lsb,
             int sink_slice, int sink_lsb, unsigned dim, int size);
-        void connect(const std::string& sink, const BitsVal&, int sink_slice, int sink_lsb);
-        void connect(const PortBindingRef& src, const PortBindingRef& sink);
-        void connect(const PortBindingRef& sink, const BitsVal&);
+        void connect(Port*, const BitsVal&, int sink_slice, int sink_lsb);
+        void connect(Node* src_node, const PortBindingRef& src, Node* sink_node,
+			const PortBindingRef& sink);
+        void connect(Node*, const PortBindingRef& sink, const BitsVal&);
 	};
 }
 }

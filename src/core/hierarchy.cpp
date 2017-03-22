@@ -184,12 +184,12 @@ void HierObject::make_connectable(NetType type, genie::Port::Dir dir)
 		epptr = new Endpoint(type, dir, this);
 }
 
-bool HierObject::is_connectable(NetType type, genie::Port::Dir dir)
+bool HierObject::is_connectable(NetType type, genie::Port::Dir dir) const
 {
 	return get_endpoint(type, dir) != nullptr;
 }
 
-Endpoint * HierObject::get_endpoint(NetType type, genie::Port::Dir dir)
+Endpoint * HierObject::get_endpoint(NetType type, genie::Port::Dir dir) const
 {
 	auto it = m_endpoints.find(type);
 	if (it != m_endpoints.end())

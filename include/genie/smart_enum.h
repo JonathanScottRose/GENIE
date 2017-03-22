@@ -64,7 +64,7 @@ protected:
 		bool operator < (const name& e) const { return _val < e._val; } \
 		\
 		name(name##_e val) : _val(val) {} \
-		operator name##_e() { return _val; } \
+		operator name##_e() const { return _val; } \
 		const char* to_string() const \
 		{ \
 			return table()._tab[(unsigned)_val]; \

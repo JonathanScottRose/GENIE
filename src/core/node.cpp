@@ -65,11 +65,6 @@ namespace
 // Public functions
 //
 
-const std::string & genie::impl::Node::get_name() const
-{
-    return HierObject::get_name();
-}
-
 void Node::set_int_param(const std::string& parm_name, int val)
 {
 	set_param(parm_name, new NodeIntParam(val));
@@ -120,7 +115,7 @@ genie::PortRS * Node::create_rs_port(const std::string & name, genie::Port::Dir 
     const std::string & clk_port_name)
 {
     auto result = new PortRS(name, dir);
-    result->set_clk_port_name(clk_port_name);
+    result->set_clock_port_name(clk_port_name);
     return result;
 }
 
@@ -146,12 +141,10 @@ Node::Node(const std::string & name, const std::string & hdl_name)
 	set_name(name);
 }
 
-Node::Node(const Node& o, const std::string& name)
+Node::Node(const Node& o)
     : HierObject(o), m_hdl_name(o.m_hdl_name),
     m_hdl_state(o.m_hdl_state)
 {
-	set_name(name);
-
     // Copy over all the things that every Node has
 
 	// Parameters and values
@@ -162,6 +155,13 @@ Node::Node(const Node& o, const std::string& name)
 
     // Point HDL state back at us
     m_hdl_state.set_node(this);
+
+	// Ports
+	for (auto p : o.get_children_by_type<Port>())
+	{
+		auto p_copy = p->instantiate();
+		add_child(p_copy);
+	}
 
 	// Copy links
 	auto links = o.get_links();
@@ -286,7 +286,8 @@ Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 	Endpoint* src_ep = src->get_endpoint(net, Port::Dir::OUT);
 	Endpoint* sink_ep = sink->get_endpoint(net, Port::Dir::IN);
 
-	for (auto obj_ep : { std::make_pair(src, src_ep), std::make_pair(sink, sink_ep)})
+	// Do some validation
+	for (auto obj_ep : { std::make_pair(src, src_ep), std::make_pair(sink, sink_ep) })
 	{
 		auto obj = obj_ep.first;
 		auto ep = obj_ep.second;
@@ -307,6 +308,21 @@ Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 				" because " + obj->get_hier_path() +
 				" does not accept connections of type " +
 				def->get_name());
+		}
+
+		// Furthermore: if the object is a Port, then we are connecting to the side
+		// of it that lies inside the system.
+		Port* port = dynamic_cast<Port*>(obj);
+		if (port)
+		{
+			auto eff_dir = port->get_effective_dir(this);
+			auto used_dir = ep->get_dir();
+			if (eff_dir != used_dir)
+			{
+				std::string srcsink = used_dir == Port::Dir::IN ? "sink" : "src";
+				throw Exception(port->get_hier_path() + ": port is not a " + srcsink +
+					" with respect to " + this->get_hier_path());
+			}
 		}
 	}
 

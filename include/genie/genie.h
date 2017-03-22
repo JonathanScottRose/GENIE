@@ -58,8 +58,9 @@ namespace genie
         unsigned lutram_depth = 32;
     };
 
-	// Initialize library
+	// Initialize and cleanup library
 	void init(FlowOptions* opts = nullptr, ArchParams* arch = nullptr);
+	void shutdown();
 
     // API functions
     Node* create_system(const std::string& name);

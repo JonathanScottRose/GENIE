@@ -9,14 +9,14 @@ namespace genie
 	{
 		class NetRSLogical;
 		class NetRS;
-		class NetRSField;
+		class NetRSSub;
 		class LinkRSLogical;
 		class LinkRS;
-		class LinkRSField;
+		class LinkRSSub;
 
 		extern NetType NET_RS_LOGICAL;
 		extern NetType NET_RS;
-		extern NetType NET_RS_FIELD;
+		extern NetType NET_RS_SUB;
 
 		class NetRSLogical : public Network
 		{
@@ -69,23 +69,23 @@ namespace genie
 		///
 		///
 
-		class NetRSField : public Network
+		class NetRSSub : public Network
 		{
 		public:
 			static void init();
 			Link* create_link() const override;
 
 		protected:
-			NetRSField();
-			~NetRSField() = default;
+			NetRSSub();
+			~NetRSSub() = default;
 		};
 
-		class LinkRSField : virtual public Link
+		class LinkRSSub : virtual public Link
 		{
 		public:
-			LinkRSField();
-			LinkRSField(const LinkRSField&);
-			~LinkRSField();
+			LinkRSSub();
+			LinkRSSub(const LinkRSSub&);
+			~LinkRSSub();
 
 			Link* clone() const override;
 		protected:

@@ -1,13 +1,14 @@
 #pragma once
 
 #include "network.h"
-#include "node.h"
+#include "port.h"
 #include "genie/genie.h"
 
 namespace genie
 {
 namespace impl
 {
+	class Node;
     class NodeSystem;
 
 	// Node management
@@ -20,6 +21,10 @@ namespace impl
 	// Network management
 	NetType register_network(Network*);
 	const Network* get_network(NetType id);
+
+	// Port Types
+	PortType register_port_type(PortTypeInfo*);
+	const PortTypeInfo* get_port_type(PortType);
 
     // Get options
     genie::FlowOptions& get_flow_options();

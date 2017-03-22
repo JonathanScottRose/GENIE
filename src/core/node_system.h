@@ -18,15 +18,20 @@ namespace impl
 		genie::LinkRS* create_rs_link(genie::HierObject* src, genie::HierObject* sink) override;
 		genie::Link* create_topo_link(genie::HierObject* src, genie::HierObject* sink) override;
 
+		genie::Node* create_instance(const std::string& mod_name,
+			const std::string& inst_name) override;
+
+		genie::Port* export_port(genie::Port* orig, const std::string& new_name = "") override;
+
     public:
         NodeSystem(const std::string& name);
 
-        Node* instantiate(const std::string&) override;
+        Node* instantiate() override;
         
         std::vector<Node*> get_nodes() const;
 
     protected:
-        NodeSystem(const NodeSystem&, const std::string&);
+        NodeSystem(const NodeSystem&);
     };
 }
 }

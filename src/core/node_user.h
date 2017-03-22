@@ -6,7 +6,7 @@ namespace genie
 {
 namespace impl
 {
-    class NodeUser : virtual public Node, virtual public Module
+    class NodeUser : virtual public genie::Module, public Node
     {
     public:
 		genie::Link* create_internal_link(genie::PortRS* src, genie::PortRS* sink,
@@ -15,10 +15,10 @@ namespace impl
     public:
         NodeUser(const std::string& name, const std::string& hdl_name);
 
-        Node* instantiate(const std::string&) override;
+        Node* instantiate() override;
 
     protected:
-        NodeUser(const NodeUser&, const std::string&);
+        NodeUser(const NodeUser&);
     };
 }
 }

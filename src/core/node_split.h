@@ -10,17 +10,15 @@ namespace impl
     {
     public:
         static void init();
-        static NodeSplit* get_prototype();
         
         // Create a new one
-        NodeSplit(const std::string& name);
+		NodeSplit();
 
         // Generic copy of an existing one
-        Node* instantiate(const std::string& name) override;
+        Node* instantiate() override;
 
     protected:
-        NodeSplit();
-        NodeSplit(const NodeSplit&, const std::string& name);
+        NodeSplit(const NodeSplit&);
     };
 }
 }

@@ -197,6 +197,79 @@ namespace
     /// and multicast addressing, and variable-length packetization.
     /// @type RSPort
 
+	/// Add a signal to the RS Port.
+	///
+	/// @function add_signal
+	/// @tparam string role VALID, READY, DATA, DATABUNDLE, ADDR, EOP
+	/// @tparam string tag unique user-defined tag for DATABUNDLE signals only
+	/// @tparam string sig_name HDL signal name
+	/// @tparam[opt='1'] string width width of the signal in bits (integer expression, may reference parameters), defaults to 1 bit
+	LFUNC(rsport_add_signal)
+	{
+		auto self = lua_if::check_object<PortRS>(1);
+		const char* role_str = luaL_checkstring(L, 2);
+		const char* tag = luaL_checkstring(L, 3);
+		const char* hdl_sig = luaL_checkstring(L, 4);
+		const char* width_str = luaL_optstring(L, 5, "1");
 
+		PortRS::Role role = parse_role<PortRS>(L, 2, role_str);
+
+		self->add_signal(role, tag, hdl_sig, width_str);
+		return 0;
+	}
+
+	/// Add a signal to the RS Port.
+	///
+	/// An advanced version of @{RSPort:add_signal} to more finely control
+	/// the size of the HDL port and the size of the binding to the HDL port.
+	/// Expects two structures: a PortSpec and a BindSpec.
+	/// The PortSpec structure shall be a table with the following fields:
+	///   name: the name of the HDL port
+	///   width: an expression specifying the width in bits of the HDL port
+	///   depth: an expression specifying the second size dimension of the HDL port
+	/// Both width and depth are expressions that must evaluate to an integer and may contain
+	/// references to @{Node} parameters. If either field is absent, it is defaulted to '1'.
+	/// The BindSpec structure specifies the range of the HDL Port to bind to for this role.
+	/// It shall be a table with the following fields:
+	///   lo_slice: the lower bound of the second dimension of the HDL port to bind to, default 0
+	///   slices: the number of second-dimension indicies to bind over, default 1
+	///   lo_bit: the least-significant bit to bind to, must be 0 if slices is > 1, default 0
+	///   width: the number of bits, starting from lo_bit, to bind, must be the entire port width
+	///          if slices > 1
+	/// @function add_signal_ex
+	/// @tparam string role FWD, REV< IN, OUT, or INOUT
+	/// @tparam string tag unique user-defined tag
+	/// @tparam table port_spec a PortSpec structure, as defined above
+	/// @tparam table bind_spec a BindSpec structure, as defined above
+	/// @see @{ConduitPort:add_signal>
+	LFUNC(rsport_add_signal_ex)
+	{
+		auto self = lua_if::check_object<PortRS>(1);
+		const char* role_str = luaL_checkstring(L, 2);
+		const char* tag = luaL_checkstring(L, 3);
+		luaL_checktype(L, 4, LUA_TTABLE);
+		luaL_checktype(L, 5, LUA_TTABLE);
+
+		// Parse role
+		PortRS::Role role = parse_role<PortRS>(L, 2, role_str);
+
+		// Populate PortSpec struct
+		genie::HDLPortSpec pspec;
+		parse_port_spec(L, 4, pspec);
+
+		// Populate BindSpec struct
+		genie::HDLBindSpec bspec;
+		parse_bind_spec(L, 5, bspec);
+
+		self->add_signal(role, tag, pspec, bspec);
+
+		return 0;
+	}
+
+	LSUBCLASS(PortRS, (Port),
+	{
+		LM(add_signal, conduitport_add_signal),
+		LM(add_signal_ex, conduitport_add_signal_ex)
+	});
 }
 

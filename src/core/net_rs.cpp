@@ -96,42 +96,42 @@ Link * LinkRS::clone() const
 // RS Field network
 //
 
-NetType genie::impl::NET_RS_FIELD;
+NetType genie::impl::NET_RS_SUB;
 
-void NetRSField::init()
+void NetRSSub::init()
 {
-	NET_RS_FIELD = impl::register_network(new NetRSField);
+	NET_RS_SUB = impl::register_network(new NetRSSub);
 }
 
-NetRSField::NetRSField()
+NetRSSub::NetRSSub()
 {
 	m_short_name = "rs_field";
 	m_default_max_conn_in = 1;
 	m_default_max_conn_out = 1;
 }
 
-Link* NetRSField::create_link() const
+Link* NetRSSub::create_link() const
 {
-	return new LinkRSField();
+	return new LinkRSSub();
 }
 
 //
 // RS Field link
 //
 
-LinkRSField::LinkRSField()
+LinkRSSub::LinkRSSub()
 {
 }
 
-LinkRSField::LinkRSField(const LinkRSField& o)
+LinkRSSub::LinkRSSub(const LinkRSSub& o)
 {
 }
 
-LinkRSField::~LinkRSField()
+LinkRSSub::~LinkRSSub()
 {
 }
 
-Link * LinkRSField::clone() const
+Link * LinkRSSub::clone() const
 {
-	return new LinkRSField(*this);
+	return new LinkRSSub(*this);
 }

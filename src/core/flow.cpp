@@ -54,10 +54,7 @@ namespace
 				}
 
 				// Does the sub->sub direction need to be reversed?
-				bool swapdir = 
-					src_sub->get_role() == genie::PortConduit::Role::IN ||
-					src_sub->get_role() == genie::PortConduit::Role::REV;
-
+				bool swapdir = src_sub->get_effective_dir(sys) == Port::Dir::IN;
 				if (swapdir)
 					std::swap(src_sub, sink_sub);
 

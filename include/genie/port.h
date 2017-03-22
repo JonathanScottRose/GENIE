@@ -34,7 +34,6 @@ namespace genie
 				Dir rev() const;
 		), IN, OUT);
 
-        virtual const std::string& get_name() const = 0;
         virtual Dir get_dir() const = 0;
 
     protected:

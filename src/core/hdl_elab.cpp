@@ -23,7 +23,8 @@ namespace
 			auto src = dynamic_cast<PORTTYPE*>(link->get_src());
 			auto sink = dynamic_cast<PORTTYPE*>(link->get_sink());
 
-			sys->get_hdl_state().connect(src->get_binding(), sink->get_binding());
+			sys->get_hdl_state().connect(src->get_node(), src->get_binding(),
+				sink->get_node(), sink->get_binding());
 		}
 	}
 
@@ -36,22 +37,22 @@ namespace
 			auto src = dynamic_cast<PortConduitSub*>(link->get_src());
 			auto sink = dynamic_cast<PortConduitSub*>(link->get_sink());
 
-			sys->get_hdl_state().connect(src->get_hdl_binding(),
-				sink->get_hdl_binding());
+			sys->get_hdl_state().connect(src->get_node(),src->get_hdl_binding(),
+				sink->get_node(), sink->get_hdl_binding());
 		}
 	}
 
 	void do_rs_field(NodeSystem* sys)
 	{
-		auto links = sys->get_links(NET_RS_FIELD);
+		auto links = sys->get_links(NET_RS_SUB);
 
 		for (auto link : links)
 		{
-			auto src = dynamic_cast<PortRSField*>(link->get_src());
-			auto sink = dynamic_cast<PortRSField*>(link->get_sink());
+			auto src = dynamic_cast<PortRSSub*>(link->get_src());
+			auto sink = dynamic_cast<PortRSSub*>(link->get_sink());
 
-			sys->get_hdl_state().connect(src->get_hdl_binding(),
-				sink->get_hdl_binding());
+			sys->get_hdl_state().connect(src->get_node(), src->get_hdl_binding(),
+				sink->get_node(), sink->get_hdl_binding());
 		}
 
 		// TODO: const drivers!

@@ -1,17 +1,25 @@
 #include "pch.h"
-#include "genie/genie.h"
 #include "genie_priv.h"
 #include "node.h"
+#include "port.h"
 #include "util.h"
 #include "hierarchy.h"
+
 #include "node_system.h"
 #include "node_user.h"
 #include "node_split.h"
+
 #include "net_clockreset.h"
 #include "net_conduit.h"
 #include "net_internal.h"
 #include "net_rs.h"
 #include "net_topo.h"
+
+#include "port_clockreset.h"
+#include "port_conduit.h"
+#include "port_rs.h"
+
+#include "genie/genie.h"
 
 using namespace genie::impl;
 
@@ -26,6 +34,9 @@ namespace
 
 	// Holds network defs
 	std::vector<Network*> m_networks;
+
+	// Holds port defs
+	std::vector<PortTypeInfo*> m_port_types;
 
     // Stores options
     genie::FlowOptions m_flow_opts;
@@ -100,6 +111,22 @@ const Network* genie::impl::get_network(NetType id)
 	return nullptr;
 }
 
+PortType genie::impl::register_port_type(PortTypeInfo* info)
+{
+	PortType ret = (PortType)m_port_types.size();
+	m_port_types.push_back(info);
+	info->set_id(ret);
+	return ret;
+}
+
+const PortTypeInfo* genie::impl::get_port_type(PortType id)
+{
+	if (id < m_port_types.size())
+		return m_port_types[id];
+
+	return nullptr;
+}
+
 genie::FlowOptions& genie::impl::get_flow_options()
 {
     return m_flow_opts;
@@ -125,6 +152,7 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 
 	// Initialize structs
 	m_networks.clear();
+	m_port_types.clear();
 
     // Register builtins
 	NetClock::init();
@@ -134,9 +162,27 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 	NetInternal::init();
 	NetRSLogical::init();
 	NetRS::init();
-	NetRSField::init();
+	NetRSSub::init();
+
+	PortClock::init();
+	PortReset::init();
+	impl::PortConduit::init();
+	PortConduitSub::init();
+	impl::PortRS::init();
+	PortRSSub::init();
 
     NodeSplit::init();
+}
+
+void genie::shutdown()
+{
+	for (auto c : m_root.get_children())
+	{
+		delete m_root.remove_child(c);
+	}
+
+	util::delete_all(m_networks);
+	util::delete_all(m_port_types);
 }
 
 genie::Node * genie::create_system(const std::string & name)

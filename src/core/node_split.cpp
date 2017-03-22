@@ -7,39 +7,25 @@ using namespace genie::impl;
 namespace
 {
     const char MODNAME[] = "genie_split";
-    NodeSplit* s_proto = nullptr;
 }
 
 void NodeSplit::init()
 {
-    s_proto = new NodeSplit();
-    impl::register_builtin(s_proto);
-}
-
-NodeSplit * NodeSplit::get_prototype()
-{
-    return s_proto;
+	//todo
 }
 
 NodeSplit::NodeSplit()
     : Node(MODNAME, MODNAME)
 {
-    // Build the prototype
 }
 
-NodeSplit::NodeSplit(const NodeSplit& o, const std::string& name)
-    : Node(o, name)
+NodeSplit::NodeSplit(const NodeSplit& o)
+    : Node(o)
 {
     // Create a copy of an existing NodeSplit
 }
 
-NodeSplit::NodeSplit(const std::string& name)
-    : NodeSplit(*s_proto, name)
+Node* NodeSplit::instantiate()
 {
-    // Creates a fresh NodeSplit by copying the prototype
-}
-
-Node* NodeSplit::instantiate(const std::string& name)
-{
-    return new NodeSplit(*this, name);
+    return new NodeSplit(*this);
 }

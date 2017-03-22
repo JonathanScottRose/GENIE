@@ -15,9 +15,6 @@ namespace impl
     class Node : virtual public genie::Node, public HierObject
     {
     public:
-        // Public API
-        const std::string& get_name() const override;
-        
         void set_int_param(const std::string& parm_name, int val) override;
         void set_int_param(const std::string& parm_name, const std::string& expr) override;
         void set_str_param(const std::string& parm_name, const std::string& str) override;
@@ -35,9 +32,8 @@ namespace impl
 		using Links = std::vector<Link*>;
 
         // Internal API
-        virtual Node* instantiate(const std::string& name) = 0;
+        virtual Node* instantiate() = 0;
 
-        Node(const std::string& name, const std::string& hdl_name);
         virtual ~Node();
 
         const std::string& get_hdl_name() const { return m_hdl_name; }
@@ -58,7 +54,8 @@ namespace impl
 		Link* splice(Link* orig, HierObject* new_sink, HierObject* new_src);
 
     protected:
-        Node(const Node&, const std::string&);
+		Node(const std::string& name, const std::string& hdl_name);
+		Node(const Node&);
 
 		void set_param(const std::string& name, NodeParam* param);
 

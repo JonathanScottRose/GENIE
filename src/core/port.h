@@ -9,23 +9,49 @@ namespace genie
 {
 namespace impl
 {
-    class Port : virtual public genie::Port, virtual public HierObject
+	class NodeSystem;
+
+	using PortType = unsigned;
+	const PortType PORT_INVALID = std::numeric_limits<PortType>::max();
+
+	class PortTypeInfo
+	{
+	public:
+		PROP_GET_SET(name, const std::string&, m_short_name);
+		PROP_GET_SET(id, PortType, m_id);
+		PROP_GET_SET(default_network, NetType, m_default_network);
+
+		PortTypeInfo() = default;
+		virtual ~PortTypeInfo() = default;
+
+		virtual Port* create_port(const std::string& name, genie::Port::Dir dir) = 0;
+
+	protected:
+		std::string m_short_name;
+		PortType m_id;
+		NetType m_default_network;
+	};
+
+    class Port : virtual public genie::Port, public HierObject
     {
     public:
-        virtual const std::string& get_name() const override;
         virtual Dir get_dir() const override;
         
     public:
         Port(const std::string& name, Dir dir);
-        Port(const Port&);
         virtual ~Port();
 
         virtual Port* instantiate() const = 0;
         virtual void resolve_params(ParamResolver&) = 0;
+		virtual genie::Port* export_port(const std::string& name, NodeSystem* context) = 0;
+		virtual PortType get_type() const = 0;
 
         Node* get_node() const;
+		genie::Port::Dir get_effective_dir(Node* contain_ctx) const;
 
     protected:
+		Port(const Port&);
+
         Dir m_dir;
     };
 
@@ -41,6 +67,7 @@ namespace impl
         PROP_GET_SET(hdl_binding, const hdl::PortBindingRef&, m_binding);
 
     protected:
+		// TODO: put signal role stuff in here?
         hdl::PortBindingRef m_binding;
     };
 }

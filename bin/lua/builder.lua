@@ -16,7 +16,7 @@ local function name_to_link(self, sys, name)
     local t = self.name2link[sys]
     local link = t[name]
     if not link then
-        error("no link found with name " .. name .. " in system " .. sys)
+        error("no link found with name " .. name .. " in system " .. sys, 2)
     end
     return link
 end
@@ -37,27 +37,22 @@ end
 
 --- Defines a new Component.
 -- @tparam string name Component name
--- @tparam string modl name of Verilog module
+-- @tparam[opt] string modl name of Verilog module, defaults to `name`
 -- @treturn genie.Node raw representation for advanced use
 function Builder:component(name, modl)
-    self.cur_node = g.Node.new(name, modl)
+	modl = modl or name
+    self.cur_node = g.create_module(name, modl)
     self.cur_param_tgt = self.cur_node
     return self.cur_node
 end
 
---- Defines a new Interface.
--- Applies to the current Component or System, which is defined by the most recent call to
--- @{Builder:component} or @{Builder:system}.
--- @tparam string name name of Interface
--- @tparam string type one of `clock`, `reset`, `conduit`, or `rs`
--- @tparam string dir one of `in` or `out`
--- @treturn genie.Port raw representation for advanced use
-function Builder:interface(name, type, dir)
-	if not self.cur_node then error("Unexpected 'interface'") end
-    self.cur_port = self.cur_node:add_port(name, type, dir)
-    return self.cur_port
+local function create_clockreset_port(self, name, type, dir, sig)
+	sig = sig or name
+	if not self.cur_node then error("Need a Module/System to create an Interface in", 2) end
+	local fname = util.con_cat('create', type, 'port')
+	self.cur_port = self.cur_node[fname](self.cur_node, name, dir, sig)
+	return self.cur_port
 end
-
 
 --- Define a Clock Source Interface.
 -- Also creates the clock signal binding within the Interface.
@@ -65,7 +60,7 @@ end
 -- by a call to @{Builder:signal}.
 -- @function clock_src
 -- @tparam string name name of Interface
--- @tparam string binding name of Verilog clock signal in module
+-- @tparam[opt] string binding name of Verilog clock signal in module, defaults to `name`
 -- @treturn genie.Port
 
 --- Define a Clock Sink Interface.
@@ -74,7 +69,7 @@ end
 -- by a call to @{Builder:signal}.
 -- @function clock_sink
 -- @tparam string name name of Interface
--- @tparam string binding name of Verilog clock signal in module
+-- @tparam[opt] string binding name of Verilog clock signal in module, defaults to `name`
 -- @treturn genie.Port
 
 --- Define a Reset Source Interface.
@@ -83,7 +78,7 @@ end
 -- by a call to @{Builder:signal}.
 -- @function reset_src
 -- @tparam string name name of Interface
--- @tparam string binding name of Verilog reset signal in module
+-- @tparam[opt] string binding name of Verilog reset signal in module, defaults to `name`
 -- @treturn genie.Port
 
 --- Define a Reset Sink Interface.
@@ -92,7 +87,7 @@ end
 -- by a call to @{Builder:signal}.
 -- @function reset_sink
 -- @tparam string name name of Interface
--- @tparam string binding name of Verilog reset signal in module
+-- @tparam[opt] string binding name of Verilog reset signal in module, defaults to `name`
 -- @treturn genie.Port
 
 --- Define a Conduit Source Interface.
@@ -152,52 +147,37 @@ for _,i in pairs({{'src', 'out'}, {'sink', 'in'}}) do
     local ifdir = i[2]
     
     Builder['clock_'..suffix] = function(self, name, binding)
-        local result = self:interface(name, 'clock', ifdir)
-        self:signal('clock', binding, 1)
-        return result
+		return create_clockreset_port(self, name, 'clock', ifdir, binding)
     end
     
     Builder['reset_'..suffix] = function(self, name, binding)
-        local result = self:interface(name, 'reset', ifdir)
-        self:signal('reset', binding, 1)
-        return result
+		return create_clockreset_port(self, name, 'reset', ifdir, binding)
     end
     
     Builder['conduit_'..suffix] = function(self, name)
-        return self:interface(name, 'conduit', ifdir)
+		if not self.cur_node then error("Need a Module/System to create an Interface in") end
+		self.cur_port = self.cur_node:create_conduit_port(name, ifdir)
+        return self.cur_port
     end
     
     Builder['rs_'..suffix] = function(self, name, clockif)
-        local result = self:interface(name, 'rs', ifdir)
-        result:set_clock_port_name(clockif)
-        return result
+        if not self.cur_node then error("Need a Module/System to create an Interface in") end
+		self.cur_port = self.cur_node:create_rs_port(name, ifdir, clockif)
+		return self.cur_port
     end
 	
 	Builder['msg_'..suffix] = function(self, name, vname, clockif)
 		local result = self['rs_'..suffix](self, name, clockif)
-		self:signal('valid', vname)
+		result:signal('valid', vname)
 		return result
 	end
 end
 
---- Creates a Linkpoint.
--- Applies to the current Interface, defined by the most recent call to @{Builder:interface} or its 
--- specialized convenience functions.
--- @tparam string name name of Linkpoint
--- @tparam string lpid Verilog encoding of Linkpoint ID, eg `2'b00`
--- @treturn genie.RSLinkpoint raw representation for advanced use
-function Builder:linkpoint(name, lpid)
-	if not self.cur_port then error("Unexpected 'linkpoint'") end
-    if not self.cur_port.add_linkpoint then error("Interface does not support linkpoints") end
-    
-    return self.cur_port:add_linkpoint(name, lpid, 'broadcast')
-end
-
 --- Creates a System.
 -- @tparam string name name of System
--- @treturn genie.Node raw representation for advanced use
+-- @treturn genie.System raw representation for advanced use
 function Builder:system(name)
-	self.cur_sys = g.System.new(name)
+	self.cur_sys = g.create_system(name)
     self.cur_node = self.cur_sys
 	self.cur_param_tgt = self.cur_sys
     
@@ -208,24 +188,24 @@ end
 
 --- Instantiates a Component.
 -- Instantiates within the current System, created by the most recent call to @{Builder:system}.
--- @tparam string name name of instance
 -- @tparam string comp name of previously-defined Component
+-- @tparam string name name of instance
 -- @treturn genie.Node raw representation for advanced use
-function Builder:instance(name, comp)
+function Builder:instance(comp, name)
 	if not self.cur_sys then error("Unexpected 'instance'") end
-    self.cur_param_tgt = self.cur_sys:add_node(name, comp)
+    self.cur_param_tgt = self.cur_sys:create_instance(comp, name)
     return self.cur_param_tgt
 end
 
 --- Exports an Interface of a Component instance.
 -- Within the current System, this creates a new top-level Interface with the same
 -- type and complementary direction, and automatically creates a Link between them.
--- @tparam string|Port iface hierarchical path, or reference to, Interface to export
--- @tparam string name name of new exported Interface that will be generated
+-- @tparam string|Port iface hierarchical path, or reference to, Interface to export, relative to system
+-- @tparam[opt] string name name of new exported Interface that will be generated, default autogenerated
 -- @treturn genie.Port raw representation for advanced use
 function Builder:export(iface, name)
 	if not self.cur_sys then error("Unexpected 'export'") end
-    self.cur_port = self.cur_sys:make_export(iface, name)
+    self.cur_port = self.cur_sys:export_port(iface, name)
 	return self.cur_port
 end
 
@@ -250,6 +230,15 @@ function Builder:link(src, dest, label)
     end
     return link
 end
+
+for _,ptype in ipairs({'clock', 'reset', 'conduit', 'rs'}) do
+	Builder[ptype..'_link'] = function(self, src, sink)
+		if not self.cur_sys then error("Unexpected 'link'") end
+		local fname = 'create_'..ptype..'_link'
+		return self.cur_sys[fname](self.cur_sys, src, sink)
+	end
+end
+
 
 --- Defines an internal RS link between two RS Interfaces within a Component.
 -- The internal link is between a sink port (that receives data from outside the Component),
@@ -309,9 +298,19 @@ end
 -- and it can not be overridden later.
 -- @tparam string name name
 -- @tparam number|string val value or expression
-function Builder:parameter(name, val)
+function Builder:int_param(name, val)
     if not self.cur_param_tgt then error("no current component or system") end
-    self.cur_param_tgt:def_param(name, val)
+    self.cur_param_tgt:set_int_param(name, val)
+end
+
+function Builder:str_param(name, val)
+    if not self.cur_param_tgt then error("no current component or system") end
+    self.cur_param_tgt:set_str_param(name, val)
+end
+
+function Builder:lit_param(name, val)
+    if not self.cur_param_tgt then error("no current component or system") end
+    self.cur_param_tgt:set_lit_param(name, val)
 end
 
 --- Registers a Verilog signal with an Interface.
@@ -319,22 +318,21 @@ end
 -- convenience functions. The `role` and `vname` arguments are mandatory. Some types of signals also require
 -- a tag. If width is not specified, it defaults to 1.
 --
--- It is also possible to refer to _part_ of a Verilog signal. This is done by supplying a three-element array 
--- for the width argument, in the form `{totalwidth, width, lsb}`. `totalwidth` is the size of the entire
--- Verilog signal. Bits `[lsb+width-1 : lsb]` will be selected.
 -- @tparam string role Signal role. Allowable values depend on the type of Interface.
 -- @tparam[opt] string tag Used-defined tag to differentiate similar signal roles.
 -- @tparam string vname Verilog name of signal in module to bind to.
--- @tparam[opt=1] string|number|array width width of signal, can be an expression, or a partial binding as described above
-function Builder:signal(role, tag, vname, width)
+-- @tparam[opt=1] expression width width in bits of the signal, can be an expression, mandatory only if `tag` specified
+function Builder:signal(...)
     if not self.cur_port then error("no current port") end
     
+	local args = table.pack(...)
     local newargs
     
-    if not vname then newargs = {role, tag, 1}
-    elseif not width then newargs = {role, tag, vname}
-    else newargs = {role, tag, vname, width}
-    end
+	if args.n == 2 then newargs = {args[1], nil, args[2]} 
+	elseif args.n == 3 then newargs = {args[1], nil, args[3], args[4]} 
+	elseif args.n == 4 then newargs = args 
+	else error('Expected 2, 3, or 4 parameters') 
+	end
     
     self.cur_port:add_signal(table.unpack(newargs))
 end

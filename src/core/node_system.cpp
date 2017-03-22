@@ -4,6 +4,8 @@
 #include "net_conduit.h"
 #include "net_rs.h"
 #include "net_topo.h"
+#include "port.h"
+#include "genie_priv.h"
 
 using namespace genie::impl;
 
@@ -57,6 +59,77 @@ genie::Link * NodeSystem::create_topo_link(genie::HierObject * src, genie::HierO
 	return connect(src_imp, sink_imp, NET_TOPO);
 }
 
+genie::Node * NodeSystem::create_instance(const std::string & mod_name, 
+	const std::string & inst_name)
+{
+	// Check if module exists (child of root with this name exists)
+	auto prototype = dynamic_cast<Node*>(genie::impl::get_node(mod_name));
+	if (!prototype)
+	{
+		throw genie::Exception("unknown module: " + mod_name);
+	}
+
+	// Check if this system already has a child named inst_name
+	if (has_child(inst_name))
+	{
+		throw genie::Exception(get_hier_path() + ": already has instance named " + inst_name);
+	}
+
+	auto instance = prototype->instantiate();
+	instance->set_name(inst_name);
+	add_child(instance);
+
+	return instance;
+}
+
+genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & opt_name)
+{
+	auto orig_impl = dynamic_cast<Port*>(orig);
+	assert(orig);
+
+	// We must resolve parameters first
+	resolve_params();
+	orig_impl->get_node()->resolve_params();
+
+	// 1) Check if port is exportable: must not already belong to the system
+	if (orig_impl->get_node() == this)
+	{
+		throw Exception(get_hier_path() + ": port " + orig->get_hier_path(this) +
+			" is already a top-level port of the system");
+	}
+
+	// 2) Make a new name for the exported port, automatically if none specified
+	std::string new_name;
+	if (opt_name.empty())
+	{
+		new_name = orig->get_hier_path(this);
+		std::replace(new_name.begin(), new_name.end(), HierObject::PATH_SEP, '_');
+	}
+	else
+	{
+		new_name = opt_name;
+	}
+
+	// The remainder of the work is port-type specific
+	auto new_port = orig_impl->export_port(new_name, this);
+
+	// Now we just make a connection from the old to the new.
+	// The exported port, which belongs to a Node within this system, can be looked
+	// at to dictate the connection direction. If it's an IN, it will be the sink, and if
+	// it's an OUT, it will be the source.
+	
+	auto ptinfo = genie::impl::get_port_type(orig_impl->get_type());
+
+	auto exlink_src = orig_impl; // assume original port is the source (OUT)
+	auto exlink_sink = dynamic_cast<Port*>(new_port);
+	if (orig_impl->get_dir() == Port::Dir::IN)
+		std::swap(exlink_src, exlink_sink);
+
+	connect(exlink_src, exlink_sink, ptinfo->get_default_network());
+
+	return new_port;
+}
+
 //
 // Internal
 //
@@ -66,9 +139,9 @@ NodeSystem::NodeSystem(const std::string & name)
 {
 }
 
-Node* NodeSystem::instantiate(const std::string& name)
+Node* NodeSystem::instantiate()
 {
-    return new NodeSystem(*this, name);
+    return new NodeSystem(*this);
 }
 
 std::vector<Node*> NodeSystem::get_nodes() const
@@ -76,7 +149,7 @@ std::vector<Node*> NodeSystem::get_nodes() const
     return get_children_by_type<Node>();
 }
 
-NodeSystem::NodeSystem(const NodeSystem& o, const std::string& name)
-    : Node(o, name)
+NodeSystem::NodeSystem(const NodeSystem& o)
+    : Node(o)
 {
 }

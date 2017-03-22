@@ -46,7 +46,8 @@ namespace impl
 
         // Used by the filtered version of get_children() to choose specific children
         // that satisfy some criteria.
-        typedef std::function<bool(const HierObject*)> FilterFunc;
+		template<class T = HierObject>
+		using FilterFunc = std::function<bool(const T*)>;
 
 		HierObject();
 		HierObject(const HierObject&);
@@ -84,12 +85,13 @@ namespace impl
 
 		// Get children satisfying a filter condition
 		template<class T = HierObject, class Container = std::vector<T*>>
-		Container get_children(const FilterFunc& filter) const
+		Container get_children(const typename FilterFunc<T>& filter) const
 		{
 			Container result;
-			for (const auto& child : m_children)
+			for (auto child : m_children)
 			{
-				if (filter(child.second)) result.push_back(util::as_a<T*>(child.second));
+				auto oo = dynamic_cast<T*>(child.second);
+				if (oo && filter(oo)) result.push_back(oo);
 			}
 			return result;
 		}
@@ -113,8 +115,8 @@ namespace impl
 		// Connectivity
 		void make_connectable(NetType);
 		void make_connectable(NetType, genie::Port::Dir);
-		bool is_connectable(NetType, genie::Port::Dir);
-		Endpoint* get_endpoint(NetType, genie::Port::Dir);
+		bool is_connectable(NetType, genie::Port::Dir) const;
+		Endpoint* get_endpoint(NetType, genie::Port::Dir) const;
 
 	protected:
 		void set_parent(HierObject*);
