@@ -323,6 +323,36 @@ namespace
 		return 1;
 	}
 
+	/// Add a Split node to the system.
+	///
+	/// @function create_split
+	/// @tparam[opt] string name optional explicit name
+	/// @treturn Node
+	LFUNC(sys_create_split)
+	{
+		System* self = lua_if::check_object<System>(1);
+		const char* opt_name = luaL_optstring(L, 2, "");
+
+		auto result = self->create_split(opt_name);
+		lua_if::push_object(result);
+		return 1;
+	}
+
+	/// Add a Merge node to the system.
+	///
+	/// @function create_merge
+	/// @tparam[opt] string name optional explicit name
+	/// @treturn Node
+	LFUNC(sys_create_merge)
+	{
+		System* self = lua_if::check_object<System>(1);
+		const char* opt_name = luaL_optstring(L, 2, "");
+
+		auto result = self->create_merge(opt_name);
+		lua_if::push_object(result);
+		return 1;
+	}
+
     LSUBCLASS(System, (Node),
     {
         LM(create_sys_param, sys_create_sys_param),
@@ -332,7 +362,9 @@ namespace
 		LM(create_rs_link, sys_create_rs_link),
 		LM(create_topo_link, sys_create_topo_link),
 		LM(create_instance, sys_create_instance),
-		LM(export_port, sys_export_port)
+		LM(export_port, sys_export_port),
+		LM(create_split, sys_create_split),
+		LM(create_merge, sys_create_merge)
     });
 
 	/// Represents a user-defined module.

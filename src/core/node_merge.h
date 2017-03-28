@@ -6,19 +6,19 @@ namespace genie
 {
 namespace impl
 {
-    class NodeSplit : public Node
+    class NodeMerge : public Node
     {
     public:
         static void init();
         
         // Create a new one
-		NodeSplit();
+		NodeMerge();
 
         // Generic copy of an existing one
         Node* instantiate() override;
 
     protected:
-        NodeSplit(const NodeSplit&);
+		NodeMerge(const NodeMerge&);
 
 		void init_vlog();
     };

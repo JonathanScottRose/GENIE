@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "port_rs.h"
 #include "net_rs.h"
+#include "net_topo.h"
+#include "net_internal.h"
 #include "port_clockreset.h"
 #include "node_system.h"
 #include "genie_priv.h"
@@ -18,7 +20,7 @@ namespace
 		PortRSInfo()
 		{
 			m_short_name = "rs";
-			m_default_network = NET_RS;
+			m_default_network = NET_RS_LOGICAL;
 		}
 
 		~PortRSInfo() = default;
@@ -71,31 +73,17 @@ void PortRS::add_signal(Role role, const std::string & sig_name, const std::stri
     bs.lo_bit = "0";
     bs.lo_slice = "0";
 
-    add_signal(role, tag, ps, bs);
+    add_signal_ex(role, tag, ps, bs);
 }
 
-void PortRS::add_signal(Role role, const HDLPortSpec& ps, const HDLBindSpec& bs)
+void PortRS::add_signal_ex(Role role, const HDLPortSpec& ps, const HDLBindSpec& bs)
 {
-    add_signal(role, "", ps, bs);
+    add_signal_ex(role, "", ps, bs);
 }
 
-void PortRS::add_signal(Role role, const std::string & tag, const HDLPortSpec& pspec, 
+void PortRS::add_signal_ex(Role role, const std::string & tag, const HDLPortSpec& pspec, 
     const HDLBindSpec& bspec)
 {
-    // Check whether tag is required based on role
-    switch (role)
-    {
-    case Role::DATABUNDLE:
-        if (tag.empty())
-            throw Exception(get_hier_path() + ": role " + role.to_string() + " requires a tag");
-        break;
-
-    default:
-        if (!tag.empty())
-            throw Exception(get_hier_path() + ": role " + role.to_string() + " must have empty tag");
-        break;
-    }
-
     auto& hdl_state = get_node()->get_hdl_state();
 
     // Determine required HDL port dir form role.
@@ -107,28 +95,6 @@ void PortRS::add_signal(Role role, const std::string & tag, const HDLPortSpec& p
     // Get or create HDL port
     auto& hdl_port = hdl_state.get_or_create_port(pspec.name, pspec.width, pspec.depth, hdl_dir);
 
-    // Create subport, figure out direction and name
-    auto subport_dir = get_dir();
-    std::string subport_name = role.to_string();
-
-    switch(role)
-    {
-    case Role::READY:
-		subport_dir = subport_dir.rev();
-        break;
-    case Role::DATABUNDLE:
-        subport_name = util::str_con_cat("data", tag);
-        break;
-    }
-
-    util::str_makelower(subport_name);
-
-    // Create the subport, set up HDL binding
-    auto subport = new PortRSSub(subport_name, subport_dir);
-
-	subport->set_role(role);
-	subport->set_tag(tag);
-
     hdl::PortBindingRef hdl_pb;
     hdl_pb.set_port_name(pspec.name);
     hdl_pb.set_bits(bspec.width);
@@ -136,8 +102,7 @@ void PortRS::add_signal(Role role, const std::string & tag, const HDLPortSpec& p
     hdl_pb.set_slices(bspec.depth);
     hdl_pb.set_lo_slice(bspec.lo_slice);
 
-    subport->set_hdl_binding(hdl_pb);
-    add_child(subport);
+	add_subport(role, tag, hdl_pb);
 }
 
 //
@@ -154,6 +119,17 @@ void PortRS::init()
 PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
     : Port(name, dir)
 {
+	make_connectable(NET_RS_LOGICAL);
+	make_connectable(NET_RS);
+	make_connectable(NET_TOPO);
+	make_connectable(NET_INTERNAL, dir.rev());
+}
+
+PortRS::PortRS(const std::string & name, genie::Port::Dir dir, 
+	const std::string & clk_port_name)
+	: PortRS(name, dir)
+{
+	set_clock_port_name(clk_port_name);
 }
 
 PortRS::PortRS(const PortRS &o)
@@ -262,6 +238,54 @@ PortRSSub *PortRS::get_subport(genie::PortRS::Role role, const std::string & tag
 	return nullptr;
 }
 
+PortRSSub * PortRS::add_subport(genie::PortRS::Role role, const hdl::PortBindingRef & bnd)
+{
+	return add_subport(role, "", bnd);
+}
+
+PortRSSub * PortRS::add_subport(genie::PortRS::Role role, const std::string & tag, 
+	const hdl::PortBindingRef & bnd)
+{
+	// Check whether tag is required based on role
+	switch (role)
+	{
+	case Role::DATABUNDLE:
+		if (tag.empty())
+			throw Exception(get_hier_path() + ": role " + role.to_string() + " requires a tag");
+		break;
+
+	default:
+		if (!tag.empty())
+			throw Exception(get_hier_path() + ": role " + role.to_string() + " must have empty tag");
+		break;
+	}
+
+	// Create subport, figure out direction and name
+	auto subport_dir = get_dir();
+	std::string subport_name = role.to_string();
+
+	switch (role)
+	{
+	case Role::READY:
+		subport_dir = subport_dir.rev();
+		break;
+	case Role::DATABUNDLE:
+		subport_name = util::str_con_cat("data", tag);
+		break;
+	}
+
+	util::str_makelower(subport_name);
+
+	// Create the subport
+	auto subport = new PortRSSub(subport_name, subport_dir);
+	subport->set_role(role);
+	subport->set_tag(tag);
+	subport->set_hdl_binding(bnd);
+
+	add_child(subport);
+	return subport;
+}
+
 PortClock * PortRS::get_clock_port() const
 {
 	auto obj = get_node()->get_child(get_clock_port_name());
@@ -282,6 +306,7 @@ void PortRSSub::init()
 PortRSSub::PortRSSub(const std::string & name, genie::Port::Dir dir)
     : SubPortBase(name, dir)
 {
+	make_connectable(NET_RS_SUB);
 }
 
 PortRSSub::PortRSSub(const PortRSSub &o)

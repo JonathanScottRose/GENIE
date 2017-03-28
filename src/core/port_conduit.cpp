@@ -63,16 +63,13 @@ void PortConduit::add_signal(Role role, const std::string & tag,
     bs.lo_bit = "0";
     bs.lo_slice = "0";
     
-    add_signal(role, tag, ps, bs);
+    add_signal_ex(role, tag, ps, bs);
 }
 
-void PortConduit::add_signal(Role role, const std::string & tag, 
+void PortConduit::add_signal_ex(Role role, const std::string & tag, 
     const genie::HDLPortSpec &pspec, const genie::HDLBindSpec &bspec)
 {
-    if (tag.empty())
-        throw Exception(get_hier_path() + ": must supply unique nonempty role tag");
-
-    // Get or create HDL port
+    // Create new, or validate existing, HDL port
     auto& hdl_state = get_node()->get_hdl_state();
 
     hdl::Port::Dir hdl_dir = hdl::Port::Dir::INOUT;
@@ -90,26 +87,9 @@ void PortConduit::add_signal(Role role, const std::string & tag,
         assert(false);
     }
 
-    auto& hdl_port = hdl_state.get_or_create_port(pspec.name, pspec.width, pspec.depth, hdl_dir);
+    hdl_state.get_or_create_port(pspec.name, pspec.width, pspec.depth, hdl_dir);
 
-    // Create logical subport, first determine its direction
-    auto subport_dir = get_dir();
-    switch (role)
-    {
-    case Role::IN: subport_dir = Dir::IN; break;
-    case Role::OUT: subport_dir = Dir::OUT; break;
-    case Role::INOUT:
-    case Role::FWD:
-        // keep it the same as conduit port's dir
-        break;
-	case Role::REV: 
-		subport_dir = subport_dir.rev();
-        break;
-    }
-
-    // Create the subport, set up HDL binding
-	auto subport = new PortConduitSub(tag, subport_dir, role, tag);
-    
+	// Convert to PortBindingRef
     hdl::PortBindingRef hdl_pb;
     hdl_pb.set_port_name(pspec.name);
     hdl_pb.set_bits(bspec.width);
@@ -117,8 +97,8 @@ void PortConduit::add_signal(Role role, const std::string & tag,
     hdl_pb.set_slices(bspec.depth);
     hdl_pb.set_lo_slice(bspec.lo_slice);
 
-    subport->set_hdl_binding(hdl_pb);
-    add_child(subport);
+	// Create the actual subport
+	add_subport(role, tag, hdl_pb);
 }
 
 //
@@ -213,6 +193,34 @@ PortConduitSub * PortConduit::get_subport(const std::string & tag)
 	}
 
 	return nullptr;
+}
+
+PortConduitSub * PortConduit::add_subport(Role role, const std::string & tag, 
+	const hdl::PortBindingRef & bnd)
+{
+	if (tag.empty())
+		throw Exception(get_hier_path() + ": must supply unique nonempty role tag");
+
+	// Create logical subport, first determine its direction
+	auto subport_dir = get_dir();
+	switch (role)
+	{
+	case Role::IN: subport_dir = Dir::IN; break;
+	case Role::OUT: subport_dir = Dir::OUT; break;
+	case Role::INOUT:
+	case Role::FWD:
+		// keep it the same as conduit port's dir
+		break;
+	case Role::REV:
+		subport_dir = subport_dir.rev();
+		break;
+	}
+
+	// Create the subport, set up HDL binding
+	auto subport = new PortConduitSub(tag, subport_dir, role, tag);
+	subport->set_hdl_binding(bnd);
+	add_child(subport);
+	return subport;
 }
 
 //

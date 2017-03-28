@@ -217,21 +217,53 @@ end
 -- @tparam string|Port dest hierarchical path, or object reference, to sink Interface/Linkpoint
 -- @tparam[opt] string label unique label for Link
 -- @treturn genie.Link raw representation for advanced use
-function Builder:link(src, dest, label)
-	if not self.cur_sys then error("Unexpected 'link'") end
-    local link = self.cur_sys:add_link(src, dest)    
-    local n2l = self.name2link[self.cur_sys]
-    if label then 
-        if n2l[label] then
-            error('link with label ' .. label .. ' already exists ' .. 
-                ' in system ' .. self.cur_sys)
-        end
-        n2l[label] = link 
-    end
-    return link
-end
+--function Builder:link(src, dest, label)
+--	if not self.cur_sys then error("Unexpected 'link'") end
+    --local link = self.cur_sys:add_link(src, dest)    
+    --local n2l = self.name2link[self.cur_sys]
+    --if label then 
+        --if n2l[label] then
+            --error('link with label ' .. label .. ' already exists ' .. 
+                --' in system ' .. self.cur_sys)
+        --end
+        --n2l[label] = link 
+    --end
+    --return link
+--end
 
-for _,ptype in ipairs({'clock', 'reset', 'conduit', 'rs'}) do
+--- Creates a link between two clock interfaces.
+-- @function clock_link
+-- @tparam string|Port src clock port object or hierarhical path relative to system
+-- @tparam string|Port sink clock port object or hierarhical path relative to system
+-- @treturn Link
+
+--- Creates a link between two reset interfaces.
+-- @function reset_link
+-- @tparam string|Port src clock port object or hierarhical path relative to system
+-- @tparam string|Port sink clock port object or hierarhical path relative to system
+-- @treturn Link
+
+--- Creates a link between two conduit interfaces.
+-- @function conduit_link
+-- @tparam string|Port src clock port object or hierarhical path relative to system
+-- @tparam string|Port sink clock port object or hierarhical path relative to system
+-- @treturn Link
+
+--- Creates a logical link between two RS interfaces.
+-- Use this to define logical end-to-end transmissions between Component instances.
+-- @function rs_link
+-- @tparam string|Port src clock port object or hierarhical path relative to system
+-- @tparam string|Port sink clock port object or hierarhical path relative to system
+-- @treturn LinkRS
+
+--- Creates a topological link between two RS interfaces.
+-- Use this to manually create physical links between RS Interfaces and Split or Merge nodes.
+-- @function topo_link
+-- @tparam string|HierObject src object reference, or string path to, an RS interface, Split node, or Merge node
+-- @tparam string|HierObject sink 
+-- @treturn LinkTopo
+
+for _,ptype in ipairs({'clock', 'reset', 'conduit', 'rs', 'topo'}) do
 	Builder[ptype..'_link'] = function(self, src, sink)
 		if not self.cur_sys then error("Unexpected 'link'") end
 		local fname = 'create_'..ptype..'_link'
@@ -239,6 +271,27 @@ for _,ptype in ipairs({'clock', 'reset', 'conduit', 'rs'}) do
 	end
 end
 
+--- Manually create a split node within the current system.
+-- @tparam[opt] string name optional explicit name for split node
+-- @treturn Node
+function Builder:split(name)
+	if not self.cur_sys then error("Unexpected 'link'") end
+	local result =  self.cur_sys:create_split(name)
+	self.cur_node = result
+	self.cur_param_tgt = result
+	return result
+end
+
+--- Manually create a merge node within the current system.
+-- @tparam[opt] string name optional explicit name for merge node
+-- @treturn Node
+function Builder:merge(name)
+	if not self.cur_sys then error("Unexpected 'link'") end
+	local result = self.cur_sys:create_merge(name)
+	self.cur_node = result
+	self.cur_param_tgt = result
+	return result
+end
 
 --- Defines an internal RS link between two RS Interfaces within a Component.
 -- The internal link is between a sink port (that receives data from outside the Component),

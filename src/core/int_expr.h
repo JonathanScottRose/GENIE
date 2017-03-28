@@ -21,6 +21,7 @@ namespace impl
         IntExpr(const IntExpr&);
         IntExpr(IntExpr&&);
         IntExpr(const std::string&);
+		IntExpr(const char*);
         IntExpr(int);
         ~IntExpr();
 

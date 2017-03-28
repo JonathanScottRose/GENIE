@@ -50,11 +50,14 @@ namespace genie
 		virtual Link* create_reset_link(HierObject* src, HierObject* sink) = 0;
 		virtual Link* create_conduit_link(HierObject* src, HierObject* sink) = 0;
 		virtual LinkRS* create_rs_link(HierObject* src, HierObject* sink) = 0;
-		virtual Link* create_topo_link(HierObject* src, HierObject* sink) = 0;
+		virtual LinkTopo* create_topo_link(HierObject* src, HierObject* sink) = 0;
 
 		virtual Node* create_instance(const std::string& mod_name,
 			const std::string& inst_name) = 0;
 		virtual Port* export_port(Port* orig, const std::string& new_name = "") = 0;
+
+		virtual Node* create_split(const std::string& name = "") = 0;
+		virtual Node* create_merge(const std::string& name = "") = 0;
 
     protected:
         ~System() = default;

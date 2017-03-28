@@ -46,22 +46,22 @@ namespace genie
         SMART_ENUM(Role, FWD, REV, IN, OUT, INOUT);
 
         virtual void add_signal(Role role, const std::string& tag, 
-            const std::string& sig_name, const std::string& width = "1") = 0;
-        virtual void add_signal(Role role, const std::string& tag, 
+            const std::string& sig_name, const std::string& width) = 0;
+        virtual void add_signal_ex(Role role, const std::string& tag, 
             const HDLPortSpec&, const HDLBindSpec&) = 0;
     };
 
     class PortRS : virtual public Port
     {
     public:
-        SMART_ENUM(Role, VALID, READY, DATA, DATABUNDLE, EOP, ADDRESS);
+        SMART_ENUM(Role, VALID, READY, DATA, DATABUNDLE, EOP, ADDRESS, DATA_CARRIER);
 
         virtual void add_signal(Role role, const std::string& sig_name, 
             const std::string& width = "1") = 0;
         virtual void add_signal(Role role, const std::string& tag,
-            const std::string& sig_name, const std::string& width = "1") = 0;
-        virtual void add_signal(Role role, const HDLPortSpec&, const HDLBindSpec&) = 0;
-        virtual void add_signal(Role role, const std::string& tag, 
+            const std::string& sig_name, const std::string& width) = 0;
+        virtual void add_signal_ex(Role role, const HDLPortSpec&, const HDLBindSpec&) = 0;
+        virtual void add_signal_ex(Role role, const std::string& tag, 
             const HDLPortSpec&, const HDLBindSpec&) = 0;
     };
 }

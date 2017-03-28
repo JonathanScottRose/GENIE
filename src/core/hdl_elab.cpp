@@ -61,6 +61,10 @@ namespace
 
 void hdl::elab_system(NodeSystem* sys)
 {
+	// Resolve parameters of all child Nodes
+	for (auto child : sys->get_children_by_type<Node>())
+		child->resolve_params();
+
 	do_clockreset<PortClock>(sys, NET_CLOCK);
 	do_clockreset<PortReset>(sys, NET_RESET);
 	do_conduit(sys);

@@ -24,9 +24,14 @@ IntExpr::IntExpr(IntExpr&& o)
 }
 
 IntExpr::IntExpr(const std::string& str)
-    : m_is_const(false)
+    : IntExpr(str.c_str())
 {
-    m_expr_root = expr::parse(str);
+}
+
+IntExpr::IntExpr(const char* str)
+	: m_is_const(false)
+{
+	m_expr_root = expr::parse(str);
 }
 
 IntExpr::IntExpr(int i)

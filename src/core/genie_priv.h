@@ -12,7 +12,8 @@ namespace impl
     class NodeSystem;
 
 	// Node management
-    void register_builtin(Node* node);
+	void register_reserved_module(const std::string&);
+	bool is_reserved_module(const std::string&);
     Node* get_node(const std::string& name);
     std::vector<NodeSystem*> get_systems();
     void delete_node(Node* node);

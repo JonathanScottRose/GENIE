@@ -5,6 +5,8 @@
 #include "net_rs.h"
 #include "net_topo.h"
 #include "port.h"
+#include "node_split.h"
+#include "node_merge.h"
 #include "genie_priv.h"
 
 using namespace genie::impl;
@@ -51,12 +53,13 @@ genie::LinkRS * NodeSystem::create_rs_link(genie::HierObject * src, genie::HierO
 	return dynamic_cast<genie::LinkRS*>(link);
 }
 
-genie::Link * NodeSystem::create_topo_link(genie::HierObject * src, genie::HierObject * sink)
+genie::LinkTopo * NodeSystem::create_topo_link(genie::HierObject * src, genie::HierObject * sink)
 {
 	auto src_imp = dynamic_cast<HierObject*>(src);
 	auto sink_imp = dynamic_cast<HierObject*>(sink);
 
-	return connect(src_imp, sink_imp, NET_TOPO);
+	auto link = connect(src_imp, sink_imp, NET_TOPO);
+	return dynamic_cast<genie::LinkTopo*>(link);
 }
 
 genie::Node * NodeSystem::create_instance(const std::string & mod_name, 
@@ -128,6 +131,32 @@ genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & op
 	connect(exlink_src, exlink_sink, ptinfo->get_default_network());
 
 	return new_port;
+}
+
+genie::Node * NodeSystem::create_split(const std::string & opt_name)
+{
+	std::string name;
+	name = opt_name.empty() ? make_unique_child_name("sp") : opt_name;
+
+	auto node = new NodeSplit();
+	node->set_name(name);
+
+	add_child(node);
+	
+	return node;
+}
+
+genie::Node * NodeSystem::create_merge(const std::string & opt_name)
+{
+	std::string name;
+	name = opt_name.empty() ? make_unique_child_name("mg") : opt_name;
+
+	auto node = new NodeMerge();
+	node->set_name(name);
+
+	add_child(node);
+
+	return node;
 }
 
 //

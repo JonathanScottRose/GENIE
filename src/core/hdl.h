@@ -75,15 +75,26 @@ namespace hdl
         PortBindingRef& operator= (const PortBindingRef&) = default;
         PortBindingRef& operator= (PortBindingRef&&) = default;
 
+		// 1-bit, n-bit 1-slice, n-bit m-slice
+		PortBindingRef(const std::string& name);
+		PortBindingRef(const std::string& name, const IntExpr& bits);
+		PortBindingRef(const std::string& name, const IntExpr& bits, const IntExpr& slices);
+
+		PortBindingRef(const char* name);
+		PortBindingRef(const char* name, const IntExpr& bits);
+		PortBindingRef(const char* name, const IntExpr& bits, const IntExpr& slices);
+		
         void resolve_params(ParamResolver&);
         bool is_resolved() const;
         std::string to_string() const;
 
         PROP_GET_SET(port_name, const std::string&, m_port_name);
         PROP_GET_SET(slices, const IntExpr&, m_slices);
-        PROP_GET_SET(lo_slice, const IntExpr&, m_lo_slice);
+        PROP_GET(lo_slice, const IntExpr&, m_lo_slice);
         PROP_GET_SET(bits, const IntExpr&, m_bits);
-        PROP_GET_SET(lo_bit, const IntExpr&, m_lo_bit);
+        PROP_GET(lo_bit, const IntExpr&, m_lo_bit);
+		PortBindingRef& set_lo_bit(const IntExpr&);
+		PortBindingRef& set_lo_slice(const IntExpr&);
 
     protected:
         std::string m_port_name;

@@ -5,7 +5,6 @@
 #include "port_conduit.h"
 #include "port_rs.h"
 #include "genie_priv.h"
-#include "genie/genie.h"
 
 using namespace genie::impl;
 using genie::Exception;
@@ -25,8 +24,8 @@ namespace
             // checking this node. Do not recurse further.
             NodeParam* result = nullptr;
             Node* p = n->get_parent_node();
-            if (p)
-                result = p->get_param(name);
+			if (p)
+				result = p->get_param(name);
 
             if (!result)
                 result = n->get_param(name);
@@ -47,7 +46,7 @@ namespace
         auto result = new P(name, dir);
 
         // Create HDL port
-        node->get_hdl_state().add_port(hdl_sig, 1, 1, hdl::Port::Dir::from_logical(dir));
+        auto hdl_port =	node->get_hdl_state().add_port(hdl_sig, 1, 1, hdl::Port::Dir::from_logical(dir));
 
         // Create binding (using defaults for 1-bit binding)
         hdl::PortBindingRef binding;
@@ -239,6 +238,12 @@ NodeParam* Node::get_param(const std::string & name)
     {
         return it->second;
     }   
+}
+
+Port* Node::add_port(Port* p)
+{
+	add_child(p);
+	return p;
 }
 
 Node::Links Node::get_links() const

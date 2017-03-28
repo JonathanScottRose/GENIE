@@ -8,6 +8,7 @@ namespace genie
 {
 namespace impl
 {
+	class Port;
 	class NodeParam;
     class ParamResolver;
 	class Link;
@@ -30,21 +31,28 @@ namespace impl
 
     public:
 		using Links = std::vector<Link*>;
+		using Params = std::unordered_map<std::string, NodeParam*>;
 
         // Internal API
-        virtual Node* instantiate() = 0;
-
-        virtual ~Node();
+		virtual ~Node();
+		virtual Node* instantiate() = 0;
 
         const std::string& get_hdl_name() const { return m_hdl_name; }
         Node* get_parent_node() const;
         hdl::HDLState& get_hdl_state() { return m_hdl_state; }
 
-        using Params = std::unordered_map<std::string, NodeParam*>;
+        
         void resolve_params();
         NodeParam* get_param(const std::string& name);
         const Params& get_params() const { return m_params; }
         
+		Port* add_port(Port* p);
+		template<class P = Port>
+		P* get_port(const std::string& path)
+		{
+			return get_child_as<P>(path);
+		}
+
 		Links get_links() const;
 		Links get_links(NetType) const;
 		Links get_links(HierObject* src, HierObject* sink, NetType net) const;

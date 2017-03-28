@@ -32,6 +32,9 @@ namespace
     // Holds all nodes
 	HierObject m_root;
 
+	// Reserved modules
+	std::vector<std::string> m_reserved_modules;
+
 	// Holds network defs
 	std::vector<Network*> m_networks;
 
@@ -50,6 +53,10 @@ namespace
         const std::string& name = node->get_name();
         const std::string& hdl_name = node->get_hdl_name();
 
+		// Check for reserved names
+		if (is_reserved_module(hdl_name))
+			throw genie::Exception("HDL module name " + hdl_name + " is reserved");
+
         // Check for existing names
         if (m_root.has_child(name))
             throw genie::Exception("module with name " + name + " already exists");
@@ -66,9 +73,17 @@ namespace
     }
 }
 
-void genie::impl::register_builtin(Node* node)
+void genie::impl::register_reserved_module(const std::string& name)
 {
-    register_node(node);
+	if (!is_reserved_module(name))
+	{
+		m_reserved_modules.push_back(name);
+	}
+}
+
+bool genie::impl::is_reserved_module(const std::string& name)
+{
+	return util::exists(m_reserved_modules, name);
 }
 
 Node* genie::impl::get_node(const std::string& name)
@@ -153,6 +168,7 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 	// Initialize structs
 	m_networks.clear();
 	m_port_types.clear();
+	m_reserved_modules.clear();
 
     // Register builtins
 	NetClock::init();
@@ -183,6 +199,8 @@ void genie::shutdown()
 
 	util::delete_all(m_networks);
 	util::delete_all(m_port_types);
+
+	m_reserved_modules.clear();
 }
 
 genie::Node * genie::create_system(const std::string & name)

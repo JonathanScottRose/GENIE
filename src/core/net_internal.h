@@ -20,7 +20,7 @@ namespace impl
 		~NetInternal() = default;
 	};
 
-	class LinkInternal : virtual public Link
+	class LinkInternal : public Link
 	{
 	public:
 	public:

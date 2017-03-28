@@ -12,17 +12,6 @@ using namespace genie::impl;
 
 namespace
 {
-    void resolve_params(NodeSystem* sys)
-    {
-        sys->resolve_params();
-        
-        auto nodes = sys->get_nodes();
-        for (auto node : nodes)
-        {
-            node->resolve_params();
-        }
-    }
-
 	void connect_conduits(NodeSystem* sys)
 	{
 		// Find conduit links
@@ -65,7 +54,8 @@ namespace
 
     void do_system(NodeSystem* sys)
     {
-        resolve_params(sys);
+		sys->resolve_params();
+
 		connect_conduits(sys);
     }
 }

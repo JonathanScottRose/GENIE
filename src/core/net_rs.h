@@ -29,7 +29,7 @@ namespace genie
 			~NetRSLogical() = default;
 		};
 
-		class LinkRSLogical : virtual public Link, virtual public genie::LinkRS
+		class LinkRSLogical : virtual public genie::LinkRS, public Link
 		{
 		public:
 		public:
@@ -55,7 +55,7 @@ namespace genie
 			~NetRS() = default;
 		};
 
-		class LinkRS : virtual public Link
+		class LinkRS : public Link
 		{
 		public:
 			LinkRS();
@@ -80,7 +80,7 @@ namespace genie
 			~NetRSSub() = default;
 		};
 
-		class LinkRSSub : virtual public Link
+		class LinkRSSub : public Link
 		{
 		public:
 			LinkRSSub();

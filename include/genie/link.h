@@ -17,4 +17,13 @@ namespace genie
 	protected:
 		~LinkRS() = default;
 	};
+
+	class LinkTopo : virtual public Link
+	{
+	public:
+		virtual void set_min_regs(unsigned) = 0;
+
+	protected:
+		~LinkTopo() = default;
+	};
 }

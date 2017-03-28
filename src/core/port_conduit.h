@@ -17,7 +17,7 @@ namespace impl
     public:
         void add_signal(Role role, const std::string& tag, const std::string& sig_name, 
             const std::string& width) override;
-        void add_signal(Role role, const std::string& tag, 
+        void add_signal_ex(Role role, const std::string& tag, 
             const HDLPortSpec&, const HDLBindSpec&) override;
 
     public:
@@ -34,6 +34,8 @@ namespace impl
 
         std::vector<PortConduitSub*> get_subports() const;
 		PortConduitSub* get_subport(const std::string& tag);
+		PortConduitSub* add_subport(Role role, const std::string& tag,
+			const hdl::PortBindingRef& bnd);
 
     protected:
     };

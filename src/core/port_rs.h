@@ -21,15 +21,16 @@ namespace impl
         void add_signal(Role role, const std::string& sig_name, 
             const std::string& width = "1") override;
         void add_signal(Role role, const std::string& sig_name, 
-            const std::string& tag, const std::string& width = "1") override;
-        void add_signal(Role role, const HDLPortSpec&, const HDLBindSpec&) override;
-        void add_signal(Role role, const std::string& tag, 
+            const std::string& tag, const std::string& width) override;
+        void add_signal_ex(Role role, const HDLPortSpec&, const HDLBindSpec&) override;
+        void add_signal_ex(Role role, const std::string& tag, 
             const HDLPortSpec&, const HDLBindSpec&) override;
 
     public:
 		static void init();
 
         PortRS(const std::string& name, genie::Port::Dir dir);
+		PortRS(const std::string& name, genie::Port::Dir dir, const std::string& clk_port_name);
         PortRS(const PortRS&);
         ~PortRS();
 
@@ -43,6 +44,9 @@ namespace impl
         std::vector<PortRSSub*> get_subports() const;
 		std::vector<PortRSSub*> get_subports(genie::PortRS::Role role);
 		PortRSSub* get_subport(genie::PortRS::Role role, const std::string& tag = "");
+		PortRSSub* add_subport(genie::PortRS::Role role, const hdl::PortBindingRef& bnd);
+		PortRSSub* add_subport(genie::PortRS::Role role, const std::string& tag,
+			const hdl::PortBindingRef& bnd);
 		PortClock* get_clock_port() const;
 
     protected:

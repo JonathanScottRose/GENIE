@@ -37,6 +37,7 @@ namespace impl
         virtual Type get_type() const = 0;
         virtual NodeParam* clone() const = 0;
         virtual void resolve(ParamResolver&) = 0;
+		virtual bool is_resolved() const = 0;
     };
 
     class NodeSysParam : public NodeParam
@@ -45,6 +46,8 @@ namespace impl
         Type get_type() const override { return SYS; }
         NodeParam* clone() const override { return new NodeSysParam(*this); }
         void resolve(ParamResolver&) override {}
+		bool is_resolved() const override { return true; }
+		// no data members: parameter exists as placeholder without a value
     };
 
     class NodeLiteralParam : public NodeParam
@@ -60,6 +63,7 @@ namespace impl
         Type get_type() const override { return LITERAL; }
         NodeParam* clone() const override { return new NodeLiteralParam(*this); }
         void resolve(ParamResolver&) override {};
+		bool is_resolved() const override { return true; }
 
         void set_val(const std::string& s) { m_str = s; }
         const std::string& get_val() const { return m_str; }
@@ -81,6 +85,7 @@ namespace impl
         Type get_type() const override { return STRING; }
         NodeParam* clone() const override { return new NodeStringParam(*this); }
         void resolve(ParamResolver&) override {};
+		bool is_resolved() const override { return true; }
 
         void set_val(const std::string& s) { m_str = s; }
         const std::string& get_val() const { return m_str; }
@@ -104,6 +109,7 @@ namespace impl
         Type get_type() const override { return INT; }
         NodeParam* clone() const override { return new NodeIntParam(*this); }
         void resolve(ParamResolver&) override;
+		bool is_resolved() const override;
 
         IntExpr& get_val() { return m_int; }
         void set_val(const IntExpr&);
@@ -119,6 +125,7 @@ namespace impl
         Type get_type() const override { return BITS; }
         NodeParam* clone() const override { return new NodeBitsParam(*this); }
         void resolve(ParamResolver&) override;
+		bool is_resolved() const override { return true; }
 
         BitsVal& get_val() { return m_val; }
         void set_val(const BitsVal&);

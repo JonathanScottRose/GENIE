@@ -104,7 +104,7 @@ namespace
     ///
     /// Used to connect bundles of HDL signals that have no interconnect-specific
     /// semantic meanings.
-    /// @type ConduitPort
+    /// @type PortConduit
     
     /// Add a signal to the Conduit Port.
     ///
@@ -115,8 +115,8 @@ namespace
     /// There are five possible signal roles for Conduit Ports:
     /// FWD, REV, IN, OUT, and INOUT.
     /// IN, OUT, and INOUT are absolute port directions.
-    /// FWD and REV become OUT and IN if the ConduitPort itself is an OUT port,
-    /// and IN and OUT if the ConduitPort is an IN port.
+    /// FWD and REV become OUT and IN if the PortConduit itself is an OUT port,
+    /// and IN and OUT if the PortConduit is an IN port.
     /// @function add_signal
     /// @tparam string role FWD, REV, IN, OUT, or INOUT
     /// @tparam string tag unique user-defined tag
@@ -138,7 +138,7 @@ namespace
 
     /// Add a signal to the Conduit Port.
     ///
-    /// An advanced version of @{ConduitPort:add_signal} to more finely control
+    /// An advanced version of @{PortConduit:add_signal} to more finely control
     /// the size of the HDL port and the size of the binding to the HDL port.
     /// Expects two structures: a PortSpec and a BindSpec.
     /// The PortSpec structure shall be a table with the following fields:
@@ -159,7 +159,7 @@ namespace
     /// @tparam string tag unique user-defined tag
     /// @tparam table port_spec a PortSpec structure, as defined above
     /// @tparam table bind_spec a BindSpec structure, as defined above
-    /// @see @{ConduitPort:add_signal>
+    /// @see @{PortConduit:add_signal>
     LFUNC(conduitport_add_signal_ex)
     {
         auto self = lua_if::check_object<PortConduit>(1);
@@ -179,7 +179,7 @@ namespace
         genie::HDLBindSpec bspec;
         parse_bind_spec(L, 5, bspec);
 
-        self->add_signal(role, tag, pspec, bspec);
+        self->add_signal_ex(role, tag, pspec, bspec);
 
         return 0;
     }
@@ -195,7 +195,7 @@ namespace
     /// Routed Streaming ports send data unidirectionally from one source to one or more sinks
     /// over an automatically-generated interconnect fabric. They implement flow control, unicast
     /// and multicast addressing, and variable-length packetization.
-    /// @type RSPort
+    /// @type PortRS
 
 	/// Add a signal to the RS Port.
 	///
@@ -220,7 +220,7 @@ namespace
 
 	/// Add a signal to the RS Port.
 	///
-	/// An advanced version of @{RSPort:add_signal} to more finely control
+	/// An advanced version of @{PortRS:add_signal} to more finely control
 	/// the size of the HDL port and the size of the binding to the HDL port.
 	/// Expects two structures: a PortSpec and a BindSpec.
 	/// The PortSpec structure shall be a table with the following fields:
@@ -241,7 +241,7 @@ namespace
 	/// @tparam string tag unique user-defined tag
 	/// @tparam table port_spec a PortSpec structure, as defined above
 	/// @tparam table bind_spec a BindSpec structure, as defined above
-	/// @see @{ConduitPort:add_signal>
+	/// @see @{PortRS:add_signal>
 	LFUNC(rsport_add_signal_ex)
 	{
 		auto self = lua_if::check_object<PortRS>(1);
@@ -261,7 +261,7 @@ namespace
 		genie::HDLBindSpec bspec;
 		parse_bind_spec(L, 5, bspec);
 
-		self->add_signal(role, tag, pspec, bspec);
+		self->add_signal_ex(role, tag, pspec, bspec);
 
 		return 0;
 	}

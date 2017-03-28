@@ -477,6 +477,49 @@ PortBindingRef::PortBindingRef()
 {
 }
 
+PortBindingRef::PortBindingRef(const std::string & name)
+	: PortBindingRef(name.c_str())
+{
+}
+
+PortBindingRef::PortBindingRef(const std::string & name, const IntExpr& bits)
+	: PortBindingRef(name.c_str(), bits)
+{
+}
+
+PortBindingRef::PortBindingRef(const std::string & name, const IntExpr& bits,
+	const IntExpr& slices)
+	: PortBindingRef(name.c_str(), bits, slices)
+{
+}
+
+PortBindingRef::PortBindingRef(const char * name)
+	: m_port_name(name), m_slices(1), m_lo_slice(0), m_bits(1), m_lo_bit(0)
+{
+}
+
+PortBindingRef::PortBindingRef(const char * name, const IntExpr & bits)
+	: m_port_name(name), m_slices(1), m_lo_slice(0), m_bits(bits), m_lo_bit(0)
+{
+}
+
+PortBindingRef::PortBindingRef(const char * name, const IntExpr & bits, const IntExpr & slices)
+	: m_port_name(name), m_slices(slices), m_lo_slice(0), m_bits(bits), m_lo_bit(0)
+{
+}
+
+PortBindingRef & PortBindingRef::set_lo_bit(const IntExpr& val)
+{
+	m_lo_bit = val;
+	return *this;
+}
+
+PortBindingRef & PortBindingRef::set_lo_slice(const IntExpr& val)
+{
+	m_lo_slice = val;
+	return *this;
+}
+
 void PortBindingRef::resolve_params(ParamResolver& r)
 {
     m_bits.evaluate(r);

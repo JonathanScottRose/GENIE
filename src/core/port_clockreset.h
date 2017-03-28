@@ -19,6 +19,7 @@ namespace impl
 		static void init();
 
         PortClock(const std::string& name, genie::Port::Dir dir);
+		PortClock(const std::string& name, genie::Port::Dir dir, const hdl::PortBindingRef& bnd);
         PortClock(const PortClock&);
         ~PortClock() = default;
 
@@ -43,6 +44,7 @@ namespace impl
 		static void init();
 
         PortReset(const std::string& name, genie::Port::Dir dir);
+		PortReset(const std::string& name, genie::Port::Dir dir, const hdl::PortBindingRef& bnd);
         PortReset(const PortReset&);
         ~PortReset() = default;
 

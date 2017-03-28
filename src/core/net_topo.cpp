@@ -31,11 +31,13 @@ Link* NetTopo::create_link() const
 // LinkTopo
 //
 
-LinkTopo::LinkTopo()
+void LinkTopo::set_min_regs(unsigned regs)
 {
+	m_min_regs = regs;
 }
 
-LinkTopo::LinkTopo(const LinkTopo& o)
+LinkTopo::LinkTopo()
+	: m_min_regs(0)
 {
 }
 

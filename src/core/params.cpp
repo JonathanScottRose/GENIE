@@ -60,6 +60,11 @@ void NodeIntParam::resolve(ParamResolver& r)
     m_int.evaluate(r);
 }
 
+bool NodeIntParam::is_resolved() const
+{
+	return m_int.is_const();
+}
+
 void NodeIntParam::set_val(const IntExpr& exp)
 {
     m_int = exp;
