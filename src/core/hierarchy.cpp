@@ -120,6 +120,12 @@ HierObject::HierObject()
 HierObject::~HierObject()
 {
 	util::delete_all_2(m_children);
+
+	for (auto& epp : m_endpoints)
+	{
+		delete epp.second.in;
+		delete epp.second.out;
+	}
 }
 
 HierObject::HierObject(const HierObject& o)
@@ -131,16 +137,21 @@ HierObject::HierObject(const HierObject& o)
 	for (auto& it : o.m_endpoints)
 	{
 		NetType type = it.first;
-		auto eppair_old = it.second;
+		auto& eppair_old = it.second;
 
+		// TODO: move cloning to EndpointPair class?
 		EndpointPair eppair_new;
-		eppair_new.in = eppair_old.in ? 
-			new Endpoint(*eppair_old.in) : nullptr;
-		eppair_new.out = eppair_old.out ?
-			new Endpoint(*eppair_old.out) : nullptr;
-
-		eppair_new.in->set_obj(this);
-		eppair_new.out->set_obj(this);
+		if (eppair_old.in)
+		{
+			eppair_new.in = new Endpoint(*eppair_old.in);
+			eppair_new.in->set_obj(this);
+		}
+		if (eppair_old.out)
+		{
+			eppair_new.out = new Endpoint(*eppair_old.out);
+			eppair_new.out->set_obj(this);
+		}
+		
 		m_endpoints[type] = eppair_new;
 	}
 }

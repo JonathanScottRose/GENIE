@@ -115,6 +115,7 @@ genie::PortRS * Node::create_rs_port(const std::string & name, genie::Port::Dir 
 {
     auto result = new PortRS(name, dir);
     result->set_clock_port_name(clk_port_name);
+	add_child(result);
     return result;
 }
 
@@ -397,6 +398,24 @@ void Node::disconnect(Link* link)
 	// Don't leave zero-size vectors around
 	if (m_links[nettype].empty())
 		m_links.erase(nettype);
+}
+
+bool Node::is_link_internal(Link* link) const
+{
+	// The endpoints must be Ports belonging to this Node
+	auto src_port = dynamic_cast<Port*>(link->get_src());
+	auto sink_port = dynamic_cast<Port*>(link->get_sink());
+
+	if (!src_port || !sink_port)
+		return false;
+
+	if (src_port->get_node() != this ||
+		sink_port->get_node() != this)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 //

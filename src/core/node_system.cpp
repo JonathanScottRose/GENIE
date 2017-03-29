@@ -7,6 +7,7 @@
 #include "port.h"
 #include "node_split.h"
 #include "node_merge.h"
+#include "flow.h"
 #include "genie_priv.h"
 
 using namespace genie::impl;
@@ -164,8 +165,17 @@ genie::Node * NodeSystem::create_merge(const std::string & opt_name)
 //
 
 NodeSystem::NodeSystem(const std::string & name)
-    : Node(name, name)
+    : Node(name, name), m_flow_state(nullptr)
 {
+}
+
+NodeSystem::~NodeSystem()
+{
+	if (m_flow_state)
+	{
+		delete m_flow_state;
+		m_flow_state = nullptr;
+	}
 }
 
 Node* NodeSystem::instantiate()
@@ -179,6 +189,6 @@ std::vector<Node*> NodeSystem::get_nodes() const
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)
-    : Node(o)
+    : Node(o), m_flow_state(nullptr)
 {
 }

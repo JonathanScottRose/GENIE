@@ -5,31 +5,31 @@
 
 namespace genie
 {
-    namespace log
+namespace log
+{
+    struct Message
     {
-        struct Message
+        enum Level
         {
-            enum Level
-            {
-                DEBUG,
-                INFO,
-                WARN,
-                ERROR,
-                FATAL
-            };
-
-            Level level;
-            std::string msg;
+            DEBUG,
+            INFO,
+            WARN,
+            ERROR,
+            FATAL
         };
 
-        void msg(Message::Level lvl, const char* fmt, ...);
-        void debug(const char* fmt, ...);
-        void info(const char* fmt, ...);
-        void warn(const char* fmt, ...);
-        void error(const char* fmt, ...);
-        void fatal(const char* fmt, ...);
+        Level level;
+        std::string msg;
+    };
 
-        using Handler = std::function<void(const Message&)>;
-        void set_handler(const Handler&);
-    }
+    void msg(Message::Level lvl, const char* fmt, ...);
+    void debug(const char* fmt, ...);
+    void info(const char* fmt, ...);
+    void warn(const char* fmt, ...);
+    void error(const char* fmt, ...);
+    void fatal(const char* fmt, ...);
+
+    using Handler = std::function<void(const Message&)>;
+    void set_handler(const Handler&);
+}
 }

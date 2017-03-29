@@ -8,13 +8,13 @@ using namespace genie::impl;
 // Vertices (and edges) are labeled with an integer component ID (compid).
 // This returns the number of components, along with vertex->compid and edge->compid mappings.
 
-int graph::connected_comp(Graph& g, V2Attr<int>* vcolor, E2Attr<int>* ecolor)
+int graph::connected_comp(Graph& g, V2Attr<unsigned>* vcolor, E2Attr<unsigned>* ecolor)
 {
 	int colors = 0;
 
 	bool local_vcolor = !vcolor;
 	if (local_vcolor)
-		vcolor = new V2Attr<int>;
+		vcolor = new V2Attr<unsigned>;
 
 	// Go through all vertices, trying to find ones that haven't been colored yet
 	for (auto v : g.verts())

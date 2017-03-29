@@ -305,14 +305,6 @@ function Builder:internal_link(sink, src, latency)
 	self.cur_node:add_internal_link(sink, src, latency)
 end
 
---- Associates a Clock Interface with the current RS Interface.
--- Applies to most recently-defined RS Interface.
--- @tparam string clkif name of Clock Interface
-function Builder:assoc_clk(clkif)
-    if not self.cur_port then error("no current interface") end
-    self.cur_port:set_clock_port_name(clkif)
-end
-
 --- Marks a set of RS Links as temporally exclusive.
 -- This is a guarantee by the designer that none of the RS Links in this set
 -- will ever be used simultaneously.
@@ -377,17 +369,7 @@ end
 -- @tparam[opt=1] expression width width in bits of the signal, can be an expression, mandatory only if `tag` specified
 function Builder:signal(...)
     if not self.cur_port then error("no current port") end
-    
-	local args = table.pack(...)
-    local newargs
-    
-	if args.n == 2 then newargs = {args[1], nil, args[2]} 
-	elseif args.n == 3 then newargs = {args[1], nil, args[3], args[4]} 
-	elseif args.n == 4 then newargs = args 
-	else error('Expected 2, 3, or 4 parameters') 
-	end
-    
-    self.cur_port:add_signal(table.unpack(newargs))
+    self.cur_port:add_signal(...)
 end
 
 --- Creates a latency query.

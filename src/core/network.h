@@ -12,6 +12,7 @@ namespace impl
 	class HierObject;
 	class Link;
 	class Endpoint;
+	class EndpointPair;
 
 	using NetType = unsigned;
 	const NetType NET_INVALID = std::numeric_limits<NetType>::max();
@@ -109,6 +110,17 @@ namespace impl
 	protected:
 		Endpoint* m_src;
 		Endpoint* m_sink;
+	};
+
+	class EndpointPair
+	{
+	public:
+		Endpoint* in;
+		Endpoint* out;
+
+		EndpointPair();
+		~EndpointPair() = default;
+		EndpointPair(const EndpointPair&) = default;
 	};
 
 	/*

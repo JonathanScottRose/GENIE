@@ -330,3 +330,13 @@ ALinkContainment::Links ALinkContainment::get_all_links(NetType type, PorC porc)
 	return result;
 }
 */
+
+
+
+EndpointPair::EndpointPair()
+	: in(nullptr), out(nullptr)
+{
+}
+
+
+

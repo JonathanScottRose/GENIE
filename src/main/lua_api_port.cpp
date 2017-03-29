@@ -125,10 +125,26 @@ namespace
     LFUNC(conduitport_add_signal)
     {
         auto self = lua_if::check_object<PortConduit>(1);
-        const char* role_str = luaL_checkstring(L, 2);
-        const char* tag = luaL_checkstring(L, 3);
-        const char* hdl_sig = luaL_checkstring(L, 4);
-        const char* width_str = luaL_optstring(L, 5, "1");
+		const char* role_str = luaL_checkstring(L, 2);
+		const char* tag = "";
+		const char* hdl_sig = "";
+		const char* width_str = "1";
+
+		switch (lua_gettop(L))
+		{
+		case 5: // self, role, tag, hdl_sig, width
+			tag = luaL_checkstring(L, 3);
+			hdl_sig = luaL_checkstring(L, 4);
+			width_str = luaL_checkstring(L, 5);
+			break;
+		case 4: // self, role, hdl_sig, width
+			width_str = luaL_checkstring(L, 4);
+		case 3: // self, role, hdl_sig
+			hdl_sig = luaL_checkstring(L, 3);
+			break;
+		default:
+			luaL_error(L, "expected 2, 3, or 4 parameters");
+		}
 
         PortConduit::Role role = parse_role<PortConduit>(L, 2, role_str);
 
@@ -201,16 +217,33 @@ namespace
 	///
 	/// @function add_signal
 	/// @tparam string role VALID, READY, DATA, DATABUNDLE, ADDR, EOP
-	/// @tparam string tag unique user-defined tag for DATABUNDLE signals only
+	/// @tparam[opt] string tag unique user-defined tag for DATABUNDLE signals only
 	/// @tparam string sig_name HDL signal name
-	/// @tparam[opt='1'] string width width of the signal in bits (integer expression, may reference parameters), defaults to 1 bit
+	/// @tparam[opt='1'] string width width of the signal in bits (integer expression, may reference parameters), defaults to 1 bit, required if tag present
 	LFUNC(rsport_add_signal)
 	{
 		auto self = lua_if::check_object<PortRS>(1);
+
 		const char* role_str = luaL_checkstring(L, 2);
-		const char* tag = luaL_checkstring(L, 3);
-		const char* hdl_sig = luaL_checkstring(L, 4);
-		const char* width_str = luaL_optstring(L, 5, "1");
+		const char* tag = "";
+		const char* hdl_sig = "";
+		const char* width_str = "1";
+		
+		switch (lua_gettop(L))
+		{
+		case 5: // self, role, tag, hdl_sig, width
+			tag = luaL_checkstring(L, 3);
+			hdl_sig = luaL_checkstring(L, 4);
+			width_str = luaL_checkstring(L, 5);
+			break;
+		case 4: // self, role, hdl_sig, width
+			width_str = luaL_checkstring(L, 4);
+		case 3: // self, role, hdl_sig
+			hdl_sig = luaL_checkstring(L, 3);
+			break;
+		default:
+			luaL_error(L, "expected 2, 3, or 4 parameters");
+		}
 
 		PortRS::Role role = parse_role<PortRS>(L, 2, role_str);
 
@@ -268,8 +301,8 @@ namespace
 
 	LSUBCLASS(PortRS, (Port),
 	{
-		LM(add_signal, conduitport_add_signal),
-		LM(add_signal_ex, conduitport_add_signal_ex)
+		LM(add_signal, rsport_add_signal),
+		LM(add_signal_ex, rsport_add_signal_ex)
 	});
 }
 

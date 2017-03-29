@@ -20,8 +20,8 @@ namespace impl
     public:
         void add_signal(Role role, const std::string& sig_name, 
             const std::string& width = "1") override;
-        void add_signal(Role role, const std::string& sig_name, 
-            const std::string& tag, const std::string& width) override;
+        void add_signal(Role role, const std::string& tag,
+			const std::string& sig_name, const std::string& width) override;
         void add_signal_ex(Role role, const HDLPortSpec&, const HDLBindSpec&) override;
         void add_signal_ex(Role role, const std::string& tag, 
             const HDLPortSpec&, const HDLBindSpec&) override;
@@ -40,6 +40,7 @@ namespace impl
 		PortType get_type() const override { return PORT_RS; }
 
         PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
+		PROP_GET_SET(domain_id, unsigned, m_domain_id);
 
         std::vector<PortRSSub*> get_subports() const;
 		std::vector<PortRSSub*> get_subports(genie::PortRS::Role role);
@@ -51,6 +52,7 @@ namespace impl
 
     protected:
         std::string m_clk_port_name;
+		unsigned m_domain_id;
     };
 
 	extern PortType PORT_RS_SUB;

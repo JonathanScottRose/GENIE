@@ -41,7 +41,6 @@ namespace impl
         Node* get_parent_node() const;
         hdl::HDLState& get_hdl_state() { return m_hdl_state; }
 
-        
         void resolve_params();
         NodeParam* get_param(const std::string& name);
         const Params& get_params() const { return m_params; }
@@ -60,6 +59,7 @@ namespace impl
 		void disconnect(HierObject* src, HierObject* sink, NetType net);
 		void disconnect(Link*);
 		Link* splice(Link* orig, HierObject* new_sink, HierObject* new_src);
+		bool is_link_internal(Link*) const;
 
     protected:
 		Node(const std::string& name, const std::string& hdl_name);

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "net_rs.h"
+#include "port_rs.h"
 #include "genie_priv.h"
 
 using namespace genie::impl;
@@ -46,6 +47,22 @@ LinkRSLogical::~LinkRSLogical()
 Link * LinkRSLogical::clone() const
 {
 	return new LinkRSLogical(*this);
+}
+
+unsigned LinkRSLogical::get_domain_id() const
+{
+	auto src = dynamic_cast<PortRS*>(get_src());
+	auto sink = dynamic_cast<PortRS*>(get_sink());
+
+	if (src && sink)
+	{
+		auto src_id = src->get_domain_id();
+		auto sink_id = sink->get_domain_id();
+		assert(src_id == sink_id);
+		return src_id;
+	}
+
+	return 0;
 }
 
 //

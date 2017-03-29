@@ -59,7 +59,7 @@ void PortRS::add_signal(Role role, const std::string & sig_name, const std::stri
     add_signal(role, sig_name, "", width);
 }
 
-void PortRS::add_signal(Role role, const std::string & sig_name, const std::string & tag, 
+void PortRS::add_signal(Role role, const std::string & tag, const std::string & sig_name,
     const std::string & width)
 {
     HDLPortSpec ps;
@@ -84,7 +84,11 @@ void PortRS::add_signal_ex(Role role, const HDLPortSpec& ps, const HDLBindSpec& 
 void PortRS::add_signal_ex(Role role, const std::string & tag, const HDLPortSpec& pspec, 
     const HDLBindSpec& bspec)
 {
-    auto& hdl_state = get_node()->get_hdl_state();
+	auto node = get_node();
+	if (!node)
+		throw Exception(get_name() + ": port not attached to node yet");
+
+    auto& hdl_state = node->get_hdl_state();
 
     // Determine required HDL port dir form role.
     // Assume it's the same as the RSPort, and invert for READY
@@ -116,8 +120,9 @@ void PortRS::init()
 	PORT_RS = genie::impl::register_port_type(new PortRSInfo());
 }
 
-PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
-    : Port(name, dir)
+PortRS::PortRS(const std::string & name, genie::Port::Dir dir, 
+	const std::string & clk_port_name)
+    : Port(name, dir), m_clk_port_name(clk_port_name), m_domain_id(0)
 {
 	make_connectable(NET_RS_LOGICAL);
 	make_connectable(NET_RS);
@@ -125,15 +130,13 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
 	make_connectable(NET_INTERNAL, dir.rev());
 }
 
-PortRS::PortRS(const std::string & name, genie::Port::Dir dir, 
-	const std::string & clk_port_name)
-	: PortRS(name, dir)
+PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
+	: PortRS(name, dir, "")
 {
-	set_clock_port_name(clk_port_name);
 }
 
 PortRS::PortRS(const PortRS &o)
-    : Port(o), m_clk_port_name(o.m_clk_port_name)
+    : Port(o), m_clk_port_name(o.m_clk_port_name), m_domain_id(o.m_domain_id)
 {
 }
 

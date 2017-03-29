@@ -70,7 +70,11 @@ void PortConduit::add_signal_ex(Role role, const std::string & tag,
     const genie::HDLPortSpec &pspec, const genie::HDLBindSpec &bspec)
 {
     // Create new, or validate existing, HDL port
-    auto& hdl_state = get_node()->get_hdl_state();
+	auto node = get_node();
+	if (!node)
+		throw Exception(get_name() + ": port not attached to node yet");
+
+    auto& hdl_state = node->get_hdl_state();
 
     hdl::Port::Dir hdl_dir = hdl::Port::Dir::INOUT;
     switch (role)

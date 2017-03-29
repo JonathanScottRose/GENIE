@@ -5,90 +5,93 @@
 
 namespace genie
 {
-	namespace impl
+namespace impl
+{
+	class NetRSLogical;
+	class NetRS;
+	class NetRSSub;
+	class LinkRSLogical;
+	class LinkRS;
+	class LinkRSSub;
+
+	extern NetType NET_RS_LOGICAL;
+	extern NetType NET_RS;
+	extern NetType NET_RS_SUB;
+
+	class NetRSLogical : public Network
 	{
-		class NetRSLogical;
-		class NetRS;
-		class NetRSSub;
-		class LinkRSLogical;
-		class LinkRS;
-		class LinkRSSub;
+	public:
+		static void init();
+		Link* create_link() const override;
 
-		extern NetType NET_RS_LOGICAL;
-		extern NetType NET_RS;
-		extern NetType NET_RS_SUB;
+	protected:
+		NetRSLogical();
+		~NetRSLogical() = default;
+	};
 
-		class NetRSLogical : public Network
-		{
-		public:
-			static void init();
-			Link* create_link() const override;
+	class LinkRSLogical : virtual public genie::LinkRS, public Link
+	{
+	public:
+	public:
+		LinkRSLogical();
+		LinkRSLogical(const LinkRSLogical&);
+		~LinkRSLogical();
 
-		protected:
-			NetRSLogical();
-			~NetRSLogical() = default;
-		};
+		Link* clone() const override;
 
-		class LinkRSLogical : virtual public genie::LinkRS, public Link
-		{
-		public:
-		public:
-			LinkRSLogical();
-			LinkRSLogical(const LinkRSLogical&);
-			~LinkRSLogical();
+		unsigned get_domain_id() const;
 
-			Link* clone() const override;
-		protected:
-		};
+	protected:
+	};
 
-		///
-		///
+	///
+	///
 
-		class NetRS : public Network
-		{
-		public:
-			static void init();
-			Link* create_link() const override;
+	class NetRS : public Network
+	{
+	public:
+		static void init();
+		Link* create_link() const override;
 
-		protected:
-			NetRS();
-			~NetRS() = default;
-		};
+	protected:
+		NetRS();
+		~NetRS() = default;
+	};
 
-		class LinkRS : public Link
-		{
-		public:
-			LinkRS();
-			LinkRS(const LinkRS&);
-			~LinkRS();
+	class LinkRS : public Link
+	{
+	public:
+		LinkRS();
+		LinkRS(const LinkRS&);
+		~LinkRS();
 
-			Link* clone() const override;
-		protected:
-		};
+		Link* clone() const override;
+	protected:
+	};
 
-		///
-		///
+	///
+	///
 
-		class NetRSSub : public Network
-		{
-		public:
-			static void init();
-			Link* create_link() const override;
+	class NetRSSub : public Network
+	{
+	public:
+		static void init();
+		Link* create_link() const override;
 
-		protected:
-			NetRSSub();
-			~NetRSSub() = default;
-		};
+	protected:
+		NetRSSub();
+		~NetRSSub() = default;
+	};
 
-		class LinkRSSub : public Link
-		{
-		public:
-			LinkRSSub();
-			LinkRSSub(const LinkRSSub&);
-			~LinkRSSub();
+	class LinkRSSub : public Link
+	{
+	public:
+		LinkRSSub();
+		LinkRSSub(const LinkRSSub&);
+		~LinkRSSub();
 
-			Link* clone() const override;
-		protected:
-		};
-	}
+		Link* clone() const override;
+	protected:
+	};
+}
 }

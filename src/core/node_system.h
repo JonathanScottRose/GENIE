@@ -7,6 +7,11 @@ namespace genie
 {
 namespace impl
 {
+	namespace flow
+	{
+		class NodeFlowState;
+	}
+
     class NodeSystem : virtual public genie::System, public Node
     {
     public:
@@ -28,13 +33,17 @@ namespace impl
 
     public:
         NodeSystem(const std::string& name);
+		~NodeSystem();
 
         Node* instantiate() override;
         
+		PROP_GET_SET(flow_state, flow::NodeFlowState*, m_flow_state);
         std::vector<Node*> get_nodes() const;
 
     protected:
         NodeSystem(const NodeSystem&);
+
+		flow::NodeFlowState* m_flow_state;
     };
 }
 }

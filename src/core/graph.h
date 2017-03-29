@@ -177,7 +177,7 @@ namespace graph
 	// Algorithm declarations go here for now
 	V2Attr<VertexID> multi_way_cut(Graph g, const E2Attr<int>& weights, VList T);
 	int min_st_cut(Graph& g, E2Attr<int> weights, VertexID s, VertexID t);
-	int connected_comp(Graph& g, V2Attr<int>* vcolor, E2Attr<int>* ecolor);
+	int connected_comp(Graph& g, V2Attr<unsigned>* vcolor, E2Attr<unsigned>* ecolor);
 	bool dijkstra(const Graph& g, VertexID src, VertexID dest, 
 		const E2Attr<int>* distances, VList* v_out, EList* e_out);
 }

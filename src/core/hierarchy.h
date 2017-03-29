@@ -3,8 +3,8 @@
 #include <string>
 #include <functional>
 #include "network.h"
-#include "genie/genie.h"
 #include "genie/port.h"
+#include "genie/genie.h"
 
 namespace genie
 {
@@ -122,13 +122,6 @@ namespace impl
 		void set_parent(HierObject*);
 
 	private:
-		struct EndpointPair
-		{
-			Endpoint* in;
-			Endpoint* out;
-			EndpointPair() : in(nullptr), out(nullptr) {}
-		};
-
 		std::string m_name;
 		HierObject* m_parent;
 		std::unordered_map <std::string, HierObject*> m_children;
