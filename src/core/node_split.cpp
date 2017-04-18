@@ -6,6 +6,7 @@
 #include "genie_priv.h"
 
 using namespace genie::impl;
+using hdl::PortBindingRef;
 
 namespace
 {
@@ -23,7 +24,7 @@ void NodeSplit::init()
 }
 
 NodeSplit::NodeSplit()
-    : Node(MODNAME, MODNAME)
+    : Node(MODNAME, MODNAME), m_n_outputs(0)
 {
 	init_vlog();
 
@@ -40,6 +41,7 @@ NodeSplit::NodeSplit()
 
 	// The node itself can be connected to with TOPO links
 	make_connectable(NET_TOPO);
+	get_endpoint(NET_TOPO, Port::Dir::OUT)->set_max_links(Endpoint::UNLIMITED);
 }
 
 NodeSplit::NodeSplit(const NodeSplit& o)
@@ -61,11 +63,38 @@ void NodeSplit::init_vlog()
 	hdl.add_port("o_ready", 1, 1, Dir::OUT);
 	hdl.add_port("o_valid", "NO", 1, Dir::OUT);
 	hdl.add_port("o_data", "WO", 1, Dir::OUT);
-	hdl.add_port("o_flow", "WF", 1, Dir::OUT);
 	hdl.add_port("i_ready", "NO", 1, Dir::IN);
 }
 
-Node* NodeSplit::instantiate()
+NodeSplit* NodeSplit::clone() const
 {
     return new NodeSplit(*this);
+}
+
+void NodeSplit::create_ports()
+{
+	// Get incoming topo links
+	auto& tlinks = get_endpoint(NET_TOPO, Port::Dir::OUT)->links();
+
+	m_n_outputs = tlinks.size();
+
+	// Create child ports
+	for (unsigned i = 0; i < m_n_outputs; i++)
+	{
+		auto p = new PortRS(OUTPORT_NAME + std::to_string(i), Port::Dir::OUT, CLOCKPORT_NAME);
+		p->add_subport(PortRS::Role::VALID, PortBindingRef("o_valid").set_lo_bit(i));
+		p->add_subport(PortRS::Role::DATA_CARRIER, PortBindingRef("o_data", "WO"));
+		p->add_subport(PortRS::Role::READY, PortBindingRef("i_ready").set_lo_bit(i));
+		add_port(p);
+	}
+}
+
+PortRS * NodeSplit::get_output(unsigned i) const
+{
+	return get_child_as<PortRS>(OUTPORT_NAME + std::to_string(i));
+}
+
+PortRS * NodeSplit::get_input() const
+{
+	return get_child_as<PortRS>(INPORT_NAME);
 }

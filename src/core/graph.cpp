@@ -401,7 +401,7 @@ EdgeID Graph::redge(EdgeID eid)
 	return dir_edge(v.second, v.first);
 }
 
-EdgeID Graph::dir_edge(VertexID vid1, VertexID vid2)
+EdgeID Graph::dir_edge(VertexID vid1, VertexID vid2) const
 {
 	auto ee = dir_edges(vid1, vid2);
 	assert(ee.size() < 2);

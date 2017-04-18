@@ -6,6 +6,7 @@
 #include "genie_priv.h"
 
 using namespace genie::impl;
+using hdl::PortBindingRef;
 
 namespace
 {
@@ -25,7 +26,7 @@ void NodeMerge::init()
 }
 
 NodeMerge::NodeMerge()
-    : Node(MODNAME, MODNAME)
+    : Node(MODNAME, MODNAME), m_n_inputs(0)
 {
 	init_vlog();
 
@@ -41,6 +42,7 @@ NodeMerge::NodeMerge()
 
 	// The node itself can be connected to with TOPO links
 	make_connectable(NET_TOPO);
+	get_endpoint(NET_TOPO, Port::Dir::IN)->set_max_links(Endpoint::UNLIMITED);
 }
 
 NodeMerge::NodeMerge(const NodeMerge& o)
@@ -66,7 +68,37 @@ void NodeMerge::init_vlog()
 	hdl.add_port("i_ready", 1, 1, Dir::IN);
 }
 
-Node* NodeMerge::instantiate()
+NodeMerge* NodeMerge::clone() const
 {
     return new NodeMerge(*this);
+}
+
+void NodeMerge::create_ports()
+{
+	// Get incoming topo links
+	auto& tlinks = get_endpoint(NET_TOPO, Port::Dir::IN)->links();
+
+	m_n_inputs = tlinks.size();
+
+	// Create child ports
+	for (unsigned i = 0; i < m_n_inputs; i++)
+	{
+		auto p = new PortRS(INPORT_NAME + std::to_string(i), Port::Dir::IN, CLOCKPORT_NAME);
+		p->add_subport(PortRS::Role::VALID, PortBindingRef("i_valid").set_lo_bit(i));
+		p->add_subport(PortRS::Role::DATA_CARRIER, 
+			PortBindingRef("i_data", "WIDTH").set_lo_slice(i));
+		p->add_subport(PortRS::Role::EOP, PortBindingRef("i_eop").set_lo_bit(i));
+		p->add_subport(PortRS::Role::READY, PortBindingRef("o_ready").set_lo_bit(i));
+		add_port(p);
+	}
+}
+
+PortRS * NodeMerge::get_input(unsigned i) const
+{
+	return get_child_as<PortRS>(INPORT_NAME + std::to_string(i));
+}
+
+PortRS * NodeMerge::get_output() const
+{
+	return get_child_as<PortRS>(OUTPORT_NAME);
 }

@@ -23,9 +23,9 @@ namespace impl
         PortClock(const PortClock&);
         ~PortClock() = default;
 
-        Port* instantiate() const override;
+        PortClock* clone() const override;
         void resolve_params(ParamResolver&) override;
-		genie::Port* export_port(const std::string&, NodeSystem*) override;
+		Port* export_port(const std::string&, NodeSystem*) override;
 		PortType get_type() const override { return PORT_CLOCK; }
 
         PROP_GET_SET(binding, const hdl::PortBindingRef&, m_binding);
@@ -48,9 +48,9 @@ namespace impl
         PortReset(const PortReset&);
         ~PortReset() = default;
 
-        Port* instantiate() const override;
+        PortReset* clone() const override;
         void resolve_params(ParamResolver&) override;
-		genie::Port* export_port(const std::string&, NodeSystem*) override;
+		Port* export_port(const std::string&, NodeSystem*) override;
 		PortType get_type() const override { return PORT_RESET; }
 
         PROP_GET_SET(binding, const hdl::PortBindingRef&, m_binding);

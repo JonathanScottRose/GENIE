@@ -2,6 +2,8 @@
 
 #include <string>
 #include "prop_macros.h"
+#include "graph.h"
+#include "genie_priv.h"
 #include "genie/port.h"
 #include "genie/link.h"
 
@@ -9,13 +11,12 @@ namespace genie
 {
 namespace impl
 {
+	class Node;
+	class NodeSystem;
 	class HierObject;
 	class Link;
 	class Endpoint;
 	class EndpointPair;
-
-	using NetType = unsigned;
-	const NetType NET_INVALID = std::numeric_limits<NetType>::max();
 
 	class Network
 	{
@@ -123,55 +124,45 @@ namespace impl
 		EndpointPair(const EndpointPair&) = default;
 	};
 
-	/*
-	// An aspect that can be attached to links which says:
-	// which (higher abstraction level) links does this link implement?
-	// which (lower abstraciton level) links does this link contain?
-	class ALinkContainment : public AspectWithRef<Link>
+	class LinkRelations
 	{
 	public:
-		typedef List<Link*> Links;
+		LinkRelations* clone(const Node * srcsys, Node * destsys) const;
+		void reintegrate(LinkRelations* src);
 
-		ALinkContainment();
-		~ALinkContainment();
+		void add(Link* parent, Link* child);
+		void remove(Link* parent, Link* child);
+		bool is_contained_in(Link* parent, Link* child) const;
+		void unregister_link(Link* link);
 
-		void add_parent_link(Link* other) { add_link(other, PARENT); }
-		void add_parent_links(const Links& other) { add_links(other, PARENT); }
-		void remove_parent_link(Link* other) { remove_link(other, PARENT); }
-		Link* get_parent_link0() const { return get_link0(PARENT); }
-		const Links& get_parent_links() const { return m_links[PARENT]; }
-		bool has_parent_links() const { return !m_links[PARENT].empty(); }
-		Links get_all_parent_links(NetType type) const { return get_all_links(type, PARENT); }
+		template<class T = Link>
+		std::vector<T*> get_parents(Link* link, NetType net) const
+		{
+			std::vector<T*> result;
+			get_porc_internal(link, net, &graph::Graph::dir_neigh_r, &result,
+				[](Link* p) { return dynamic_cast<T*>(p); });
+			return result;
+		}
 
-		void add_child_link(Link* other) { add_link(other, CHILD); }
-		void add_child_links(const Links& other) { add_links(other, CHILD); }
-		void remove_child_link(Link* other) { remove_link(other, CHILD); }
-		Link* get_child_link0() const { return get_link0(CHILD); }
-		const Links& get_child_links() const { return m_links[CHILD]; }
-		bool has_child_links() const { return !m_links[CHILD].empty(); }
-		Links get_all_child_links(NetType type) const { return get_all_links(type, CHILD); }
+		template<class T = Link>
+		std::vector<T*> get_children(Link* link, NetType net) const
+		{
+			std::vector<T*> result;
+			get_porc_internal(link, net, &graph::Graph::dir_neigh, &result,
+				[](Link* p) { return dynamic_cast<T*>(p); });
+			return result;
+		}
 
 	protected:
-		enum PorC
-		{
-			PARENT = 0,
-			CHILD = 1
-		};
+		using ThuncFunc = std::function<void*(Link*)>;
 
-		PorC rev_rel(PorC porc) { return (PorC)(1 - porc); }
+		void get_porc_internal(Link* link, NetType net,
+			graph::VList(graph::Graph::*)(graph::VertexID) const,
+			void* out, const ThuncFunc&) const;
 
-		void add_links(const Links&, PorC);
-		void add_link(Link*, PorC);
-		void remove_link(Link*, PorC);
-		Link* get_link0(PorC) const;
-		const Links& get_links(PorC porc) const { return m_links[porc]; }
-		bool has_links(PorC porc) const { return !m_links[porc].empty(); }
-		Links get_all_links(NetType, PorC) const;
-
-		void remove_link_internal(Link*, PorC);
-		void add_link_internal(Link*, PorC);
-
-		Links m_links[2];
-	};*/
+		graph::V2Attr<Link*> m_v2link;
+		graph::Attr2V<Link*> m_link2v;
+		graph::Graph m_graph;
+	};
 }
 }

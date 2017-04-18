@@ -208,6 +208,7 @@ namespace
 	LFUNC(sys_create_clock_link)
 	{
 		System* self = lua_if::check_object<System>(1);
+
 		auto src = lua_api::check_obj_or_str_hierpath<HierObject>(L, 2, self);
 		auto sink = lua_api::check_obj_or_str_hierpath<HierObject>(L, 3, self);
 

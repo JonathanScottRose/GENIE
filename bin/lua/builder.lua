@@ -11,28 +11,7 @@ genie.Builder = class()
 local g = genie;
 local Builder = genie.Builder
 
--- Private functions for looking up links by their labels
-local function name_to_link(self, sys, name)
-    local t = self.name2link[sys]
-    local link = t[name]
-    if not link then
-        error("no link found with name " .. name .. " in system " .. sys, 2)
-    end
-    return link
-end
-    
-local function names_to_links(self, sys, names)
-    local result = {}
-    for name in values(names) do
-        local link = name_to_link(self, sys, name)
-        table.insert(result, link)
-    end
-    return result
-end
-
 function Builder:__ctor()
-    -- Holds string->Link mappings for each System
-    self.name2link = {}
 end       
 
 --- Defines a new Component.
@@ -181,8 +160,6 @@ function Builder:system(name)
     self.cur_node = self.cur_sys
 	self.cur_param_tgt = self.cur_sys
     
-    -- initialize name2link table for this system
-    self.name2link[self.cur_sys] = {}
 	return self.cur_sys
 end
 
@@ -208,28 +185,6 @@ function Builder:export(iface, name)
     self.cur_port = self.cur_sys:export_port(iface, name)
 	return self.cur_port
 end
-
---- Defines a Link between two Interfaces.
--- The source and sink need to be of the same network type.
--- For Routed Streaming Interfaces, the source/sink can be a Linkpoint.
--- 
--- @tparam string|Port src hierarchical path, or object reference, to source Interface/Linkpoint
--- @tparam string|Port dest hierarchical path, or object reference, to sink Interface/Linkpoint
--- @tparam[opt] string label unique label for Link
--- @treturn genie.Link raw representation for advanced use
---function Builder:link(src, dest, label)
---	if not self.cur_sys then error("Unexpected 'link'") end
-    --local link = self.cur_sys:add_link(src, dest)    
-    --local n2l = self.name2link[self.cur_sys]
-    --if label then 
-        --if n2l[label] then
-            --error('link with label ' .. label .. ' already exists ' .. 
-                --' in system ' .. self.cur_sys)
-        --end
-        --n2l[label] = link 
-    --end
-    --return link
---end
 
 --- Creates a link between two clock interfaces.
 -- @function clock_link
@@ -271,6 +226,16 @@ for _,ptype in ipairs({'clock', 'reset', 'conduit', 'rs', 'topo'}) do
 	end
 end
 
+--- Creates an internal link between two RS ports within the same component.
+-- Defines a fixed-latency path with the given latency, travelling from `sink` to `src`.
+-- @tparam string|Port sink hierarchical path, or object reference, to sink RS Interface
+-- @tparam string|Port src hierarchical path, or object reference, to source RS Interface
+-- @tparam[opt] number latency in cycles
+function Builder:internal_link(sink, src, latency)
+	if not self.cur_node then error("Unexpected internal_link, no current component/system") end
+	self.cur_node:create_internal_link(sink, src, latency)
+end
+
 --- Manually create a split node within the current system.
 -- @tparam[opt] string name optional explicit name for split node
 -- @treturn Node
@@ -293,17 +258,63 @@ function Builder:merge(name)
 	return result
 end
 
---- Defines an internal RS link between two RS Interfaces within a Component.
--- The internal link is between a sink port (that receives data from outside the Component),
--- that feeds a a source port (that sends data out of the Component)). An optional parameter
--- specifies the latency in cycles (only makes sense if sink/src are on the same clock domain).
--- @tparam string|Port sink hierarchical path, or object reference, to sink RS Interface
--- @tparam string|Port src hierarchical path, or object reference, to source RS Interface
--- @tparam[opt] number latency in cycles
-function Builder:internal_link(sink, src, latency)
-	if not self.cur_node then error("Unexpected internal_link, no current component/system") end
-	self.cur_node:add_internal_link(sink, src, latency)
+--- Defines an integer parameter.
+-- Applies to the most recently defined Component, System, or Instance.
+-- The expression must evaluate to an integer and can reference other parameters within
+-- the same scope, or that of the parent System.
+-- 
+-- @tparam string name name
+-- @tparam string val value
+function Builder:int_param(name, val)
+    if not self.cur_param_tgt then error("no current component or system") end
+    self.cur_param_tgt:set_int_param(name, val)
 end
+
+--- Defines a string parameter.
+-- Applies to the most recently defined Component, System, or Instance.
+-- 
+-- @tparam string name name
+-- @tparam string val value
+function Builder:str_param(name, val)
+    if not self.cur_param_tgt then error("no current component or system") end
+    self.cur_param_tgt:set_str_param(name, val)
+end
+
+--- Defines a literal paremeter.
+-- Applies to the most recently defined Component, System, or Instance.
+-- The given expression is passed, verbatim, to the Verilog instantiation of the module.
+-- 
+-- @tparam string name name
+-- @tparam string val value
+function Builder:lit_param(name, val)
+    if not self.cur_param_tgt then error("no current component or system") end
+    self.cur_param_tgt:set_lit_param(name, val)
+end
+
+--- Registers a Verilog signal with an Interface.
+-- Applies to the Interface created by the most recent call to @{Builder:interface} or its specialized
+-- convenience functions. The `role` and `vname` arguments are mandatory. Some types of signals also require
+-- a tag. If width is not specified, it defaults to 1.
+--
+-- @tparam string role Signal role. Allowable values depend on the type of Interface.
+-- @tparam[opt] string tag Used-defined tag to differentiate similar signal roles.
+-- @tparam string vname Verilog name of signal in module to bind to.
+-- @tparam[opt=1] expression width width in bits of the signal, can be an expression, mandatory only if `tag` specified
+function Builder:signal(...)
+    if not self.cur_port then error("no current port") end
+    self.cur_port:add_signal(...)
+end
+
+
+
+
+
+
+
+
+
+
+
 
 --- Marks a set of RS Links as temporally exclusive.
 -- This is a guarantee by the designer that none of the RS Links in this set
@@ -335,42 +346,7 @@ function Builder:make_exclusive(s)
     g.make_exclusive(s)    
 end
 
---- Creates or defines a parameter.
--- Applies to the most recently defined Component or System.
--- Parameters of Components can reference parameters of their parent System.
--- Creating a parameter without a value allows it to be set later.
--- Creating a parameter with a value on a System generates it as a Verilog `localparam`
--- and it can not be overridden later.
--- @tparam string name name
--- @tparam number|string val value or expression
-function Builder:int_param(name, val)
-    if not self.cur_param_tgt then error("no current component or system") end
-    self.cur_param_tgt:set_int_param(name, val)
-end
 
-function Builder:str_param(name, val)
-    if not self.cur_param_tgt then error("no current component or system") end
-    self.cur_param_tgt:set_str_param(name, val)
-end
-
-function Builder:lit_param(name, val)
-    if not self.cur_param_tgt then error("no current component or system") end
-    self.cur_param_tgt:set_lit_param(name, val)
-end
-
---- Registers a Verilog signal with an Interface.
--- Applies to the Interface created by the most recent call to @{Builder:interface} or its specialized
--- convenience functions. The `role` and `vname` arguments are mandatory. Some types of signals also require
--- a tag. If width is not specified, it defaults to 1.
---
--- @tparam string role Signal role. Allowable values depend on the type of Interface.
--- @tparam[opt] string tag Used-defined tag to differentiate similar signal roles.
--- @tparam string vname Verilog name of signal in module to bind to.
--- @tparam[opt=1] expression width width in bits of the signal, can be an expression, mandatory only if `tag` specified
-function Builder:signal(...)
-    if not self.cur_port then error("no current port") end
-    self.cur_port:add_signal(...)
-end
 
 --- Creates a latency query.
 -- Creates a new system-level parameter of the given name, whose value is set to the latency of the given RS link.

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "flow.h"
 #include "graph.h"
+#include "net_rs.h"
 #include "node_system.h"
 
 using namespace genie::impl::flow;
@@ -94,7 +95,7 @@ Graph flow::net_to_graph(NodeSystem* sys, NetType ntype,
 //
 
 DomainRS::DomainRS()
-	: m_is_manual(false)
+	: m_is_manual(false), m_id(INVALID)
 {
 }
 
@@ -103,7 +104,7 @@ void DomainRS::add_link(LinkRSLogical* link)
 	m_links.push_back(link);
 }
 
-const DomainRS::Links& DomainRS::get_links() const
+DomainRS::Links& DomainRS::get_links()
 {
 	return m_links;
 }
@@ -112,15 +113,54 @@ const DomainRS::Links& DomainRS::get_links() const
 // NodeFlowState
 //
 
+NodeFlowState::NodeFlowState(const NodeFlowState* that, NodeSystem* old_sys,
+	NodeSystem * new_sys)
+	: m_rs_domains(that->m_rs_domains)
+{
+	// Redo references
+
+	for (auto& dom : m_rs_domains)
+	{
+		for (auto& new_link : dom.get_links())
+		{
+			auto src_path = new_link->get_src()->get_hier_path(old_sys);
+			auto sink_path = new_link->get_sink()->get_hier_path(old_sys);
+
+			auto new_src = dynamic_cast<HierObject*>(new_sys->get_child(src_path));
+			auto new_sink = dynamic_cast<HierObject*>(new_sys->get_child(sink_path));
+			if (!new_src || !new_sink)
+				continue;
+
+			auto new_links = new_sys->get_links(new_src, new_sink, NET_RS_LOGICAL);
+			assert(new_links.size() == 1);
+			
+			// !! replace !!
+			new_link = dynamic_cast<LinkRSLogical*>(new_links.front());
+		}
+	}
+}
+
+void NodeFlowState::reintegrate(NodeFlowState & src)
+{
+	// TODO: move data from src that could have been added.
+	// Nothing for now.
+}
+
 const NodeFlowState::RSDomains& NodeFlowState::get_rs_domains()
 {
 	return m_rs_domains;
 }
 
-DomainRS& NodeFlowState::get_rs_domain(unsigned id)
+DomainRS* NodeFlowState::get_rs_domain(unsigned id)
 {
-	assert(id < m_rs_domains.size());
-	return m_rs_domains[id];
+	if (id >= m_rs_domains.size())
+		return nullptr;
+
+	auto& result = m_rs_domains[id];
+	if (result.get_id() == DomainRS::INVALID)
+		return nullptr;
+	
+	return &result;
 }
 
 DomainRS& NodeFlowState::new_rs_domain(unsigned id)
@@ -128,7 +168,9 @@ DomainRS& NodeFlowState::new_rs_domain(unsigned id)
 	if (id >= m_rs_domains.size())
 		m_rs_domains.resize(id + 1);
 
-	return m_rs_domains[id];
+	auto& result = m_rs_domains[id];
+	result.set_id(id);
+	return result;
 }
 
 

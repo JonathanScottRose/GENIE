@@ -5,7 +5,7 @@
 
 using namespace genie::impl;
 
-genie::Link * NodeUser::create_internal_link(genie::PortRS * src, genie::PortRS * sink, 
+genie::Link * NodeUser::create_internal_link(genie::PortRS * src, genie::PortRS * sink,
 	unsigned latency)
 {
 	auto src_imp = dynamic_cast<PortRS*>(src);
@@ -28,9 +28,14 @@ NodeUser::NodeUser(const std::string & name, const std::string & hdl_name)
 {
 }
 
-Node* NodeUser::instantiate()
+NodeUser* NodeUser::instantiate() const
 {
     return new NodeUser(*this);
+}
+
+NodeUser* NodeUser::clone() const
+{
+	return new NodeUser(*this);
 }
 
 NodeUser::NodeUser(const NodeUser& o)

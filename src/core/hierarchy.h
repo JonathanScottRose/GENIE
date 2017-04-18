@@ -34,7 +34,7 @@ namespace impl
 		HierDupException(const HierObject* parent, const HierObject* target);
 	};
     
-	class HierObject : public virtual genie::HierObject
+	class HierObject : virtual public genie::HierObject
 	{
 	public:
 		const std::string& get_name() const override;
@@ -42,7 +42,7 @@ namespace impl
 		genie::HierObject* get_child(const std::string&) const override;
 
 	public:
-		static const char PATH_SEP = '.';
+		static const char PATH_SEP; // must create in .cpp file because GCC sucks
 
         // Used by the filtered version of get_children() to choose specific children
         // that satisfy some criteria.
@@ -52,6 +52,9 @@ namespace impl
 		HierObject();
 		HierObject(const HierObject&);
 		virtual ~HierObject();
+		virtual HierObject* clone() const = 0;
+
+		virtual void reintegrate(HierObject*) {}
 
 		// Name
 		void set_name(const std::string&);
@@ -85,7 +88,7 @@ namespace impl
 
 		// Get children satisfying a filter condition
 		template<class T = HierObject, class Container = std::vector<T*>>
-		Container get_children(const typename FilterFunc<T>& filter) const
+		Container get_children(const FilterFunc<T>& filter) const
 		{
 			Container result;
 			for (auto child : m_children)

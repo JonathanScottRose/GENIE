@@ -71,7 +71,7 @@ PortClock::PortClock(const PortClock &o)
 {
 }
 
-Port * PortClock::instantiate() const
+PortClock * PortClock::clone() const
 {
     return new PortClock(*this);
 }
@@ -81,10 +81,10 @@ void PortClock::resolve_params(ParamResolver& r)
     m_binding.resolve_params(r);
 }
 
-genie::Port* PortClock::export_port(const std::string& name, NodeSystem* context)
+Port* PortClock::export_port(const std::string& name, NodeSystem* context)
 {
 	auto result = context->create_clock_port(name, get_dir(), name);
-	return result;
+	return dynamic_cast<Port*>(result);
 }
 
 PortClock * PortClock::get_connected_clk_port(Node* context) const
@@ -127,7 +127,7 @@ PortReset::PortReset(const PortReset &o)
 {
 }
 
-Port * PortReset::instantiate() const
+PortReset * PortReset::clone() const
 {
     return new PortReset(*this);
 }
@@ -137,8 +137,8 @@ void PortReset::resolve_params(ParamResolver& r)
     m_binding.resolve_params(r);
 }
 
-genie::Port* PortReset::export_port(const std::string& name, NodeSystem* context)
+Port* PortReset::export_port(const std::string& name, NodeSystem* context)
 {
 	auto result = context->create_reset_port(name, get_dir(), name);
-	return result;
+	return dynamic_cast<Port*>(result);
 }

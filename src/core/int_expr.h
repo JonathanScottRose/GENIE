@@ -12,7 +12,6 @@ namespace impl
     {
         class Node;
     }
-    class IntExpr;
 
     class IntExpr
     {

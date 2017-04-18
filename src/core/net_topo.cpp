@@ -45,7 +45,7 @@ LinkTopo::~LinkTopo()
 {
 }
 
-Link * LinkTopo::clone() const
+LinkTopo * LinkTopo::clone() const
 {
 	return new LinkTopo(*this);
 }

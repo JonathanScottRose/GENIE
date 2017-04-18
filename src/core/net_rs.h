@@ -29,7 +29,7 @@ namespace impl
 		~NetRSLogical() = default;
 	};
 
-	class LinkRSLogical : virtual public genie::LinkRS, public Link
+	class LinkRSLogical : public genie::LinkRS, public Link
 	{
 	public:
 	public:
@@ -37,7 +37,7 @@ namespace impl
 		LinkRSLogical(const LinkRSLogical&);
 		~LinkRSLogical();
 
-		Link* clone() const override;
+		LinkRSLogical* clone() const override;
 
 		unsigned get_domain_id() const;
 

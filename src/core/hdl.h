@@ -35,7 +35,6 @@ namespace hdl
 	{
 	public:
 		PortBinding(Port* parent, Bindable* target = nullptr);
-		~PortBinding();
 
 		PROP_GET_SET(target, Bindable*, m_target);
 		PROP_GET_SET(parent, Port*, m_parent);
@@ -169,7 +168,6 @@ namespace hdl
 		};
 
 		Net(Type type, const std::string& name);
-		~Net();
 
 		PROP_GET_SET(type, Type, m_type);
 		PROP_GET(name, const std::string&, m_name);
@@ -199,7 +197,11 @@ namespace hdl
 	public:
         HDLState(Node*);
         HDLState(const HDLState&);
+		HDLState(HDLState&&);
 		~HDLState();
+
+		HDLState& operator= (const HDLState&) = default;
+		HDLState& operator= (HDLState&&) = default;
 
         void resolve_params(ParamResolver&);
         PROP_GET_SET(node, Node*, m_node);

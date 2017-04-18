@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "port.h"
+#include "node.h"
 
 using namespace genie::impl;
 
@@ -45,7 +46,7 @@ Port::Port(const Port& o)
     // Copy sub-ports, if any
     for (auto c : o.get_children_by_type<Port>())
     {
-        add_child(c->instantiate());
+        add_child(c->clone());
     }
 }
 

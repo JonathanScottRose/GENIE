@@ -128,7 +128,7 @@ namespace graph
 		VList dir_neigh(VertexID v) const;
 		EList dir_edges(VertexID v1, VertexID v2) const;
 		EList dir_edges(VertexID self) const;
-		EdgeID dir_edge(VertexID v1, VertexID v2);
+		EdgeID dir_edge(VertexID v1, VertexID v2) const;
 
 		// Edge properties
 		VPair verts(EdgeID e) const;

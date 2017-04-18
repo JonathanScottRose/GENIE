@@ -28,7 +28,7 @@ namespace impl
 		LinkInternal(const LinkInternal&);
 		~LinkInternal();
 
-		Link* clone() const override;
+		LinkInternal* clone() const override;
 
 		PROP_GET_SET(latency, unsigned, m_latency);
 

@@ -6,6 +6,8 @@ namespace genie
 {
 namespace impl
 {
+	class PortRS;
+
     class NodeMerge : public Node
     {
     public:
@@ -15,12 +17,19 @@ namespace impl
 		NodeMerge();
 
         // Generic copy of an existing one
-        Node* instantiate() override;
+        NodeMerge* clone() const override;
+
+		PROP_GET(n_inputs, unsigned, m_n_inputs);
+		void create_ports();
+		PortRS* get_input(unsigned) const;
+		PortRS* get_output() const;
 
     protected:
 		NodeMerge(const NodeMerge&);
 
 		void init_vlog();
+
+		unsigned m_n_inputs;
     };
 }
 }

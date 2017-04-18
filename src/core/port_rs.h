@@ -34,9 +34,9 @@ namespace impl
         PortRS(const PortRS&);
         ~PortRS();
 
-        Port* instantiate() const override;
+        PortRS* clone() const override;
         void resolve_params(ParamResolver&) override;
-		genie::Port* export_port(const std::string& name, NodeSystem*) override;
+		Port* export_port(const std::string& name, NodeSystem*) override;
 		PortType get_type() const override { return PORT_RS; }
 
         PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
@@ -66,9 +66,9 @@ namespace impl
         PortRSSub(const PortRSSub&);
         ~PortRSSub() = default;
 
-        Port* instantiate() const override;
+        PortRSSub* clone() const override;
         void resolve_params(ParamResolver&) override;
-		genie::Port* export_port(const std::string& name, NodeSystem*) override;
+		Port* export_port(const std::string& name, NodeSystem*) override;
 		PortType get_type() const override { return PORT_RS_SUB; }
 
 		PROP_GET_SET(role, const genie::PortRS::Role, m_role);

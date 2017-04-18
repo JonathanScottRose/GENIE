@@ -19,7 +19,7 @@ namespace impl
 		~NetTopo() = default;
 	};
 
-	class LinkTopo : virtual public genie::LinkTopo, public Link
+	class LinkTopo : public genie::LinkTopo, public Link
 	{
 	public:
 		virtual void set_min_regs(unsigned) override;
@@ -29,7 +29,7 @@ namespace impl
 		LinkTopo(const LinkTopo&) = default;
 		~LinkTopo();
 
-		Link* clone() const override;
+		LinkTopo* clone() const override;
 
 		PROP_GET(min_regs, unsigned, m_min_regs);
 

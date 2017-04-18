@@ -45,7 +45,7 @@ LinkInternal::~LinkInternal()
 {
 }
 
-Link * LinkInternal::clone() const
+LinkInternal * LinkInternal::clone() const
 {
 	return new LinkInternal(*this);
 }

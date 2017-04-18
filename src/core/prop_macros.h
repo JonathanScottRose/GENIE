@@ -48,7 +48,7 @@
 	assert (m_##name_sing##s.count(v->get_name()) == 0); \
 	m_##name_sing##s[v->get_name()] = v; \
 	return v; \
-	} \
+	}
 
 #define PROP_DICT_NOSET(name_plur,name_sing,vtype) \
 	typedef std::unordered_map<std::string, vtype*> name_plur; \

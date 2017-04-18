@@ -1,7 +1,6 @@
 #pragma once
 
 #include "hierarchy.h"
-#include "node.h"
 #include "hdl.h"
 #include "genie/port.h"
 
@@ -10,9 +9,6 @@ namespace genie
 namespace impl
 {
 	class NodeSystem;
-
-	using PortType = unsigned;
-	const PortType PORT_INVALID = std::numeric_limits<PortType>::max();
 
 	class PortTypeInfo
 	{
@@ -41,9 +37,8 @@ namespace impl
         Port(const std::string& name, Dir dir);
         virtual ~Port();
 
-        virtual Port* instantiate() const = 0;
         virtual void resolve_params(ParamResolver&) = 0;
-		virtual genie::Port* export_port(const std::string& name, NodeSystem* context) = 0;
+		virtual Port* export_port(const std::string& name, NodeSystem* context) = 0;
 		virtual PortType get_type() const = 0;
 
         Node* get_node() const;

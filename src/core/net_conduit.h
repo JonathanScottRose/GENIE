@@ -4,36 +4,36 @@
 
 namespace genie
 {
-	namespace impl
+namespace impl
+{
+	class NetConduit;
+	class NetConduitSub;
+	using LinkConduit = Link;
+	using LinkConduitSub = Link;
+
+	extern NetType NET_CONDUIT;
+	extern NetType NET_CONDUIT_SUB;
+
+	class NetConduit : public Network
 	{
-		class NetConduit;
-		class NetConduitSub;
-		using LinkConduit = Link;
-		using LinkConduitSub = Link;
+	public:
+		static void init();
+		Link* create_link() const override;
 
-		extern NetType NET_CONDUIT;
-		extern NetType NET_CONDUIT_SUB;
+	protected:
+		NetConduit();
+		~NetConduit() = default;
+	};
 
-		class NetConduit : public Network
-		{
-		public:
-			static void init();
-			Link* create_link() const override;
+	class NetConduitSub : public Network
+	{
+	public:
+		static void init();
+		Link* create_link() const override;
 
-		protected:
-			NetConduit();
-			~NetConduit() = default;
-		};
-
-		class NetConduitSub : public Network
-		{
-		public:
-			static void init();
-			Link* create_link() const override;
-
-		protected:
-			NetConduitSub();
-			~NetConduitSub() = default;
-		};
-	}
+	protected:
+		NetConduitSub();
+		~NetConduitSub() = default;
+	};
+}
 }

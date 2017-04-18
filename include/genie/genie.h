@@ -13,7 +13,7 @@ namespace genie
         virtual ~APIObject() = 0 {};
     };
 
-	class HierObject : public APIObject
+	class HierObject : virtual public APIObject
 	{
 	public:
 		virtual const std::string& get_name() const = 0;

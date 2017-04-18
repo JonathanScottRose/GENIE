@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "network.h"
+#include "node.h"
+#include "node_system.h"
 #include "genie_priv.h"
 #include "genie/port.h"
 #include "genie/genie.h"
@@ -223,120 +225,193 @@ Link* Link::clone() const
 }
 
 //
-// ALinkContainment
+// LinkRelations
 //
 
-/*
-
-ALinkContainment::ALinkContainment()
+void LinkRelations::add(Link * parent, Link * child)
 {
-}
+	using namespace graph;
 
-ALinkContainment::~ALinkContainment()
-{
-}
+	// Get or create vertices for links
+	VertexID par_v;
+	VertexID child_v;
 
-void genie::ALinkContainment::add_links(const Links& others, PorC porc)
-{
-	for (auto& other : others)
+	auto par_it = m_link2v.find(parent);
+	auto child_it = m_link2v.find(child);
+
+	if (par_it == m_link2v.end())
 	{
-		add_link(other, porc);
+		par_v = m_graph.newv();
+		m_link2v[parent] = par_v;
+		m_v2link[par_v] = parent;
 	}
-}
-
-void ALinkContainment::add_link(Link* other, PorC porc)
-{
-	assert(other);
-
-	// Add to our list
-	this->add_link_internal(other, porc);
-
-	// Update the other link
-	auto other_containment = other->asp_get<ALinkContainment>();
-	if (other_containment)
+	else
 	{
-		Link* thislink = this->asp_container();
-		other_containment->add_link_internal(thislink, rev_rel(porc));
-	}
-}
-
-Link* ALinkContainment::get_link0(PorC porc) const
-{
-	const Links& links = get_links(porc);
-	return links.empty() ? nullptr : links.front();
-}
-
-void ALinkContainment::remove_link(Link* other, PorC porc)
-{
-	assert(other);
-
-	// Tell other that we're no longer associated
-	auto other_containment = other->asp_get<ALinkContainment>();
-	if (other_containment)
-	{
-		Link* thislink = this->asp_container();
-		other_containment->remove_link_internal(thislink, rev_rel(porc));
+		par_v = par_it->second;
 	}
 
-	// Now disassociate ourselves from the other link
-	this->remove_link_internal(other, porc);
+	if (child_it == m_link2v.end())
+	{
+		child_v = m_graph.newv();
+		m_link2v[child] = par_v;
+		m_v2link[child_v] = child;
+	}
+	else
+	{
+		child_v = child_it->second;
+	}
+
+	m_graph.newe(par_v, child_v);
 }
 
-void ALinkContainment::remove_link_internal(Link* other, PorC porc)
+void LinkRelations::remove(Link * parent, Link * child)
 {
-	util::erase(m_links[porc], other);
+	using namespace graph;
+
+	auto par_it = m_link2v.find(parent);
+	if (par_it == m_link2v.end())
+		return;
+
+	auto child_it = m_link2v.find(child);
+	if (child_it == m_link2v.end())
+		return;
+
+	VertexID par_v = par_it->second;
+	VertexID child_v = par_it->second;
+
+	EdgeID e = m_graph.dir_edge(par_v, child_v);
+	if (e != INVALID_E)
+		m_graph.dele(e);
 }
 
-void ALinkContainment::add_link_internal(Link* other, PorC porc)
+bool LinkRelations::is_contained_in(Link * parent, Link * child) const
 {
-	Links& links = m_links[porc];
+	using namespace graph;
 
-	// Only insert if not existing
-	auto it = std::find(links.begin(), links.end(), other);
-	if (it == links.end())
-		links.insert(it, other);
+	auto par_it = m_link2v.find(parent);
+	assert(par_it != m_link2v.end());
+	
+	auto child_it = m_link2v.find(child);
+	assert(child_it != m_link2v.end());
+
+	VertexID par_v = par_it->second;
+	VertexID child_v = par_it->second;
+
+	EdgeID e = m_graph.dir_edge(par_v, child_v);
+	return e != INVALID_E;
 }
 
-ALinkContainment::Links ALinkContainment::get_all_links(NetType type, PorC porc) const
+void LinkRelations::unregister_link(Link * link)
 {
-	Links result;
+	using namespace graph;
 
-	// Do a recursive traversal
-	std::stack<Link*> to_visit;
-	to_visit.push(this->asp_container());
+	auto it = m_link2v.find(link);
+	assert(it != m_link2v.end());
+
+	VertexID vid = it->second;
+	m_link2v.erase(it);
+	m_v2link.erase(vid);
+
+	m_graph.delv(vid);
+}
+
+void LinkRelations::get_porc_internal(Link * link, NetType net, 
+	graph::VList(graph::Graph::* grafunc)(graph::VertexID) const, void * pout,
+	const ThuncFunc& thunk) const
+{
+	using namespace graph;
+	std::vector<void*>& out = *((std::vector<void*>*)pout);
+	
+	auto it = m_link2v.find(link);
+	assert(it != m_link2v.end());
+
+	VertexID firstv = it->second;
+	
+	std::stack<VertexID> to_visit;
+	to_visit.push(firstv);
 
 	while (!to_visit.empty())
 	{
-		Link* link = to_visit.top();
+		VertexID curv = to_visit.top();
 		to_visit.pop();
 
-		// Ignore links which lack containment aspect
-		auto containment = link->asp_get<ALinkContainment>();
-		if (!containment)
+		// Expand.
+		// Grafunc either points to the dir_neigh or dir_neigh_r member function, controlling
+		// which direction the graph expansion goes.
+		VList children = (m_graph.*grafunc)(curv);
+		for (auto& v : children) to_visit.push(v);
+
+		// Don't process the first vertex
+		if (curv == firstv)
 			continue;
 
-		// Iterate over parents (or children) of currently visited link
-		for (Link* other : containment->get_links(porc))
+		// Get link corresponding to vertex, return it if it's the right type
+		Link* link = m_v2link.find(curv)->second;
+		if (link->get_type() == net)
 		{
-			// Matches type - add to final return list
-			if (other->get_type() == type)
-				result.push_back(other);
-
-			// Match or no match, add it to the stack for traversal
-			to_visit.push(other);
+			// Cast the link pointer to a derived type, and do pointer adjustment, using
+			// the thunk function
+			out.push_back(thunk(link));
 		}
+	}
+}
+
+LinkRelations* LinkRelations::clone(const Node * srcsys, Node * destsys) const
+{
+	// Graph gets copied verbatim
+	LinkRelations* result = new LinkRelations;
+	result->m_graph = this->m_graph;
+
+	// Redo link references
+	for (auto& it : m_v2link)
+	{
+		auto v = it.first;
+		auto& link = it.second;
+
+		auto srcname = link->get_src()->get_hier_path(srcsys);
+		auto sinkname = link->get_sink()->get_hier_path(srcsys);
+
+		// Get version of old link in new system, using endpoint names.
+		// It's ok if it doesn't exist - just ignore the link
+		auto newsrc = dynamic_cast<HierObject*>(destsys->get_child(srcname));
+		auto newsink = dynamic_cast<HierObject*>(destsys->get_child(sinkname));
+		if (!newsrc || !newsink)
+			continue;
+
+		auto newlinks = destsys->get_links(newsrc, newsink, link->get_type());
+		
+		// Insert into new thing
+		result->m_v2link[v] = newlinks.front();
+		result->m_link2v[link] = v;
 	}
 
 	return result;
 }
-*/
 
+void LinkRelations::reintegrate(LinkRelations * src)
+{
+	// Replace graph with src's, leaving target empty
+	m_graph = std::move(src->m_graph);
+	
+	// Copy only new entries from the v<->link maps
+	for (auto src_v2link : src->m_v2link)
+	{
+		auto v = src_v2link.first;
+		auto link = src_v2link.second;
+
+		if (m_v2link.count(v) == 0)
+		{
+			// New entry
+			m_v2link[v] = link;
+			m_link2v[link] = v;
+		}
+	}
+}
 
 
 EndpointPair::EndpointPair()
 	: in(nullptr), out(nullptr)
 {
 }
-
 
 

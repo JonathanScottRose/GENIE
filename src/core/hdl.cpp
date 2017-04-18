@@ -124,8 +124,8 @@ void Port::bind(Bindable* target,
     assert( (bind_dim == 0) || (bind_dim == 1 && targ_bit == 0 && port_bit == 0) );
 
     // The incoming binding
-    int new_slice_size = bind_dim == 0 ? 1 : bind_size;
-    int new_bit_size = bind_dim == 0 ? bind_size : m_width;
+    int new_slice_size = bind_dim == 0 ? 1 : (int)bind_size;
+    int new_bit_size = bind_dim == 0 ? bind_size : (int)m_width;
     int new_slice = port_slice;
     int new_bit = port_bit;
 
@@ -164,10 +164,6 @@ void Port::bind(Bindable* target,
 
 PortBinding::PortBinding(Port* parent, Bindable* target)
     : m_parent(parent), m_target(target)
-{
-}
-
-PortBinding::~PortBinding()
 {
 }
 
@@ -219,10 +215,6 @@ Net::Net(Type type, const std::string& name)
 {
 }
 
-Net::~Net()
-{
-}
-
 int Net::get_width() const
 {
     return m_width;
@@ -253,11 +245,27 @@ HDLState::HDLState(Node* n)
 }
 
 HDLState::HDLState(const HDLState &o)
-    : m_ports(o.m_ports), m_node(nullptr)
+    : m_ports(o.m_ports)
 {
-    // Only ports copied. Change their parent to point back to us
+    // Point ports back
     for (auto& p : m_ports)
         p.second.set_parent(this);
+
+	// Not supported yet. TODO: fix it when needed
+	assert(o.m_nets.size() == 0);
+	assert(o.m_const_values.size() == 0);
+}
+
+HDLState::HDLState(HDLState&& o)
+	: m_ports(std::move(o.m_ports))
+{
+	// Point ports back
+	for (auto& p : m_ports)
+		p.second.set_parent(this);
+
+	// Not supported yet. TODO: fix it when needed
+	assert(o.m_nets.size() == 0);
+	assert(o.m_const_values.size() == 0);
 }
 
 HDLState::~HDLState()

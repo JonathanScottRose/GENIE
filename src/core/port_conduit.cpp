@@ -132,7 +132,7 @@ PortConduit::~PortConduit()
 {
 }
 
-Port * PortConduit::instantiate() const
+PortConduit * PortConduit::clone() const
 {
     return new PortConduit(*this);
 }
@@ -146,7 +146,7 @@ void PortConduit::resolve_params(ParamResolver& r)
     }
 }
 
-genie::Port * PortConduit::export_port(const std::string& name, NodeSystem* context)
+Port * PortConduit::export_port(const std::string& name, NodeSystem* context)
 {
 	auto result = context->create_conduit_port(name, get_dir());
 	auto result_impl = dynamic_cast<PortConduit*>(result);
@@ -179,7 +179,7 @@ genie::Port * PortConduit::export_port(const std::string& name, NodeSystem* cont
 		result_impl->add_child(new_subp);
 	}
 
-	return result;
+	return dynamic_cast<Port*>(result);
 }
 
 std::vector<PortConduitSub*> PortConduit::get_subports() const
@@ -245,12 +245,12 @@ PortConduitSub::PortConduitSub(const std::string & name, genie::Port::Dir dir,
 	make_connectable(NET_CONDUIT_SUB);
 }
 
-Port * PortConduitSub::instantiate() const
+PortConduitSub * PortConduitSub::clone() const
 {
     return new PortConduitSub(*this);
 }
 
-genie::Port * PortConduitSub::export_port(const std::string& name, NodeSystem* context)
+Port * PortConduitSub::export_port(const std::string& name, NodeSystem* context)
 {
 	auto result = new PortConduitSub(name, get_dir(), get_role(), get_tag());
 	const auto& old_bnd = get_hdl_binding();

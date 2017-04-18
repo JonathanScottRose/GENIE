@@ -6,6 +6,7 @@ namespace genie
 {
 namespace impl
 {
+	class Port;
 	class NodeSystem;
     class PortConduit;
     class PortConduitSub;
@@ -27,9 +28,9 @@ namespace impl
         PortConduit(const PortConduit&);
         ~PortConduit();
 
-        Port* instantiate() const override;
+        PortConduit* clone() const override;
         void resolve_params(ParamResolver&) override;
-		genie::Port* export_port(const std::string&, NodeSystem*) override;
+		Port* export_port(const std::string&, NodeSystem*) override;
 		PortType get_type() const override { return PORT_CONDUIT; }
 
         std::vector<PortConduitSub*> get_subports() const;
@@ -51,8 +52,8 @@ namespace impl
 			genie::PortConduit::Role role, const std::string& tag);
         PortConduitSub(const PortConduitSub&) = default;
 
-        Port* instantiate() const override;
-		genie::Port* export_port(const std::string&, NodeSystem*) override;
+        PortConduitSub* clone() const override;
+		Port* export_port(const std::string&, NodeSystem*) override;
 		PortType get_type() const override { return PORT_CONDUIT_SUB; }
 
 		PROP_GET_SET(tag, const std::string&, m_tag);

@@ -144,7 +144,7 @@ PortRS::~PortRS()
 {
 }
 
-Port * PortRS::instantiate() const
+PortRS * PortRS::clone() const
 {
     return new PortRS(*this);
 }
@@ -156,7 +156,7 @@ void PortRS::resolve_params(ParamResolver& r)
         p->resolve_params(r);
 }
 
-genie::Port * PortRS::export_port(const std::string & name, NodeSystem* context)
+Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 {
 	// Determine the associated clock port for the EXPORTED port.
 	// This is the existing clock port that feeds the existing RS port's
@@ -190,7 +190,12 @@ genie::Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 		const auto& old_hdl_port = get_node()->get_hdl_state().get_port(old_bind.get_port_name());
 
 		// Create a new HDL port on the system
-		auto new_hdl_name = util::str_con_cat(name, tag);
+		std::string new_hdl_name;
+		if (role == PortRS::Role::DATABUNDLE)
+			new_hdl_name = util::str_con_cat(name, "data", tag);
+		else
+			new_hdl_name = util::str_con_cat(name, util::str_tolower(role.to_string()));
+
 		context->get_hdl_state().get_or_create_port(new_hdl_name, old_hdl_port->get_width(),
 			old_hdl_port->get_depth(), old_hdl_port->get_dir());
 
@@ -207,11 +212,11 @@ genie::Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 		new_subp->set_tag(tag);
 		new_subp->set_hdl_binding(new_bind);
 
-		// Add subport to exported conduit port
+		// Add subport to exported port
 		result_impl->add_child(new_subp);
 	}
 
-	return result;
+	return dynamic_cast<Port*>(result);
 }
 
 std::vector<PortRSSub*> PortRS::get_subports() const
@@ -313,11 +318,11 @@ PortRSSub::PortRSSub(const std::string & name, genie::Port::Dir dir)
 }
 
 PortRSSub::PortRSSub(const PortRSSub &o)
-    : SubPortBase(o)
+    : SubPortBase(o), m_role(o.m_role), m_tag(o.m_tag)
 {
 }
 
-Port * PortRSSub::instantiate() const
+PortRSSub * PortRSSub::clone() const
 {
     return new PortRSSub(*this);
 }
@@ -327,7 +332,7 @@ void PortRSSub::resolve_params(ParamResolver& r)
     m_binding.resolve_params(r);
 }
 
-genie::Port* PortRSSub::export_port(const std::string & name, NodeSystem* context)
+Port* PortRSSub::export_port(const std::string & name, NodeSystem* context)
 {
 	auto result = new PortRSSub(name, get_dir());
 	result->set_tag(get_tag());

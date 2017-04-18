@@ -94,8 +94,6 @@ static const int CLIBS = 0;
 
 #define LIB_FAIL	"open"
 
-#define setprogdir(L)		((void)0)
-
 
 /*
 ** system-dependent functions
@@ -121,7 +119,56 @@ static void *lsys_load (lua_State *L, const char *path, int seeglb);
 */
 static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym);
 
+/*
+** Replace LUA_EXEC_DIR marker with path to executable.
+*/
+static void setprogdir(lua_State *L);
 
+
+#if defined (LUA_USE_WINDOWS)
+
+#include <windows.h>
+
+static void setprogdir(lua_State *L) {
+	char buff[MAX_PATH + 1];
+	char *lb;
+	DWORD nsize = sizeof(buff) / sizeof(char);
+	DWORD n = GetModuleFileNameA(NULL, buff, nsize);
+	if (n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
+		luaL_error(L, "unable to get ModuleFileName");
+	else {
+		*lb = '\0';
+		luaL_gsub(L, lua_tostring(L, -1), LUA_EXEC_DIR, buff);
+		lua_remove(L, -2);  /* remove original string */
+	}
+}
+
+#elif defined (LUA_USE_LINUX)
+
+#include <unistd.h>
+#include <errno.h>
+#include <limits.h>
+
+static void setprogdir(lua_State *L) {
+	char buff[PATH_MAX + 1];
+	char *lb;
+	ssize_t n = readlink("/proc/self/exe", buff, sizeof(buff));
+	if (n < 0 || (lb = strrchr(buff, '/')) == NULL)
+		luaL_error(L, "unable to get readlink(%s)", strerror(errno));
+	else {
+		*lb = '\0';
+		luaL_gsub(L, lua_tostring(L, -1), LUA_EXEC_DIR, buff);
+		lua_remove(L, -2);  /* remove original string */
+	}
+}
+
+#else
+
+static void setprogdir(lua_State* L) {
+	return;
+}
+
+#endif
 
 
 #if defined(LUA_USE_DLOPEN)	/* { */
@@ -179,30 +226,12 @@ static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
 
 #include <windows.h>
 
-#undef setprogdir
-
 /*
 ** optional flags for LoadLibraryEx
 */
 #if !defined(LUA_LLE_FLAGS)
 #define LUA_LLE_FLAGS	0
 #endif
-
-
-static void setprogdir (lua_State *L) {
-  char buff[MAX_PATH + 1];
-  char *lb;
-  DWORD nsize = sizeof(buff)/sizeof(char);
-  DWORD n = GetModuleFileNameA(NULL, buff, nsize);
-  if (n == 0 || n == nsize || (lb = strrchr(buff, '\\')) == NULL)
-    luaL_error(L, "unable to get ModuleFileName");
-  else {
-    *lb = '\0';
-    luaL_gsub(L, lua_tostring(L, -1), LUA_EXEC_DIR, buff);
-    lua_remove(L, -2);  /* remove original string */
-  }
-}
-
 
 static void pusherror (lua_State *L) {
   int error = GetLastError();

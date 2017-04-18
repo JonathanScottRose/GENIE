@@ -160,7 +160,7 @@ namespace
 			write_line("(");
 			s_cur_indent++;
 
-			for (auto& it = unbound_params.begin(); it != unbound_params.end(); ++it)
+			for (auto it = unbound_params.begin(); it != unbound_params.end(); ++it)
 			{
                 if (it != unbound_params.begin())
                     write_line(",", false, true);
@@ -297,7 +297,7 @@ namespace
 
         // Collapse the vector into a string
         std::string result;
-        for (auto& it = formatted_ranges.begin(); it != formatted_ranges.end(); ++it)
+        for (auto it = formatted_ranges.begin(); it != formatted_ranges.end(); ++it)
         {
             // Add commas before every-except-first element
             if (it != formatted_ranges.begin())

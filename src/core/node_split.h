@@ -6,6 +6,8 @@ namespace genie
 {
 namespace impl
 {
+	class PortRS;
+
     class NodeSplit : public Node
     {
     public:
@@ -15,12 +17,19 @@ namespace impl
 		NodeSplit();
 
         // Generic copy of an existing one
-        Node* instantiate() override;
+        NodeSplit* clone() const override;
+
+		PROP_GET(n_outputs, unsigned, m_n_outputs);
+		void create_ports();
+		PortRS* get_input() const;
+		PortRS* get_output(unsigned) const;
 
     protected:
         NodeSplit(const NodeSplit&);
 
 		void init_vlog();
+
+		unsigned m_n_outputs;
     };
 }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "node.h"
+#include "network.h"
 #include "genie/node.h"
 
 namespace genie
@@ -12,7 +13,7 @@ namespace impl
 		class NodeFlowState;
 	}
 
-    class NodeSystem : virtual public genie::System, public Node
+    class NodeSystem : virtual public genie::System, public Node, public IInstantiable
     {
     public:
         void create_sys_param(const std::string& name) override;
@@ -35,13 +36,17 @@ namespace impl
         NodeSystem(const std::string& name);
 		~NodeSystem();
 
-        Node* instantiate() override;
+		NodeSystem* clone() const override;
+        NodeSystem* instantiate() const override;
         
 		PROP_GET_SET(flow_state, flow::NodeFlowState*, m_flow_state);
         std::vector<Node*> get_nodes() const;
 
+		NodeSystem* create_snapshot(unsigned dom_id);
+		void reintegrate_snapshot(NodeSystem* src);
+
     protected:
-        NodeSystem(const NodeSystem&);
+		NodeSystem(const NodeSystem&);
 
 		flow::NodeFlowState* m_flow_state;
     };

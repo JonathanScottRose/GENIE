@@ -44,7 +44,7 @@ LinkRSLogical::~LinkRSLogical()
 {
 }
 
-Link * LinkRSLogical::clone() const
+LinkRSLogical * LinkRSLogical::clone() const
 {
 	return new LinkRSLogical(*this);
 }

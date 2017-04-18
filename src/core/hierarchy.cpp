@@ -25,6 +25,10 @@ using namespace genie::impl;
 //	return result;
 //}
 
+// Must be here instead of in class declaration.
+// Some STL functions take values by reference, so this object must exist in memory.
+const char HierObject::PATH_SEP = '.';
+
 namespace
 {
 	// Default name, should help with debugging
@@ -213,7 +217,7 @@ Endpoint * HierObject::get_endpoint(NetType type, genie::Port::Dir dir) const
 
 void HierObject::set_parent(HierObject* parent)
 {
-	if (m_parent)
+	if (parent && m_parent)
 		throw Exception(get_hier_path() + ": tried to change parent without removing from old one first");
 
 	m_parent = parent;

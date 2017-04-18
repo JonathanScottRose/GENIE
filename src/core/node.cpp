@@ -39,7 +39,7 @@ namespace
 
     // Used for clock and reset ports
     template<class P>
-    genie::Port * create_simple_port(Node* node, const std::string & name, genie::Port::Dir dir, 
+    Port * create_simple_port(Node* node, const std::string & name, genie::Port::Dir dir, 
         const std::string & hdl_sig)
     {
         // Create the port
@@ -94,7 +94,7 @@ void Node::set_lit_param(const std::string & parm_name, const std::string & str)
 genie::Port * Node::create_clock_port(const std::string & name, genie::Port::Dir dir, 
     const std::string & hdl_sig)
 {
-    return create_simple_port<PortClock>(this, name, dir, hdl_sig);
+	return create_simple_port<PortClock>(this, name, dir, hdl_sig);
 }
 
 genie::Port * Node::create_reset_port(const std::string & name, genie::Port::Dir dir, 
@@ -133,17 +133,20 @@ Node::~Node()
 		// m_links is a map of Lists. here we delete each List
 		util::delete_all(links.second);
 	}
+
+	delete m_link_rel;
 }
 
 Node::Node(const std::string & name, const std::string & hdl_name)
     : m_hdl_name(hdl_name), m_hdl_state(this)
 {
+	m_link_rel = new LinkRelations();
 	set_name(name);
 }
 
 Node::Node(const Node& o)
     : HierObject(o), m_hdl_name(o.m_hdl_name),
-    m_hdl_state(o.m_hdl_state)
+    m_hdl_state(o.m_hdl_state), m_link_rel(nullptr)
 {
     // Copy over all the things that every Node has
 
@@ -159,41 +162,8 @@ Node::Node(const Node& o)
 	// Ports
 	for (auto p : o.get_children_by_type<Port>())
 	{
-		auto p_copy = p->instantiate();
+		auto p_copy = p->clone();
 		add_child(p_copy);
-	}
-
-	// Copy links
-	auto links = o.get_links();
-	for (Link* orig_link : links)
-	{
-		HierObject* orig_src = orig_link->get_src();
-		HierObject* orig_sink = orig_link->get_sink();
-
-		// Use names of original link endpoints to locate the copies of those
-		// endpoints in the cloned system.
-		HierObject* new_src = dynamic_cast<HierObject*>(this->get_child(orig_src->get_hier_path(&o)));
-		HierObject* new_sink = dynamic_cast<HierObject*>(this->get_child(orig_sink->get_hier_path(&o)));
-
-		// If either cloned endpoint is not found, just ignore the link
-		if (!new_src || !new_sink)
-			continue;
-
-		// Ignore internal structure
-		//if (src->get_node() != &o || sink->get_node() != &o)
-		//	continue;
-
-		auto new_link = orig_link->clone();
-		auto new_src_ep = new_src->get_endpoint(orig_link->get_type(), Port::Dir::OUT);
-		auto new_sink_ep = new_sink->get_endpoint(orig_link->get_type(), Port::Dir::IN);
-
-		new_src_ep->add_link(new_link);
-		new_sink_ep->add_link(new_link);
-
-		new_link->set_src_ep(new_src_ep);
-		new_link->set_sink_ep(new_sink_ep);
-
-		m_links[orig_link->get_type()].push_back(new_link);
 	}
 }
 
@@ -437,13 +407,65 @@ void Node::set_param(const std::string& name, NodeParam * param)
 		if (param->get_type() != old_param->get_type())
 		{
 			log::warn("%s: redefining parameter %s with different basic type",
-				this->get_hier_path(), name.c_str());
+				this->get_hier_path().c_str(), name.c_str());
 		}
 		
 		delete old_param;
 	}
 
 	m_params[name] = param;
+}
+
+void Node::copy_links(const Node & src, const Links* just_these)
+{
+	// If just_these is not null, we'll copy that list. Otherwise,
+	// we need to create a temporary vector of ALL links
+	Links* all_links = nullptr;
+	if (!just_these)
+		all_links = new Links(src.get_links());
+
+	auto& links = just_these ? *just_these : *all_links;
+	for (Link* orig_link : links)
+	{
+		HierObject* orig_src = orig_link->get_src();
+		HierObject* orig_sink = orig_link->get_sink();
+
+		// Use names of original link endpoints to locate the copies of those
+		// endpoints in the cloned system.
+		HierObject* new_src = dynamic_cast<HierObject*>(this->get_child(orig_src->get_hier_path(&src)));
+		HierObject* new_sink = dynamic_cast<HierObject*>(this->get_child(orig_sink->get_hier_path(&src)));
+
+		// If either cloned endpoint is not found, just ignore the link
+		if (!new_src || !new_sink)
+			continue;
+
+		// Ignore internal structure
+		//if (src->get_node() != &o || sink->get_node() != &o)
+		//	continue;
+
+		auto new_link = orig_link->clone();
+		auto new_src_ep = new_src->get_endpoint(orig_link->get_type(), Port::Dir::OUT);
+		auto new_sink_ep = new_sink->get_endpoint(orig_link->get_type(), Port::Dir::IN);
+
+		new_src_ep->add_link(new_link);
+		new_sink_ep->add_link(new_link);
+
+		new_link->set_src_ep(new_src_ep);
+		new_link->set_sink_ep(new_sink_ep);
+
+		m_links[orig_link->get_type()].push_back(new_link);
+	}
+
+	// Destroy temp copy of all links if we created one
+	if (all_links)
+		delete all_links;
+}
+
+void Node::copy_link_rel(const Node & src)
+{
+	assert(!m_link_rel);
+	if (src.m_link_rel)
+		m_link_rel = src.m_link_rel->clone(&src, this);
 }
 
 

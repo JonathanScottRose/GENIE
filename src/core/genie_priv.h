@@ -1,7 +1,5 @@
 #pragma once
 
-#include "network.h"
-#include "port.h"
 #include "genie/genie.h"
 
 namespace genie
@@ -10,6 +8,14 @@ namespace impl
 {
 	class Node;
     class NodeSystem;
+	class Network;
+	class PortTypeInfo;
+
+	using NetType = unsigned;
+	const NetType NET_INVALID = std::numeric_limits<NetType>::max();
+
+	using PortType = unsigned;
+	const PortType PORT_INVALID = std::numeric_limits<PortType>::max();
 
 	// Node management
 	void register_reserved_module(const std::string&);

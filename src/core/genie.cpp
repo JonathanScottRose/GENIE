@@ -29,8 +29,19 @@ using namespace genie::impl;
 
 namespace
 {
+	class HierRoot : public HierObject
+	{
+	public:
+		HierObject* clone() const override
+		{
+			// Cannot clone root
+			assert(false);
+			return nullptr;
+		}
+	};
+
     // Holds all nodes
-	HierObject m_root;
+	HierRoot m_root;
 
 	// Reserved modules
 	std::vector<std::string> m_reserved_modules;
