@@ -128,7 +128,8 @@ namespace impl
 	{
 	public:
 		LinkRelations* clone(const Node * srcsys, Node * destsys) const;
-		void reintegrate(LinkRelations* src);
+		void reintegrate(LinkRelations* src, const Node* srcsys,
+			const Node* destsys);
 
 		void add(Link* parent, Link* child);
 		void remove(Link* parent, Link* child);

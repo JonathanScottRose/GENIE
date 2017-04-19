@@ -186,6 +186,7 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 	NetReset::init();
 	NetConduit::init();
 	NetConduitSub::init();
+	NetTopo::init();
 	NetInternal::init();
 	NetRSLogical::init();
 	NetRS::init();

@@ -29,7 +29,7 @@ namespace flow
 		PROP_GET_SET(name, const std::string&, m_name);
 
 		void add_link(LinkRSLogical*);
-		Links& get_links();
+		const Links& get_links() const;
 		
 	protected:
 		unsigned m_id;
@@ -44,13 +44,13 @@ namespace flow
 		using RSDomains = std::vector<DomainRS>;
 
 		NodeFlowState() = default;
-		NodeFlowState(const NodeFlowState*, NodeSystem* old_sys, 
+		NodeFlowState(const NodeFlowState*, const NodeSystem* old_sys, 
 			NodeSystem* new_sys);
 		~NodeFlowState() = default;
 
 		void reintegrate(NodeFlowState& src);
 
-		const RSDomains& get_rs_domains();
+		const RSDomains& get_rs_domains() const;
 		DomainRS* get_rs_domain(unsigned);
 		DomainRS& new_rs_domain(unsigned id);
 

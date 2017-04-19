@@ -522,6 +522,58 @@ void Graph::complement()
 	}
 }
 
+void Graph::union_with(const Graph& src)
+{
+	// Traverse vertices from src
+	for (auto& src_it : src.V)
+	{
+		auto src_id = src_it.first;
+		auto& src_vstruct = src_it.second;
+
+		// Find if this vertex exists here
+		auto this_it = V.find(src_id);
+		if (this_it == V.end())
+		{
+			// Not found? Create an empty vertex. Let the edges
+			// be populated later, below.
+			V[src_id] = Vertex();
+		}
+		else
+		{
+			// Found? Do nothing here. Merging edge lists
+			// is more expensive than traversing new edges, below
+		}
+	}
+
+	// Traverse edges from src
+	for (auto& src_it : src.E)
+	{
+		auto src_id = src_it.first;
+		auto& src_estruct = src_it.second;
+
+		auto this_it = E.find(src_id);
+		if (this_it == E.end())
+		{
+			E[src_id] = src_estruct;
+
+			// Also update the edges lists of the vertices
+			auto v1it = V.find(src_estruct.v1);
+			auto v2it = V.find(src_estruct.v2);
+			assert(v1it != V.end() && v2it != V.end());
+
+			auto& v1 = v1it->second;
+			auto& v2 = v2it->second;
+
+			v1.edges.push_back(src_id);
+			v2.edges.push_back(src_id);
+		}
+	}
+
+	// Update next_ids
+	m_next_vid = std::max(m_next_vid, src.m_next_vid);
+	m_next_eid = std::max(m_next_eid, src.m_next_eid);
+}
+
 void Graph::mergev(const VList& list)
 {
 	VertexID v0 = list.front();

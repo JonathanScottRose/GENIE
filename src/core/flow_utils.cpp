@@ -104,7 +104,7 @@ void DomainRS::add_link(LinkRSLogical* link)
 	m_links.push_back(link);
 }
 
-DomainRS::Links& DomainRS::get_links()
+const DomainRS::Links& DomainRS::get_links() const
 {
 	return m_links;
 }
@@ -113,29 +113,35 @@ DomainRS::Links& DomainRS::get_links()
 // NodeFlowState
 //
 
-NodeFlowState::NodeFlowState(const NodeFlowState* that, NodeSystem* old_sys,
+NodeFlowState::NodeFlowState(const NodeFlowState* that, const NodeSystem* old_sys,
 	NodeSystem * new_sys)
-	: m_rs_domains(that->m_rs_domains)
 {
 	// Redo references
 
-	for (auto& dom : m_rs_domains)
+	for (auto& old_dom : that->m_rs_domains)
 	{
-		for (auto& new_link : dom.get_links())
+		auto& new_dom = this->new_rs_domain(old_dom.get_id());
+
+		for (auto& old_link: old_dom.get_links())
 		{
-			auto src_path = new_link->get_src()->get_hier_path(old_sys);
-			auto sink_path = new_link->get_sink()->get_hier_path(old_sys);
+			auto src_path = old_link->get_src()->get_hier_path(old_sys);
+			auto sink_path = old_link->get_sink()->get_hier_path(old_sys);
 
 			auto new_src = dynamic_cast<HierObject*>(new_sys->get_child(src_path));
 			auto new_sink = dynamic_cast<HierObject*>(new_sys->get_child(sink_path));
 			if (!new_src || !new_sink)
 				continue;
 
+			// Find the equivalent link in the new system. It might not exist, even
+			// if the endpoints do, because it belongs to a different domain. This is okay.
 			auto new_links = new_sys->get_links(new_src, new_sink, NET_RS_LOGICAL);
+			if (new_links.empty())
+				continue;
+
+			// But if it DOES exist, there should just be one. Can expand on this later.
 			assert(new_links.size() == 1);
 			
-			// !! replace !!
-			new_link = dynamic_cast<LinkRSLogical*>(new_links.front());
+			new_dom.add_link(static_cast<LinkRSLogical*>(new_links.front()));
 		}
 	}
 }
@@ -146,7 +152,7 @@ void NodeFlowState::reintegrate(NodeFlowState & src)
 	// Nothing for now.
 }
 
-const NodeFlowState::RSDomains& NodeFlowState::get_rs_domains()
+const NodeFlowState::RSDomains& NodeFlowState::get_rs_domains() const
 {
 	return m_rs_domains;
 }

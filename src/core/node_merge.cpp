@@ -39,6 +39,7 @@ NodeMerge::NodeMerge()
 	outport->add_subport(PortRS::Role::VALID, "o_valid");
 	outport->add_subport(PortRS::Role::READY, "i_ready");
 	outport->add_subport(PortRS::Role::EOP, "o_eop");
+	add_port(outport);
 
 	// The node itself can be connected to with TOPO links
 	make_connectable(NET_TOPO);

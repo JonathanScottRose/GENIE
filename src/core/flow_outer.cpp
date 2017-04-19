@@ -307,7 +307,7 @@ namespace
 
 		// Apply crossbar topology and save snapshot
 		make_crossbar_topo(snapshot);
-		NodeSystem* topo_snapshot = sys->clone();
+		NodeSystem* topo_snapshot = snapshot->clone();
 
 		//
 		// Outer loop starts here

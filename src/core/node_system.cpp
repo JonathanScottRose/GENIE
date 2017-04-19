@@ -206,6 +206,13 @@ NodeSystem* NodeSystem::clone() const
 	result->copy_links(*this);
 	result->copy_link_rel(*this);
 
+	// Flow state too
+	if (m_flow_state)
+	{
+		result->m_flow_state =
+			new flow::NodeFlowState(m_flow_state, this, result);
+	}
+
 	return result;
 }
 
@@ -327,7 +334,7 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 		link->set_src_ep(nullptr);
 		link->set_sink_ep(nullptr);
 
-		util::erase(m_links[link_type], link);
+		util::erase(src->m_links[link_type], link);
 	}
 
 	// 
@@ -354,8 +361,8 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 		else
 		{
 			// Move ownership to this system
-			src->remove_child(exist_child);
-			this->add_child(exist_child);
+			src->remove_child(child);
+			this->add_child(child);
 		}
 	}
 
@@ -384,14 +391,9 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 	}
 
 	//
-	// Now handle link relations.
-	// The relations graph can just be moved here, destroying the existing one here.
-	// There will be new vertices in the graph we're moving in, corresponding to new links.
-	// We are only interested in copying those new entries.
-	// The new entries' Link pointers are valid here, because the links were just moved above.
+	// Reintegrate link relations
 	//
-	// This leaves the target link relations in an undefined state.
-	m_link_rel->reintegrate(src->m_link_rel);
+	m_link_rel->reintegrate(src->m_link_rel, src, this);
 	delete src->m_link_rel;
 	src->m_link_rel = nullptr;
 

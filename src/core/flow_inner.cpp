@@ -43,7 +43,8 @@ namespace
 			mg->create_ports();
 		}
 
-		// Go over all topological links and realize into physical RS links
+		// Go over all topological links and realize into physical RS links.
+		// Also, associate these new physical links with the topo links
 		for (auto topo_link : sys->get_links(NET_TOPO))
 		{
 			PortRS* rs_src = nullptr;
@@ -105,7 +106,7 @@ namespace
 					}
 				}
 			}
-			else if (auto rs = dynamic_cast<PortRS*>(topo_src))
+			else if (auto rs = dynamic_cast<PortRS*>(topo_sink))
 			{
 				rs_sink = rs;
 			}
@@ -115,9 +116,10 @@ namespace
 			}
 
 			// Connect
-			auto rs_link = dynamic_cast<LinkRS*>(sys->connect(rs_src, rs_sink, NET_RS));
+			auto rs_link = static_cast<LinkRS*>(sys->connect(rs_src, rs_sink, NET_RS));
 
-			// Do stuff with link... associate... i dunno
+			// Associate
+			link_rel->add(topo_link, rs_link);
 		}
 	}
 }

@@ -253,7 +253,7 @@ void LinkRelations::add(Link * parent, Link * child)
 	if (child_it == m_link2v.end())
 	{
 		child_v = m_graph.newv();
-		m_link2v[child] = par_v;
+		m_link2v[child] = child_v;
 		m_v2link[child_v] = child;
 	}
 	else
@@ -358,11 +358,13 @@ void LinkRelations::get_porc_internal(Link * link, NetType net,
 
 LinkRelations* LinkRelations::clone(const Node * srcsys, Node * destsys) const
 {
-	// Graph gets copied verbatim
+	// Create empty
 	LinkRelations* result = new LinkRelations;
-	result->m_graph = this->m_graph;
 
-	// Redo link references
+	// Copy the graph verbatim
+	result->m_graph = m_graph;
+
+	// Traverse links(= vertices) in source (this)
 	for (auto& it : m_v2link)
 	{
 		auto v = it.first;
@@ -376,31 +378,74 @@ LinkRelations* LinkRelations::clone(const Node * srcsys, Node * destsys) const
 		auto newsrc = dynamic_cast<HierObject*>(destsys->get_child(srcname));
 		auto newsink = dynamic_cast<HierObject*>(destsys->get_child(sinkname));
 		if (!newsrc || !newsink)
+		{
+			result->m_graph.delv(v);
 			continue;
+		}
 
+		// Get the link in new system, if it exists
 		auto newlinks = destsys->get_links(newsrc, newsink, link->get_type());
-		
-		// Insert into new thing
+		if (newlinks.empty())
+		{
+			result->m_graph.delv(v);
+			continue;
+		}
+
+		// Might want to handle this properly later
+		assert(newlinks.size() == 1);
+
+		// Insert v<->edge mapping into new relations structure.
+		// The vertex exists.
 		result->m_v2link[v] = newlinks.front();
 		result->m_link2v[link] = v;
 	}
 
+	// (The edges were copied from the source graph. Some may have been pruned)
+
 	return result;
 }
 
-void LinkRelations::reintegrate(LinkRelations * src)
+void LinkRelations::reintegrate(LinkRelations * src, const Node* srcsys,
+	const Node* destsys)
 {
-	// Replace graph with src's, leaving target empty
-	m_graph = std::move(src->m_graph);
+	// Perform a union of the graphs
+	m_graph.union_with(src->m_graph);
 	
 	// Copy only new entries from the v<->link maps
 	for (auto src_v2link : src->m_v2link)
 	{
 		auto v = src_v2link.first;
-		auto link = src_v2link.second;
+		auto src_link = src_v2link.second;
 
 		if (m_v2link.count(v) == 0)
 		{
+			// The link pointer needs to be updated.
+			// The link can exist in the src system, or in the dest system (it's been moved).
+			// Need to try both possibilities before giving up.
+			std::string srcname;
+			std::string sinkname;
+
+			if (srcsys->is_parent_of(src_link->get_src()))
+				srcname = src_link->get_src()->get_hier_path(srcsys);
+			else if (destsys->is_parent_of(src_link->get_src()))
+				srcname = src_link->get_src()->get_hier_path(destsys);
+			else
+				assert(false);
+
+			if (srcsys->is_parent_of(src_link->get_sink()))
+				sinkname = src_link->get_sink()->get_hier_path(srcsys);
+			else if (destsys->is_parent_of(src_link->get_sink()))
+				sinkname = src_link->get_sink()->get_hier_path(destsys);
+
+			auto newsrc = dynamic_cast<HierObject*>(destsys->get_child(srcname));
+			auto newsink = dynamic_cast<HierObject*>(destsys->get_child(sinkname));
+			assert(newsrc && newsink);
+			
+			auto newlinks = destsys->get_links(newsrc, newsink, src_link->get_type());
+			assert(newlinks.size() == 1);
+
+			auto link = newlinks.front();
+
 			// New entry
 			m_v2link[v] = link;
 			m_link2v[link] = v;

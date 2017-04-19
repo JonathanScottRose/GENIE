@@ -74,10 +74,27 @@ std::string HierObject::get_hier_path(const genie::HierObject* rel_to) const
 	{
 		HierObject* cur_parent = cur_obj->get_parent();
 
-		// If we've hit the 'relative-to' object, or we've hit a root node, then
-		// don't append the current object's name, and stop.
-		if (cur_obj == rel_to_2 || cur_parent == nullptr)
+		// If we've hit the 'relative-to' object, stop traversing
+		if (rel_to_2 && cur_obj == rel_to_2)
 			break;
+		
+		// If we've hit the root node, also stop traversing
+		if (cur_parent == nullptr)
+		{
+			// If there was a rel-to object provided, it means
+			// it was never seen, and is unrelated. This is an error.
+			if (rel_to_2)
+			{
+				// Make sure to call the versions of this function that won't
+				// throw more exceptions
+				throw Exception(rel_to->get_hier_path() + ": not an ancestor of " +
+					get_hier_path());
+			}
+			else
+			{
+				break;
+			}
+		}
 
 		// Append name
 		result = cur_obj->get_name() + PATH_SEP + result;

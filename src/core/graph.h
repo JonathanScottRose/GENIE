@@ -153,6 +153,9 @@ namespace graph
 		// Complement the graph (invert edge existence between all vertices)
 		void complement();
 
+		// Add new vertices and edges from another graph
+		void union_with(const Graph&);
+
 		// Dump the graph to a .dot file, with an optional edge annotation function
 		void dump(const std::string& filename,
 			const std::function<std::string(VertexID)>& vfunc = nullptr,
