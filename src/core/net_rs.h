@@ -32,6 +32,9 @@ namespace impl
 	class LinkRSLogical : public genie::LinkRS, public Link
 	{
 	public:
+		unsigned get_src_addr() const override;
+		unsigned get_sink_addr() const override;
+
 	public:
 		LinkRSLogical();
 		LinkRSLogical(const LinkRSLogical&);
@@ -40,8 +43,13 @@ namespace impl
 		LinkRSLogical* clone() const override;
 
 		unsigned get_domain_id() const;
+		
+		PROP_SET(src_addr, unsigned, m_src_addr);
+		PROP_SET(sink_addr, unsigned, m_sink_addr);
 
 	protected:
+		unsigned m_src_addr;
+		unsigned m_sink_addr;
 	};
 
 	///

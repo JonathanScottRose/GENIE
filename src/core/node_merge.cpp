@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "node_merge.h"
 #include "net_topo.h"
+#include "net_rs.h"
 #include "port_clockreset.h"
 #include "port_rs.h"
 #include "genie_priv.h"
@@ -78,8 +79,9 @@ void NodeMerge::create_ports()
 {
 	// Get incoming topo links
 	auto& tlinks = get_endpoint(NET_TOPO, Port::Dir::IN)->links();
-
 	m_n_inputs = tlinks.size();
+
+	auto outp = get_output();
 
 	// Create child ports
 	for (unsigned i = 0; i < m_n_inputs; i++)
@@ -91,6 +93,9 @@ void NodeMerge::create_ports()
 		p->add_subport(PortRS::Role::EOP, PortBindingRef("i_eop").set_lo_bit(i));
 		p->add_subport(PortRS::Role::READY, PortBindingRef("o_ready").set_lo_bit(i));
 		add_port(p);
+
+		// Connect to output port, for traversal
+		connect(p, outp, NET_RS);
 	}
 }
 

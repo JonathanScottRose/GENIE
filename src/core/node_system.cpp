@@ -47,13 +47,19 @@ genie::Link * NodeSystem::create_conduit_link(genie::HierObject * src, genie::Hi
 	return connect(src_imp, sink_imp, NET_CONDUIT);
 }
 
-genie::LinkRS * NodeSystem::create_rs_link(genie::HierObject * src, genie::HierObject * sink)
+genie::LinkRS * NodeSystem::create_rs_link(genie::HierObject * src, genie::HierObject * sink,
+	unsigned src_addr, unsigned sink_addr)
 {
 	auto src_imp = dynamic_cast<HierObject*>(src);
 	auto sink_imp = dynamic_cast<HierObject*>(sink);
 
 	auto link = connect(src_imp, sink_imp, NET_RS_LOGICAL);
-	return dynamic_cast<genie::LinkRS*>(link);
+	auto link_rs = static_cast<LinkRSLogical*>(link);
+
+	link_rs->set_src_addr(src_addr);
+	link_rs->set_sink_addr(sink_addr);
+
+	return link_rs;
 }
 
 genie::LinkTopo * NodeSystem::create_topo_link(genie::HierObject * src, genie::HierObject * sink)
@@ -62,7 +68,7 @@ genie::LinkTopo * NodeSystem::create_topo_link(genie::HierObject * src, genie::H
 	auto sink_imp = dynamic_cast<HierObject*>(sink);
 
 	auto link = connect(src_imp, sink_imp, NET_TOPO);
-	return dynamic_cast<genie::LinkTopo*>(link);
+	return static_cast<LinkTopo*>(link);
 }
 
 genie::Node * NodeSystem::create_instance(const std::string & mod_name,

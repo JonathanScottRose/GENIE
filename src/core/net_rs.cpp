@@ -32,11 +32,24 @@ Link* NetRSLogical::create_link() const
 // LinkRSLogical
 //
 
+unsigned LinkRSLogical::get_src_addr() const
+{
+	return m_src_addr;
+}
+
+unsigned LinkRSLogical::get_sink_addr() const
+{
+	return m_sink_addr;
+}
+
 LinkRSLogical::LinkRSLogical()
+	: m_src_addr(genie::LinkRS::ADDR_ANY),
+	m_sink_addr(genie::LinkRS::ADDR_ANY)
 {
 }
 
 LinkRSLogical::LinkRSLogical(const LinkRSLogical& o)
+	: m_src_addr(o.m_src_addr), m_sink_addr(o.m_sink_addr)
 {
 }
 

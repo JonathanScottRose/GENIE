@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "node_split.h"
 #include "net_topo.h"
+#include "net_rs.h"
 #include "port_rs.h"
 #include "port_clockreset.h"
 #include "genie_priv.h"
@@ -75,8 +76,9 @@ void NodeSplit::create_ports()
 {
 	// Get incoming topo links
 	auto& tlinks = get_endpoint(NET_TOPO, Port::Dir::OUT)->links();
-
 	m_n_outputs = tlinks.size();
+
+	auto inp = get_input();
 
 	// Create child ports
 	for (unsigned i = 0; i < m_n_outputs; i++)
@@ -86,6 +88,9 @@ void NodeSplit::create_ports()
 		p->add_subport(PortRS::Role::DATA_CARRIER, PortBindingRef("o_data", "WO"));
 		p->add_subport(PortRS::Role::READY, PortBindingRef("i_ready").set_lo_bit(i));
 		add_port(p);
+
+		// Connect in->out ports for traversal
+		connect(inp, p, NET_RS);
 	}
 }
 

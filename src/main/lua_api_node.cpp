@@ -256,9 +256,16 @@ namespace
 
 	/// Create an RS logical link.
 	///
+	/// The link may optionally be bound to an address at the source and/or the sink.
+	/// An address is the value, that when emitted by the source or sink RS port's `address`
+	/// signal, selects or identifies this link. To select a destination for a transmission,
+	/// one would set the source address binding. A `nil` value indicates an unconditional
+	/// selection, independent of the existence of an address.
 	/// @function create_rs_link
 	/// @tparam string|HierObject source hierarchy path or reference to source object
 	/// @tparam string|HierObject sink hierarchy path or reference to sink object
+	/// @tparam[opt=nil] unsigned src_addr source address binding, optional
+	/// @tparam[opt=nil] unsigned sink_addr sink address binding, optional
 	/// @treturn LinkRS
 	LFUNC(sys_create_rs_link)
 	{
@@ -266,7 +273,10 @@ namespace
 		auto src = lua_api::check_obj_or_str_hierpath<HierObject>(L, 2, self);
 		auto sink = lua_api::check_obj_or_str_hierpath<HierObject>(L, 3, self);
 
-		Link* link = self->create_rs_link(src, sink);
+		unsigned src_addr = luaL_optinteger(L, 4, LinkRS::ADDR_ANY);
+		unsigned sink_addr = luaL_optinteger(L, 5, LinkRS::ADDR_ANY);
+
+		Link* link = self->create_rs_link(src, sink, src_addr, sink_addr);
 		lua_if::push_object(link);
 
 		return 1;
