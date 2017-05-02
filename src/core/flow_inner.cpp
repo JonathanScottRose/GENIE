@@ -6,6 +6,7 @@
 #include "net_rs.h"
 #include "port_rs.h"
 #include "flow.h"
+#include "address.h"
 #include "genie/port.h"
 
 using namespace genie::impl;
@@ -14,6 +15,45 @@ using Dir = genie::Port::Dir;
 
 namespace
 {
+	void create_transmissions(NodeSystem* sys)
+	{
+		auto fstate = sys->get_flow_state_inner();
+
+		// Go through all flows (logical RS links) in the domain.
+		// Bin them by source
+		auto links = sys->get_links(NET_RS_LOGICAL);
+
+		std::unordered_map<HierObject*, std::vector<LinkRSLogical*>> bin_by_src;
+
+		for (auto link : links)
+		{
+			auto src = link->get_src();
+			bin_by_src[src].push_back(static_cast<LinkRSLogical*>(link));
+		}
+
+		// Within each source bin, bin again by source address. 
+		// Each of these bins is a transmission
+		unsigned flow_id = 0;
+		for (auto src_bin : bin_by_src)
+		{
+			std::unordered_map<unsigned, std::vector<LinkRSLogical*>> bin_by_addr;
+			for (auto link : src_bin.second)
+			{
+				bin_by_addr[link->get_src_addr()].push_back(link);
+			}
+
+			for (auto addr_bin : bin_by_addr)
+			{
+				unsigned tid = fstate->new_transmission();
+
+				for (auto link : addr_bin.second)
+				{
+					fstate->add_link_to_transmission(tid, link);
+				}
+			}
+		}
+	}
+
 	void realize_topo_links(NodeSystem* sys)
 	{
 		auto link_rel = sys->get_link_relations();
@@ -122,10 +162,21 @@ namespace
 			link_rel->add(topo_link, rs_link);
 		}
 	}
+
+	void insert_addr_converters(NodeSystem* sys)
+	{
+		//
+	}
+
 }
 
 void flow::do_inner(NodeSystem* sys)
 {
-	realize_topo_links(sys);
+	sys->set_flow_state_inner(new FlowStateInner);
 
+	create_transmissions(sys);
+	flow::make_internal_flow_rep(sys);
+
+	realize_topo_links(sys);
+	insert_addr_converters(sys);
 }

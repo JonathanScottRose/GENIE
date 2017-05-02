@@ -4,6 +4,7 @@
 #include "net_rs.h"
 #include "port_rs.h"
 #include "port_clockreset.h"
+#include "address.h"
 #include "genie_priv.h"
 
 using namespace genie::impl;
@@ -43,6 +44,10 @@ NodeSplit::NodeSplit()
 	// The node itself can be connected to with TOPO links
 	make_connectable(NET_TOPO);
 	get_endpoint(NET_TOPO, Port::Dir::OUT)->set_max_links(Endpoint::UNLIMITED);
+}
+
+NodeSplit::~NodeSplit()
+{
 }
 
 NodeSplit::NodeSplit(const NodeSplit& o)

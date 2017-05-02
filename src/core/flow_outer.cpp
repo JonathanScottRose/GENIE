@@ -49,7 +49,7 @@ namespace
 		}
 
 		// Create the domain structures and sort the links into the domains.
-		auto fstate = sys->get_flow_state();
+		auto fstate = sys->get_flow_state_outer();
 		for (auto& it : link_to_eid)
 		{
 			auto link = dynamic_cast<LinkRSLogical*>(it.first);
@@ -82,7 +82,7 @@ namespace
 			auto src_port = dynamic_cast<PortRS*>(link->get_src());
 			auto sink_port = dynamic_cast<PortRS*>(link->get_sink());
 
-			auto fstate = sys->get_flow_state();
+			auto fstate = sys->get_flow_state_outer();
 
 			for (auto port : { src_port, sink_port })
 			{
@@ -99,7 +99,7 @@ namespace
 	{
 		namespace log = genie::log;
 
-		auto fstate = sys->get_flow_state();
+		auto fstate = sys->get_flow_state_outer();
 		auto& domains = fstate->get_rs_domains();
 
 		if (domains.size() == 0)
@@ -337,7 +337,7 @@ namespace
 	void do_all_domains(NodeSystem* sys)
 	{
 		// Get IDs of non-manual domains
-		auto fstate = sys->get_flow_state();
+		auto fstate = sys->get_flow_state_outer();
 		std::vector<unsigned> auto_domains, manual_domains;
 
 		for (auto& dom : fstate->get_rs_domains())
@@ -363,7 +363,7 @@ namespace
     void do_system(NodeSystem* sys)
     {
 		sys->resolve_params();
-		sys->set_flow_state(new flow::NodeFlowState());
+		sys->set_flow_state_outer(new flow::FlowStateOuter());
 
 		rs_assign_domains(sys);
 		rs_find_manual_domains(sys);

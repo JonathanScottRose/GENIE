@@ -2,6 +2,7 @@
 #include "flow.h"
 #include "graph.h"
 #include "net_rs.h"
+#include "port_rs.h"
 #include "node_system.h"
 
 using namespace genie::impl::flow;
@@ -110,10 +111,10 @@ const DomainRS::Links& DomainRS::get_links() const
 }
 
 //
-// NodeFlowState
+// FlowStateOuter
 //
 
-NodeFlowState::NodeFlowState(const NodeFlowState* that, const NodeSystem* old_sys,
+FlowStateOuter::FlowStateOuter(const FlowStateOuter* that, const NodeSystem* old_sys,
 	NodeSystem * new_sys)
 {
 	// Redo references
@@ -146,18 +147,18 @@ NodeFlowState::NodeFlowState(const NodeFlowState* that, const NodeSystem* old_sy
 	}
 }
 
-void NodeFlowState::reintegrate(NodeFlowState & src)
+void FlowStateOuter::reintegrate(FlowStateOuter & src)
 {
 	// TODO: move data from src that could have been added.
 	// Nothing for now.
 }
 
-const NodeFlowState::RSDomains& NodeFlowState::get_rs_domains() const
+const FlowStateOuter::RSDomains& FlowStateOuter::get_rs_domains() const
 {
 	return m_rs_domains;
 }
 
-DomainRS* NodeFlowState::get_rs_domain(unsigned id)
+DomainRS* FlowStateOuter::get_rs_domain(unsigned id)
 {
 	if (id >= m_rs_domains.size())
 		return nullptr;
@@ -169,7 +170,7 @@ DomainRS* NodeFlowState::get_rs_domain(unsigned id)
 	return &result;
 }
 
-DomainRS& NodeFlowState::new_rs_domain(unsigned id)
+DomainRS& FlowStateOuter::new_rs_domain(unsigned id)
 {
 	if (id >= m_rs_domains.size())
 		m_rs_domains.resize(id + 1);
@@ -178,5 +179,56 @@ DomainRS& NodeFlowState::new_rs_domain(unsigned id)
 	result.set_id(id);
 	return result;
 }
+
+//
+// FlowStateInner
+//
+
+unsigned FlowStateInner::new_transmission()
+{
+	unsigned result = m_transmissions.size();
+
+	m_transmissions.emplace_back(TransmissionInfo{ {}, nullptr });
+
+	return result;
+}
+
+void FlowStateInner::add_link_to_transmission(unsigned xmis, LinkRSLogical * link)
+{
+	auto& xm = m_transmissions[xmis];
+	
+	auto link_src = static_cast<PortRS*>(link->get_src());
+
+	if (!xm.src) xm.src = link_src;
+	else assert(xm.src == link_src);
+
+	xm.links.push_back(link);
+	
+	assert(m_link_to_xmis.count(link) == 0);
+	m_link_to_xmis[link] = xmis;
+}
+
+const std::vector<LinkRSLogical*>& FlowStateInner::get_transmission_links(unsigned id)
+{
+	return m_transmissions[id].links;
+}
+
+PortRS * FlowStateInner::get_transmission_src(unsigned id)
+{
+	return m_transmissions[id].src;
+}
+
+unsigned FlowStateInner::get_n_transmissions() const
+{
+	return m_transmissions.size();
+}
+
+unsigned genie::impl::flow::FlowStateInner::get_transmission_for_link(LinkRSLogical * link)
+{
+	auto it = m_link_to_xmis.find(link);
+	assert(it != m_link_to_xmis.end());
+	return it->second;
+}
+	
 
 

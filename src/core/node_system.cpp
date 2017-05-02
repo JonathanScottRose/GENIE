@@ -179,17 +179,17 @@ genie::Node * NodeSystem::create_merge(const std::string & opt_name)
 //
 
 NodeSystem::NodeSystem(const std::string & name)
-    : Node(name, name), m_flow_state(nullptr)
+    : Node(name, name), m_flow_state_outer(nullptr)
 {
 }
 
 NodeSystem::~NodeSystem()
 {
-	if (m_flow_state)
-	{
-		delete m_flow_state;
-		m_flow_state = nullptr;
-	}
+	delete m_flow_state_outer;
+	m_flow_state_outer = nullptr;
+	
+	delete m_flow_state_inner;
+	m_flow_state_inner = nullptr;
 }
 
 NodeSystem* NodeSystem::instantiate() const
@@ -213,10 +213,10 @@ NodeSystem* NodeSystem::clone() const
 	result->copy_link_rel(*this);
 
 	// Flow state too
-	if (m_flow_state)
+	if (m_flow_state_outer)
 	{
-		result->m_flow_state =
-			new flow::NodeFlowState(m_flow_state, this, result);
+		result->m_flow_state_outer =
+			new flow::FlowStateOuter(m_flow_state_outer, this, result);
 	}
 
 	return result;
@@ -278,12 +278,12 @@ NodeSystem * NodeSystem::create_snapshot(unsigned dom_id)
 	result->copy_link_rel(*this);
 	
 	// Copy flow state
-	auto old_fs = get_flow_state();
+	auto old_fs = get_flow_state_outer();
 	if (old_fs)
 	{
 		// the new flowstate will adjust its references
-		auto new_fs = new flow::NodeFlowState(old_fs, this, result);
-		result->set_flow_state(new_fs);
+		auto new_fs = new flow::FlowStateOuter(old_fs, this, result);
+		result->set_flow_state_outer(new_fs);
 	}
 
 	return result;
@@ -404,9 +404,9 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 	src->m_link_rel = nullptr;
 
 	// Reintegrate flow state
-	m_flow_state->reintegrate(*src->m_flow_state);
-	delete src->m_flow_state;
-	src->m_flow_state = nullptr;
+	m_flow_state_outer->reintegrate(*src->m_flow_state_outer);
+	delete src->m_flow_state_outer;
+	src->m_flow_state_outer = nullptr;
 	
 	// Move HDL state, in case new HDL ports were added
 	m_hdl_state = std::move(src->m_hdl_state);
@@ -414,6 +414,6 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)
-    : Node(o), m_flow_state(nullptr)
+    : Node(o), m_flow_state_outer(nullptr)
 {
 }

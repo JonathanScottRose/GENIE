@@ -73,8 +73,12 @@ genie::Port::Dir Port::get_effective_dir(Node * contain_ctx) const
 	// of the containing Node. Otherwise, it is assumed that the port belongs
 	// to a node WITHIN contain_ctx, in which case its nominal direction is respected.
 	auto result = get_dir();
-	if (get_node() == contain_ctx)
+	auto owning_node = get_node();
+
+	if (owning_node == contain_ctx)
 		result = result.rev();
+	else
+		assert(owning_node->get_parent() == contain_ctx);
 
 	return result;
 }

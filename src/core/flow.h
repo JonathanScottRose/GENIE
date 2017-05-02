@@ -3,6 +3,7 @@
 #include <functional>
 #include "graph.h"
 #include "network.h"
+#include "address.h"
 
 namespace genie
 {
@@ -30,25 +31,49 @@ namespace flow
 
 		void add_link(LinkRSLogical*);
 		const Links& get_links() const;
-		
+
 	protected:
 		unsigned m_id;
 		std::string m_name;
-		Links m_links;
 		bool m_is_manual;
+		Links m_links;
 	};
 
-	class NodeFlowState
+	class FlowStateInner
+	{
+	public:
+		AddressRep& get_flow_rep() { return m_flow_rep; }
+
+		unsigned new_transmission();
+		void add_link_to_transmission(unsigned xmis, LinkRSLogical* link);
+		const std::vector<LinkRSLogical*>& get_transmission_links(unsigned id);
+		PortRS* get_transmission_src(unsigned id);
+		unsigned get_n_transmissions() const;
+		unsigned get_transmission_for_link(LinkRSLogical*);
+
+	protected:
+		struct TransmissionInfo
+		{
+			std::vector<LinkRSLogical*> links;
+			PortRS* src;
+		};
+
+		AddressRep m_flow_rep;
+		std::vector<TransmissionInfo> m_transmissions;
+		std::unordered_map<LinkRSLogical*, unsigned> m_link_to_xmis;
+	};
+
+	class FlowStateOuter
 	{
 	public:
 		using RSDomains = std::vector<DomainRS>;
 
-		NodeFlowState() = default;
-		NodeFlowState(const NodeFlowState*, const NodeSystem* old_sys, 
+		FlowStateOuter() = default;
+		FlowStateOuter(const FlowStateOuter*, const NodeSystem* old_sys, 
 			NodeSystem* new_sys);
-		~NodeFlowState() = default;
+		~FlowStateOuter() = default;
 
-		void reintegrate(NodeFlowState& src);
+		void reintegrate(FlowStateOuter& src);
 
 		const RSDomains& get_rs_domains() const;
 		DomainRS* get_rs_domain(unsigned);

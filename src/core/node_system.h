@@ -10,7 +10,8 @@ namespace impl
 {
 	namespace flow
 	{
-		class NodeFlowState;
+		class FlowStateOuter;
+		class FlowStateInner;
 	}
 
     class NodeSystem : virtual public genie::System, public Node, public IInstantiable
@@ -40,7 +41,8 @@ namespace impl
 		NodeSystem* clone() const override;
         NodeSystem* instantiate() const override;
         
-		PROP_GET_SET(flow_state, flow::NodeFlowState*, m_flow_state);
+		PROP_GET_SET(flow_state_outer, flow::FlowStateOuter*, m_flow_state_outer);
+		PROP_GET_SET(flow_state_inner, flow::FlowStateInner*, m_flow_state_inner);
         std::vector<Node*> get_nodes() const;
 
 		NodeSystem* create_snapshot(unsigned dom_id);
@@ -49,7 +51,8 @@ namespace impl
     protected:
 		NodeSystem(const NodeSystem&);
 
-		flow::NodeFlowState* m_flow_state;
+		flow::FlowStateOuter* m_flow_state_outer;
+		flow::FlowStateInner* m_flow_state_inner;
     };
 }
 }

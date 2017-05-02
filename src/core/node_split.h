@@ -15,6 +15,7 @@ namespace impl
         
         // Create a new one
 		NodeSplit();
+		~NodeSplit();
 
         // Generic copy of an existing one
         NodeSplit* clone() const override;
