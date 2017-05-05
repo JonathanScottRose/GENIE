@@ -10,15 +10,15 @@ namespace impl
 {
 	class NodeSystem;
 
-	class PortTypeInfo
+	class PortTypeDef
 	{
 	public:
 		PROP_GET_SET(name, const std::string&, m_short_name);
 		PROP_GET_SET(id, PortType, m_id);
 		PROP_GET_SET(default_network, NetType, m_default_network);
 
-		PortTypeInfo() = default;
-		virtual ~PortTypeInfo() = default;
+		PortTypeDef() = default;
+		virtual ~PortTypeDef() = default;
 
 		virtual Port* create_port(const std::string& name, genie::Port::Dir dir) = 0;
 
@@ -31,8 +31,8 @@ namespace impl
     class Port : virtual public genie::Port, public HierObject
     {
     public:
-        virtual Dir get_dir() const override;
-        
+        Dir get_dir() const override;
+
     public:
         Port(const std::string& name, Dir dir);
         virtual ~Port();

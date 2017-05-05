@@ -16,7 +16,7 @@ using Dir = genie::Port::Dir;
 Endpoint::Endpoint(NetType type, Dir dir, HierObject* parent)
 	: m_dir(dir), m_type(type), m_obj(parent)
 {
-	const Network* def = genie::impl::get_network(type);
+	const NetworkDef* def = genie::impl::get_network(type);
 	m_max_links = dir == Dir::IN ?
 		def->get_default_max_in_conns() :
 		def->get_default_max_out_conns();
@@ -32,7 +32,7 @@ Endpoint::~Endpoint()
 	// Connections are owned by someone else. Don't cleanup.
 }
 
-const Network* Endpoint::get_network() const
+const NetworkDef* Endpoint::get_network() const
 {
 	// Helper method
 	return genie::impl::get_network(m_type);

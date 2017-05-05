@@ -2,6 +2,7 @@
 
 #include "prop_macros.h"
 #include "port.h"
+#include "protocol.h"
 #include "genie/port.h"
 
 namespace genie
@@ -18,13 +19,10 @@ namespace impl
     class PortRS : virtual public genie::PortRS, public Port
     {
     public:
-        void add_signal(Role role, const std::string& sig_name, 
-            const std::string& width = "1") override;
-        void add_signal(Role role, const std::string& tag,
+		void add_signal(const SigRoleID& role,
 			const std::string& sig_name, const std::string& width) override;
-        void add_signal_ex(Role role, const HDLPortSpec&, const HDLBindSpec&) override;
-        void add_signal_ex(Role role, const std::string& tag, 
-            const HDLPortSpec&, const HDLBindSpec&) override;
+		void add_signal_ex(const SigRoleID& role,
+			const HDLPortSpec&, const HDLBindSpec&) override;
 
     public:
 		static void init();
@@ -41,18 +39,21 @@ namespace impl
 
         PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
 		PROP_GET_SET(domain_id, unsigned, m_domain_id);
+		PROP_GET_SETR(proto, PortProtocol&, m_proto);
 
         std::vector<PortRSSub*> get_subports() const;
-		std::vector<PortRSSub*> get_subports(genie::PortRS::Role role);
-		PortRSSub* get_subport(genie::PortRS::Role role, const std::string& tag = "");
-		PortRSSub* add_subport(genie::PortRS::Role role, const hdl::PortBindingRef& bnd);
-		PortRSSub* add_subport(genie::PortRS::Role role, const std::string& tag,
-			const hdl::PortBindingRef& bnd);
+		std::vector<PortRSSub*> get_subports(SigRoleType type);
+		PortRSSub* get_subport(const SigRoleID&);
+		PortRSSub* add_subport(const SigRoleID&, const hdl::PortBindingRef& bnd);
 		PortClock* get_clock_port() const;
+
+		CarrierProtocol* get_carried_proto() const;
+		bool has_field(const FieldID&) const;
 
     protected:
         std::string m_clk_port_name;
 		unsigned m_domain_id;
+		PortProtocol m_proto;
     };
 
 	extern PortType PORT_RS_SUB;
@@ -62,22 +63,18 @@ namespace impl
     public:
 		static void init();
 
-        PortRSSub(const std::string& name, genie::Port::Dir dir);
-        PortRSSub(const PortRSSub&);
+        PortRSSub(const std::string& name, genie::Port::Dir dir, const SigRoleID&);
         ~PortRSSub() = default;
 
         PortRSSub* clone() const override;
-        void resolve_params(ParamResolver&) override;
 		Port* export_port(const std::string& name, NodeSystem*) override;
 		PortType get_type() const override { return PORT_RS_SUB; }
 
-		PROP_GET_SET(role, const genie::PortRS::Role, m_role);
-		PROP_GET_SET(tag, const std::string&, m_tag);
+		PROP_GET_SET(role, const SigRoleID&, m_role);
 
     protected:
 		// TODO: move this to generic subport base class?
-		genie::PortRS::Role m_role;
-		std::string m_tag;
+		SigRoleID m_role;
     };
 }
 }

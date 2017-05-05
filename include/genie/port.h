@@ -24,6 +24,42 @@ namespace genie
         std::string depth;
     };
 
+	// Signal Role Type
+	struct SigRoleType
+	{
+		// Constant to indicate unknown/invalid signal role type
+		static const SigRoleType INVALID;
+
+		static SigRoleType from_string(const std::string&);
+		const std::string& to_string() const;
+	
+		SigRoleType();
+		SigRoleType(unsigned);
+		bool operator< (const SigRoleType&) const;
+		bool operator== (const SigRoleType&) const;
+		bool operator!= (const SigRoleType&) const;
+		explicit operator unsigned() const;
+
+	private:
+		unsigned _val;
+	};
+
+	// Signal Role ID (type+tag)
+	// Uniquely identifies an instance of a signal role ID within a Port
+	struct SigRoleID
+	{
+		SigRoleID();
+		explicit SigRoleID(SigRoleType);
+		SigRoleID(SigRoleType, const std::string&);
+
+		bool operator< (const SigRoleID&) const;
+		bool operator== (const SigRoleID&) const;
+		bool operator!= (const SigRoleID&) const;
+
+		SigRoleType type;
+		std::string tag;
+	};
+
 	// Port base class
     class Port : virtual public HierObject
     {
@@ -43,25 +79,28 @@ namespace genie
     class PortConduit : virtual public Port
     {
     public:
-        SMART_ENUM(Role, FWD, REV, IN, OUT, INOUT);
+		static SigRoleType FWD, REV, IN, OUT, INOUT;
 
-        virtual void add_signal(Role role, const std::string& tag, 
-            const std::string& sig_name, const std::string& width) = 0;
-        virtual void add_signal_ex(Role role, const std::string& tag, 
-            const HDLPortSpec&, const HDLBindSpec&) = 0;
+		virtual void add_signal(const SigRoleID& role,
+			const std::string& sig_name, const std::string& width) = 0;
+		virtual void add_signal_ex(const SigRoleID& role,
+			const HDLPortSpec&, const HDLBindSpec&) = 0;
+
+	protected:
+		virtual ~PortConduit() = default;
     };
 
     class PortRS : virtual public Port
     {
     public:
-        SMART_ENUM(Role, VALID, READY, DATA, DATABUNDLE, EOP, ADDRESS, DATA_CARRIER);
+		static SigRoleType VALID, READY, DATA, DATABUNDLE, EOP, ADDRESS;
 
-        virtual void add_signal(Role role, const std::string& sig_name, 
-            const std::string& width = "1") = 0;
-        virtual void add_signal(Role role, const std::string& tag,
-            const std::string& sig_name, const std::string& width) = 0;
-        virtual void add_signal_ex(Role role, const HDLPortSpec&, const HDLBindSpec&) = 0;
-        virtual void add_signal_ex(Role role, const std::string& tag, 
-            const HDLPortSpec&, const HDLBindSpec&) = 0;
+		virtual void add_signal(const SigRoleID& role,
+			const std::string& sig_name, const std::string& width) = 0;
+		virtual void add_signal_ex(const SigRoleID& role,
+			const HDLPortSpec&, const HDLBindSpec&) = 0;
+
+	protected:
+		virtual ~PortRS() = default;
     };
 }

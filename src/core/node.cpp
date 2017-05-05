@@ -257,7 +257,7 @@ Node::Links Node::get_links(HierObject* src, HierObject* sink, NetType nettype) 
 
 Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 {
-	const Network* def = impl::get_network(net);
+	const NetworkDef* def = impl::get_network(net);
 	
 	Endpoint* src_ep = src->get_endpoint(net, Port::Dir::OUT);
 	Endpoint* sink_ep = sink->get_endpoint(net, Port::Dir::IN);

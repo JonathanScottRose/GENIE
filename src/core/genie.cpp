@@ -4,6 +4,7 @@
 #include "port.h"
 #include "util.h"
 #include "hierarchy.h"
+#include "sig_role.h"
 
 #include "node_system.h"
 #include "node_user.h"
@@ -47,10 +48,16 @@ namespace
 	std::vector<std::string> m_reserved_modules;
 
 	// Holds network defs
-	std::vector<Network*> m_networks;
+	std::vector<NetworkDef*> m_networks;
 
 	// Holds port defs
-	std::vector<PortTypeInfo*> m_port_types;
+	std::vector<PortTypeDef*> m_port_types;
+
+	// Holds field definitions (later. just integer now)
+	FieldType m_next_field_id;
+
+	// Holds signal role definitions
+	std::vector<SigRoleDef*> m_sig_roles;
 
     // Stores options
     genie::FlowOptions m_flow_opts;
@@ -121,7 +128,7 @@ void genie::impl::delete_node(const std::string & name)
 		delete obj;
 }
 
-NetType genie::impl::register_network(Network* def)
+NetType genie::impl::register_network(NetworkDef* def)
 {
 	NetType ret = (NetType)m_networks.size();
 	m_networks.push_back(def);
@@ -129,7 +136,7 @@ NetType genie::impl::register_network(Network* def)
 	return ret;
 }
 
-const Network* genie::impl::get_network(NetType id)
+const NetworkDef* genie::impl::get_network(NetType id)
 {
 	if (id < m_networks.size())
 		return m_networks[id];
@@ -137,7 +144,7 @@ const Network* genie::impl::get_network(NetType id)
 	return nullptr;
 }
 
-PortType genie::impl::register_port_type(PortTypeInfo* info)
+PortType genie::impl::register_port_type(PortTypeDef* info)
 {
 	PortType ret = (PortType)m_port_types.size();
 	m_port_types.push_back(info);
@@ -145,12 +152,49 @@ PortType genie::impl::register_port_type(PortTypeInfo* info)
 	return ret;
 }
 
-const PortTypeInfo* genie::impl::get_port_type(PortType id)
+const PortTypeDef* genie::impl::get_port_type(PortType id)
 {
 	if (id < m_port_types.size())
 		return m_port_types[id];
 
 	return nullptr;
+}
+
+FieldType genie::impl::register_field()
+{
+	// Fancier registration to be done later
+	return m_next_field_id++;
+}
+
+SigRoleType genie::impl::register_sig_role(SigRoleDef* def)
+{
+	SigRoleType result = m_sig_roles.size();
+	m_sig_roles.push_back(def);
+	return result;
+}
+
+const SigRoleDef* genie::impl::get_sig_role(SigRoleType type)
+{
+	return m_sig_roles[(unsigned)type];
+}
+
+const SigRoleType genie::impl::get_sig_role_from_str(const std::string& str)
+{
+	auto result = SigRoleType::INVALID;
+
+	auto str_lc = util::str_tolower(str);
+
+	for (unsigned i = 0; i < m_sig_roles.size(); i++)
+	{
+		auto def = m_sig_roles[i];
+		if (def->get_name() == str_lc)
+		{
+			result = i;
+			break;
+		}
+	}
+
+	return result;
 }
 
 genie::FlowOptions& genie::impl::get_flow_options()
@@ -180,6 +224,7 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 	m_networks.clear();
 	m_port_types.clear();
 	m_reserved_modules.clear();
+	m_next_field_id = 0;
 
     // Register builtins
 	NetClock::init();
@@ -211,6 +256,7 @@ void genie::shutdown()
 
 	util::delete_all(m_networks);
 	util::delete_all(m_port_types);
+	util::delete_all(m_sig_roles);
 
 	m_reserved_modules.clear();
 }

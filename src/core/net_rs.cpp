@@ -123,7 +123,7 @@ Link * LinkRS::clone() const
 }
 
 //
-// RS Field network
+// RS FieldInst network
 //
 
 NetType genie::impl::NET_RS_SUB;
@@ -146,7 +146,7 @@ Link* NetRSSub::create_link() const
 }
 
 //
-// RS Field link
+// RS FieldInst link
 //
 
 LinkRSSub::LinkRSSub()

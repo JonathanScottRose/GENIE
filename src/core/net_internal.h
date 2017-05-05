@@ -9,7 +9,7 @@ namespace impl
 {
 	extern NetType NET_INTERNAL;
 
-	class NetInternal : public Network
+	class NetInternal : public NetworkDef
 	{
 	public:
 		static void init();

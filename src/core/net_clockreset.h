@@ -14,7 +14,7 @@ namespace impl
 	extern NetType NET_CLOCK;
 	extern NetType NET_RESET;
 
-	class NetClock : public Network
+	class NetClock : public NetworkDef
 	{
 	public:
 		static void init();
@@ -25,7 +25,7 @@ namespace impl
 		~NetClock() = default;
 	};
 
-	class NetReset : public Network
+	class NetReset : public NetworkDef
 	{
 	public:
 		static void init();

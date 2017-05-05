@@ -18,7 +18,7 @@ namespace impl
 	class Endpoint;
 	class EndpointPair;
 
-	class Network
+	class NetworkDef
 	{
 	public:
 		PROP_GET_SET(name, const std::string&, m_short_name);
@@ -26,8 +26,8 @@ namespace impl
 		PROP_GET_SET(default_max_in_conns, unsigned, m_default_max_conn_in);
 		PROP_GET_SET(default_max_out_conns, unsigned, m_default_max_conn_out);
 
-		Network() = default;
-		virtual ~Network() = default;
+		NetworkDef() = default;
+		virtual ~NetworkDef() = default;
 
 		virtual Link* create_link() const = 0;
 
@@ -81,7 +81,7 @@ namespace impl
 		Links m_links;
 		unsigned int m_max_links;
 
-		const Network* get_network() const;
+		const NetworkDef* get_network() const;
 	};
 
 	// A connection for a particular network type.

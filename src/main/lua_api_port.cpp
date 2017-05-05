@@ -11,17 +11,6 @@ using namespace genie::lua_if;
 // Helper functions
 namespace
 {
-    template<class P>
-    typename P::Role parse_role(lua_State* L, int narg, const char* role_str)
-    {
-        P::Role role;
-        bool valid = P::Role::from_string(role_str, role);
-        if (!valid)
-            luaL_argerror(L, 2, "invalid signal role");
-
-        return role;
-    }
-
     void parse_port_spec(lua_State* L, int narg, genie::HDLPortSpec& pspec)
     {
         if (lua_getfield(L, narg, "name") != LUA_TSTRING)
@@ -146,9 +135,10 @@ namespace
 			luaL_error(L, "expected 2, 3, or 4 parameters");
 		}
 
-        PortConduit::Role role = parse_role<PortConduit>(L, 2, role_str);
+		auto role = SigRoleType::from_string(role_str);
+		luaL_argcheck(L, role != SigRoleType::INVALID, 2, "invalid signal role");
 
-        self->add_signal(role, tag, hdl_sig, width_str);
+		self->add_signal({ role, tag }, hdl_sig, width_str);
         return 0;
     }
 
@@ -185,7 +175,8 @@ namespace
         luaL_checktype(L, 5, LUA_TTABLE);
 
         // Parse role
-        PortConduit::Role role = parse_role<PortConduit>(L, 2, role_str);
+		auto role = SigRoleType::from_string(role_str);
+		luaL_argcheck(L, role != SigRoleType::INVALID, 2, "invalid signal role");
 
         // Populate PortSpec struct
         genie::HDLPortSpec pspec;
@@ -195,7 +186,7 @@ namespace
         genie::HDLBindSpec bspec;
         parse_bind_spec(L, 5, bspec);
 
-        self->add_signal_ex(role, tag, pspec, bspec);
+		self->add_signal_ex({ role, tag }, pspec, bspec);
 
         return 0;
     }
@@ -245,9 +236,10 @@ namespace
 			luaL_error(L, "expected 2, 3, or 4 parameters");
 		}
 
-		PortRS::Role role = parse_role<PortRS>(L, 2, role_str);
+		auto role = SigRoleType::from_string(role_str);
+		luaL_argcheck(L, role != SigRoleType::INVALID, 2, "invalid signal role");
 
-		self->add_signal(role, tag, hdl_sig, width_str);
+		self->add_signal({ role, tag }, hdl_sig, width_str);
 		return 0;
 	}
 
@@ -284,7 +276,8 @@ namespace
 		luaL_checktype(L, 5, LUA_TTABLE);
 
 		// Parse role
-		PortRS::Role role = parse_role<PortRS>(L, 2, role_str);
+		auto role = SigRoleType::from_string(role_str);
+		luaL_argcheck(L, role != SigRoleType::INVALID, 2, "invalid signal role");
 
 		// Populate PortSpec struct
 		genie::HDLPortSpec pspec;
@@ -294,7 +287,7 @@ namespace
 		genie::HDLBindSpec bspec;
 		parse_bind_spec(L, 5, bspec);
 
-		self->add_signal_ex(role, tag, pspec, bspec);
+		self->add_signal_ex({ role, tag }, pspec, bspec);
 
 		return 0;
 	}

@@ -8,7 +8,7 @@ using namespace genie::impl;
 
 namespace
 {
-	class PortClockInfo : public PortTypeInfo
+	class PortClockInfo : public PortTypeDef
 	{
 	public:
 		PortClockInfo()
@@ -25,7 +25,7 @@ namespace
 		}
 	};
 
-	class PortResetInfo : public PortTypeInfo
+	class PortResetInfo : public PortTypeDef
 	{
 	public:
 		PortResetInfo()

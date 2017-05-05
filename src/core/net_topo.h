@@ -8,7 +8,7 @@ namespace impl
 {
 	extern NetType NET_TOPO;
 
-	class NetTopo : public Network
+	class NetTopo : public NetworkDef
 	{
 	public:
 		static void init();

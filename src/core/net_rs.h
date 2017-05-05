@@ -18,7 +18,7 @@ namespace impl
 	extern NetType NET_RS;
 	extern NetType NET_RS_SUB;
 
-	class NetRSLogical : public Network
+	class NetRSLogical : public NetworkDef
 	{
 	public:
 		static void init();
@@ -55,7 +55,7 @@ namespace impl
 	///
 	///
 
-	class NetRS : public Network
+	class NetRS : public NetworkDef
 	{
 	public:
 		static void init();
@@ -80,7 +80,7 @@ namespace impl
 	///
 	///
 
-	class NetRSSub : public Network
+	class NetRSSub : public NetworkDef
 	{
 	public:
 		static void init();

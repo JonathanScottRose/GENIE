@@ -14,7 +14,7 @@ namespace impl
 	extern NetType NET_CONDUIT;
 	extern NetType NET_CONDUIT_SUB;
 
-	class NetConduit : public Network
+	class NetConduit : public NetworkDef
 	{
 	public:
 		static void init();
@@ -25,7 +25,7 @@ namespace impl
 		~NetConduit() = default;
 	};
 
-	class NetConduitSub : public Network
+	class NetConduitSub : public NetworkDef
 	{
 	public:
 		static void init();
