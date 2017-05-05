@@ -1,12 +1,15 @@
 #pragma once
 
 #include "node.h"
+#include "genie_priv.h"
 
 namespace genie
 {
 namespace impl
 {
 	class PortRS;
+
+	extern FieldType FIELD_SPLITMASK;
 
     class NodeSplit : public Node
     {

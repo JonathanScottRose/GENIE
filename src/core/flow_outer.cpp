@@ -7,6 +7,7 @@
 #include "node_system.h"
 #include "node_split.h"
 #include "node_merge.h"
+#include "node_user.h"
 #include "net_conduit.h"
 #include "net_rs.h"
 #include "net_topo.h"
@@ -18,6 +19,60 @@ using genie::Exception;
 
 namespace
 {
+	void init_user_modules(NodeSystem* sys)
+	{
+		// Init protocol at user modules
+		auto nodes = sys->get_children_by_type<NodeUser>();
+		
+		for (auto node : nodes)
+		{
+			// We need to ensure params are resolved so that signal sizes are constant
+			node->resolve_params();
+
+			// All RS ports
+			auto ports = node->get_children_by_type<PortRS>();
+
+			for (auto port : ports)
+			{
+				auto& proto = port->get_proto();
+
+				// Use subports to get signal roles (this is unclean. FIXME)
+				for (auto subp : port->get_subports())
+				{
+					auto& role = subp->get_role();
+					auto& hdl_bnd = subp->get_hdl_binding();
+
+					if (hdl_bnd.get_slices() > 1)
+					{
+						throw Exception(subp->get_hier_path() +
+							": multi-dimensional HDL signal bindings not supported");
+					}
+
+					if (role == PortRS::ADDRESS)
+					{
+						proto.add_terminal_field({ FIELD_USERADDR, hdl_bnd.get_bits() }, role);
+					}
+					else if (role == PortRS::EOP)
+					{
+						proto.add_terminal_field({ FIELD_EOP, 1 }, role);
+					}
+					else if (role == PortRS::DATA || role == PortRS::DATABUNDLE)
+					{
+						// Create a domain field
+						unsigned domain = port->get_domain_id();
+						FieldID f_id(FIELD_USERDATA, role.tag, domain);
+
+						// Create a concretely-sized instance of the field using the
+						// bound HDL port
+						FieldInst f_inst(f_id, hdl_bnd.get_bits());
+
+						proto.add_terminal_field(f_inst, role);
+					}
+				}
+			}
+		}
+	}
+
 	void rs_assign_domains(NodeSystem* sys)
 	{
 		using namespace graph;
@@ -277,7 +332,7 @@ namespace
 			// For each src subport, find the subport on the sink with a matching tag
 			for (auto src_sub : src_subs)
 			{
-				auto& tag = src_sub->get_tag();
+				auto& tag = src_sub->get_role().tag;
 
 				// If one is not found, continue but throw warnings later
 				auto sink_sub = cnd_sink->get_subport(tag);
@@ -369,6 +424,7 @@ namespace
 		rs_find_manual_domains(sys);
 		rs_print_domain_stats(sys);
 
+		init_user_modules(sys);
 		do_all_domains(sys);
 
 		connect_conduits(sys);

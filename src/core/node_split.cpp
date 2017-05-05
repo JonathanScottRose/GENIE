@@ -20,9 +20,12 @@ namespace
 	const char RESETPORT_NAME[] = "reset";
 }
 
+FieldType genie::impl::FIELD_SPLITMASK;
+
 void NodeSplit::init()
 {
 	genie::impl::register_reserved_module(MODNAME);
+	FIELD_SPLITMASK = register_field();
 }
 
 NodeSplit::NodeSplit()
@@ -35,10 +38,10 @@ NodeSplit::NodeSplit()
 	add_port(new PortReset(RESETPORT_NAME, Port::Dir::IN, "reset"));
 
 	auto inport = new PortRS(INPORT_NAME, Port::Dir::IN, CLOCKPORT_NAME);
-	inport->add_subport(PortRS::Role::DATA_CARRIER, { "i_data", "WO" });
-	inport->add_subport(PortRS::Role::DATABUNDLE, "flow_id", { "i_flow", "WF" });
-	inport->add_subport(PortRS::Role::VALID, "i_valid");
-	inport->add_subport(PortRS::Role::READY, "o_ready");
+	inport->add_subport(PortRS::DATA_CARRIER, { "i_data", "WO" });
+	inport->add_subport(PortRS::ADDRESS, { "i_mask", "NO" });
+	inport->add_subport(PortRS::VALID, "i_valid");
+	inport->add_subport(PortRS::READY, "o_ready");
 	add_port(inport);
 
 	// The node itself can be connected to with TOPO links
@@ -63,13 +66,13 @@ void NodeSplit::init_vlog()
 	auto& hdl = get_hdl_state();
 	hdl.add_port("clk", 1, 1, Dir::IN);
 	hdl.add_port("reset", 1, 1, Dir::IN);
-	hdl.add_port("i_data", "WO", 1, Dir::IN);
-	hdl.add_port("i_flow", "WF", 1, Dir::IN);
+	hdl.add_port("i_data", "WIDTH", 1, Dir::IN);
+	hdl.add_port("i_mask", "N", 1, Dir::IN);
 	hdl.add_port("i_valid", 1, 1, Dir::IN);
 	hdl.add_port("o_ready", 1, 1, Dir::OUT);
-	hdl.add_port("o_valid", "NO", 1, Dir::OUT);
-	hdl.add_port("o_data", "WO", 1, Dir::OUT);
-	hdl.add_port("i_ready", "NO", 1, Dir::IN);
+	hdl.add_port("o_valid", "N", 1, Dir::OUT);
+	hdl.add_port("o_data", "WIDTH", 1, Dir::OUT);
+	hdl.add_port("i_ready", "N", 1, Dir::IN);
 }
 
 NodeSplit* NodeSplit::clone() const
@@ -89,14 +92,18 @@ void NodeSplit::create_ports()
 	for (unsigned i = 0; i < m_n_outputs; i++)
 	{
 		auto p = new PortRS(OUTPORT_NAME + std::to_string(i), Port::Dir::OUT, CLOCKPORT_NAME);
-		p->add_subport(PortRS::Role::VALID, PortBindingRef("o_valid").set_lo_bit(i));
-		p->add_subport(PortRS::Role::DATA_CARRIER, PortBindingRef("o_data", "WO"));
-		p->add_subport(PortRS::Role::READY, PortBindingRef("i_ready").set_lo_bit(i));
+		p->add_subport(PortRS::VALID, PortBindingRef("o_valid").set_lo_bit(i));
+		p->add_subport(PortRS::DATA_CARRIER, PortBindingRef("o_data", "WO"));
+		p->add_subport(PortRS::READY, PortBindingRef("i_ready").set_lo_bit(i));
 		add_port(p);
 
 		// Connect in->out ports for traversal
 		connect(inp, p, NET_RS);
 	}
+
+	// Create bitmask field with correct size, now that inputs are known
+	auto& in_proto = inp->get_proto();
+	in_proto.add_terminal_field({ FIELD_SPLITMASK, m_n_outputs }, PortRS::ADDRESS);
 }
 
 PortRS * NodeSplit::get_output(unsigned i) const

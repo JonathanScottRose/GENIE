@@ -2,6 +2,7 @@
 #include "node_system.h"
 #include "node_split.h"
 #include "node_merge.h"
+#include "node_user.h"
 #include "net_topo.h"
 #include "net_rs.h"
 #include "port_rs.h"
@@ -163,9 +164,47 @@ namespace
 		}
 	}
 
-	void insert_addr_converters(NodeSystem* sys)
+	void insert_addr_converters_user(NodeSystem* sys)
 	{
-		//
+		auto fstate = sys->get_flow_state_inner();
+		auto& glob_rep = fstate->get_flow_rep();
+
+		// First, handle user addr <-> global rep conversions.
+		// Gather all RS ports from: this system, user modules
+		std::vector<Node*> gather_nodes = 
+			sys->get_children_by_type<NodeUser, decltype(gather_nodes)>();
+		gather_nodes.push_back(sys);
+
+		std::vector<PortRS*> user_ports;
+		for (auto node : gather_nodes)
+		{
+			auto ports = node->get_children_by_type<PortRS>();
+			user_ports.insert(user_ports.end(), ports.begin(), ports.end());
+		}
+
+		// For every user port (that has a NET_RS link), check for useraddr fields,
+		// and insert converters
+		for (auto user_port : user_ports)
+		{
+			// System-facing endpoint
+			auto ep = user_port->get_endpoint(NET_RS, user_port->get_effective_dir(sys));
+			auto rs_link = static_cast<LinkRS*>(ep->get_link0());
+			if (!rs_link)
+				continue;
+
+			auto& proto = user_port->get_proto();
+			if (proto.has_terminal_field(FIELD_USERADDR))
+			{
+				// Derive user address representation.
+				// If only one address bin exists, no conversion is necessary,
+				// as that one bin's value can be injected as a constant.
+				auto user_rep = flow::make_srcsink_flow_rep(sys, user_port);
+				if (user_rep.get_n_addr_bins() <= 1)
+					continue;
+
+				
+			}
+		}
 	}
 
 }
@@ -178,5 +217,5 @@ void flow::do_inner(NodeSystem* sys)
 	flow::make_internal_flow_rep(sys);
 
 	realize_topo_links(sys);
-	insert_addr_converters(sys);
+	insert_addr_converters_user(sys);
 }

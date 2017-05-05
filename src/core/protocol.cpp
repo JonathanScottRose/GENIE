@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "protocol.h"
+#include "port_rs.h"
 
 using namespace genie::impl;
 
@@ -71,6 +72,11 @@ bool FieldID::operator<(const FieldID& o) const
 //
 // FieldInst
 //
+
+FieldInst::FieldInst(const FieldID &id)
+	: FieldInst(id, UNKNOWN_WIDTH)
+{
+}
 
 FieldInst::FieldInst(const FieldID& id, unsigned width)
 	: m_id(id), m_width(width)
@@ -214,7 +220,9 @@ unsigned FieldSet::get_lsb(const FieldID& f) const
 		if (g.get_id().matches(f))
 			return result;
 
-		result += g.get_width();
+		unsigned width = g.get_width();
+		assert(width != FieldInst::UNKNOWN_WIDTH);
+		result += width;
 	}
 
 	assert(false);
@@ -225,7 +233,11 @@ unsigned FieldSet::get_width() const
 {
 	int result = 0;
 	for (auto& g : m_fields)
-		result += g.get_width();
+	{
+		unsigned width = g.get_width();
+		assert(width != FieldInst::UNKNOWN_WIDTH);
+		result += width;
+	}
 
 	return result;
 }
@@ -266,9 +278,9 @@ void PortProtocol::set_const(const FieldID& f, const BitsVal& v)
 	it->second.is_const = true;
 }
 
-bool PortProtocol::get_const(const FieldID& f, BitsVal** out) const
+bool PortProtocol::get_const(const FieldID& f, const BitsVal** out) const
 {
-	for (auto i : m_extra_info)
+	for (auto& i : m_extra_info)
 	{
 		if (i.first.matches(f) && i.second.is_const)
 		{
@@ -282,7 +294,7 @@ bool PortProtocol::get_const(const FieldID& f, BitsVal** out) const
 
 const SigRoleID& PortProtocol::get_binding(const FieldID& f) const
 {
-	for (auto i : m_extra_info)
+	for (auto& i : m_extra_info)
 	{
 		if (i.first.matches(f))
 		{
@@ -317,7 +329,7 @@ void CarrierProtocol::add_set(const FieldSet& s)
 	{
 		if (f.has_domain())
 		{
-			get_domain_set(f.get_domain).add(f);
+			get_domain_set(f.get_domain()).add(f);
 		}
 		else
 		{
@@ -405,17 +417,21 @@ FieldSet& CarrierProtocol::get_domain_set(unsigned dom) const
 
 unsigned flow::calc_transmitted_width(PortRS* src, PortRS* sink)
 {
-	int result = 0;
+	unsigned result = 0;
 
-	// Find the common set of (terminal+jection) fields between src and sink. That's what needs
-	// to be transmitted.
-	FieldSet src_set = src.terminal_fields();
-	CarrierProtocol* src_c = src.get_carried_protocol();
-	if (src_c) src_set.add(src_c->jection_fields());
+	// Get src and sink port protocols
+	PortProtocol& src_proto = src->get_proto();
+	PortProtocol& sink_proto = sink->get_proto();
 
-	FieldSet sink_set = sink.terminal_fields();
-	CarrierProtocol* sink_c = sink.get_carried_protocol();
-	if (sink_c) sink_set.add(sink_c->jection_fields());
+	// Find the common set of (terminal+jection) fields between src and sink. That's part
+	// of what's transmitted between the two.
+	FieldSet src_set = src_proto.terminal_fields();
+	CarrierProtocol* src_carr = src->get_carried_proto();
+	if (src_carr) src_set.add(src_carr->jection_fields());
+
+	FieldSet sink_set = sink_proto.terminal_fields();
+	CarrierProtocol* sink_carr = sink->get_carried_proto();
+	if (sink_carr) sink_set.add(sink_carr->jection_fields());
 
 	src_set.intersect(sink_set);
 	result += src_set.get_width();
@@ -423,23 +439,23 @@ unsigned flow::calc_transmitted_width(PortRS* src, PortRS* sink)
 	// Add the contribution of domain fields.
 	// If both src/sink have a carrier protocol, just take the domain width, because there's no
 	// injection/ejection of domain fields going on.
-	if (src_c && sink_c)
+	if (src_carr && sink_carr)
 	{
 		// arbitrarily take src_c instead of sink_c
-		result += src_c->get_domain_width();
+		result += src_carr->get_domain_width();
 	}
-	else if (src_c)
+	else if (src_carr)
 	{
 		// Otherwise, take the width of the signals crossing from the Terminal region of one
 		// side to the Domain region of the other.
-		FieldSet common = src_c->domain_fields();
-		common.intersect(sink.terminal_fields());
+		FieldSet common = src_carr->domain_fields();
+		common.intersect(sink_proto.terminal_fields());
 		result += common.get_width();
 	}
-	else if (sink_c)
+	else if (sink_carr)
 	{
-		FieldSet common = sink_c->domain_fields();
-		common.intersect(src.terminal_fields());
+		FieldSet common = sink_carr->domain_fields();
+		common.intersect(src_proto.terminal_fields());
 		result += common.get_width();
 	}
 

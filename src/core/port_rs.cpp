@@ -63,6 +63,7 @@ SigRoleType
 	genie::PortRS::EOP,
 	genie::PortRS::ADDRESS;
 
+
 void PortRS::add_signal(const SigRoleID& role, const std::string & sig_name,
     const std::string & width)
 {
@@ -108,27 +109,47 @@ void PortRS::add_signal_ex(const SigRoleID& role, const HDLPortSpec& pspec,
 	add_subport(role, hdl_pb);
 }
 
+void PortRS::set_logic_depth(unsigned depth)
+{
+	m_logic_depth = depth;
+}
+
 //
 // Internal
 //
+
+SigRoleType genie::impl::PortRS::DATA_CARRIER;
+
+FieldType
+	genie::impl::FIELD_USERDATA,
+	genie::impl::FIELD_USERADDR,
+	genie::impl::FIELD_EOP,
+	genie::impl::FIELD_XMIS_ID;
 
 PortType genie::impl::PORT_RS;
 
 void PortRS::init()
 {
-	genie::PortRS::VALID = genie::impl::register_sig_role(new SigRoleDef("valid", false));
-	genie::PortRS::READY = genie::impl::register_sig_role(new SigRoleDef("ready", false));
-	genie::PortRS::DATA = genie::impl::register_sig_role(new SigRoleDef("data", false));
-	genie::PortRS::DATABUNDLE = genie::impl::register_sig_role(new SigRoleDef("databundle", true));
-	genie::PortRS::EOP = genie::impl::register_sig_role(new SigRoleDef("eop", false));
-	genie::PortRS::ADDRESS = genie::impl::register_sig_role(new SigRoleDef("address", false));
+	VALID = register_sig_role(new SigRoleDef("valid", false));
+	READY = register_sig_role(new SigRoleDef("ready", false));
+	DATA = register_sig_role(new SigRoleDef("data", false));
+	DATABUNDLE = register_sig_role(new SigRoleDef("databundle", true));
+	EOP = register_sig_role(new SigRoleDef("eop", false));
+	ADDRESS = register_sig_role(new SigRoleDef("address", false));
+	DATA_CARRIER = register_sig_role(new SigRoleDef("xdata", false));
 
-	PORT_RS = genie::impl::register_port_type(new PortRSInfo());
+	PORT_RS = register_port_type(new PortRSInfo());
+
+	FIELD_USERDATA = register_field();
+	FIELD_USERADDR = register_field();
+	FIELD_XMIS_ID = register_field();
+	FIELD_EOP = register_field();
 }
 
 PortRS::PortRS(const std::string & name, genie::Port::Dir dir, 
 	const std::string & clk_port_name)
-    : Port(name, dir), m_clk_port_name(clk_port_name), m_domain_id(0)
+    : Port(name, dir), m_clk_port_name(clk_port_name), m_domain_id(0),
+	m_logic_depth(0)
 {
 	make_connectable(NET_RS_LOGICAL);
 	make_connectable(NET_RS);
@@ -142,7 +163,9 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
 }
 
 PortRS::PortRS(const PortRS &o)
-    : Port(o), m_clk_port_name(o.m_clk_port_name), m_domain_id(o.m_domain_id)
+    : Port(o), m_clk_port_name(o.m_clk_port_name), 
+	m_domain_id(o.m_domain_id), m_proto(o.m_proto),
+	m_logic_depth(o.m_logic_depth)
 {
 }
 
@@ -218,7 +241,15 @@ Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 		result_impl->add_child(new_subp);
 	}
 
-	return dynamic_cast<Port*>(result);
+	return result_impl;
+}
+
+void PortRS::reintegrate(HierObject* obj)
+{
+	// Copy protocol info from other port when reintegrating snapshots
+	auto that = static_cast<PortRS*>(obj);
+
+	this->m_proto = that->m_proto;
 }
 
 std::vector<PortRSSub*> PortRS::get_subports() const
@@ -335,11 +366,6 @@ PortRSSub::PortRSSub(const std::string & name, genie::Port::Dir dir, const SigRo
     : SubPortBase(name, dir), m_role(role)
 {
 	make_connectable(NET_RS_SUB);
-}
-
-PortRSSub::PortRSSub(const PortRSSub &o)
-    : SubPortBase(o), m_role(o.m_role)
-{
 }
 
 PortRSSub * PortRSSub::clone() const

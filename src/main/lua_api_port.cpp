@@ -292,10 +292,27 @@ namespace
 		return 0;
 	}
 
+	// Set inner logic depth.
+	//
+	// Specifies the number of logic levels behind this Port before seeing
+	// a register. Default is 0.
+	// @function set_logic_depth
+	// @tparam unsigned depth
+	LFUNC(rsport_set_logic_depth)
+	{
+		auto self = lua_if::check_object<PortRS>(1);
+		auto depth = luaL_checkinteger(L, 2);
+		luaL_argcheck(L, depth >= 0, 2, "logic depth must be nonnegative");
+
+		self->set_logic_depth(depth);
+		return 0;
+	}
+
 	LSUBCLASS(PortRS, (Port),
 	{
 		LM(add_signal, rsport_add_signal),
-		LM(add_signal_ex, rsport_add_signal_ex)
+		LM(add_signal_ex, rsport_add_signal_ex),
+		LM(set_logic_depth, rsport_set_logic_depth)
 	});
 }
 

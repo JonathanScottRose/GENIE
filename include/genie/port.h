@@ -49,7 +49,7 @@ namespace genie
 	struct SigRoleID
 	{
 		SigRoleID();
-		explicit SigRoleID(SigRoleType);
+		SigRoleID(SigRoleType);
 		SigRoleID(SigRoleType, const std::string&);
 
 		bool operator< (const SigRoleID&) const;
@@ -99,6 +99,7 @@ namespace genie
 			const std::string& sig_name, const std::string& width) = 0;
 		virtual void add_signal_ex(const SigRoleID& role,
 			const HDLPortSpec&, const HDLBindSpec&) = 0;
+		virtual void set_logic_depth(unsigned) = 0;
 
 	protected:
 		virtual ~PortRS() = default;

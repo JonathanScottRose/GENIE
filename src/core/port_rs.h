@@ -16,6 +16,11 @@ namespace impl
 
 	extern PortType PORT_RS;
 
+	extern FieldType FIELD_USERDATA;
+	extern FieldType FIELD_USERADDR;
+	extern FieldType FIELD_XMIS_ID;
+	extern FieldType FIELD_EOP;
+
     class PortRS : virtual public genie::PortRS, public Port
     {
     public:
@@ -23,8 +28,11 @@ namespace impl
 			const std::string& sig_name, const std::string& width) override;
 		void add_signal_ex(const SigRoleID& role,
 			const HDLPortSpec&, const HDLBindSpec&) override;
+		void set_logic_depth(unsigned) override;
 
     public:
+		static SigRoleType DATA_CARRIER;
+
 		static void init();
 
         PortRS(const std::string& name, genie::Port::Dir dir);
@@ -36,7 +44,9 @@ namespace impl
         void resolve_params(ParamResolver&) override;
 		Port* export_port(const std::string& name, NodeSystem*) override;
 		PortType get_type() const override { return PORT_RS; }
+		void reintegrate(HierObject*) override;
 
+		PROP_GET(logic_depth, unsigned, m_logic_depth);
         PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
 		PROP_GET_SET(domain_id, unsigned, m_domain_id);
 		PROP_GET_SETR(proto, PortProtocol&, m_proto);
@@ -51,6 +61,7 @@ namespace impl
 		bool has_field(const FieldID&) const;
 
     protected:
+		unsigned m_logic_depth;
         std::string m_clk_port_name;
 		unsigned m_domain_id;
 		PortProtocol m_proto;

@@ -9,6 +9,8 @@
 #include "node_system.h"
 #include "node_user.h"
 #include "node_split.h"
+#include "node_merge.h"
+#include "node_conv.h"
 
 #include "net_clockreset.h"
 #include "net_conduit.h"
@@ -237,14 +239,16 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 	NetRS::init();
 	NetRSSub::init();
 
-	PortClock::init();
-	PortReset::init();
+	impl::PortClock::init();
+	impl::PortReset::init();
 	impl::PortConduit::init();
-	PortConduitSub::init();
+	impl::PortConduitSub::init();
 	impl::PortRS::init();
-	PortRSSub::init();
+	impl::PortRSSub::init();
 
     NodeSplit::init();
+	NodeMerge::init();
+	NodeConv::init();
 }
 
 void genie::shutdown()

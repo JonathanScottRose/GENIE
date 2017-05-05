@@ -12,6 +12,8 @@ namespace genie
 {
 namespace impl
 {
+	class PortRS;
+
 	struct FieldID
 	{
 		static const unsigned NO_DOMAIN = std::numeric_limits<unsigned>::max();
@@ -36,6 +38,9 @@ namespace impl
 	class FieldInst
 	{
 	public:
+		static const unsigned UNKNOWN_WIDTH = std::numeric_limits<unsigned>::max();
+
+		FieldInst(const FieldID&);
 		FieldInst(const FieldID&, unsigned width);
 
 		PROP_GET_SET(id, const FieldID&, m_id);
@@ -107,7 +112,7 @@ namespace impl
 		bool has_terminal_field(const FieldID&) const;
 
 		void set_const(const FieldID&, const BitsVal&);
-		bool get_const(const FieldID&, BitsVal** out) const;
+		bool get_const(const FieldID&, const BitsVal** out) const;
 
 		const SigRoleID& get_binding(const FieldID&) const;
 
@@ -134,6 +139,7 @@ namespace impl
 	namespace flow
 	{
 		unsigned calc_transmitted_width(PortRS* src, PortRS* sink);
+
 	}
 }
 }
