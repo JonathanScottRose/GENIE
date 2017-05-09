@@ -41,9 +41,9 @@ bool AddressRep::exists(unsigned addr) const
 	return m_addr2xmis.count(addr) != 0;
 }
 
-std::vector<unsigned> AddressRep::get_addr_bins() const
+auto AddressRep::get_addr_bins() const -> const decltype(m_addr2xmis)&
 {
-	return util::keys<std::vector<unsigned>>(m_addr2xmis);
+	return m_addr2xmis;
 }
 
 unsigned AddressRep::get_n_addr_bins() const
@@ -51,7 +51,7 @@ unsigned AddressRep::get_n_addr_bins() const
 	return m_addr2xmis.size();
 }
 
-unsigned AddressRep::get_size_in_bits() 
+unsigned AddressRep::get_size_in_bits() const
 {
 	if (m_size_needs_recalc)
 	{

@@ -84,6 +84,39 @@ namespace impl
 		const NetworkDef* get_network() const;
 	};
 
+	// An integer ID for a link.
+	// Encodes its type and index of that type
+	struct LinkID
+	{
+		NetType type;
+		uint16_t index;
+
+		bool operator< (const LinkID& o) const
+		{
+			return (uint32_t)(*this) < (uint32_t)o;
+		}
+		bool operator== (const LinkID& o) const
+		{
+			return (uint32_t)(*this) == (uint32_t)o;
+		}
+		bool operator!= (const LinkID& o) const
+		{
+			return (uint32_t)(*this) != (uint32_t)o;
+		}
+		explicit operator uint32_t() const
+		{
+			return ((uint32_t)type << 16) | index;
+		}
+		explicit LinkID(uint32_t val)
+			: type(val >> 16), index(val & 0xFFFF)
+		{
+		}
+		constexpr LinkID(NetType _type, uint16_t _index) : type(_type), index(_index) {}
+		LinkID() = default;
+	};
+
+	constexpr LinkID LINK_INVALID = { NET_INVALID, std::numeric_limits<uint16_t>::max() };
+
 	// A connection for a particular network type.
 	class Link : virtual public genie::Link
 	{
@@ -136,12 +169,15 @@ namespace impl
 		bool is_contained_in(Link* parent, Link* child) const;
 		void unregister_link(Link* link);
 
+		std::vector<Link*> get_immediate_parents(Link* link) const;
+		std::vector<Link*> get_immediate_children(Link* link) const;
+
 		template<class T = Link>
 		std::vector<T*> get_parents(Link* link, NetType net) const
 		{
 			std::vector<T*> result;
 			get_porc_internal(link, net, &graph::Graph::dir_neigh_r, &result,
-				[](Link* p) { return dynamic_cast<T*>(p); });
+				[](Link* p) { return static_cast<T*>(p); });
 			return result;
 		}
 
@@ -150,7 +186,7 @@ namespace impl
 		{
 			std::vector<T*> result;
 			get_porc_internal(link, net, &graph::Graph::dir_neigh, &result,
-				[](Link* p) { return dynamic_cast<T*>(p); });
+				[](Link* p) { return static_cast<T*>(p); });
 			return result;
 		}
 
@@ -161,9 +197,27 @@ namespace impl
 			graph::VList(graph::Graph::*)(graph::VertexID) const,
 			void* out, const ThuncFunc&) const;
 
+		std::vector<Link*> get_immediate_porc_internal(Link*,
+			graph::VList(graph::Graph::*)(graph::VertexID) const) const;
+
 		graph::V2Attr<Link*> m_v2link;
 		graph::Attr2V<Link*> m_link2v;
 		graph::Graph m_graph;
 	};
 }
+}
+
+// Hash function for LinkID
+namespace std
+{
+	template<> struct hash<genie::impl::LinkID>
+	{
+		using argument_type = genie::impl::LinkID;
+		using result_type = size_t;
+		
+		result_type operator()(const argument_type& obj) const
+		{
+			return std::hash<uint32_t>{}((uint32_t)obj);
+		}
+	};
 }

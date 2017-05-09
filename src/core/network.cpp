@@ -315,6 +315,37 @@ void LinkRelations::unregister_link(Link * link)
 	m_graph.delv(vid);
 }
 
+std::vector<Link*> LinkRelations::get_immediate_parents(Link * link) const
+{
+	return get_immediate_porc_internal(link, &graph::Graph::dir_neigh_r);
+}
+
+std::vector<Link*> LinkRelations::get_immediate_children(Link * link) const
+{
+	return get_immediate_porc_internal(link, &graph::Graph::dir_neigh);
+}
+
+std::vector<Link*> LinkRelations::get_immediate_porc_internal(Link * link,
+	graph::VList(graph::Graph::* grafunc)(graph::VertexID) const) const
+{
+	using namespace graph;
+	std::vector<Link*> result;
+
+	auto it = m_link2v.find(link);
+	assert(it != m_link2v.end());
+	VertexID link_v = it->second;
+
+	auto neighs = (m_graph.*grafunc)(link_v);
+	for (auto neigh_v : neighs)
+	{
+		auto neigh_it = m_v2link.find(neigh_v);
+		assert(neigh_it != m_v2link.end());
+		result.push_back(neigh_it->second);
+	}
+
+	return result;
+}
+
 void LinkRelations::get_porc_internal(Link * link, NetType net, 
 	graph::VList(graph::Graph::* grafunc)(graph::VertexID) const, void * pout,
 	const ThuncFunc& thunk) const

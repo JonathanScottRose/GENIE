@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "genie/genie.h"
 #include "genie/port.h"
 
@@ -13,7 +14,7 @@ namespace impl
 	class PortTypeDef;
 	class SigRoleDef;
 
-	using NetType = unsigned;
+	using NetType = uint16_t;
 	const NetType NET_INVALID = std::numeric_limits<NetType>::max();
 
 	using PortType = unsigned;

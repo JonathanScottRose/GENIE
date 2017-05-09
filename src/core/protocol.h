@@ -112,7 +112,7 @@ namespace impl
 		bool has_terminal_field(const FieldID&) const;
 
 		void set_const(const FieldID&, const BitsVal&);
-		bool get_const(const FieldID&, const BitsVal** out) const;
+		const BitsVal* get_const(const FieldID&) const;
 
 		const SigRoleID& get_binding(const FieldID&) const;
 

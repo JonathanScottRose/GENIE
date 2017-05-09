@@ -36,10 +36,10 @@ NodeMerge::NodeMerge()
 	add_port(new PortReset(RESETPORT_NAME, Port::Dir::IN, "reset"));
 	
 	auto outport = new PortRS(OUTPORT_NAME, Port::Dir::OUT, CLOCKPORT_NAME);
-	outport->add_subport(PortRS::DATA_CARRIER, { "o_data", "WIDTH" });
-	outport->add_subport(PortRS::VALID, "o_valid");
-	outport->add_subport(PortRS::READY, "i_ready");
-	outport->add_subport(PortRS::EOP, "o_eop");
+	outport->add_role_binding(PortRS::DATA_CARRIER, { "o_data", "WIDTH" });
+	outport->add_role_binding(PortRS::VALID, "o_valid");
+	outport->add_role_binding(PortRS::READY, "i_ready");
+	outport->add_role_binding(PortRS::EOP, "o_eop");
 	add_port(outport);
 
 	auto& proto = outport->get_proto();
@@ -90,11 +90,11 @@ void NodeMerge::create_ports()
 	for (unsigned i = 0; i < m_n_inputs; i++)
 	{
 		auto p = new PortRS(INPORT_NAME + std::to_string(i), Port::Dir::IN, CLOCKPORT_NAME);
-		p->add_subport(PortRS::VALID, PortBindingRef("i_valid").set_lo_bit(i));
-		p->add_subport(PortRS::DATA_CARRIER, 
+		p->add_role_binding(PortRS::VALID, PortBindingRef("i_valid").set_lo_bit(i));
+		p->add_role_binding(PortRS::DATA_CARRIER,
 			PortBindingRef("i_data", "WIDTH").set_lo_slice(i));
-		p->add_subport(PortRS::EOP, PortBindingRef("i_eop").set_lo_bit(i));
-		p->add_subport(PortRS::READY, PortBindingRef("o_ready").set_lo_bit(i));
+		p->add_role_binding(PortRS::EOP, PortBindingRef("i_eop").set_lo_bit(i));
+		p->add_role_binding(PortRS::READY, PortBindingRef("o_ready").set_lo_bit(i));
 		add_port(p);
 
 		auto& proto = p->get_proto();

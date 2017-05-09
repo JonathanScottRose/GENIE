@@ -38,10 +38,10 @@ NodeSplit::NodeSplit()
 	add_port(new PortReset(RESETPORT_NAME, Port::Dir::IN, "reset"));
 
 	auto inport = new PortRS(INPORT_NAME, Port::Dir::IN, CLOCKPORT_NAME);
-	inport->add_subport(PortRS::DATA_CARRIER, { "i_data", "WO" });
-	inport->add_subport(PortRS::ADDRESS, { "i_mask", "NO" });
-	inport->add_subport(PortRS::VALID, "i_valid");
-	inport->add_subport(PortRS::READY, "o_ready");
+	inport->add_role_binding(PortRS::DATA_CARRIER, { "i_data", "WO" });
+	inport->add_role_binding(PortRS::ADDRESS, { "i_mask", "NO" });
+	inport->add_role_binding(PortRS::VALID, "i_valid");
+	inport->add_role_binding(PortRS::READY, "o_ready");
 	add_port(inport);
 
 	// The node itself can be connected to with TOPO links
@@ -92,9 +92,9 @@ void NodeSplit::create_ports()
 	for (unsigned i = 0; i < m_n_outputs; i++)
 	{
 		auto p = new PortRS(OUTPORT_NAME + std::to_string(i), Port::Dir::OUT, CLOCKPORT_NAME);
-		p->add_subport(PortRS::VALID, PortBindingRef("o_valid").set_lo_bit(i));
-		p->add_subport(PortRS::DATA_CARRIER, PortBindingRef("o_data", "WO"));
-		p->add_subport(PortRS::READY, PortBindingRef("i_ready").set_lo_bit(i));
+		p->add_role_binding(PortRS::VALID, PortBindingRef("o_valid").set_lo_bit(i));
+		p->add_role_binding(PortRS::DATA_CARRIER, PortBindingRef("o_data", "WO"));
+		p->add_role_binding(PortRS::READY, PortBindingRef("i_ready").set_lo_bit(i));
 		add_port(p);
 
 		// Connect in->out ports for traversal

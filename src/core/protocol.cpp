@@ -278,18 +278,17 @@ void PortProtocol::set_const(const FieldID& f, const BitsVal& v)
 	it->second.is_const = true;
 }
 
-bool PortProtocol::get_const(const FieldID& f, const BitsVal** out) const
+const BitsVal* PortProtocol::get_const(const FieldID& f) const
 {
 	for (auto& i : m_extra_info)
 	{
 		if (i.first.matches(f) && i.second.is_const)
 		{
-			if (out) *out = &(i.second.const_val);
-			return true;
+			return &i.second.const_val;
 		}	
 	}
 
-	return false;
+	return nullptr;
 }
 
 const SigRoleID& PortProtocol::get_binding(const FieldID& f) const

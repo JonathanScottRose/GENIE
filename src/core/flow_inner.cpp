@@ -3,6 +3,7 @@
 #include "node_split.h"
 #include "node_merge.h"
 #include "node_user.h"
+#include "node_conv.h"
 #include "net_topo.h"
 #include "net_rs.h"
 #include "port_rs.h"
@@ -202,7 +203,150 @@ namespace
 				if (user_rep.get_n_addr_bins() <= 1)
 					continue;
 
-				
+				// Create a converter node.
+				auto conv = new NodeConv();
+
+				// Make a name for it
+				std::string conv_name = util::str_con_cat("conv", user_port->get_hier_path(sys));
+				std::replace(conv_name.begin(), conv_name.end(), HierObject::PATH_SEP, '_');
+				conv->set_name(conv_name);
+
+				// Insert node, splice into link
+				sys->add_child(conv);
+				sys->splice(rs_link, conv->get_input(), conv->get_output());
+
+				// Find out the direction of conversion and configure the converter
+				bool to_user = ep->get_dir() == Port::Dir::IN;
+				auto& in_rep = to_user ? glob_rep : user_rep;
+				auto& out_rep = to_user ? user_rep : glob_rep;
+				auto in_field = to_user ? FIELD_USERADDR : FIELD_XMIS_ID;
+				auto out_field = to_user ? FIELD_XMIS_ID : FIELD_USERADDR;
+
+				conv->configure(in_rep, in_field, out_rep, out_field);
+			}
+		}
+	}
+
+	void insert_addr_converters_split(NodeSystem* sys)
+	{
+		auto fstate = sys->get_flow_state_inner();
+		auto& glob_rep = fstate->get_flow_rep();
+
+		// Go through all split nodes
+		for (auto sp : sys->get_children_by_type<NodeSplit>())
+		{
+			// Make an addr representation for its input
+			auto sp_rep = flow::make_split_node_rep(sys, sp);
+
+			// If this is a trivial representation, this split node just broadcasts
+			// To all its outputs. This shows up as an address representation with a single
+			// bin of ADDR_ANY.
+			// In this case, we can tie the split node's input with a constant.
+
+			if (sp_rep.get_n_addr_bins() == 1)
+			{
+				auto& proto = sp->get_input()->get_proto();
+				BitsVal ones;
+				for (unsigned i = 0; i < sp->get_n_outputs(); i++)
+					ones.set_bit(i, 1);
+
+				proto.set_const(FIELD_SPLITMASK, ones);
+			}
+			else
+			{
+				// Make a conv node
+				std::string conv_name = util::str_con_cat("conv", sp->get_hier_path(sys));
+				std::replace(conv_name.begin(), conv_name.end(), HierObject::PATH_SEP, '_');
+
+				auto conv = new NodeConv();
+				conv->set_name(conv_name);
+
+				// Split input and link
+				auto sp_in = sp->get_input();
+				auto sp_link = sp_in->get_endpoint(NET_RS, Port::Dir::IN)->get_link0();
+
+				// Add and splice in the conv node
+				sys->add_child(conv);
+				sys->splice(sp_link, conv->get_input(), conv->get_output());
+
+				// Configure conv node.
+				// Convert global representation to split node one-hot mask
+				conv->configure(glob_rep, FIELD_XMIS_ID, sp_rep, FIELD_SPLITMASK);
+			}
+		}
+	}
+
+	void do_protocol_carriage(NodeSystem* sys)
+	{
+		auto e2e_links = sys->get_links(NET_RS_LOGICAL);
+		auto link_rel = sys->get_link_relations();
+
+		// Traverse every end-to-end elemental transmission
+		for (auto& e2e_link : e2e_links)
+		{
+			auto e2e_src = static_cast<PortRS*>(e2e_link->get_src());
+			auto e2e_sink = static_cast<PortRS*>(e2e_link->get_sink());
+
+			// Initialize a carriage set to empty. This holds the Fields that need to be
+			// carried across the next physical link 
+			FieldSet carriage_set;
+
+			// Start at the final sink and work backwards to the source
+			auto cur_sink = e2e_sink;
+
+			// Loop until we've traversed the entire chain of links from sink to source
+			while (true)
+			{
+				// First, get the link feeding cur_sink, along with the feeder port
+				auto ext_link = cur_sink->get_endpoint(NET_RS, Port::Dir::IN)->get_link0();
+				assert(ext_link);
+				auto cur_src = static_cast<PortRS*>(ext_link->get_src());
+
+				// Exit if we've reached the beginning
+				if (cur_src == e2e_src)
+					break;
+
+				// Protocols of local src/sink
+				auto& sink_proto = cur_sink->get_proto();
+				auto& src_proto = cur_src->get_proto();
+
+				// Carriage set += (what sink needs) - (what src provides)
+				carriage_set.add(sink_proto.terminal_fields());
+				carriage_set.subtract(src_proto.terminal_fields());
+
+				// Make the intermediate Node carry the carriage set, if it is able.
+				// If not, reset the carriage set.
+				CarrierProtocol* carrier_proto = cur_src->get_carried_proto();
+				if (carrier_proto)
+					carrier_proto->add_set(carriage_set);
+				else
+					carriage_set.clear();
+
+				// Traverse backwards internally through the Node to find the next 
+				// input port to visit.
+				// This is relevant
+				cur_sink = nullptr;
+				auto cur_src_ep = cur_src->get_endpoint(NET_RS, Port::Dir::IN);
+				for (auto int_link : cur_src_ep->links())
+				{
+					// Candidate sink that feeds cur_src through the node.
+					auto cand_sink = static_cast<PortRS*>(int_link->get_src());
+
+					// Get the physical links feeding it
+					auto cand_feeder =
+						cand_sink->get_endpoint(NET_RS, Port::Dir::IN)->get_link0();
+
+					// If this physical link carries the end-to-end transmission we want,
+					// then choose it to continue tranversal.
+					if (link_rel->is_contained_in(e2e_link, cand_feeder))
+					{
+						cur_sink = cand_sink;
+						break;
+					}
+				}
+
+				// If this fails, then traversal doesn't know where to go next.
+				assert(cur_sink);
 			}
 		}
 	}
@@ -218,4 +362,8 @@ void flow::do_inner(NodeSystem* sys)
 
 	realize_topo_links(sys);
 	insert_addr_converters_user(sys);
+	insert_addr_converters_split(sys);
+	do_protocol_carriage(sys);
+
+
 }

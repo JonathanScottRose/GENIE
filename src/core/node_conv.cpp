@@ -33,12 +33,14 @@ NodeConv::NodeConv()
 	add_port(new PortReset(RESETPORT_NAME, Port::Dir::IN, "reset"));
 
 	auto inport = new PortRS(INPORT_NAME, Port::Dir::IN, CLOCKPORT_NAME);
-	inport->add_subport(PortRS::VALID, "i_valid");
-	inport->add_subport(PortRS::DATA, { "i_in", "WIDTH_IN" });
+	inport->add_role_binding(PortRS::VALID, "i_valid");
+	inport->add_role_binding(PortRS::DATA, { "i_in", "WIDTH_IN" });
+	inport->add_role_binding(PortRS::DATA_CARRIER, { "i_data", "WIDTH_DATA" });
 	add_port(inport);
 
 	auto outport = new PortRS(OUTPORT_NAME, Port::Dir::OUT, CLOCKPORT_NAME);
-	outport->add_subport(PortRS::DATA, { "o_out", "WIDTH_OUT" });
+	outport->add_role_binding(PortRS::DATA, { "o_out", "WIDTH_OUT" });
+	outport->add_role_binding(PortRS::DATA_CARRIER, { "o_data", "WIDTH_DATA" });
 	add_port(outport);
 
 	connect(inport, outport, NET_RS);
@@ -61,11 +63,51 @@ void NodeConv::init_vlog()
 	hdl.add_port("i_valid", 1, 1, Dir::IN);
 	hdl.add_port("i_in", "WIDTH_IN", 1, Dir::IN);
 	hdl.add_port("o_out", "WIDTH_OUT", 1, Dir::OUT);
+	hdl.add_port("i_data", "WIDTH_DATA", 1, Dir::IN);
+	hdl.add_port("o_data", "WIDTH_DATA", 1, Dir::OUT);
 }
 
 NodeConv* NodeConv::clone() const
 {
 	return new NodeConv(*this);
+}
+
+PortRS * NodeConv::get_input() const
+{
+	return get_port<PortRS>(INPORT_NAME);
+}
+
+PortRS * NodeConv::get_output() const
+{
+	return get_port<PortRS>(OUTPORT_NAME);
+}
+
+void NodeConv::configure(const AddressRep & in_rep, const FieldID & in_field, 
+	const AddressRep & out_rep, const FieldID & out_field)
+{
+	m_table.clear();
+
+	// Go through every output representation address bin. Get the (->to) address.
+	// Use one transmission from that bin and find its address in
+	// the input representation to use as the (from->) address.
+	for (auto& out_bin : out_rep.get_addr_bins())
+	{
+		unsigned to_addr = out_bin.first;
+		unsigned exemplar_xmis = out_bin.second.front();
+		unsigned from_addr = in_rep.get_addr(exemplar_xmis);
+		m_table.emplace_back(from_addr, to_addr);
+	}
+
+	// Set conversion bit sizes
+	m_in_width = in_rep.get_size_in_bits();
+	m_out_width = out_rep.get_size_in_bits();
+
+	// Attach fields
+	auto& in_proto = get_input()->get_proto();
+	auto& out_proto = get_output()->get_proto();
+
+	in_proto.add_terminal_field(FieldInst(in_field, m_in_width), PortRS::DATA);
+	out_proto.add_terminal_field(FieldInst(out_field, m_out_width), PortRS::DATA);
 }
 
 

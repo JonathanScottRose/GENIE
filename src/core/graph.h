@@ -106,6 +106,7 @@ namespace graph
 
 		// Creation of new vertices and edges
 		VertexID newv();
+		void newv(VertexID id);
 		EdgeID newe();
 		EdgeID newe(VertexID v1, VertexID v2);
 

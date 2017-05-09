@@ -14,6 +14,12 @@ namespace impl
 
 	class AddressRep
 	{
+	protected:
+		mutable unsigned m_size_in_bits;
+		mutable bool m_size_needs_recalc;
+		std::unordered_map<unsigned, std::vector<unsigned>> m_addr2xmis;
+		std::unordered_map<unsigned, unsigned> m_xmis2addr;
+
 	public:
 		static const unsigned ADDR_ANY = genie::LinkRS::ADDR_ANY;
 		static const unsigned ADDR_INVALID = ADDR_ANY - 1;
@@ -26,16 +32,10 @@ namespace impl
 		unsigned get_addr(unsigned xmis) const;
 		bool exists(unsigned addr) const;
 
-		std::vector<unsigned> get_addr_bins() const;
+		const decltype(m_addr2xmis)& get_addr_bins() const;
 		unsigned get_n_addr_bins() const;
 
-		unsigned get_size_in_bits();
-
-	protected:
-		unsigned m_size_in_bits;
-		bool m_size_needs_recalc;
-		std::unordered_map<unsigned, std::vector<unsigned>> m_addr2xmis;
-		std::unordered_map<unsigned, unsigned> m_xmis2addr;
+		unsigned get_size_in_bits() const;
 	};
 
 	namespace flow

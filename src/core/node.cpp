@@ -370,6 +370,50 @@ void Node::disconnect(Link* link)
 		m_links.erase(nettype);
 }
 
+Link * Node::splice(Link * orig, HierObject * new_sink, HierObject * new_src)
+{
+	//
+	// orig_src --> orig --> orig_sink
+	//
+	// becomes
+	//
+	// orig_src --> orig --> new_sink, new_src --> (new link) --> orig_sink
+	//
+
+	Endpoint* orig_src_ep = orig->get_src_ep();
+	Endpoint* orig_sink_ep = orig->get_sink_ep();
+	NetType net = orig->get_type();
+
+	Endpoint* new_sink_ep = new_sink->get_endpoint(net, Port::Dir::IN);
+	Endpoint* new_src_ep = new_src->get_endpoint(net, Port::Dir::OUT);
+
+	// Disconnect old link from its sink and attach it to new sink
+	orig->set_sink_ep(new_sink_ep);
+	orig_sink_ep->remove_link(orig);
+	new_sink_ep->add_link(orig);
+
+	// Create a link from new src to old sink
+	Link* new_link = orig->clone();
+	new_link->set_src_ep(new_src_ep);
+	new_link->set_sink_ep(orig_sink_ep);
+	new_src_ep->add_link(new_link);
+	orig_sink_ep->add_link(new_link);
+
+	// Add link to the system
+	m_links[net].push_back(new_link);
+
+	// Transfer containment relationships. Just immediate parents
+	auto link_rel = get_link_relations();
+	auto old_parents = link_rel->get_immediate_parents(orig);
+
+	for (auto parent : old_parents)
+	{
+		link_rel->add(parent, new_link);
+	}
+
+	return new_link;
+}
+
 bool Node::is_link_internal(Link* link) const
 {
 	// The endpoints must be Ports belonging to this Node

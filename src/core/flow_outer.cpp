@@ -36,15 +36,15 @@ namespace
 			{
 				auto& proto = port->get_proto();
 
-				// Use subports to get signal roles (this is unclean. FIXME)
-				for (auto subp : port->get_subports())
+				// Browse through signal roles
+				for (auto& rb : port->get_role_bindings())
 				{
-					auto& role = subp->get_role();
-					auto& hdl_bnd = subp->get_hdl_binding();
+					auto& role = rb.role;
+					auto& hdl_bnd = rb.binding;
 
 					if (hdl_bnd.get_slices() > 1)
 					{
-						throw Exception(subp->get_hier_path() +
+						throw Exception(port->get_hier_path() + " " + role.type.to_string() + 
 							": multi-dimensional HDL signal bindings not supported");
 					}
 

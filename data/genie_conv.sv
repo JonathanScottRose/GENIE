@@ -1,5 +1,6 @@
 module genie_conv #
 (
+	integer WIDTH_DATA = 0,	// width of carried data
 	integer WIDTH_IN = 0,	// width of input field
 	integer WIDTH_OUT = 0,	// width of output field
 	integer N_ENTRIES = 0,	// number of conversion table pairs
@@ -10,6 +11,8 @@ module genie_conv #
 	input clk,
 	input reset,
 	
+	input logic [WIDTH_DATA-1:0] i_data,
+	output logic [WIDTH_DATA-1:0] o_data,
 	input logic [WIDTH_IN-1:0] i_in,
 	output logic [WIDTH_OUT-1:0] o_out,
 	input logic i_valid
@@ -37,6 +40,9 @@ end
 
 // For sanity checking during simulation
 assert property (@(posedge clk) disable iff (reset) !(i_valid && !match));
+
+// Data pass-through
+assign o_data = i_data;
 
 endmodule
 

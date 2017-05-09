@@ -31,6 +31,12 @@ namespace impl
 		void set_logic_depth(unsigned) override;
 
     public:
+		struct RoleBinding
+		{
+			SigRoleID role;
+			hdl::PortBindingRef binding;
+		};
+
 		static SigRoleType DATA_CARRIER;
 
 		static void init();
@@ -51,11 +57,21 @@ namespace impl
 		PROP_GET_SET(domain_id, unsigned, m_domain_id);
 		PROP_GET_SETR(proto, PortProtocol&, m_proto);
 
+		// Future.
+		/*
         std::vector<PortRSSub*> get_subports() const;
 		std::vector<PortRSSub*> get_subports(SigRoleType type);
 		PortRSSub* get_subport(const SigRoleID&);
 		PortRSSub* add_subport(const SigRoleID&, const hdl::PortBindingRef& bnd);
+		*/
+
 		PortClock* get_clock_port() const;
+
+		// Present and past.
+		const std::vector<RoleBinding>& get_role_bindings() const;
+		std::vector<RoleBinding> get_role_bindings(SigRoleType type);
+		RoleBinding* get_role_binding(const SigRoleID&);
+		RoleBinding& add_role_binding(const SigRoleID&, const hdl::PortBindingRef&);
 
 		CarrierProtocol* get_carried_proto() const;
 		bool has_field(const FieldID&) const;
@@ -65,6 +81,7 @@ namespace impl
         std::string m_clk_port_name;
 		unsigned m_domain_id;
 		PortProtocol m_proto;
+		std::vector<RoleBinding> m_role_bindings;
     };
 
 	extern PortType PORT_RS_SUB;

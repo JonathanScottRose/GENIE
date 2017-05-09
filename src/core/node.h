@@ -48,7 +48,7 @@ namespace impl
         
 		Port* add_port(Port* p);
 		template<class P = Port>
-		P* get_port(const std::string& path)
+		P* get_port(const std::string& path) const
 		{
 			return get_child_as<P>(path);
 		}

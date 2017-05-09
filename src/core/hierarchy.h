@@ -71,7 +71,7 @@ namespace impl
 		template<class T>
 		T* get_child_as(const std::string& p) const
 		{
-			return util::as_a<T>(get_child(p));
+			return dynamic_cast<T*>(get_child(p));
 		}
 
 		// Remove child but do not destroy (returns removed thing)

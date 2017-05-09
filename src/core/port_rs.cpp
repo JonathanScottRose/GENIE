@@ -106,7 +106,7 @@ void PortRS::add_signal_ex(const SigRoleID& role, const HDLPortSpec& pspec,
     hdl_pb.set_slices(bspec.depth);
     hdl_pb.set_lo_slice(bspec.lo_slice);
 
-	add_subport(role, hdl_pb);
+	add_role_binding(role, hdl_pb);
 }
 
 void PortRS::set_logic_depth(unsigned depth)
@@ -165,7 +165,7 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
 PortRS::PortRS(const PortRS &o)
     : Port(o), m_clk_port_name(o.m_clk_port_name), 
 	m_domain_id(o.m_domain_id), m_proto(o.m_proto),
-	m_logic_depth(o.m_logic_depth)
+	m_logic_depth(o.m_logic_depth), m_role_bindings(o.m_role_bindings)
 {
 }
 
@@ -180,9 +180,8 @@ PortRS * PortRS::clone() const
 
 void PortRS::resolve_params(ParamResolver& r)
 {
-    auto ports = get_subports();
-    for (auto p : ports)
-        p->resolve_params(r);
+	for (auto& b : m_role_bindings)
+		b.binding.resolve_params(r);
 }
 
 Port * PortRS::export_port(const std::string & name, NodeSystem* context)
@@ -210,6 +209,7 @@ Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 	auto result_impl = dynamic_cast<PortRS*>(result);
 
 	// Re-create subports
+	/*
 	for (auto old_subp : get_subports())
 	{
 		auto& role = old_subp->get_role();
@@ -240,6 +240,33 @@ Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 		// Add subport to exported port
 		result_impl->add_child(new_subp);
 	}
+	*/
+	for (auto& old_rb : m_role_bindings)
+	{
+		auto& role = old_rb.role;
+		const auto& old_bind = old_rb.binding;
+		const auto& old_hdl_port = get_node()->get_hdl_state().get_port(old_bind.get_port_name());
+
+		// Create a new HDL port on the system
+		std::string new_hdl_name;
+		if (role.type == PortRS::DATABUNDLE)
+			new_hdl_name = util::str_con_cat(name, "data", role.tag);
+		else
+			new_hdl_name = util::str_con_cat(name, util::str_tolower(role.type.to_string()));
+
+		context->get_hdl_state().get_or_create_port(new_hdl_name, old_hdl_port->get_width(),
+			old_hdl_port->get_depth(), old_hdl_port->get_dir());
+
+		// Create a binding to this new HDL port.
+		// It will have same width/depth but start at slice and bit 0
+		auto new_bind = old_bind;
+		new_bind.set_lo_bit(0);
+		new_bind.set_lo_slice(0);
+		new_bind.set_port_name(new_hdl_name);
+
+		// Add rolebinding to exported port
+		result_impl->add_role_binding(role, new_bind);
+	}
 
 	return result_impl;
 }
@@ -252,6 +279,7 @@ void PortRS::reintegrate(HierObject* obj)
 	this->m_proto = that->m_proto;
 }
 
+/*
 std::vector<PortRSSub*> PortRS::get_subports() const
 {
     return get_children_by_type<PortRSSub>();
@@ -322,6 +350,84 @@ PortRSSub * PortRS::add_subport(const SigRoleID& role,
 
 	add_child(subport);
 	return subport;
+}
+*/
+
+const std::vector<PortRS::RoleBinding>& PortRS::get_role_bindings() const
+{
+	return m_role_bindings;
+}
+
+std::vector<PortRS::RoleBinding> PortRS::get_role_bindings(SigRoleType rtype)
+{
+	std::vector<RoleBinding> result;
+
+	std::copy_if(m_role_bindings.begin(), m_role_bindings.end(), result.end(),
+		[&](const RoleBinding& rb)
+	{
+		return rb.role.type == rtype;
+	});
+
+	return result;
+}
+
+PortRS::RoleBinding* PortRS::get_role_binding(const SigRoleID& role)
+{
+	auto it = std::find_if(m_role_bindings.begin(), m_role_bindings.end(), 
+		[&](const RoleBinding& rb)
+	{
+		return rb.role == role;
+	});
+	
+	return (it == m_role_bindings.end()) ? nullptr : &(*it);
+}
+
+
+PortRS::RoleBinding& PortRS::add_role_binding(const SigRoleID& role,
+	const hdl::PortBindingRef & bnd)
+{
+	// Check whether tag is required based on role
+	if (role.type == PortRS::DATABUNDLE)
+	{
+		if (role.tag.empty())
+		{
+			throw Exception(get_hier_path() + ": role " +
+				role.type.to_string() + " requires a tag");
+		}
+	}
+	else
+	{
+		if (!role.tag.empty())
+		{
+			throw Exception(get_hier_path() + ": role " +
+				role.type.to_string() + " must have empty tag");
+		}
+	}
+
+	// Create subport, figure out direction and name
+	auto subport_dir = get_dir();
+	std::string subport_name = role.type.to_string();
+
+	if (role.type == PortRS::READY)
+	{
+		subport_dir = subport_dir.rev();
+	}
+	else if (role.type == PortRS::DATABUNDLE)
+	{
+		subport_name = util::str_con_cat("data", role.tag);
+	}
+
+	util::str_makelower(subport_name);
+
+	// Create the role binding
+	if (get_role_binding(role) != nullptr)
+	{
+		throw Exception(get_hier_path() + ": role " + role.type.to_string() + " with tag '"
+			+ role.tag + " already exists");
+	}
+
+	m_role_bindings.push_back(RoleBinding{ role, bnd });
+	return m_role_bindings.back();
 }
 
 PortClock * PortRS::get_clock_port() const
