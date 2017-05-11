@@ -33,6 +33,10 @@ NodeUser* NodeUser::instantiate() const
     return new NodeUser(*this);
 }
 
+void NodeUser::prepare_for_hdl()
+{
+}
+
 NodeUser* NodeUser::clone() const
 {
 	return new NodeUser(*this);

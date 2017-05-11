@@ -79,6 +79,11 @@ void NodeIntParam::set_val(IntExpr&& exp)
 // Bits param
 //
 
+NodeBitsParam::NodeBitsParam(const BitsVal &val)
+	: m_val(val)
+{
+}
+
 void NodeBitsParam::resolve(ParamResolver &)
 {
 }

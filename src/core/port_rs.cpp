@@ -152,7 +152,7 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir,
 	m_logic_depth(0)
 {
 	make_connectable(NET_RS_LOGICAL);
-	make_connectable(NET_RS);
+	make_connectable(NET_RS_PHYS);
 	make_connectable(NET_TOPO);
 	make_connectable(NET_INTERNAL, dir.rev());
 }
@@ -165,7 +165,8 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
 PortRS::PortRS(const PortRS &o)
     : Port(o), m_clk_port_name(o.m_clk_port_name), 
 	m_domain_id(o.m_domain_id), m_proto(o.m_proto),
-	m_logic_depth(o.m_logic_depth), m_role_bindings(o.m_role_bindings)
+	m_logic_depth(o.m_logic_depth), m_role_bindings(o.m_role_bindings),
+	m_bp_status(o.m_bp_status)
 {
 }
 
@@ -451,7 +452,7 @@ bool PortRS::has_field(const FieldID &f) const
 	if (!result)
 	{
 		auto p = get_carried_proto();
-		result = p->has(f);
+		if (p) result = p->has(f);
 	}
 
 	return result;

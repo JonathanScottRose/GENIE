@@ -23,13 +23,13 @@ namespace
 	int s_cur_indent;
 	constexpr int INDENT_AMT = 4;
 
-    std::string format_port_bindings_bits(const Port& port, int slice,
+    std::string format_port_bindings_bits(const HDLState&, const Port& port, int slice,
         std::vector<PortBinding>::iterator& bind_it, std::vector<PortBinding>::iterator bind_it_end);
-	std::string format_port_bindings(const Port&);
+	std::string format_port_bindings(const Port&, const HDLState&);
     std::string format_size(int depth, int width);
     std::string format_bits_val(const BitsVal& val);
     std::string format_unconn(int bits);
-    std::string format_bindable(Bindable* b);
+    std::string format_bindable(const PortBindingTarget& b);
     std::string format_part_select(int lo, int size);
     std::string format_param(NodeParam* param);
 
@@ -87,7 +87,7 @@ namespace
         // TODO: can we get rid of explicit sizes for BitsParams?
         if (param->get_type() == NodeParam::BITS)
         {
-            auto bp = dynamic_cast<NodeBitsParam*>(param);
+            auto bp = static_cast<NodeBitsParam*>(param);
             auto& val = bp->get_val();
             line += " " + format_size(val.get_size(1), val.get_size(1));
         }
@@ -119,7 +119,7 @@ namespace
 				continue;
 
 			// Reuse the same formatting code that prints port bindings on instances
-			std::string line = "assign " + port.get_name() + " = " + format_port_bindings(port) + ";";
+			std::string line = "assign " + port.get_name() + " = " + format_port_bindings(port, mod) + ";";
 			write_line(line);
 		}
 	}
@@ -200,19 +200,19 @@ namespace
         {
         case NodeParam::STRING:
         {
-            auto str_param = dynamic_cast<NodeStringParam*>(param);
+            auto str_param = static_cast<NodeStringParam*>(param);
             result = "\"" + str_param->get_val() + "\"";
             break;
         }
         case NodeParam::INT:
         {
-            auto int_param = dynamic_cast<NodeIntParam*>(param);
+            auto int_param = static_cast<NodeIntParam*>(param);
             result = int_param->get_val().to_string();
             break;
         }
         case NodeParam::BITS:
         {
-            auto bits_param = dynamic_cast<NodeBitsParam*>(param);
+            auto bits_param = static_cast<NodeBitsParam*>(param);
             auto& val = bits_param->get_val();
             result += format_bits_val(val);
             break;
@@ -239,7 +239,7 @@ namespace
         return result;
     }
 
-    std::string format_port_bindings_bits(const Port& port, int slice,
+    std::string format_port_bindings_bits(const HDLState& sys_context, const Port& port, int slice,
         std::vector<PortBinding>::iterator& bind_it, std::vector<PortBinding>::iterator bind_it_end)
     {
         std::vector<std::string> formatted_ranges;
@@ -276,17 +276,20 @@ namespace
             else
             {
                 // Otherwise, cur_bit points to the top of the next binding. Write it out.			
-                Bindable* targ = binding->get_target();
+                const PortBindingTarget& targ = binding->get_target();
                 std::string bindstr = format_bindable(targ);
 
                 // Do a range select on the target if not binding to the full target bits
-                if (!binding->is_full0_target_binding())
+                if (!binding->is_full0_target_binding(sys_context))
                 {
                     int bind_width = binding->get_bound_bits();
                     int bind_lsb = binding->get_target_lo_bit();
 
                     bindstr += format_part_select(bind_lsb, bind_lsb + bind_width - 1);
                 }
+
+				// Put into vector
+				formatted_ranges.push_back(bindstr);
 
                 // Advance to whatever's after this binding (could be another binding or
                 // some unconnected bits)
@@ -313,7 +316,7 @@ namespace
     }
 
 
-	std::string format_port_bindings(const Port& port)
+	std::string format_port_bindings(const Port& port, const HDLState& sys_context)
 	{
 		std::vector<std::string> formatted_slices;
 
@@ -352,7 +355,6 @@ namespace
                 // Fill it with zs
                 if (binding_hi_slice < cur_slice)
                 {
-   
                     formatted_slices.push_back(format_unconn((int)port.get_width()));
 
                     // This processed only a single unconnected slice. We'll return here
@@ -372,11 +374,12 @@ namespace
                         std::string bnd = format_bindable(binding->get_target());
 
 						// Do we need to part-select the outer and/or inner dimensions of the target?
+						bool targ_is_2D = binding->get_target().get_depth(sys_context) > 1;
 						bool do_outer =
-							!binding->is_full1_target_binding() ||
-							!binding->is_full0_target_binding();
+							(!binding->is_full1_target_binding(sys_context)) ||
+							(targ_is_2D && !binding->is_full0_target_binding(sys_context));
 
-						bool do_inner = !binding->is_full0_target_binding();
+						bool do_inner = !binding->is_full0_target_binding(sys_context);
 
                         if (do_outer)
 						{
@@ -403,7 +406,7 @@ namespace
                         // Hand off to function to process it, and advance binding_iter for us
                         assert(binding->get_bound_slices() == 1);
 
-                        formatted_slices.push_back(format_port_bindings_bits(port, 
+                        formatted_slices.push_back(format_port_bindings_bits(sys_context, port, 
                             binding->get_target_lo_slice(), binding_iter, binding_iter_end));
 
                         // Do not increment binding iter - this was done for us in the function above
@@ -471,9 +474,9 @@ namespace
 
             switch (val.get_preferred_base())
             {
-            case BitsVal::BIN: result += val.to_str_bin(i); break;
-            case BitsVal::DEC: result += val.to_str_dec(i); break;
-            case BitsVal::HEX: result += val.to_str_hex(i); break;
+            case BitsVal::BIN: result += 'b' + val.to_str_bin(i); break;
+            case BitsVal::DEC: result += 'd' + val.to_str_dec(i); break;
+            case BitsVal::HEX: result += 'h' + val.to_str_hex(i); break;
             }
         }
 
@@ -502,33 +505,26 @@ namespace
         return result;
     }
 
-    std::string format_bindable(Bindable* b)
+    std::string format_bindable(const PortBindingTarget& b)
     {
         std::string result;
 
-        // Check using RTTI what type it is. No virtual function polymorphism, to separate
-        // HDL structures from verilog-specific formatting. TODO: fancy cleanup of this
-
-        if (auto net = dynamic_cast<Net*>(b))
-        {
-            result = net->get_name();
-        }
-        else if (auto cv = dynamic_cast<ConstValue*>(b))
-        {
-            result = format_bits_val(cv->get_value());
-        }
-        else
-        {
-            assert(false);
-        }
+		if (b.is_const())
+		{
+			result = format_bits_val(b.get_const());
+		}
+		else
+		{
+			result = b.get_net_name();
+		}
 
         return result;
     }
 
-	void write_inst_portbindings(const Port& port)
+	void write_inst_portbindings(const Port& port, const HDLState& sys)
 	{
 		const std::string& portname = port.get_name();
-		std::string bindings = format_port_bindings(port);
+		std::string bindings = format_port_bindings(port, sys);
 		write_line("." + portname + "(" + bindings + ")", true, false);
 	}
 
@@ -540,7 +536,7 @@ namespace
 
 	void write_sys_insts(HDLState& mod)
 	{
-		auto sys = dynamic_cast<NodeSystem*>(mod.get_node());
+		auto sys = static_cast<NodeSystem*>(mod.get_node());
         assert(sys);
 
 		write_line("");
@@ -588,7 +584,7 @@ namespace
                 if (it != ports.begin())
                     write_line(",", false, true);
 
-                write_inst_portbindings(it->second);
+                write_inst_portbindings(it->second, mod);
 			}
 
 			write_line("", false, true);

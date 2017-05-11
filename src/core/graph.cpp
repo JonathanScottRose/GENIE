@@ -129,12 +129,27 @@ Graph& Graph::operator=(const Graph &o)
 	m_next_vid = o.m_next_vid;
 	return *this;
 }
-/*
+
+Graph& Graph::operator=(Graph&& o)
+{
+	V = std::move(o.V);
+	E = std::move(o.E);
+	m_next_eid = o.m_next_eid;
+	m_next_vid = o.m_next_vid;
+	return *this;
+}
+
 Graph::Graph(const Graph &o)
 	: iter_verts(*this), iter_edges(*this), V(o.V), E(o.E), 
 	m_next_eid(o.m_next_eid), m_next_vid(o.m_next_vid)
 {
-}*/
+}
+
+Graph::Graph(Graph&& o)
+	: iter_verts(*this), iter_edges(*this), V(std::move(o.V)), E(std::move(o.E)),
+	m_next_eid(o.m_next_eid), m_next_vid(o.m_next_vid)
+{
+}
 
 
 void Graph::remove_e(VertexID vid, EdgeID eid)

@@ -12,6 +12,136 @@ using genie::impl::Node;
 using genie::impl::ParamResolver;
 
 //
+// PortBindingTarget
+//
+
+bool PortBindingTarget::is_const() const
+{
+	assert(m_type != UNSET);
+	return m_type == CONST;
+}
+
+int PortBindingTarget::get_width(const HDLState& hdls) const
+{
+	switch (m_type)
+	{
+	case CONST: return (int)m_const.get_size(0); break;
+	case NET:
+	{
+		auto net = hdls.get_net(m_net);
+		assert(net);
+		return net->get_width();
+		break;
+	}
+	case UNSET: 
+	default:
+		assert(false); break;
+	}
+
+	return -1;
+}
+
+int PortBindingTarget::get_depth(const HDLState& hdls) const
+{
+	switch (m_type)
+	{
+	case CONST: return (int)m_const.get_size(1); break;
+	case NET:
+	{
+		auto net = hdls.get_net(m_net);
+		assert(net);
+		return net->get_depth();
+		break;
+	}
+	case UNSET:
+	default: 
+		assert(false); break;
+	}
+
+	return -1;
+}
+
+const BitsVal & PortBindingTarget::get_const() const
+{
+	assert(m_type == CONST);
+	return m_const;
+}
+
+const std::string & PortBindingTarget::get_net_name() const
+{
+	assert(m_type == NET);
+	return m_net;
+}
+
+PortBindingTarget::PortBindingTarget()
+	: m_type(UNSET)
+{
+}
+
+PortBindingTarget::PortBindingTarget(const BitsVal &val)
+	: m_const(val), m_type(CONST)
+{
+}
+
+PortBindingTarget::PortBindingTarget(const std::string &name)
+	: m_net(name), m_type(NET)
+{
+}
+
+PortBindingTarget::PortBindingTarget(const PortBindingTarget &o)
+	: m_type(UNSET)
+{
+	*this = o;
+}
+
+PortBindingTarget & PortBindingTarget::operator=(const PortBindingTarget &o)
+{
+	if (m_type != UNSET)
+		this->~PortBindingTarget();
+
+	m_type = o.m_type;
+
+	switch (m_type)
+	{
+	case NET:
+		new (&m_net) std::string(o.m_net);
+		break;
+
+	case CONST:
+		new (&m_const) BitsVal(o.m_const);
+		break;
+
+	case UNSET:
+	default:
+		break;
+	}
+
+	return *this;
+}
+
+PortBindingTarget::~PortBindingTarget()
+{
+	switch (m_type)
+	{
+	case NET:
+		m_net.~basic_string();
+		break;
+
+	case CONST:
+		m_const.~BitsVal();
+		break;
+
+	case UNSET:
+	default:
+		break;
+	}
+
+	m_type = UNSET;
+}
+
+
+
+//
 // Port
 //
 
@@ -116,7 +246,7 @@ bool Port::is_bound() const
     return !m_bindings.empty();
 }
 
-void Port::bind(Bindable* target, 
+void Port::bind(const PortBindingTarget& target, 
     unsigned bind_dim, int bind_size, 
     int targ_slice, int targ_bit, 
     int port_slice, int port_bit)
@@ -140,10 +270,8 @@ void Port::bind(Bindable* target,
             new_bit + new_bit_size > b.get_port_lo_bit() &&
             b.get_port_lo_bit() + b.get_bound_bits() > new_bit;
 
-        if (slice_overlap || bit_overlap)
-        {
-            throw Exception("binding overlap. more descriptive message TODO");
-        }
+		// Needs to be both to be bad.
+		assert(!(slice_overlap && bit_overlap));
     }
 
     // Create new binding
@@ -162,7 +290,7 @@ void Port::bind(Bindable* target,
 // PortBinding
 //
 
-PortBinding::PortBinding(Port* parent, Bindable* target)
+PortBinding::PortBinding(Port* parent, const PortBindingTarget& target)
     : m_parent(parent), m_target(target)
 {
 }
@@ -172,9 +300,9 @@ bool PortBinding::is_full1_port_binding() const
     return m_port_lo_slice == 0 && m_bound_slices == m_parent->get_depth();
 }
 
-bool PortBinding::is_full1_target_binding() const
+bool PortBinding::is_full1_target_binding(const HDLState& context) const
 {
-    return m_target_lo_slice == 0 && m_bound_slices == m_target->get_depth();
+    return m_target_lo_slice == 0 && m_bound_slices == m_target.get_depth(context);
 }
 
 bool PortBinding::is_full0_port_binding() const
@@ -182,28 +310,9 @@ bool PortBinding::is_full0_port_binding() const
     return m_port_lo_bit == 0 && m_bound_bits == m_parent->get_width();
 }
 
-bool PortBinding::is_full0_target_binding() const
+bool PortBinding::is_full0_target_binding(const HDLState& context) const
 {
-    return m_target_lo_bit == 0 && m_bound_bits == m_target->get_width();
-}
-
-//
-// ConstValue
-//
-
-ConstValue::ConstValue(const BitsVal& v)
-    : m_value(v)
-{
-}
-
-int ConstValue::get_width() const
-{
-    return m_value.get_size(0);
-}
-
-int ConstValue::get_depth() const
-{
-    return m_value.get_size(1);
+    return m_target_lo_bit == 0 && m_bound_bits == m_target.get_width(context);
 }
 
 //
@@ -245,31 +354,35 @@ HDLState::HDLState(Node* n)
 }
 
 HDLState::HDLState(const HDLState &o)
-    : m_ports(o.m_ports)
+    : m_ports(o.m_ports), m_nets(o.m_nets)
 {
-    // Point ports back
-    for (auto& p : m_ports)
-        p.second.set_parent(this);
-
-	// Not supported yet. TODO: fix it when needed
-	assert(o.m_nets.size() == 0);
-	assert(o.m_const_values.size() == 0);
+	update_parent_refs();
 }
 
 HDLState::HDLState(HDLState&& o)
-	: m_ports(std::move(o.m_ports))
+	: m_ports(std::move(o.m_ports)), m_nets(std::move(o.m_nets))
 {
-	// Point ports back
-	for (auto& p : m_ports)
-		p.second.set_parent(this);
-
-	// Not supported yet. TODO: fix it when needed
-	assert(o.m_nets.size() == 0);
-	assert(o.m_const_values.size() == 0);
+	update_parent_refs();
 }
 
 HDLState::~HDLState()
 {
+}
+
+HDLState & HDLState::operator=(const HDLState &o)
+{
+	m_ports = o.m_ports;
+	m_nets = o.m_nets;
+	update_parent_refs();
+	return *this;
+}
+
+HDLState & HDLState::operator=(HDLState &&o)
+{
+	m_ports = std::move(o.m_ports);
+	m_nets = std::move(o.m_nets);
+	update_parent_refs();
+	return *this;
 }
 
 void HDLState::resolve_params(ParamResolver& resolv)
@@ -350,7 +463,14 @@ Net& HDLState::add_net(Net::Type type, const std::string & name)
         Net(type, name)));
     auto& new_net = it.first->second;
 
-    return new_net;   
+    return new_net; 
+}
+
+void HDLState::update_parent_refs()
+{
+	// Point ports back
+	for (auto& p : m_ports)
+		p.second.set_parent(this);
 }
 
 Port * HDLState::get_port(const std::string& name)
@@ -359,10 +479,10 @@ Port * HDLState::get_port(const std::string& name)
     return it == m_ports.end()? nullptr : &it->second;
 }
 
-Net * HDLState::get_net(const std::string& name)
+Net * HDLState::get_net(const std::string& name) const
 {
     auto it = m_nets.find(name);
-    return it == m_nets.end()? nullptr : &it->second;
+	return it == m_nets.end() ? nullptr : const_cast<Net*>(&it->second);
 }
 
 auto HDLState::get_ports() const -> const decltype(m_ports)& 
@@ -412,26 +532,22 @@ void HDLState::connect(Port* src, Port* sink,
         net->set_depth(src_depth);
 
         // Bind net to entire src (all slices)
-        src->bind(net, 1, src_depth, 0, 0, 0, 0);
+        src->bind(src_netname, 1, src_depth, 0, 0, 0, 0);
     }
 
     // Now bind (part of) the net to the sink
-	sink->bind(net, dim, size, src_slice, src_lsb, sink_slice, sink_lsb);
+	sink->bind(src_netname, dim, size, src_slice, src_lsb, sink_slice, sink_lsb);
 }
 
 void HDLState::connect(Port* sink, const BitsVal& val, int sink_slice, int sink_lsb)
 {
-    // Create a new ConstValue bindable object
-    m_const_values.emplace_back(val);
-    auto& cv = m_const_values.back();
-
     // Bind it to the sink
     //
     // Check the dimensionality of the value to see if we're binding bits in a slice or entire slices.
     unsigned dim = val.get_size(1) > 1;
     unsigned size = val.get_size(dim);
 
-    sink->bind(&cv, dim, size, 0, 0, sink_slice, sink_lsb);
+    sink->bind(val, dim, size, 0, 0, sink_slice, sink_lsb);
 }
 
 void HDLState::connect(Node* src_node, const PortBindingRef & src, 

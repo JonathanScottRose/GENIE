@@ -11,6 +11,7 @@
 
 using namespace genie::impl;
 using RoleBinding = PortRS::RoleBinding;
+using Exception = genie::Exception;
 
 namespace
 {
@@ -47,38 +48,42 @@ namespace
 		hdls.connect(sink_vport, val, sink_hdlb.get_lo_slice(),
 			(unsigned)sink_hdlb.get_lo_bit() + lsb);
 	}
-	/*
-	void do_rvd_readyvalid(System* sys)
+	
+	void do_rs_readyvalid(NodeSystem* sys)
 	{
-		auto links = sys->get_links(NET_RVD);
+		auto links = sys->get_links(NET_RS_PHYS);
+		auto& hdls = sys->get_hdl_state();
 
 		// For each link, try to connect valids and readies if both src/sink have them.
 		// If not, try and insert defaulted signals
 		for (auto link : links)
 		{
-			auto src = (RVDPort*)link->get_src();
-			auto sink = (RVDPort*)link->get_sink();
+			auto src = static_cast<PortRS*>(link->get_src());
+			auto sink = static_cast<PortRS*>(link->get_sink());
+
+			auto src_node = src->get_node();
+			auto sink_node = sink->get_node();
 
 			// Valid
 			{
-				RoleBinding* src_rb = src->get_role_binding(RVDPort::ROLE_VALID);
-				RoleBinding* sink_rb = sink->get_role_binding(RVDPort::ROLE_VALID);
+				RoleBinding* src_rb = src->get_role_binding(PortRS::VALID);
+				RoleBinding* sink_rb = sink->get_role_binding(PortRS::VALID);
 
 				if (src_rb && sink_rb)
 				{
 					// Both present - everything good
-					connect_rb(sys, src_rb, sink_rb);
+					hdls.connect(src_node, src_rb->binding, sink_node, sink_rb->binding);
 				}
 				else if (!src_rb && sink_rb)
 				{
 					// Connect a constant high value to the sink.
-					tie_rb(sys, sink_rb, Value(1, 1), 0);
+					hdls.connect(sink_node, sink_rb->binding, BitsVal(1).set_bit(0, 1));
 				}
 				else if (src_rb && !sink_rb)
 				{
 					// Bad news, this is logically wrong
 					throw Exception("can't connect " + src->get_hier_path() + " to " +
-						sink->get_hier_path() + " because " + src_rb->to_string() +
+						sink->get_hier_path() + " because " + src_rb->role.type.to_string() +
 						" has no counterpart to connect to");
 				}
 				else
@@ -89,40 +94,39 @@ namespace
 
 			// Ready
 			{
-				RoleBinding* src_rb = src->get_role_binding(RVDPort::ROLE_READY);
-				RoleBinding* sink_rb = sink->get_role_binding(RVDPort::ROLE_READY);
+				RoleBinding* src_rb = src->get_role_binding(PortRS::READY);
+				RoleBinding* sink_rb = sink->get_role_binding(PortRS::READY);
 
 				// Check backpressure presence
-				auto src_bp = src->get_bp_status().status == RVDBackpressure::ENABLED;
-				auto sink_bp = sink->get_bp_status().status == RVDBackpressure::ENABLED;
+				auto src_bp = src->get_bp_status().status == RSBackpressure::ENABLED;
+				auto sink_bp = sink->get_bp_status().status == RSBackpressure::ENABLED;
 
 				// Legality check 1: if a port has backpressure, it must have a ready signal.
 				if (src_bp && !src_rb)
-					throw HierException(src, " has backpressure but no ready signal");
+					throw Exception(src->get_hier_path() + " has backpressure but no ready signal");
 				if (sink_bp && !sink_rb)
-					throw HierException(sink, " has backpressure but no ready signal");
+					throw Exception(sink->get_hier_path() + " has backpressure but no ready signal");
 
 				// Legality check 2: if sink has backpressure, src should have it too
 				if (sink_bp && !src_bp)
 				{
-					throw HierException(src, " has no backpressure but its sink " +
+					throw Exception(src->get_hier_path() + " has no backpressure but its sink " +
 						sink->get_hier_path() + " does");
 				}
 
 				// If sink has backpressure, connect ready signals together
 				if (sink_bp)
 				{
-					connect_rb(sys, sink_rb, src_rb);
+					hdls.connect(sink_node, sink_rb->binding, src_node, src_rb->binding);
 				}
 				else if (src_rb)
 				{
 					// Otherwise, if there's a src ready signal, tie it high
-					tie_rb(sys, src_rb, Value(1, 1), 0);
+					hdls.connect(src_node, src_rb->binding, BitsVal(1).set_bit(0, 1));
 				}
 			}
 		}
 	}
-	*/
 
 	bool find_rvd_rb(PortRS* port, const FieldID& field, 
 		RoleBinding** out_rb, unsigned* out_lsb)
@@ -154,7 +158,7 @@ namespace
 
 	void do_rs_fields(NodeSystem* sys)
 	{
-		auto phys_links = sys->get_links(NET_RS);
+		auto phys_links = sys->get_links(NET_RS_PHYS);
 
 		for (auto link : phys_links)
 		{
@@ -315,11 +319,15 @@ void hdl::elab_system(NodeSystem* sys)
 {
 	// Resolve parameters of all child Nodes
 	for (auto child : sys->get_children_by_type<Node>())
+	{
+		child->prepare_for_hdl();
 		child->resolve_params();
+	}
 
 	do_clockreset<PortClock>(sys, NET_CLOCK);
 	do_clockreset<PortReset>(sys, NET_RESET);
 	do_conduit(sys);
 	
+	do_rs_readyvalid(sys);
 	do_rs_fields(sys);
 }

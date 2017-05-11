@@ -106,7 +106,7 @@ namespace
 				for (unsigned i = 0; i < n_out; i++)
 				{
 					PortRS* output = sp->get_output(i);
-					if (!output->get_endpoint(NET_RS, Dir::OUT)->is_connected())
+					if (!output->get_endpoint(NET_RS_PHYS, Dir::OUT)->is_connected())
 					{
 						rs_src = output;
 						break;
@@ -141,7 +141,7 @@ namespace
 				for (unsigned i = 0; i < n_in; i++)
 				{
 					PortRS* input = mg->get_input(i);
-					if (!input->get_endpoint(NET_RS, Dir::IN)->is_connected())
+					if (!input->get_endpoint(NET_RS_PHYS, Dir::IN)->is_connected())
 					{
 						rs_sink = input;
 						break;
@@ -158,7 +158,7 @@ namespace
 			}
 
 			// Connect
-			auto rs_link = static_cast<LinkRS*>(sys->connect(rs_src, rs_sink, NET_RS));
+			auto rs_link = static_cast<LinkRSPhys*>(sys->connect(rs_src, rs_sink, NET_RS_PHYS));
 
 			// Associate
 			link_rel->add(topo_link, rs_link);
@@ -183,13 +183,13 @@ namespace
 			user_ports.insert(user_ports.end(), ports.begin(), ports.end());
 		}
 
-		// For every user port (that has a NET_RS link), check for useraddr fields,
+		// For every user port (that has a NET_RS_PHYS link), check for useraddr fields,
 		// and insert converters
 		for (auto user_port : user_ports)
 		{
 			// System-facing endpoint
-			auto ep = user_port->get_endpoint(NET_RS, user_port->get_effective_dir(sys));
-			auto rs_link = static_cast<LinkRS*>(ep->get_link0());
+			auto ep = user_port->get_endpoint(NET_RS_PHYS, user_port->get_effective_dir(sys));
+			auto rs_link = static_cast<LinkRSPhys*>(ep->get_link0());
 			if (!rs_link)
 				continue;
 
@@ -238,19 +238,19 @@ namespace
 			// Make an addr representation for its input
 			auto sp_rep = flow::make_split_node_rep(sys, sp);
 
-			// If this is a trivial representation, this split node just broadcasts
-			// To all its outputs. This shows up as an address representation with a single
-			// bin of ADDR_ANY.
-			// In this case, we can tie the split node's input with a constant.
-
+			// If there's just one address bin, then the split node always
+			// broadcasts to the same outputs. We can tie off the mask with
+			// a constant, rather than inserting a converter.
 			if (sp_rep.get_n_addr_bins() == 1)
 			{
 				auto& proto = sp->get_input()->get_proto();
-				BitsVal ones;
-				for (unsigned i = 0; i < sp->get_n_outputs(); i++)
-					ones.set_bit(i, 1);
-
-				proto.set_const(FIELD_SPLITMASK, ones);
+				unsigned addr = sp_rep.get_addr_bins().begin()->first;
+				unsigned n_bits = sp->get_n_outputs();
+				
+				BitsVal conzt(n_bits, 1);
+				conzt.set_val(0, 0, addr, n_bits);
+				
+				proto.set_const(FIELD_SPLITMASK, conzt);
 			}
 			else
 			{
@@ -263,7 +263,7 @@ namespace
 
 				// Split input and link
 				auto sp_in = sp->get_input();
-				auto sp_link = sp_in->get_endpoint(NET_RS, Port::Dir::IN)->get_link0();
+				auto sp_link = sp_in->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->get_link0();
 
 				// Add and splice in the conv node
 				sys->add_child(conv);
@@ -298,7 +298,7 @@ namespace
 			while (true)
 			{
 				// First, get the link feeding cur_sink, along with the feeder port
-				auto ext_link = cur_sink->get_endpoint(NET_RS, Port::Dir::IN)->get_link0();
+				auto ext_link = cur_sink->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->get_link0();
 				assert(ext_link);
 				auto cur_src = static_cast<PortRS*>(ext_link->get_src());
 
@@ -326,7 +326,7 @@ namespace
 				// input port to visit.
 				// This is relevant
 				cur_sink = nullptr;
-				auto cur_src_ep = cur_src->get_endpoint(NET_RS, Port::Dir::IN);
+				auto cur_src_ep = cur_src->get_endpoint(NET_RS_PHYS, Port::Dir::IN);
 				for (auto int_link : cur_src_ep->links())
 				{
 					// Candidate sink that feeds cur_src through the node.
@@ -334,7 +334,7 @@ namespace
 
 					// Get the physical links feeding it
 					auto cand_feeder =
-						cand_sink->get_endpoint(NET_RS, Port::Dir::IN)->get_link0();
+						cand_sink->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->get_link0();
 
 					// If this physical link carries the end-to-end transmission we want,
 					// then choose it to continue tranversal.
@@ -351,6 +351,116 @@ namespace
 		}
 	}
 
+	void do_backpressure(NodeSystem* sys)
+	{
+		using namespace graph;
+		auto phys_links = sys->get_links(NET_RS_PHYS);
+
+		Attr2V<HierObject*> port_to_v;
+		V2Attr<HierObject*> v_to_port;
+		Graph g = flow::net_to_graph(sys, NET_RS_PHYS, true, 
+			&v_to_port, &port_to_v, nullptr, nullptr);
+
+		// Populate initial visitation list with ports that are either:
+		// 1) terminal (no outgoing edges)
+		// 2) Have a known/forced backpressure setting
+		// Then do a depth-first reverse traversal, visiting and updating all feeders that are
+		// configurable.
+		std::deque<VertexID> to_visit;
+
+		for (auto v : g.iter_verts)
+		{
+			bool add = g.dir_neigh(v).empty();
+			add |= ((PortRS*)(v_to_port[v]))->get_bp_status().configurable == false;
+
+			if (add)
+				to_visit.push_back(v);
+		}
+
+		while (!to_visit.empty())
+		{
+			VertexID cur_v = to_visit.back();
+			to_visit.pop_back();
+
+			auto cur_port = (PortRS*)v_to_port[cur_v];
+			auto& cur_bp = cur_port->get_bp_status();
+
+			if (cur_bp.configurable && cur_bp.status == RSBackpressure::UNSET)
+			{
+				// Given the choice, we'd like to not have this.
+				cur_bp.status = RSBackpressure::DISABLED;
+			}
+			else if (!cur_bp.configurable)
+			{
+				// If it's unchangeable, make sure it's set to something
+				assert(cur_bp.status != RSBackpressure::UNSET);
+			}
+
+			// Get feeders of this port. Could be internal or external links.
+			auto feeders = g.dir_neigh_r(cur_v);
+
+			for (auto next_v : feeders)
+			{
+				auto next_port = (PortRS*)v_to_port[next_v];
+				auto& next_bp = next_port->get_bp_status();
+
+				// Is the feeder configurable?
+				if (next_bp.configurable)
+				{
+					// If it's unset, updated it to match.
+					// If it's set to DISABLED and the incoming is ENABLED, update it to match too.
+					// In both cases, put the destination on the visitation stack to continue the update.
+					//
+					// Else (it's set and: matches incoming, or is ENABLED and incoming is DISABLED),
+					// do nothing.
+
+					if (next_bp.status == RSBackpressure::UNSET ||
+						next_bp.status == RSBackpressure::DISABLED &&
+						cur_bp.status == RSBackpressure::ENABLED)
+					{
+						next_bp.status = cur_bp.status;
+						to_visit.push_back(next_v);
+					}
+				}
+				else
+				{
+					// Not configurable? Just make sure backpressures are compatible then.
+					assert(next_bp.status != RSBackpressure::UNSET);
+
+					if (next_bp.status == RSBackpressure::DISABLED &&
+						cur_bp.status == RSBackpressure::ENABLED)
+					{
+						throw Exception("Incompatible backpressure: " + cur_port->get_hier_path() +
+							" provides but " + next_port->get_hier_path() + " does not consume");
+					}
+				}
+			} // foreach feeder
+		}
+	}
+
+	void default_eops(NodeSystem* sys)
+	{
+		// Default unconnected EOPs to 1
+		auto links = sys->get_links(NET_RS_PHYS);
+		for (auto link : links)
+		{
+			auto src = (PortRS*)link->get_src();
+			auto sink = (PortRS*)link->get_sink();
+
+			auto& src_proto = src->get_proto();
+			auto& sink_proto = sink->get_proto();
+
+			if (!src->has_field(FIELD_EOP) && sink->has_field(FIELD_EOP))
+			{
+				sink_proto.set_const(FIELD_EOP, BitsVal(1).set_bit(0, 1));
+			}
+		}
+	}
+
+	void default_addr_reps(NodeSystem* sys)
+	{
+
+	}
 }
 
 void flow::do_inner(NodeSystem* sys)
@@ -365,5 +475,7 @@ void flow::do_inner(NodeSystem* sys)
 	insert_addr_converters_split(sys);
 	do_protocol_carriage(sys);
 
-
+	do_backpressure(sys);
+	default_eops(sys);
+	default_addr_reps(sys);
 }

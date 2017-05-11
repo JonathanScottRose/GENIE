@@ -273,8 +273,8 @@ namespace
 		auto src = lua_api::check_obj_or_str_hierpath<HierObject>(L, 2, self);
 		auto sink = lua_api::check_obj_or_str_hierpath<HierObject>(L, 3, self);
 
-		unsigned src_addr = luaL_optinteger(L, 4, LinkRS::ADDR_ANY);
-		unsigned sink_addr = luaL_optinteger(L, 5, LinkRS::ADDR_ANY);
+		unsigned src_addr = (unsigned)luaL_optinteger(L, 4, LinkRS::ADDR_ANY);
+		unsigned sink_addr = (unsigned)luaL_optinteger(L, 5, LinkRS::ADDR_ANY);
 
 		Link* link = self->create_rs_link(src, sink, src_addr, sink_addr);
 		lua_if::push_object(link);

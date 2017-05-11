@@ -38,10 +38,11 @@ NodeSplit::NodeSplit()
 	add_port(new PortReset(RESETPORT_NAME, Port::Dir::IN, "reset"));
 
 	auto inport = new PortRS(INPORT_NAME, Port::Dir::IN, CLOCKPORT_NAME);
-	inport->add_role_binding(PortRS::DATA_CARRIER, { "i_data", "WO" });
-	inport->add_role_binding(PortRS::ADDRESS, { "i_mask", "NO" });
+	inport->add_role_binding(PortRS::DATA_CARRIER, { "i_data", "WIDTH" });
+	inport->add_role_binding(PortRS::ADDRESS, { "i_mask", "N" });
 	inport->add_role_binding(PortRS::VALID, "i_valid");
 	inport->add_role_binding(PortRS::READY, "o_ready");
+	inport->get_bp_status().make_configurable();
 	add_port(inport);
 
 	// The node itself can be connected to with TOPO links
@@ -54,7 +55,7 @@ NodeSplit::~NodeSplit()
 }
 
 NodeSplit::NodeSplit(const NodeSplit& o)
-    : Node(o)
+    : Node(o), ProtocolCarrier(o), m_n_outputs(o.m_n_outputs)
 {	
     // Create a copy of an existing NodeSplit
 }
@@ -87,18 +88,20 @@ void NodeSplit::create_ports()
 	m_n_outputs = tlinks.size();
 
 	auto inp = get_input();
+	inp->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->set_max_links(m_n_outputs);
 
 	// Create child ports
 	for (unsigned i = 0; i < m_n_outputs; i++)
 	{
 		auto p = new PortRS(OUTPORT_NAME + std::to_string(i), Port::Dir::OUT, CLOCKPORT_NAME);
 		p->add_role_binding(PortRS::VALID, PortBindingRef("o_valid").set_lo_bit(i));
-		p->add_role_binding(PortRS::DATA_CARRIER, PortBindingRef("o_data", "WO"));
+		p->add_role_binding(PortRS::DATA_CARRIER, PortBindingRef("o_data", "WIDTH"));
 		p->add_role_binding(PortRS::READY, PortBindingRef("i_ready").set_lo_bit(i));
+		p->get_bp_status().make_configurable();
 		add_port(p);
 
 		// Connect in->out ports for traversal
-		connect(inp, p, NET_RS);
+		connect(inp, p, NET_RS_PHYS);
 	}
 
 	// Create bitmask field with correct size, now that inputs are known
@@ -109,6 +112,13 @@ void NodeSplit::create_ports()
 PortRS * NodeSplit::get_output(unsigned i) const
 {
 	return get_child_as<PortRS>(OUTPORT_NAME + std::to_string(i));
+}
+
+void NodeSplit::prepare_for_hdl()
+{
+	auto& proto = get_carried_proto();
+	set_int_param("WIDTH", proto.get_total_width());
+	set_int_param("N", m_n_outputs);
 }
 
 PortRS * NodeSplit::get_input() const

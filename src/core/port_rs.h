@@ -21,6 +21,23 @@ namespace impl
 	extern FieldType FIELD_XMIS_ID;
 	extern FieldType FIELD_EOP;
 
+	// Backpressure capabilities
+	struct RSBackpressure
+	{
+		bool configurable;
+		enum Status
+		{
+			UNSET,
+			ENABLED,
+			DISABLED
+		} status;
+
+		RSBackpressure() : configurable(false), status(UNSET) {}
+		void make_configurable() { configurable = true; status = UNSET; }
+		void force_enable() { configurable = false; status = ENABLED; }
+		void force_disable() { configurable = false; status = DISABLED; }
+	};
+
     class PortRS : virtual public genie::PortRS, public Port
     {
     public:
@@ -56,6 +73,7 @@ namespace impl
         PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
 		PROP_GET_SET(domain_id, unsigned, m_domain_id);
 		PROP_GET_SETR(proto, PortProtocol&, m_proto);
+		PROP_GETR(bp_status, RSBackpressure&, m_bp_status);
 
 		// Future.
 		/*
@@ -82,6 +100,7 @@ namespace impl
 		unsigned m_domain_id;
 		PortProtocol m_proto;
 		std::vector<RoleBinding> m_role_bindings;
+		RSBackpressure m_bp_status;
     };
 
 	extern PortType PORT_RS_SUB;

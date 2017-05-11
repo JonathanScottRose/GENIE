@@ -5,7 +5,7 @@
 using namespace genie::impl;
 
 BitsVal::BitsVal()
-    : BitsVal(0, 1)
+    : BitsVal(1, 1)
 {
 }
 
@@ -81,7 +81,7 @@ void BitsVal::set_size(unsigned size, unsigned dim)
     }
     else if (dim == 1)
     {
-        unsigned i = m_data.size() - 1;
+        unsigned i = m_data.size();
         m_data.resize(size);
 
         for (; i < m_data.size(); i++)
@@ -105,25 +105,39 @@ unsigned BitsVal::get_size(unsigned dim) const
 
 unsigned BitsVal::get_bit(unsigned pos, unsigned slice) const
 {
-    size_t chunk = m_data[slice][pos];
+    size_t chunk = m_data[slice][pos / CHUNK_SIZE];
     unsigned ofs = pos % CHUNK_SIZE;
     return (chunk >> ofs) & 1;
 }
 
-void BitsVal::set_bit(unsigned pos, unsigned bit)
+BitsVal& BitsVal::set_bit(unsigned pos, unsigned bit)
 {
     set_bit(pos, 0, bit);
+	return *this;
 }
 
-void BitsVal::set_bit(unsigned pos, unsigned slice, unsigned bit)
+BitsVal& BitsVal::set_bit(unsigned pos, unsigned slice, unsigned bit)
 {
-    size_t chunk = m_data[slice][pos];
+    size_t& chunk = m_data[slice][pos / CHUNK_SIZE];
     unsigned ofs = pos % CHUNK_SIZE;
     chunk &= (size_t)(-1) ^ (1 << ofs);
     chunk |= (bit & 1) << ofs;
+	return *this;
 }
 
-void BitsVal::shift_in_lsb(unsigned bit, unsigned slice)
+BitsVal& BitsVal::set_val(unsigned pos, unsigned slice, unsigned val, unsigned bits)
+{
+	assert(bits <= CHUNK_SIZE);
+	// Can't straddle chunk boundaries yet
+	assert( (pos % CHUNK_SIZE) == 0);
+
+	auto& chunk = m_data[slice][pos / CHUNK_SIZE];
+	chunk &= ~((1<<bits)-1);
+	chunk |= val;
+	return *this;
+}
+
+BitsVal& BitsVal::shift_in_lsb(unsigned bit, unsigned slice)
 {
     bit &= 1;
 
@@ -133,12 +147,13 @@ void BitsVal::shift_in_lsb(unsigned bit, unsigned slice)
         m_data[slice][i] = (m_data[slice][i] << 1) | bit;
         bit = shift_out;
     }
+	return *this;
 }
 
 std::string BitsVal::to_str_bin(unsigned slice) const
 {
     std::string result;
-    for (unsigned b = m_dim_size[0]; b >= 0; b--)
+    for (int b = m_dim_size[0]-1; b >= 0; b--)
     {
         result += std::to_string(get_bit(b, slice));
     }
@@ -164,7 +179,7 @@ std::string BitsVal::to_str_hex(unsigned slice) const
     std::stringstream ss;
     
     unsigned chunks = get_n_chunks(m_dim_size[0]);
-    for (unsigned i = chunks-1; i >= 0; i--)
+    for (int i = chunks-1; i >= 0; i--)
     {
         size_t chunkval = m_data[slice][i];
         ss << std::hex << chunkval;

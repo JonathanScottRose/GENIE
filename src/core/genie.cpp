@@ -236,7 +236,7 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 	NetTopo::init();
 	NetInternal::init();
 	NetRSLogical::init();
-	NetRS::init();
+	NetRSPhys::init();
 	NetRSSub::init();
 
 	impl::PortClock::init();

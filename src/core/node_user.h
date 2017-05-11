@@ -17,6 +17,7 @@ namespace impl
 
 		NodeUser* clone() const override;
         NodeUser* instantiate() const override;
+		void prepare_for_hdl() override;
 
     protected:
         NodeUser(const NodeUser&);

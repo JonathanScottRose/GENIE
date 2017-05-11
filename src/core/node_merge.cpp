@@ -40,6 +40,7 @@ NodeMerge::NodeMerge()
 	outport->add_role_binding(PortRS::VALID, "o_valid");
 	outport->add_role_binding(PortRS::READY, "i_ready");
 	outport->add_role_binding(PortRS::EOP, "o_eop");
+	outport->get_bp_status().make_configurable();
 	add_port(outport);
 
 	auto& proto = outport->get_proto();
@@ -51,7 +52,7 @@ NodeMerge::NodeMerge()
 }
 
 NodeMerge::NodeMerge(const NodeMerge& o)
-    : Node(o)
+    : Node(o), ProtocolCarrier(o), m_n_inputs(o.m_n_inputs)
 {	
     // Create a copy of an existing NodeMerge
 }
@@ -85,6 +86,7 @@ void NodeMerge::create_ports()
 	m_n_inputs = tlinks.size();
 
 	auto outp = get_output();
+	outp->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->set_max_links(m_n_inputs);
 
 	// Create child ports
 	for (unsigned i = 0; i < m_n_inputs; i++)
@@ -95,13 +97,14 @@ void NodeMerge::create_ports()
 			PortBindingRef("i_data", "WIDTH").set_lo_slice(i));
 		p->add_role_binding(PortRS::EOP, PortBindingRef("i_eop").set_lo_bit(i));
 		p->add_role_binding(PortRS::READY, PortBindingRef("o_ready").set_lo_bit(i));
+		p->get_bp_status().force_enable();
 		add_port(p);
 
 		auto& proto = p->get_proto();
 		proto.add_terminal_field({ FIELD_EOP, 1 }, PortRS::EOP);
 
 		// Connect to output port, for traversal
-		connect(p, outp, NET_RS);
+		connect(p, outp, NET_RS_PHYS);
 	}
 }
 
@@ -113,4 +116,12 @@ PortRS * NodeMerge::get_input(unsigned i) const
 PortRS * NodeMerge::get_output() const
 {
 	return get_child_as<PortRS>(OUTPORT_NAME);
+}
+
+void NodeMerge::prepare_for_hdl()
+{
+	auto& proto = get_carried_proto();
+	set_int_param("WIDTH", proto.get_total_width());
+
+	set_int_param("NI", m_n_inputs);
 }

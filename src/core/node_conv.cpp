@@ -36,18 +36,20 @@ NodeConv::NodeConv()
 	inport->add_role_binding(PortRS::VALID, "i_valid");
 	inport->add_role_binding(PortRS::DATA, { "i_in", "WIDTH_IN" });
 	inport->add_role_binding(PortRS::DATA_CARRIER, { "i_data", "WIDTH_DATA" });
+	inport->get_bp_status().make_configurable();
 	add_port(inport);
 
 	auto outport = new PortRS(OUTPORT_NAME, Port::Dir::OUT, CLOCKPORT_NAME);
 	outport->add_role_binding(PortRS::DATA, { "o_out", "WIDTH_OUT" });
 	outport->add_role_binding(PortRS::DATA_CARRIER, { "o_data", "WIDTH_DATA" });
+	outport->get_bp_status().make_configurable();
 	add_port(outport);
 
-	connect(inport, outport, NET_RS);
+	connect(inport, outport, NET_RS_PHYS);
 }
 
 NodeConv::NodeConv(const NodeConv& o)
-	: Node(o), m_in_width(o.m_in_width), m_out_width(o.m_out_width),
+	: Node(o), ProtocolCarrier(o), m_in_width(o.m_in_width), m_out_width(o.m_out_width),
 	m_table(o.m_table)
 {
 	// Create a copy of an existing NodeConv
@@ -108,6 +110,36 @@ void NodeConv::configure(const AddressRep & in_rep, const FieldID & in_field,
 
 	in_proto.add_terminal_field(FieldInst(in_field, m_in_width), PortRS::DATA);
 	out_proto.add_terminal_field(FieldInst(out_field, m_out_width), PortRS::DATA);
+}
+
+void NodeConv::prepare_for_hdl()
+{
+	// Fix this later. Might even just bump to 64
+	assert(m_in_width <= 32);
+	assert(m_out_width <= 32);
+
+	auto& proto = get_carried_proto();
+	set_int_param("WIDTH_DATA", proto.get_total_width());
+
+	set_int_param("WIDTH_IN", m_in_width);
+	set_int_param("WIDTH_OUT", m_out_width);
+
+	unsigned n_entries = m_table.size();
+	set_int_param("N_ENTRIES", n_entries);
+
+	BitsVal in_vals(m_in_width, n_entries);
+	BitsVal out_vals(m_out_width, n_entries);
+
+	for (unsigned i = 0; i < n_entries; i++)
+	{
+		auto& entry = m_table[i];
+
+		in_vals.set_val(0, i, entry.first, m_in_width);
+		out_vals.set_val(0, i, entry.second, m_out_width);
+	}
+
+	set_bits_param("IN_VALS", in_vals);
+	set_bits_param("OUT_VALS", out_vals);
 }
 
 

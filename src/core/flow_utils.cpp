@@ -31,7 +31,7 @@ Graph flow::net_to_graph(NodeSystem* sys, NetType ntype,
 			std::copy_if(links_int.begin(), links_int.end(), 
 				std::back_inserter(links), [=](Link* lnk)
 			{
-				return sys->is_link_internal(lnk);
+				return node->is_link_internal(lnk);
 			});
 		}
 	}

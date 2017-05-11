@@ -295,10 +295,33 @@ bool LinkRelations::is_contained_in(Link * parent, Link * child) const
 	assert(child_it != m_link2v.end());
 
 	VertexID par_v = par_it->second;
-	VertexID child_v = par_it->second;
+	VertexID child_v = child_it->second;
 
+	// Common case: check direct connection
 	EdgeID e = m_graph.dir_edge(par_v, child_v);
-	return e != INVALID_E;
+	if (e != INVALID_E)
+		return true;
+
+	// Backtrack farther
+	std::stack<VertexID> to_visit;
+	to_visit.push(child_v);
+
+	while (!to_visit.empty())
+	{
+		VertexID cur_child = to_visit.top();
+		to_visit.pop();
+
+		auto parents = m_graph.dir_neigh_r(cur_child);
+		for (auto parent : parents)
+		{
+			if (parent == par_v)
+				return true;
+
+			to_visit.push(parent);
+		}
+	}
+
+	return false;
 }
 
 void LinkRelations::unregister_link(Link * link)

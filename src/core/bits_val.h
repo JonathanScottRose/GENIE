@@ -16,6 +16,8 @@ namespace impl
             HEX
         };
 
+		//TODO: make port's dimension a single type and arg
+		// allows having a constructor give an initial value
         BitsVal();
         BitsVal(const BitsVal&) = default;
         BitsVal(BitsVal&&) = default;
@@ -32,16 +34,17 @@ namespace impl
         unsigned get_size(unsigned dim=0) const;
 
         unsigned get_bit(unsigned pos, unsigned slice=0) const;
-        void set_bit(unsigned pos, unsigned bit);
-        void set_bit(unsigned pos, unsigned slice, unsigned bit);
-        void shift_in_lsb(unsigned bit, unsigned slice=0);
+        BitsVal& set_bit(unsigned pos, unsigned bit);
+		BitsVal& set_bit(unsigned pos, unsigned slice, unsigned bit);
+		BitsVal& set_val(unsigned pos, unsigned slice, unsigned val, unsigned bits);
+		BitsVal& shift_in_lsb(unsigned bit, unsigned slice=0);
 
         std::string to_str_bin(unsigned slice) const;
         std::string to_str_dec(unsigned slice) const;
         std::string to_str_hex(unsigned slice) const;
 
     protected:
-        const unsigned CHUNK_SIZE = sizeof(size_t)*8;
+        static constexpr unsigned CHUNK_SIZE = sizeof(size_t)*8;
         unsigned get_n_chunks(unsigned bits) const;
         void set_slice_size(unsigned slice, unsigned size);
 

@@ -79,47 +79,47 @@ unsigned LinkRSLogical::get_domain_id() const
 }
 
 //
-// NetRS
+// NetRSPhys
 //
 
-NetType genie::impl::NET_RS;
+NetType genie::impl::NET_RS_PHYS;
 
-void NetRS::init()
+void NetRSPhys::init()
 {
-	NET_RS = impl::register_network(new NetRS);
+	NET_RS_PHYS = impl::register_network(new NetRSPhys);
 }
 
-NetRS::NetRS()
+NetRSPhys::NetRSPhys()
 {
-	m_short_name = "rs";
+	m_short_name = "rs_physical";
 	m_default_max_conn_in = 1;
 	m_default_max_conn_out = 1;
 }
 
-Link* NetRS::create_link() const
+Link* NetRSPhys::create_link() const
 {
-	return new LinkRS();
+	return new LinkRSPhys();
 }
 
 //
-// LinkRS
+// LinkRSPhys
 //
 
-LinkRS::LinkRS()
+LinkRSPhys::LinkRSPhys()
 {
 }
 
-LinkRS::LinkRS(const LinkRS& o)
+LinkRSPhys::LinkRSPhys(const LinkRSPhys& o)
 {
 }
 
-LinkRS::~LinkRS()
+LinkRSPhys::~LinkRSPhys()
 {
 }
 
-Link * LinkRS::clone() const
+Link * LinkRSPhys::clone() const
 {
-	return new LinkRS(*this);
+	return new LinkRSPhys(*this);
 }
 
 //

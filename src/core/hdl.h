@@ -19,24 +19,45 @@ namespace hdl
 	class Port;
 	class PortBinding;
     class PortBindingRef;
-
-	class Bindable;
-	class ConstValue;
+	class PortBindingTarget;
 	class Net;
 
-	class Bindable
+	class PortBindingTarget
 	{
 	public:
-		virtual int get_width() const = 0;
-        virtual int get_depth() const = 0;
+		bool is_const() const;
+		int get_width(const HDLState&) const;
+		int get_depth(const HDLState&) const;
+
+		const BitsVal& get_const() const;
+		const std::string& get_net_name() const;
+
+		PortBindingTarget();
+		PortBindingTarget(const BitsVal&);
+		PortBindingTarget(const std::string&);
+		
+		PortBindingTarget(const PortBindingTarget&);
+
+		PortBindingTarget& operator=(const PortBindingTarget&);
+		// TODO: 'move' versions, if performance becomes a problem
+
+		~PortBindingTarget();
+
+	private:
+		enum { UNSET, NET, CONST } m_type;
+		union
+		{
+			BitsVal m_const;
+			std::string m_net;
+		};
 	};
 
 	class PortBinding
 	{
 	public:
-		PortBinding(Port* parent, Bindable* target = nullptr);
+		PortBinding(Port* parent, const PortBindingTarget& target);
 
-		PROP_GET_SET(target, Bindable*, m_target);
+		PROP_GET_SET(target, const PortBindingTarget&, m_target);
 		PROP_GET_SET(parent, Port*, m_parent);
 		PROP_GET_SET(target_lo_slice, int, m_target_lo_slice);
         PROP_GET_SET(target_lo_bit, int, m_target_lo_bit);
@@ -46,16 +67,16 @@ namespace hdl
         PROP_GET_SET(bound_bits, int, m_bound_bits);
 
 		// Does the binding bind to the (port/target)'s full 2D size?
-        bool is_full1_target_binding() const;
+        bool is_full1_target_binding(const HDLState&) const;
         bool is_full1_port_binding() const;
 
         // Does the binding bind to an entire 1D slice of the (port/target)?
-        bool is_full0_target_binding() const;	
+        bool is_full0_target_binding(const HDLState&) const;	
 		bool is_full0_port_binding() const;	
 
 	protected:
 		Port* m_parent;
-		Bindable* m_target;
+		PortBindingTarget m_target;
         int m_target_lo_slice;
         int m_target_lo_bit;
         int m_port_lo_slice;
@@ -132,7 +153,7 @@ namespace hdl
 		const Bindings& bindings() const { return m_bindings; }
 		bool is_bound() const;
 
-        void bind(Bindable*, unsigned bind_dim, int bind_size,
+        void bind(const PortBindingTarget&, unsigned bind_dim, int bind_size,
             int targ_slice, int targ_bit,
             int port_slice, int port_bit);
 
@@ -145,20 +166,7 @@ namespace hdl
 		Bindings m_bindings;
 	};
 
-	class ConstValue : public Bindable
-	{
-	public:
-		ConstValue(const BitsVal& v);
-		
-		PROP_GET(value, const BitsVal&, m_value);
-		int get_width() const override;
-        int get_depth()  const override;
-
-	protected:
-		BitsVal m_value;
-	};
-
-	class Net : public Bindable
+	class Net
 	{
 	public:
 		enum Type
@@ -171,8 +179,8 @@ namespace hdl
 
 		PROP_GET_SET(type, Type, m_type);
 		PROP_GET(name, const std::string&, m_name);
-		int get_width() const override;
-        int get_depth() const override;
+		int get_width() const;
+		int get_depth() const;
 
 		void set_width(int width);
         void set_depth(int depth);
@@ -188,11 +196,11 @@ namespace hdl
 	{
     protected:
         Node* m_node;
-        std::vector<ConstValue> m_const_values;
         std::unordered_map<std::string, Port> m_ports;
         std::unordered_map<std::string, Net> m_nets;
 
         Net& add_net(Net::Type type, const std::string& name);
+		void update_parent_refs();
 
 	public:
         HDLState(Node*);
@@ -200,8 +208,8 @@ namespace hdl
 		HDLState(HDLState&&);
 		~HDLState();
 
-		HDLState& operator= (const HDLState&) = default;
-		HDLState& operator= (HDLState&&) = default;
+		HDLState& operator= (const HDLState&);
+		HDLState& operator= (HDLState&&);
 
         void resolve_params(ParamResolver&);
         PROP_GET_SET(node, Node*, m_node);
@@ -215,7 +223,7 @@ namespace hdl
         Port* get_port(const std::string&);
         const decltype(m_ports)& get_ports() const;
 
-        Net* get_net(const std::string&);
+		Net* get_net(const std::string&) const;
         const decltype(m_nets)& get_nets() const;
 
         void connect(Port* src, Port* sink, int src_slice, int src_lsb,

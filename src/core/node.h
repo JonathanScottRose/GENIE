@@ -38,6 +38,8 @@ namespace impl
         // Internal API
 		virtual ~Node();
 
+		virtual void prepare_for_hdl() = 0;
+
         const std::string& get_hdl_name() const { return m_hdl_name; }
         Node* get_parent_node() const;
         hdl::HDLState& get_hdl_state() { return m_hdl_state; }
@@ -45,7 +47,8 @@ namespace impl
         void resolve_params();
         NodeParam* get_param(const std::string& name);
         const Params& get_params() const { return m_params; }
-        
+		void set_bits_param(const std::string parm_name, const BitsVal& val);
+
 		Port* add_port(Port* p);
 		template<class P = Port>
 		P* get_port(const std::string& path) const

@@ -108,7 +108,7 @@ AddressRep flow::make_split_node_rep(NodeSystem* sys, NodeSplit* sp)
 	for (unsigned i = 0; i < n_out; i++)
 	{
 		auto port = sp->get_output(i);
-		auto out_link = port->get_endpoint(NET_RS, Port::Dir::OUT)->get_link0();
+		auto out_link = port->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->get_link0();
 		
 		// Get logical links from physical link
 		auto rs_links = link_rel->get_parents<LinkRSLogical>(out_link, NET_RS_LOGICAL);

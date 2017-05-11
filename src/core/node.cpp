@@ -211,6 +211,11 @@ NodeParam* Node::get_param(const std::string & name)
     }   
 }
 
+void Node::set_bits_param(const std::string parm_name, const BitsVal & val)
+{
+	set_param(parm_name, new NodeBitsParam(val));
+}
+
 Port* Node::add_port(Port* p)
 {
 	add_child(p);

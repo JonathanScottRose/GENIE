@@ -10,7 +10,7 @@ namespace impl
 {
 	class PortRS;
 
-	class NodeConv: public Node
+	class NodeConv: public Node, public ProtocolCarrier
 	{
 	public:
 		static void init();
@@ -20,6 +20,7 @@ namespace impl
 
 		// Generic copy of an existing one
 		NodeConv* clone() const override;
+		void prepare_for_hdl() override;
 
 		PortRS* get_input() const;
 		PortRS* get_output() const;

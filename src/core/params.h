@@ -122,6 +122,9 @@ namespace impl
     class NodeBitsParam : public NodeParam
     {
     public:
+		NodeBitsParam() = default;
+		NodeBitsParam(const BitsVal&);
+
         Type get_type() const override { return BITS; }
         NodeParam* clone() const override { return new NodeBitsParam(*this); }
         void resolve(ParamResolver&) override;

@@ -8,14 +8,14 @@ namespace genie
 namespace impl
 {
 	class NetRSLogical;
-	class NetRS;
+	class NetRSPhys;
 	class NetRSSub;
 	class LinkRSLogical;
-	class LinkRS;
+	class LinkRSPhys;
 	class LinkRSSub;
 
 	extern NetType NET_RS_LOGICAL;
-	extern NetType NET_RS;
+	extern NetType NET_RS_PHYS;
 	extern NetType NET_RS_SUB;
 
 	class NetRSLogical : public NetworkDef
@@ -55,23 +55,23 @@ namespace impl
 	///
 	///
 
-	class NetRS : public NetworkDef
+	class NetRSPhys : public NetworkDef
 	{
 	public:
 		static void init();
 		Link* create_link() const override;
 
 	protected:
-		NetRS();
-		~NetRS() = default;
+		NetRSPhys();
+		~NetRSPhys() = default;
 	};
 
-	class LinkRS : public Link
+	class LinkRSPhys : public Link
 	{
 	public:
-		LinkRS();
-		LinkRS(const LinkRS&);
-		~LinkRS();
+		LinkRSPhys();
+		LinkRSPhys(const LinkRSPhys&);
+		~LinkRSPhys();
 
 		Link* clone() const override;
 	protected:

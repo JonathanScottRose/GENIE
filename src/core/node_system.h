@@ -40,6 +40,7 @@ namespace impl
 
 		NodeSystem* clone() const override;
         NodeSystem* instantiate() const override;
+		void prepare_for_hdl() override;
         
 		PROP_GET_SET(flow_state_outer, flow::FlowStateOuter*, m_flow_state_outer);
 		PROP_GET_SET(flow_state_inner, flow::FlowStateInner*, m_flow_state_inner);

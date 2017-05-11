@@ -304,7 +304,7 @@ namespace
 		auto depth = luaL_checkinteger(L, 2);
 		luaL_argcheck(L, depth >= 0, 2, "logic depth must be nonnegative");
 
-		self->set_logic_depth(depth);
+		self->set_logic_depth((unsigned)depth);
 		return 0;
 	}
 

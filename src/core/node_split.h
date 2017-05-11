@@ -1,6 +1,7 @@
 #pragma once
 
 #include "node.h"
+#include "protocol.h"
 #include "genie_priv.h"
 
 namespace genie
@@ -11,7 +12,7 @@ namespace impl
 
 	extern FieldType FIELD_SPLITMASK;
 
-    class NodeSplit : public Node
+    class NodeSplit : public Node, public ProtocolCarrier
     {
     public:
         static void init();
@@ -22,6 +23,7 @@ namespace impl
 
         // Generic copy of an existing one
         NodeSplit* clone() const override;
+		void prepare_for_hdl() override;
 
 		PROP_GET(n_outputs, unsigned, m_n_outputs);
 		void create_ports();

@@ -19,55 +19,63 @@ using genie::Exception;
 
 namespace
 {
-	void init_user_modules(NodeSystem* sys)
+	void init_user_rs_ports(NodeSystem* sys)
 	{
+		// Visit RS ports in user modules as well as top-level ones in the system that
+		// may have been exported.
+		auto ports = sys->get_children_by_type<PortRS>();
+
 		// Init protocol at user modules
 		auto nodes = sys->get_children_by_type<NodeUser>();
-		
 		for (auto node : nodes)
 		{
 			// We need to ensure params are resolved so that signal sizes are constant
 			node->resolve_params();
 
-			// All RS ports
-			auto ports = node->get_children_by_type<PortRS>();
+			auto node_ports = node->get_children_by_type<PortRS>();
+			ports.insert(ports.end(), node_ports.begin(), node_ports.end());
+		}
 
-			for (auto port : ports)
+		// Now work on the ports
+		for (auto port : ports)
+		{
+			auto& proto = port->get_proto();
+
+			// Browse through signal roles
+			for (auto& rb : port->get_role_bindings())
 			{
-				auto& proto = port->get_proto();
+				auto& role = rb.role;
+				auto& hdl_bnd = rb.binding;
 
-				// Browse through signal roles
-				for (auto& rb : port->get_role_bindings())
+				if (hdl_bnd.get_slices() > 1)
 				{
-					auto& role = rb.role;
-					auto& hdl_bnd = rb.binding;
+					throw Exception(port->get_hier_path() + " " + role.type.to_string() +
+						": multi-dimensional HDL signal bindings not supported");
+				}
 
-					if (hdl_bnd.get_slices() > 1)
-					{
-						throw Exception(port->get_hier_path() + " " + role.type.to_string() + 
-							": multi-dimensional HDL signal bindings not supported");
-					}
+				if (role == PortRS::ADDRESS)
+				{
+					proto.add_terminal_field({ FIELD_USERADDR, hdl_bnd.get_bits() }, role);
+				}
+				else if (role == PortRS::EOP)
+				{
+					proto.add_terminal_field({ FIELD_EOP, 1 }, role);
+				}
+				else if (role == PortRS::DATA || role == PortRS::DATABUNDLE)
+				{
+					// Create a domain field
+					unsigned domain = port->get_domain_id();
+					FieldID f_id(FIELD_USERDATA, role.tag, domain);
 
-					if (role == PortRS::ADDRESS)
-					{
-						proto.add_terminal_field({ FIELD_USERADDR, hdl_bnd.get_bits() }, role);
-					}
-					else if (role == PortRS::EOP)
-					{
-						proto.add_terminal_field({ FIELD_EOP, 1 }, role);
-					}
-					else if (role == PortRS::DATA || role == PortRS::DATABUNDLE)
-					{
-						// Create a domain field
-						unsigned domain = port->get_domain_id();
-						FieldID f_id(FIELD_USERDATA, role.tag, domain);
+					// Create a concretely-sized instance of the field using the
+					// bound HDL port
+					FieldInst f_inst(f_id, hdl_bnd.get_bits());
 
-						// Create a concretely-sized instance of the field using the
-						// bound HDL port
-						FieldInst f_inst(f_id, hdl_bnd.get_bits());
-
-						proto.add_terminal_field(f_inst, role);
-					}
+					proto.add_terminal_field(f_inst, role);
+				}
+				else if (role == PortRS::READY)
+				{
+					port->get_bp_status().status = RSBackpressure::ENABLED;
 				}
 			}
 		}
@@ -424,7 +432,7 @@ namespace
 		rs_find_manual_domains(sys);
 		rs_print_domain_stats(sys);
 
-		init_user_modules(sys);
+		init_user_rs_ports(sys);
 		do_all_domains(sys);
 
 		connect_conduits(sys);

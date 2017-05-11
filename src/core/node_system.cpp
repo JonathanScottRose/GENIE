@@ -197,6 +197,10 @@ NodeSystem* NodeSystem::instantiate() const
     return new NodeSystem(*this);
 }
 
+void NodeSystem::prepare_for_hdl()
+{
+}
+
 NodeSystem* NodeSystem::clone() const
 {
 	auto result = new NodeSystem(*this);
