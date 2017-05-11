@@ -212,6 +212,7 @@ namespace hdl
 		HDLState& operator= (HDLState&&);
 
         void resolve_params(ParamResolver&);
+		void reintegrate(HDLState&&);
         PROP_GET_SET(node, Node*, m_node);
 
         Port& get_or_create_port(const std::string& name, const IntExpr& width, 

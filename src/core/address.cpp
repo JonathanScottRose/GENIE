@@ -68,7 +68,7 @@ unsigned AddressRep::get_size_in_bits() const
 			else if (addr == ADDR_INVALID)
 				assert(false); // shouldn't be any of these in here
 
-			unsigned bits = util::log2((int)addr);
+			unsigned bits = util::log2((int)addr + 1);
 			m_size_in_bits = std::max(m_size_in_bits, bits);
 		}
 

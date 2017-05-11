@@ -6,7 +6,9 @@
 #include "node_conv.h"
 #include "net_topo.h"
 #include "net_rs.h"
+#include "net_clockreset.h"
 #include "port_rs.h"
+#include "port_clockreset.h"
 #include "flow.h"
 #include "address.h"
 #include "genie/port.h"
@@ -201,7 +203,16 @@ namespace
 				// as that one bin's value can be injected as a constant.
 				auto user_rep = flow::make_srcsink_flow_rep(sys, user_port);
 				if (user_rep.get_n_addr_bins() <= 1)
+				{
 					continue;
+				}
+				else if (user_rep.exists(AddressRep::ADDR_ANY))
+				{
+					// If there's more than one address bin, none of them must be ADDR_ANY
+					
+					throw Exception(user_port->get_hier_path() + 
+						": not all transmissions are bound to an address");
+				}
 
 				// Create a converter node.
 				auto conv = new NodeConv();
@@ -219,8 +230,8 @@ namespace
 				bool to_user = ep->get_dir() == Port::Dir::IN;
 				auto& in_rep = to_user ? glob_rep : user_rep;
 				auto& out_rep = to_user ? user_rep : glob_rep;
-				auto in_field = to_user ? FIELD_USERADDR : FIELD_XMIS_ID;
-				auto out_field = to_user ? FIELD_XMIS_ID : FIELD_USERADDR;
+				auto in_field = to_user ? FIELD_XMIS_ID : FIELD_USERADDR;
+				auto out_field = to_user ? FIELD_USERADDR : FIELD_XMIS_ID;
 
 				conv->configure(in_rep, in_field, out_rep, out_field);
 			}
@@ -457,9 +468,120 @@ namespace
 		}
 	}
 
-	void default_addr_reps(NodeSystem* sys)
+	void default_xmis_ids(NodeSystem* sys)
 	{
+		auto fstate = sys->get_flow_state_inner();
+		auto link_rel = sys->get_link_relations();
 
+		// Gather all physical RS links where:
+		// - the sink needs an xmis_id field
+		// - the source doesn't have one.
+
+		auto phys_links = sys->get_links(NET_RS_PHYS);
+		for (auto phys_link : phys_links)
+		{
+			auto src = static_cast<PortRS*>(phys_link->get_src());
+			auto sink = static_cast<PortRS*>(phys_link->get_sink());
+
+			if (sink->has_field(FIELD_XMIS_ID) && !src->has_field(FIELD_XMIS_ID))
+			{
+				// Now, gather all the logical RS links passing through this physical link.
+				// All these locial RS links MUST belong to the same transmission ID,
+				// otherwise a converter failed to be inserted earlier in the flow.
+				//
+				// Once we have this single transmission's ID, we can insert it as a constant
+				// into the sink's port protocol.
+
+				auto log_links = link_rel->get_parents<LinkRSLogical>(phys_link, NET_RS_LOGICAL);
+				unsigned xmis_id = AddressRep::ADDR_INVALID;
+
+				for (auto log_link : log_links)
+				{
+					auto this_xmis_id = fstate->get_transmission_for_link(log_link);
+
+					// Make sure all logical links have the same transmission ID
+					if (xmis_id != AddressRep::ADDR_INVALID && xmis_id != this_xmis_id)
+					{
+						assert(false);
+					}
+					else
+					{
+						xmis_id = this_xmis_id;
+					}
+				}
+				
+				FieldInst* field = sink->get_field(FIELD_XMIS_ID);
+				BitsVal xmis_id_val(field->get_width());
+				xmis_id_val.set_val(0, 0, xmis_id, field->get_width());
+
+				auto& sink_proto = sink->get_proto();
+				sink_proto.set_const(FIELD_XMIS_ID, xmis_id_val);
+			}
+		}
+	}
+
+	void connect_resets(NodeSystem* sys)
+	{
+		// Finds dangling reset inputs and connects them to either:
+		// 1) Any existing reset input in the system
+		// 2) A freshly-created reset input, if 1) didn't find one
+
+		// Find any unbound reset sinks on any nodes
+		std::vector<PortReset*> sinks_needing_connection;
+
+		auto nodes = sys->get_nodes();
+		for (auto node : nodes)
+		{
+			auto reset_sinks = node->get_children_by_type<PortReset>();
+			for (auto reset_sink : reset_sinks)
+			{
+				// Sinks only
+				if (reset_sink->get_dir() != Dir::IN)
+					continue;
+
+				// Unconnected sinks only.
+				if (reset_sink->get_endpoint(NET_RESET, Dir::IN)->is_connected())
+					continue;
+
+				// Add to list
+				sinks_needing_connection.push_back(reset_sink);
+			}
+		}
+
+		// Exit early if we have no work to do
+		if (sinks_needing_connection.empty())
+			return;
+
+		// Find or create the reset source.
+		PortReset* reset_src = nullptr;
+		auto reset_srces = sys->get_children<PortReset>([](const HierObject* o)
+		{
+			auto oo = dynamic_cast<const PortReset*>(o);
+			return oo && oo->get_dir() == Dir::IN;
+		});
+
+		if (!reset_srces.empty())
+		{
+			// Found an existing one. Any will do right now!
+			reset_src = reset_srces.front();
+		}
+		else
+		{
+			std::string auto_reset_port_name = "reset_autogen";
+
+			// Create one.
+			genie::log::warn("%s: no system reset port, automatically creating '%s'",
+				sys->get_name().c_str(), auto_reset_port_name.c_str());
+
+			reset_src = dynamic_cast<PortReset*>
+				(sys->create_reset_port(auto_reset_port_name, Dir::IN, auto_reset_port_name));
+		}
+
+		// Connect.
+		for (auto reset_sink : sinks_needing_connection)
+		{
+			sys->connect(reset_src, reset_sink, NET_RESET);
+		}
 	}
 }
 
@@ -475,7 +597,9 @@ void flow::do_inner(NodeSystem* sys)
 	insert_addr_converters_split(sys);
 	do_protocol_carriage(sys);
 
+	connect_resets(sys);
+
 	do_backpressure(sys);
 	default_eops(sys);
-	default_addr_reps(sys);
+	default_xmis_ids(sys);
 }

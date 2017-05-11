@@ -34,12 +34,15 @@ NodeConv::NodeConv()
 
 	auto inport = new PortRS(INPORT_NAME, Port::Dir::IN, CLOCKPORT_NAME);
 	inport->add_role_binding(PortRS::VALID, "i_valid");
+	inport->add_role_binding(PortRS::READY, "o_ready");
 	inport->add_role_binding(PortRS::DATA, { "i_in", "WIDTH_IN" });
 	inport->add_role_binding(PortRS::DATA_CARRIER, { "i_data", "WIDTH_DATA" });
 	inport->get_bp_status().make_configurable();
 	add_port(inport);
 
 	auto outport = new PortRS(OUTPORT_NAME, Port::Dir::OUT, CLOCKPORT_NAME);
+	outport->add_role_binding(PortRS::VALID, "o_valid");
+	outport->add_role_binding(PortRS::READY, "i_ready");
 	outport->add_role_binding(PortRS::DATA, { "o_out", "WIDTH_OUT" });
 	outport->add_role_binding(PortRS::DATA_CARRIER, { "o_data", "WIDTH_DATA" });
 	outport->get_bp_status().make_configurable();
@@ -63,6 +66,9 @@ void NodeConv::init_vlog()
 	hdl.add_port("clk", 1, 1, Dir::IN);
 	hdl.add_port("reset", 1, 1, Dir::IN);
 	hdl.add_port("i_valid", 1, 1, Dir::IN);
+	hdl.add_port("o_valid", 1, 1, Dir::OUT);
+	hdl.add_port("i_ready", 1, 1, Dir::IN);
+	hdl.add_port("o_ready", 1, 1, Dir::OUT);
 	hdl.add_port("i_in", "WIDTH_IN", 1, Dir::IN);
 	hdl.add_port("o_out", "WIDTH_OUT", 1, Dir::OUT);
 	hdl.add_port("i_data", "WIDTH_DATA", 1, Dir::IN);

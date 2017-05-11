@@ -458,6 +458,19 @@ bool PortRS::has_field(const FieldID &f) const
 	return result;
 }
 
+FieldInst * PortRS::get_field(const FieldID& fid)
+{
+	FieldInst* result = m_proto.get_terminal_field(fid);
+
+	if (!result)
+	{
+		auto p = get_carried_proto();
+		if (p) result = p->get_field(fid);
+	}
+
+	return result;
+}
+
 //
 // SubPort
 //

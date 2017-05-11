@@ -11,11 +11,15 @@ module genie_conv #
 	input clk,
 	input reset,
 	
+	input logic i_valid,
+	output logic o_ready,
 	input logic [WIDTH_DATA-1:0] i_data,
-	output logic [WIDTH_DATA-1:0] o_data,
 	input logic [WIDTH_IN-1:0] i_in,
-	output logic [WIDTH_OUT-1:0] o_out,
-	input logic i_valid
+	
+	output logic o_valid,
+	input logic i_ready,
+	output logic [WIDTH_DATA-1:0] o_data,
+	output logic [WIDTH_OUT-1:0] o_out
 );
 
 bit [N_ENTRIES-1:0] match;
@@ -43,6 +47,8 @@ assert property (@(posedge clk) disable iff (reset) !(i_valid && !match));
 
 // Data pass-through
 assign o_data = i_data;
+assign o_valid = i_valid;
+assign o_ready = i_ready;
 
 endmodule
 

@@ -72,6 +72,7 @@ namespace impl
 		void intersect(const FieldSet&);
 		void clear();
 		bool has(const FieldID&) const;
+		FieldInst* get(const FieldID&);
 		unsigned get_lsb(const FieldID&) const;
 		const std::vector<FieldInst>& contents() const;
 
@@ -97,6 +98,8 @@ namespace impl
 		unsigned get_domain_lsb() const;
 		unsigned get_domain_width() const;
 
+		FieldInst* get_field(const FieldID&);
+
 	protected:
 		FieldSet& get_domain_set(unsigned dom) const;
 
@@ -110,6 +113,7 @@ namespace impl
 		void add_terminal_field(const FieldInst&, const SigRoleID&);
 		const FieldSet& terminal_fields() const;
 		bool has_terminal_field(const FieldID&) const;
+		FieldInst* get_terminal_field(const FieldID&);
 
 		void set_const(const FieldID&, const BitsVal&);
 		const BitsVal* get_const(const FieldID&) const;

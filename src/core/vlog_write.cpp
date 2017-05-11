@@ -329,8 +329,12 @@ namespace
 			std::sort(sorted_bindings.begin(), sorted_bindings.end(), 
                 [](const PortBinding& l, const PortBinding& r)
 			{
-				return l.get_port_lo_slice() > r.get_port_lo_slice() ||
-                    l.get_port_lo_bit() > r.get_port_lo_bit();
+				auto l_slice = l.get_port_lo_slice();
+				auto r_slice = r.get_port_lo_slice();
+				auto l_bit = l.get_port_lo_bit();
+				auto r_bit = r.get_port_lo_bit();
+				return (l_slice > r_slice) ||
+					(l_slice == r_slice && l_bit > r_bit);
 			});
 
 			// Now traverse the port's slices from MS to LS
@@ -407,7 +411,7 @@ namespace
                         assert(binding->get_bound_slices() == 1);
 
                         formatted_slices.push_back(format_port_bindings_bits(sys_context, port, 
-                            binding->get_target_lo_slice(), binding_iter, binding_iter_end));
+                            binding->get_port_lo_slice(), binding_iter, binding_iter_end));
 
                         // Do not increment binding iter - this was done for us in the function above
                     }

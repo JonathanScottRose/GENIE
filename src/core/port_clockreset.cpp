@@ -64,6 +64,7 @@ PortClock::PortClock(const std::string & name, genie::Port::Dir dir,
 	const hdl::PortBindingRef & bnd)
 	: Port(name, dir), m_binding(bnd)
 {
+	make_connectable(NET_CLOCK);
 }
 
 PortClock::PortClock(const PortClock &o)
@@ -120,6 +121,7 @@ PortReset::PortReset(const std::string & name, genie::Port::Dir dir,
 	const hdl::PortBindingRef & bnd)
 	: Port(name, dir), m_binding(bnd)
 {
+	make_connectable(NET_RESET);
 }
 
 PortReset::PortReset(const PortReset &o)

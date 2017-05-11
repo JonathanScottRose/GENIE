@@ -209,6 +209,8 @@ end
 -- @function rs_link
 -- @tparam string|Port src clock port object or hierarhical path relative to system
 -- @tparam string|Port sink clock port object or hierarhical path relative to system
+-- @tparam[opt=nil] unsigned src_addr source address binding, optional
+-- @tparam[opt=nil] unsigned sink_addr sink address binding, optional
 -- @treturn LinkRS
 
 --- Creates a topological link between two RS interfaces.
@@ -219,10 +221,10 @@ end
 -- @treturn LinkTopo
 
 for _,ptype in ipairs({'clock', 'reset', 'conduit', 'rs', 'topo'}) do
-	Builder[ptype..'_link'] = function(self, src, sink)
+	Builder[ptype..'_link'] = function(self, src, sink, ...)
 		if not self.cur_sys then error("Unexpected 'link'") end
 		local fname = 'create_'..ptype..'_link'
-		return self.cur_sys[fname](self.cur_sys, src, sink)
+		return self.cur_sys[fname](self.cur_sys, src, sink, ...)
 	end
 end
 

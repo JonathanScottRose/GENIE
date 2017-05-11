@@ -93,6 +93,7 @@ namespace impl
 
 		CarrierProtocol* get_carried_proto() const;
 		bool has_field(const FieldID&) const;
+		FieldInst* get_field(const FieldID&);
 
     protected:
 		unsigned m_logic_depth;

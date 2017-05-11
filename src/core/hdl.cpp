@@ -391,6 +391,14 @@ void HDLState::resolve_params(ParamResolver& resolv)
         p.second.resolve_params(resolv);
 }
 
+void HDLState::reintegrate(HDLState &&o)
+{
+	// Assume that the source has, at most, a superset of our ports
+	// (only has new ones).
+	if (o.m_ports.size() > m_ports.size())
+		m_ports = std::move(o.m_ports);
+}
+
 Port & HDLState::get_or_create_port(const std::string & name, const IntExpr & width, 
     const IntExpr & depth, Port::Dir dir)
 {

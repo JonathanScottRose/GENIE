@@ -412,9 +412,8 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 	delete src->m_flow_state_outer;
 	src->m_flow_state_outer = nullptr;
 	
-	// Move HDL state, in case new HDL ports were added
-	m_hdl_state = std::move(src->m_hdl_state);
-	m_hdl_state.set_node(this);
+	// Reintegrate HDL state in case any new ports were added (auto-gen resets)
+	m_hdl_state.reintegrate(std::move(src->m_hdl_state));
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)

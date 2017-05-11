@@ -138,6 +138,17 @@ bool FieldSet::has(const FieldID& f) const
 	return false;
 }
 
+FieldInst * FieldSet::get(const FieldID &fid)
+{
+	for (auto& i : m_fields)
+	{
+		if (i.matches(fid))
+			return &i;
+	}
+
+	return nullptr;
+}
+
 void FieldSet::clear()
 {
 	m_fields.clear();
@@ -272,10 +283,16 @@ void PortProtocol::set_const(const FieldID& f, const BitsVal& v)
 			break;
 	}
 
-	assert(it != m_extra_info.end());
-
-	it->second.const_val = v;
-	it->second.is_const = true;
+	if (it == m_extra_info.end())
+	{
+		ExtraFieldInfo inf = { SigRoleType::INVALID, true, v };
+		m_extra_info.emplace_back(f, inf);
+	}
+	else
+	{
+		it->second.const_val = v;
+		it->second.is_const = true;
+	}
 }
 
 const BitsVal* PortProtocol::get_const(const FieldID& f) const
@@ -310,6 +327,11 @@ bool PortProtocol::has_terminal_field(const FieldID& f) const
 		return true;
 	
 	return false;
+}
+
+FieldInst * PortProtocol::get_terminal_field(const FieldID & fid)
+{
+	return m_terminal_fields.get(fid);
 }
 
 //
@@ -396,6 +418,23 @@ unsigned CarrierProtocol::get_domain_width() const
 	}
 	
 	return domain_width;
+}
+
+FieldInst * CarrierProtocol::get_field(const FieldID &fid)
+{
+	FieldInst* result = nullptr;
+
+	result = m_jection_set.get(fid);
+	if (!result)
+	{
+		for (auto& set : m_domain_sets)
+		{
+			if (result = set.second.get(fid))
+				break;
+		}
+	}
+
+	return result;
 }
 
 FieldSet& CarrierProtocol::get_domain_set(unsigned dom) const
