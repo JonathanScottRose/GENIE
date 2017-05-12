@@ -380,7 +380,7 @@ namespace
 		topo_do_routing(snapshot);
 		
 		// Take the xbar topo system through the inner flow
-		flow::do_inner(snapshot);
+		flow::do_inner(snapshot, dom_id);
 		
 		// Merge changes
 		sys->reintegrate_snapshot(snapshot);

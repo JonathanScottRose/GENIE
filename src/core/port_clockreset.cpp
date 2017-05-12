@@ -96,8 +96,26 @@ PortClock * PortClock::get_connected_clk_port(Node* context) const
 	if (!ep->is_connected())
 		return nullptr;
 
-	auto remote = dynamic_cast<PortClock*>(ep->get_remote_obj0());
+	auto remote = static_cast<PortClock*>(ep->get_remote_obj0());
 	return remote;
+}
+
+PortClock * PortClock::get_driver(Node * context) const
+{
+	assert(get_dir() == Dir::IN); // flexibility for clock sources TODO
+	if (get_parent() == context)
+	{
+		return const_cast<PortClock*>(this);
+	}
+	else
+	{
+		auto ep = get_endpoint(NET_CLOCK, get_effective_dir(context));
+		if (!ep->is_connected())
+			return nullptr;
+
+		auto remote = static_cast<PortClock*>(ep->get_remote_obj0());
+		return remote;
+	}
 }
 
 //

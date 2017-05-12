@@ -31,6 +31,7 @@ namespace impl
         PROP_GET_SET(binding, const hdl::PortBindingRef&, m_binding);
 
 		PortClock* get_connected_clk_port(Node* context) const;
+		PortClock* get_driver(Node* context) const;
 
     protected:
         hdl::PortBindingRef m_binding;

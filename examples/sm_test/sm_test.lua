@@ -49,7 +49,8 @@ b:component('reverser')
 		b:signal('data', 'o_data', 'WIDTH')
 
 b:system('sm_test')
-    b:clock_sink('clk')
+    b:clock_sink('clka')
+	b:clock_sink('clkb')
     b:reset_sink('reset')
 	b:instance('dispatch', 'the_dispatch')
 		b:int_param('WIDTH', '16')
@@ -61,9 +62,13 @@ b:system('sm_test')
 		b:int_param('WIDTH', '16')
 		
 	for dest in Set.mkvalues{'the_dispatch', 'the_inverter', 'the_reverser', 'xorro'} do
-		b:clock_link('clk', dest .. '.' .. 'clk')
 		b:reset_link('reset', dest .. '.' .. 'reset')
 	end
+	
+	b:clock_link('clka', 'the_dispatch.clk')
+	b:clock_link('clka', 'the_inverter.clk')
+	b:clock_link('clkb', 'the_reverser.clk')
+	b:clock_link('clkb', 'xorro.clk')
 	
 	b:rs_link('the_dispatch.out', 'the_inverter.in', 0)
 	b:rs_link('the_dispatch.out', 'the_reverser.in', 1)

@@ -95,7 +95,7 @@ namespace flow
 		const N2GRemapFunc& remap = N2GRemapFunc()
 	);
 
-	void do_inner(NodeSystem* sys);
+	void do_inner(NodeSystem* sys, unsigned dom_id);
 }
 }
 }

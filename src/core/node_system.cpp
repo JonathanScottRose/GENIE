@@ -139,7 +139,7 @@ genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & op
 	auto ptinfo = genie::impl::get_port_type(orig_impl->get_type());
 
 	auto exlink_src = orig_impl; // assume original port is the source (OUT)
-	auto exlink_sink = dynamic_cast<Port*>(new_port);
+	auto exlink_sink = new_port;
 	if (orig_impl->get_dir() == Port::Dir::IN)
 		std::swap(exlink_src, exlink_sink);
 

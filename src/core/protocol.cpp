@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "protocol.h"
 #include "port_rs.h"
+#include "node.h"
 
 using namespace genie::impl;
 
@@ -498,4 +499,39 @@ unsigned flow::calc_transmitted_width(PortRS* src, PortRS* sink)
 	}
 
 	return result;
+}
+
+void flow::splice_carrier_protocol(PortRS * src, PortRS * sink, ProtocolCarrier * node)
+{
+	// src and sink already have well-populated protocol info.
+	// 'node' is a newly-spliced protocol carrier that does NOT introduce any new terminal fields.
+	// this function populates node's carrierprotocol in a lightweight fashion.
+
+	auto& src_proto = src->get_proto();
+	auto& sink_proto = sink->get_proto();
+	auto& car_proto = node->get_carried_proto();
+
+	FieldSet carriage_set = sink_proto.terminal_fields();
+
+	auto sink_node = dynamic_cast<ProtocolCarrier*>(sink->get_node());
+	if (sink_node)
+	{
+		auto& dstream_car_proto = sink_node->get_carried_proto();
+		carriage_set.add(dstream_car_proto.domain_fields());
+		carriage_set.add(dstream_car_proto.jection_fields());
+	}
+
+	FieldSet src_set = src_proto.terminal_fields();
+
+	auto src_node = dynamic_cast<ProtocolCarrier*>(src->get_node());
+	if (src_node)
+	{
+		auto& ustream_car_proto = src_node->get_carried_proto();
+		src_set.add(ustream_car_proto.domain_fields());
+		src_set.add(ustream_car_proto.jection_fields());
+	}
+
+	// Only carry the things that are common to src and sink.
+	carriage_set.intersect(src_set);
+	car_proto.add_set(carriage_set);
 }

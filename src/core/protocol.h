@@ -143,7 +143,7 @@ namespace impl
 	namespace flow
 	{
 		unsigned calc_transmitted_width(PortRS* src, PortRS* sink);
-
+		void splice_carrier_protocol(PortRS* src, PortRS* sink, ProtocolCarrier*);
 	}
 }
 }
