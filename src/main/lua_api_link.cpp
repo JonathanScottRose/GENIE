@@ -71,25 +71,29 @@ namespace
 	///
 	/// @type LinkTopo
 
-	/// Set the minimum number of register stages.
+	/// Set the minimum and/or maximum number of register stages on the link.
 	///
-	/// @function set_min_regs
-	/// @tparam int regs minimum number of register stages
-	LFUNC(linktopo_set_min_regs)
+	/// @function set_minmax_regs
+	/// @tparam int min_regs minimum number of register stages, default 0
+	/// @tparam[opt=nil] int max_regs maximum number of registers, default unbounded
+	LFUNC(linktopo_set_minmax_regs)
 	{
 		auto self = lua_if::check_object<LinkTopo>(1);
-		lua_Integer val = luaL_checkinteger(L, 2);
+		lua_Integer min_val = luaL_checkinteger(L, 2);
+		lua_Integer max_val = luaL_optinteger(L, 3, LinkTopo::REGS_UNLIMITED);
 
-		luaL_argcheck(L, val >= 0, 2, "min reg level must be nonnegative");
+		luaL_argcheck(L, min_val >= 0, 2, "min reg level must be nonnegative");
+		luaL_argcheck(L, max_val >= 0, 3, "max reg level must be nonnegative");
+		luaL_argcheck(L, max_val >= min_val, 2, "max regs must be at least min regs");
 
-		self->set_min_regs((unsigned)val);
+		self->set_minmax_regs((unsigned)min_val, (unsigned)max_val);
 
 		return 0;
 	}
 
 	LSUBCLASS(LinkTopo, (Link), 
 	{
-		LM(set_min_regs, linktopo_set_min_regs)
+		LM(set_minmax_regs, linktopo_set_minmax_regs)
 	});
 
 }

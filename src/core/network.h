@@ -88,31 +88,26 @@ namespace impl
 	// Encodes its type and index of that type
 	struct LinkID
 	{
-		NetType type;
-		uint16_t index;
+	private:
+		uint32_t _id;
 
-		bool operator< (const LinkID& o) const
-		{
-			return (uint32_t)(*this) < (uint32_t)o;
-		}
-		bool operator== (const LinkID& o) const
-		{
-			return (uint32_t)(*this) == (uint32_t)o;
-		}
-		bool operator!= (const LinkID& o) const
-		{
-			return (uint32_t)(*this) != (uint32_t)o;
-		}
-		explicit operator uint32_t() const
-		{
-			return ((uint32_t)type << 16) | index;
-		}
-		explicit LinkID(uint32_t val)
-			: type(val >> 16), index(val & 0xFFFF)
-		{
-		}
-		constexpr LinkID(NetType _type, uint16_t _index) : type(_type), index(_index) {}
+	public:
+		constexpr LinkID(NetType type, uint16_t index)
+			: _id((type << 16U) | index) {}
 		LinkID() = default;
+
+		void set_index(uint16_t idx);
+		uint16_t get_index() const;
+
+		void set_type(NetType type);
+		NetType get_type() const;
+
+		bool operator< (const LinkID& o) const;
+		bool operator== (const LinkID& o) const;
+		bool operator!= (const LinkID& o) const;
+
+		explicit LinkID(uint32_t val);
+		explicit operator uint32_t() const;
 	};
 
 	constexpr LinkID LINK_INVALID = { NET_INVALID, std::numeric_limits<uint16_t>::max() };
@@ -125,6 +120,8 @@ namespace impl
 		Link(const Link&);
 		Link(Endpoint* src, Endpoint* sink);
 		virtual ~Link();
+
+		PROP_GET_SET(id, LinkID, m_id);
 
 		Endpoint* get_src_ep() const;
 		Endpoint* get_sink_ep() const;
@@ -142,8 +139,29 @@ namespace impl
 		virtual Link* clone() const;
 
 	protected:
+		LinkID m_id;
 		Endpoint* m_src;
 		Endpoint* m_sink;
+	};
+
+	class LinksContainer
+	{
+	public:
+		LinksContainer();
+
+		PROP_GET_SET(type, NetType, m_type);
+		LinkID insert(Link*);
+		Link* get(LinkID);
+		Link* remove(LinkID);
+		const std::vector<Link*>& get_all() const;
+
+	protected:
+		uint16_t find_pos(LinkID);
+
+		NetType m_type;
+		std::vector<Link*> m_links;
+		uint16_t m_next_index;
+		bool m_compact;
 	};
 
 	class EndpointPair

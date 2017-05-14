@@ -110,6 +110,21 @@ const DomainRS::Links& DomainRS::get_links() const
 	return m_links;
 }
 
+unsigned DomainRS::get_port_domain(PortRS * port, NodeSystem * context)
+{
+	auto result = DomainRS::INVALID;
+
+	auto ep = port->get_endpoint(NET_RS_LOGICAL, port->get_effective_dir(context));
+	if (ep)
+	{
+		auto link = static_cast<LinkRSLogical*>(ep->get_link0());
+		if (link)
+			result = link->get_domain_id();
+	}
+
+	return result;
+}
+
 //
 // FlowStateOuter
 //

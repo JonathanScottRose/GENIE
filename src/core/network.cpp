@@ -10,6 +10,131 @@ using namespace genie::impl;
 using Dir = genie::Port::Dir;
 
 //
+// LinkID
+//
+
+void LinkID::set_index(uint16_t idx)
+{
+	_id = (_id & 0xFFFF0000U) | idx;
+}
+
+uint16_t LinkID::get_index() const
+{
+	return (uint16_t)(_id & 0xFFFFU);
+}
+
+void LinkID::set_type(NetType type)
+{
+	_id = (_id & 0xFFFFU) | (type << 16U);
+}
+
+NetType LinkID::get_type() const
+{
+	return (NetType)(_id >> 16U);
+}
+
+bool LinkID::operator<(const LinkID & o) const
+{
+	return _id < o._id;
+}
+
+bool LinkID::operator==(const LinkID & o) const
+{
+	return _id == o._id;
+}
+
+bool LinkID::operator!=(const LinkID & o) const
+{
+	return _id != o._id;
+}
+
+LinkID::LinkID(uint32_t val)
+	:_id(val)
+{
+}
+
+LinkID::operator uint32_t() const
+{
+	return _id;
+}
+
+//
+// LinksContainer
+//
+
+LinksContainer::LinksContainer()
+	: m_next_index(0), m_compact(true), m_type(NET_INVALID)
+{
+}
+
+LinkID LinksContainer::insert(Link *link)
+{
+	LinkID result(m_type, m_next_index++);
+	link->set_id(result);
+	m_links.push_back(link);
+	return result;
+}
+
+Link * LinksContainer::get(LinkID id)
+{
+	return m_links[find_pos(id)];
+}
+
+Link * LinksContainer::remove(LinkID id)
+{
+	uint16_t pos = find_pos(id);
+	auto where = m_links.begin() + pos;
+	Link* result = *where;
+	m_links.erase(where);
+	m_compact = false; // indices have gaps now
+	return result;
+}
+
+const std::vector<Link*>& LinksContainer::get_all() const
+{
+	return m_links;
+}
+
+uint16_t LinksContainer::find_pos(LinkID id)
+{
+	// If no links have been removed, id.index is the index in the vector too.
+	if (m_compact)
+	{
+		return id.get_index();
+	}
+	else
+	{
+		// Do a binary search
+		unsigned left = 0;
+		unsigned right = m_links.size();
+
+		while (left < right)
+		{
+			unsigned mid = (left + right) / 2;
+			Link* at_mid = m_links[mid];
+
+			if (at_mid->get_id() == id)
+			{
+				return mid;
+			}
+			else if (at_mid->get_id() < id)
+			{
+				left = mid + 1;
+			}
+			else
+			{
+				right = mid;
+			}
+		}
+
+		assert(false); // we shouldn't be getting these..
+		return 0xFFFFU;
+	}
+}
+
+
+
+//
 // Endpoint
 //
 
@@ -140,6 +265,7 @@ Endpoint* Endpoint::get_sibling() const
 
 
 Link::Link(Endpoint* src, Endpoint* sink)
+	: m_id(LINK_INVALID)
 {
 	set_src_ep(src);
 	set_sink_ep(sink);
@@ -151,7 +277,7 @@ Link::Link()
 }
 
 Link::Link(const Link& o)
-	: m_src(nullptr), m_sink(nullptr)
+	: m_src(nullptr), m_sink(nullptr), m_id(o.m_id)
 {
 	// zero out src/sink when cloning
 }
@@ -210,13 +336,7 @@ void Link::set_sink_ep(Endpoint* ep)
 
 NetType Link::get_type() const
 {
-	// For now, return the network type of one of the endpoints rather than keeping
-	// our own m_type field in the link itself
-	Endpoint* ep = m_src ? m_src : m_sink;
-	if (!ep)
-		throw Exception("link not connected to anything, can not determine network type");
-
-	return ep->get_type();
+	return m_id.get_type();
 }
 
 Link* Link::clone() const

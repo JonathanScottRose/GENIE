@@ -63,16 +63,6 @@ namespace
 	{
 		auto link_rel = sys->get_link_relations();
 
-		// Function that checks if a split or merge node belongs to a domain
-		/*
-		auto node_in_domain = [=](const Node* n)
-		{
-			auto tl = n->get_endpoint(NET_TOPO, Dir::IN)->get_link0();
-			auto rl = link_rel->get_parents<LinkRSLogical>(tl, NET_RS_LOGICAL).front();
-			return rl->get_domain_id() == dom_id;
-		};
-		*/
-
 		// Gather splits and merges for this domain
 		auto splits = sys->get_children_by_type<NodeSplit>();
 		auto merges = sys->get_children_by_type<NodeMerge>();

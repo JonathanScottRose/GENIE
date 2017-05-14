@@ -15,13 +15,13 @@ namespace impl
 	class SigRoleDef;
 
 	using NetType = uint16_t;
-	const NetType NET_INVALID = std::numeric_limits<NetType>::max();
+	constexpr NetType NET_INVALID = std::numeric_limits<NetType>::max();
 
 	using PortType = unsigned;
-	const PortType PORT_INVALID = std::numeric_limits<PortType>::max();
+	constexpr PortType PORT_INVALID = std::numeric_limits<PortType>::max();
 
 	using FieldType = unsigned;
-	const FieldType FIELD_INVALID = std::numeric_limits<FieldType>::max();
+	constexpr FieldType FIELD_INVALID = std::numeric_limits<FieldType>::max();
 
 	using SigRoleType = genie::SigRoleType;
 	using SigRoleID = genie::SigRoleID;

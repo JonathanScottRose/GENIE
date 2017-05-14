@@ -31,13 +31,14 @@ Link* NetTopo::create_link() const
 // LinkTopo
 //
 
-void LinkTopo::set_min_regs(unsigned regs)
+void LinkTopo::set_minmax_regs(unsigned min_regs, unsigned max_regs)
 {
-	m_min_regs = regs;
+	m_min_regs = min_regs;
+	m_max_regs = max_regs;
 }
 
 LinkTopo::LinkTopo()
-	: m_min_regs(0)
+	: m_min_regs(0), m_max_regs(REGS_UNLIMITED)
 {
 }
 

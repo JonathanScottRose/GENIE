@@ -83,8 +83,6 @@ namespace
 		args >> GetOpt::OptionPresent("force_full_merge", opts.force_full_merge);
         args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
         args >> GetOpt::OptionPresent("detailed_stats", opts.detailed_stats);
-        args >> GetOpt::OptionPresent("descriptive_spmg", opts.desc_spmg);
-        args >> GetOpt::Option("register_spmg", opts.register_spmg);
         
 		{
 			std::string argstr;
@@ -103,9 +101,9 @@ namespace
 
         {
             std::string no_topo_opt_sys;
-            args >> GetOpt::OptionPresent("topo_opt", opts.topo_opt);
-            args >> GetOpt::Option("topo_opt", no_topo_opt_sys);
-            opts.topo_opt_systems = parse_list(no_topo_opt_sys);
+            args >> GetOpt::OptionPresent("no_topo_opt", opts.no_topo_opt);
+            args >> GetOpt::Option("no_topo_opt", no_topo_opt_sys);
+            opts.no_topo_opt_systems = parse_list(no_topo_opt_sys);
         }
 
 		if (!(args >> GetOpt::GlobalOption(s_script)))

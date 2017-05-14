@@ -26,7 +26,9 @@ namespace genie
 	class LinkTopo : virtual public Link
 	{
 	public:
-		virtual void set_min_regs(unsigned) = 0;
+		static const unsigned REGS_UNLIMITED = std::numeric_limits<unsigned>::max();
+
+		virtual void set_minmax_regs(unsigned min, unsigned max = REGS_UNLIMITED) = 0;
 
 	protected:
 		~LinkTopo() = default;

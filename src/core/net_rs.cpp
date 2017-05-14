@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "net_rs.h"
 #include "port_rs.h"
+#include "flow.h"
 #include "genie_priv.h"
 
 using namespace genie::impl;
@@ -44,12 +45,14 @@ unsigned LinkRSLogical::get_sink_addr() const
 
 LinkRSLogical::LinkRSLogical()
 	: m_src_addr(genie::LinkRS::ADDR_ANY),
-	m_sink_addr(genie::LinkRS::ADDR_ANY)
+	m_sink_addr(genie::LinkRS::ADDR_ANY),
+	m_domain_id(flow::DomainRS::INVALID)
 {
 }
 
 LinkRSLogical::LinkRSLogical(const LinkRSLogical& o)
-	: m_src_addr(o.m_src_addr), m_sink_addr(o.m_sink_addr)
+	: m_src_addr(o.m_src_addr), m_sink_addr(o.m_sink_addr),
+	m_domain_id(o.m_domain_id)
 {
 }
 
@@ -60,22 +63,6 @@ LinkRSLogical::~LinkRSLogical()
 LinkRSLogical * LinkRSLogical::clone() const
 {
 	return new LinkRSLogical(*this);
-}
-
-unsigned LinkRSLogical::get_domain_id() const
-{
-	auto src = dynamic_cast<PortRS*>(get_src());
-	auto sink = dynamic_cast<PortRS*>(get_sink());
-
-	if (src && sink)
-	{
-		auto src_id = src->get_domain_id();
-		auto sink_id = sink->get_domain_id();
-		assert(src_id == sink_id);
-		return src_id;
-	}
-
-	return 0;
 }
 
 //

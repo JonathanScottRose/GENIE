@@ -344,7 +344,8 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 		link->set_src_ep(nullptr);
 		link->set_sink_ep(nullptr);
 
-		util::erase(src->m_links[link_type], link);
+		auto& cont = src->get_links_cont(link_type);
+		cont.remove(link->get_id());
 	}
 
 	// 
@@ -384,7 +385,7 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 		auto& srcsink = it.second;
 
 		// Add the link to this system
-		m_links[srcsink.type].push_back(link);
+		add_link(srcsink.type, link);
 
 		// Reconnect
 		auto src_obj = dynamic_cast<HierObject*>(get_child(srcsink.src));

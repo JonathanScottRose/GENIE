@@ -128,10 +128,13 @@ genie::PortRS * Node::create_rs_port(const std::string & name, genie::Port::Dir 
 Node::~Node()
 {
 	// Clean up links
-	for (auto& links : m_links)
+	for (auto& link_cont : m_links)
 	{
-		// m_links is a map of Lists. here we delete each List
-		util::delete_all(links.second);
+		if (link_cont.get_type() != NET_INVALID)
+		{
+			auto& links = link_cont.get_all();
+			util::delete_all(links);
+		}
 	}
 
 	delete m_link_rel;
@@ -225,17 +228,18 @@ Port* Node::add_port(Port* p)
 Node::Links Node::get_links() const
 {
 	Links result;
-	for (const auto& i : m_links)
+	for (auto& cont : m_links)
 	{
-		result.insert(result.end(), i.second.begin(), i.second.end());
+		auto& links = cont.get_all();
+		result.insert(result.end(), links.begin(), links.end());
 	}
 	return result;
 }
 
-Node::Links Node::get_links(NetType type) const
+const Node::Links& Node::get_links(NetType type)
 {
-	auto it = m_links.find(type);
-	return (it == m_links.end()) ? Links() : it->second;
+	auto& cont = get_links_cont(type);
+	return cont.get_all();
 }
 
 Node::Links Node::get_links(HierObject* src, HierObject* sink, NetType nettype) const
@@ -259,6 +263,19 @@ Node::Links Node::get_links(HierObject* src, HierObject* sink, NetType nettype) 
 
 	return result;
 }
+
+Link * Node::get_link(LinkID id)
+{
+	auto& cont = get_links_cont(id.get_type());
+	return cont.get(id);
+}
+
+LinkID Node::add_link(NetType type, Link* link)
+{
+	auto& cont = get_links_cont(type);
+	return cont.insert(link);
+}
+
 
 Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 {
@@ -326,7 +343,7 @@ Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 	sink_ep->add_link(link);
 
 	// Add the link to the system
-	m_links[net].push_back(link);
+	add_link(net, link);
 
 	return link;
 }
@@ -352,27 +369,23 @@ void Node::disconnect(Link* link)
 {
 	Endpoint* src_ep = link->get_src_ep();
 	Endpoint* sink_ep = link->get_sink_ep();
-	NetType nettype = link->get_type();
+	LinkID id = link->get_id();
 
 	// Disconnect the Link from its endpoints
 	src_ep->remove_link(link);
 	sink_ep->remove_link(link);
 
-	// Tell any parent links we're not existing anymore
-	//auto cont = link->asp_get<ALinkContainment>();
-	//auto parents = cont->get_parent_links();
-	//for (auto parent : parents)
-	//{
-//		cont->remove_parent_link(parent);
-//	}
+	// Remove link from relations struct
+	auto link_rel = get_link_relations();
+	if (link_rel)
+	{
+		link_rel->unregister_link(link);
+	}
 
 	// Remove the link from the System and destroy it
-	util::erase(m_links[nettype], link);
+	auto& cont = get_links_cont(id.get_type());
+	cont.remove(id);
 	delete link;
-
-	// Don't leave zero-size vectors around
-	if (m_links[nettype].empty())
-		m_links.erase(nettype);
 }
 
 Link * Node::splice(Link * orig, HierObject * new_sink, HierObject * new_src)
@@ -405,7 +418,7 @@ Link * Node::splice(Link * orig, HierObject * new_sink, HierObject * new_src)
 	orig_sink_ep->add_link(new_link);
 
 	// Add link to the system
-	m_links[net].push_back(new_link);
+	add_link(net, new_link);
 
 	// Transfer containment relationships. Just immediate parents
 	auto link_rel = get_link_relations();
@@ -502,7 +515,7 @@ void Node::copy_links(const Node & src, const Links* just_these)
 		new_link->set_src_ep(new_src_ep);
 		new_link->set_sink_ep(new_sink_ep);
 
-		m_links[orig_link->get_type()].push_back(new_link);
+		add_link(orig_link->get_type(), new_link);
 	}
 
 	// Destroy temp copy of all links if we created one
@@ -515,6 +528,22 @@ void Node::copy_link_rel(const Node & src)
 	assert(!m_link_rel);
 	if (src.m_link_rel)
 		m_link_rel = src.m_link_rel->clone(&src, this);
+}
+
+LinksContainer & Node::get_links_cont(NetType type)
+{
+	NetType cur_max = (NetType)m_links.size();
+
+	if (type >= cur_max)
+	{
+		m_links.resize(type + 1);
+		for (auto i = cur_max; i <= type; i++)
+		{
+			m_links[i].set_type(i);
+		}
+	}
+
+	return m_links[type];
 }
 
 

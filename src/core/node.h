@@ -57,8 +57,9 @@ namespace impl
 		}
 
 		Links get_links() const;
-		Links get_links(NetType) const;
+		const Links& get_links(NetType);
 		Links get_links(HierObject* src, HierObject* sink, NetType net) const;
+		Link* get_link(LinkID);
 		Link* connect(HierObject* src, HierObject* sink, NetType net);
 		void disconnect(HierObject* src, HierObject* sink, NetType net);
 		void disconnect(Link*);
@@ -75,10 +76,13 @@ namespace impl
 		void copy_links(const Node& src, const Links* just_these = nullptr);
 		void copy_link_rel(const Node& src);
 
+		LinkID add_link(NetType, Link*);
+		LinksContainer& get_links_cont(NetType);
+
         std::string m_hdl_name;
 		Params m_params;
         hdl::HDLState m_hdl_state;
-		std::unordered_map<NetType, Links> m_links;
+		std::vector<LinksContainer> m_links;
 		LinkRelations* m_link_rel;
     };
 

@@ -64,7 +64,9 @@ namespace
 				else if (role == PortRS::DATA || role == PortRS::DATABUNDLE)
 				{
 					// Create a domain field
-					unsigned domain = port->get_domain_id();
+					unsigned domain = flow::DomainRS::get_port_domain(port, sys);
+					assert(domain != flow::DomainRS::INVALID);
+
 					FieldID f_id(FIELD_USERDATA, role.tag, domain);
 
 					// Create a concretely-sized instance of the field using the
@@ -87,9 +89,8 @@ namespace
 
 		// We care about port->vid mapping and link->eid mapping
 		Attr2E<Link*> link_to_eid;
-		Attr2V<HierObject*> port_to_vid;
 		Graph rs_g = flow::net_to_graph(sys, NET_RS_LOGICAL, false, 
-			nullptr, &port_to_vid, nullptr, &link_to_eid);
+			nullptr, nullptr, nullptr, &link_to_eid);
 
 		// Identify connected components (domains).
 		// Capture vid->domainid mapping and eid->domainid mapping
@@ -97,26 +98,11 @@ namespace
 		E2Attr<unsigned> eid_to_domain;
 		connected_comp(rs_g, &vid_to_domain, &eid_to_domain);
 
-		// Now assign each port its domain ID.
-		for (auto& it : port_to_vid)
-		{
-			auto port = dynamic_cast<PortRS*>(it.first);
-			assert(port);
-			auto vid = it.second;
-
-			// Look up the domain for this vid
-			assert(vid_to_domain.count(vid));
-			unsigned domain = vid_to_domain[vid];
-
-			port->set_domain_id(domain);
-		}
-
 		// Create the domain structures and sort the links into the domains.
 		auto fstate = sys->get_flow_state_outer();
 		for (auto& it : link_to_eid)
 		{
-			auto link = dynamic_cast<LinkRSLogical*>(it.first);
-			assert(link);
+			auto link = static_cast<LinkRSLogical*>(it.first);
 			auto eid = it.second;
 
 			assert(eid_to_domain.count(eid));
@@ -131,6 +117,7 @@ namespace
 			}
 
 			dom->add_link(link);
+			link->set_domain_id(dom_id);
 		}
 	}
 
@@ -151,7 +138,8 @@ namespace
 			{
 				if (port)
 				{
-					unsigned dom_id = port->get_domain_id();
+					unsigned dom_id = flow::DomainRS::get_port_domain(port, sys);
+					assert(dom_id != flow::DomainRS::INVALID);
 					fstate->get_rs_domain(dom_id)->set_is_manual(true);
 				}
 			}

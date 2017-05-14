@@ -32,11 +32,13 @@ namespace flow
 		void add_link(LinkRSLogical*);
 		const Links& get_links() const;
 
+		static unsigned get_port_domain(PortRS*, NodeSystem* context);
+
 	protected:
 		unsigned m_id;
 		std::string m_name;
 		bool m_is_manual;
-		Links m_links;
+		Links m_links; // TODO: store by ID to make cloning easier
 	};
 
 	class FlowStateInner

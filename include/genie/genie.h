@@ -42,13 +42,10 @@ namespace genie
 
         bool force_full_merge = false;
 
-        bool topo_opt = false;
-        std::vector<std::string> topo_opt_systems;
+        bool no_topo_opt = false;
+        std::vector<std::string> no_topo_opt_systems;
 
         bool no_mdelay = false;
-
-        bool desc_spmg = false;
-        unsigned register_spmg = 0;
     };
 
     struct ArchParams

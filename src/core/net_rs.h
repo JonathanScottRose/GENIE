@@ -41,13 +41,13 @@ namespace impl
 		~LinkRSLogical();
 
 		LinkRSLogical* clone() const override;
-
-		unsigned get_domain_id() const;
 		
+		PROP_GET_SET(domain_id, unsigned, m_domain_id);
 		PROP_SET(src_addr, unsigned, m_src_addr);
 		PROP_SET(sink_addr, unsigned, m_sink_addr);
 
 	protected:
+		unsigned m_domain_id;
 		unsigned m_src_addr;
 		unsigned m_sink_addr;
 	};

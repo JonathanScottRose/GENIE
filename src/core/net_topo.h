@@ -22,7 +22,7 @@ namespace impl
 	class LinkTopo : public genie::LinkTopo, public Link
 	{
 	public:
-		virtual void set_min_regs(unsigned) override;
+		virtual void set_minmax_regs(unsigned, unsigned) override;
 
 	public:
 		LinkTopo();
@@ -35,6 +35,7 @@ namespace impl
 
 	protected:
 		unsigned m_min_regs;
+		unsigned m_max_regs;
 	};
 }
 }

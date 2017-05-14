@@ -71,7 +71,6 @@ namespace impl
 
 		PROP_GET(logic_depth, unsigned, m_logic_depth);
         PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
-		PROP_GET_SET(domain_id, unsigned, m_domain_id);
 		PROP_GET_SETR(proto, PortProtocol&, m_proto);
 		PROP_GETR(bp_status, RSBackpressure&, m_bp_status);
 
@@ -98,7 +97,6 @@ namespace impl
     protected:
 		unsigned m_logic_depth;
         std::string m_clk_port_name;
-		unsigned m_domain_id;
 		PortProtocol m_proto;
 		std::vector<RoleBinding> m_role_bindings;
 		RSBackpressure m_bp_status;
