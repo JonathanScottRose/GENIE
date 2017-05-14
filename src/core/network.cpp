@@ -63,75 +63,121 @@ LinkID::operator uint32_t() const
 //
 
 LinksContainer::LinksContainer()
-	: m_next_index(0), m_compact(true), m_type(NET_INVALID)
+	: m_type(NET_INVALID), m_next_id(0)
 {
 }
 
-LinkID LinksContainer::insert(Link *link)
+LinkID LinksContainer::insert_new(Link *link)
 {
-	LinkID result(m_type, m_next_index++);
+	auto index = m_next_id++;
+	LinkID result(m_type, index);
 	link->set_id(result);
-	m_links.push_back(link);
+	
+	ensure_size_for_index(index);
+	m_links[index] = link;
+
 	return result;
+}
+
+void LinksContainer::insert_existing(Link *link)
+{
+	auto id = link->get_id();
+	assert(id != LINK_INVALID);
+	auto index = id.get_index();
+	
+	ensure_size_for_index(index);
+
+	m_links[index] = link;
+	m_next_id = std::max(m_next_id + 1, index + 1);
+}
+
+std::vector<Link*> LinksContainer::move_new_from(LinksContainer &o)
+{
+	std::vector<Link*> result;
+
+	auto my_size = m_links.size();
+	auto new_size = o.m_links.size();
+
+	// Move new contents to us.
+	if (new_size > my_size)
+	{
+		auto begin = o.m_links.begin() + my_size;
+		auto end = o.m_links.end();
+
+		m_links.insert(m_links.end(), begin, end);
+
+		// Flatten nulls
+		std::copy_if(begin, end, std::back_inserter(result), [](Link* l)
+		{
+			return l != nullptr;
+		});
+	}
+
+	// Shrink other
+	o.m_links.resize(my_size);
+
+	// Update ID
+	m_next_id = (uint16_t)new_size;
+
+	return result;
+}
+
+void LinksContainer::clone_empty_from(LinksContainer &o)
+{
+	m_next_id = o.m_next_id;
+	if (m_next_id >= m_links.size())
+		m_links.resize(m_next_id + 1, nullptr);
 }
 
 Link * LinksContainer::get(LinkID id)
 {
-	return m_links[find_pos(id)];
+	auto idx = id.get_index();
+	return (idx >= m_links.size()) ? nullptr : m_links[idx];
 }
 
 Link * LinksContainer::remove(LinkID id)
 {
-	uint16_t pos = find_pos(id);
-	auto where = m_links.begin() + pos;
-	Link* result = *where;
-	m_links.erase(where);
-	m_compact = false; // indices have gaps now
+	auto idx = id.get_index();
+	auto where = m_links.begin() + idx;
+	auto result = *where;
+	*where = nullptr; // leave gap in vector
+	
 	return result;
 }
 
-const std::vector<Link*>& LinksContainer::get_all() const
+std::vector<Link*> LinksContainer::get_all() const
 {
-	return m_links;
+	std::vector<Link*> result;
+	std::copy_if(m_links.begin(), m_links.end(), std::back_inserter(result),
+		[](Link* l) { return l != nullptr; });
+	
+	return result;
 }
 
-uint16_t LinksContainer::find_pos(LinkID id)
+void LinksContainer::get_all_internal(void * pout, const ThuncFunc &thunc) const
 {
-	// If no links have been removed, id.index is the index in the vector too.
-	if (m_compact)
-	{
-		return id.get_index();
-	}
-	else
-	{
-		// Do a binary search
-		unsigned left = 0;
-		unsigned right = m_links.size();
+	auto& out = *((std::vector<void*>*)pout);
 
-		while (left < right)
+	for (auto plink : m_links)
+	{
+		// Ignore nullptrs
+		if (plink)
 		{
-			unsigned mid = (left + right) / 2;
-			Link* at_mid = m_links[mid];
-
-			if (at_mid->get_id() == id)
-			{
-				return mid;
-			}
-			else if (at_mid->get_id() < id)
-			{
-				left = mid + 1;
-			}
-			else
-			{
-				right = mid;
-			}
+			out.push_back(thunc(plink));
 		}
-
-		assert(false); // we shouldn't be getting these..
-		return 0xFFFFU;
 	}
 }
 
+void LinksContainer::ensure_size_for_index(uint16_t index)
+{
+	// expand the vector if need be, and fill
+	// new entries with nulls
+	unsigned cur_last = m_links.size();
+	if (index >= cur_last)
+	{
+		m_links.resize(index + 1, nullptr);
+	}
+}
 
 
 //
@@ -348,74 +394,44 @@ Link* Link::clone() const
 // LinkRelations
 //
 
-void LinkRelations::add(Link * parent, Link * child)
+void LinkRelations::add(LinkID parent, LinkID child)
 {
 	using namespace graph;
 
 	// Get or create vertices for links
-	VertexID par_v;
-	VertexID child_v;
+	VertexID par_v = (VertexID)parent;
+	VertexID child_v = (VertexID)child;
 
-	auto par_it = m_link2v.find(parent);
-	auto child_it = m_link2v.find(child);
+	if (!m_graph.hasv(par_v))
+		m_graph.newv(par_v);
 
-	if (par_it == m_link2v.end())
-	{
-		par_v = m_graph.newv();
-		m_link2v[parent] = par_v;
-		m_v2link[par_v] = parent;
-	}
-	else
-	{
-		par_v = par_it->second;
-	}
-
-	if (child_it == m_link2v.end())
-	{
-		child_v = m_graph.newv();
-		m_link2v[child] = child_v;
-		m_v2link[child_v] = child;
-	}
-	else
-	{
-		child_v = child_it->second;
-	}
+	if (!m_graph.hasv(child_v))
+		m_graph.newv(child_v);
 
 	m_graph.newe(par_v, child_v);
 }
 
-void LinkRelations::remove(Link * parent, Link * child)
+void LinkRelations::remove(LinkID parent, LinkID child)
 {
 	using namespace graph;
 
-	auto par_it = m_link2v.find(parent);
-	if (par_it == m_link2v.end())
-		return;
+	VertexID par_v = (VertexID)parent;
+	VertexID child_v = (VertexID)child;
 
-	auto child_it = m_link2v.find(child);
-	if (child_it == m_link2v.end())
+	if (!m_graph.hasv(par_v) || !m_graph.hasv(child_v))
 		return;
-
-	VertexID par_v = par_it->second;
-	VertexID child_v = par_it->second;
 
 	EdgeID e = m_graph.dir_edge(par_v, child_v);
 	if (e != INVALID_E)
 		m_graph.dele(e);
 }
 
-bool LinkRelations::is_contained_in(Link * parent, Link * child) const
+bool LinkRelations::is_contained_in(LinkID parent, LinkID child) const
 {
 	using namespace graph;
 
-	auto par_it = m_link2v.find(parent);
-	assert(par_it != m_link2v.end());
-	
-	auto child_it = m_link2v.find(child);
-	assert(child_it != m_link2v.end());
-
-	VertexID par_v = par_it->second;
-	VertexID child_v = child_it->second;
+	VertexID par_v = (VertexID)parent;
+	VertexID child_v = (VertexID)child;
 
 	// Common case: check direct connection
 	EdgeID e = m_graph.dir_edge(par_v, child_v);
@@ -444,63 +460,75 @@ bool LinkRelations::is_contained_in(Link * parent, Link * child) const
 	return false;
 }
 
-void LinkRelations::unregister_link(Link * link)
+void LinkRelations::unregister_link(LinkID link)
 {
 	using namespace graph;
 
-	auto it = m_link2v.find(link);
-	assert(it != m_link2v.end());
-
-	VertexID vid = it->second;
-	m_link2v.erase(it);
-	m_v2link.erase(vid);
-
+	VertexID vid = (VertexID)link;
 	m_graph.delv(vid);
 }
 
-std::vector<Link*> LinkRelations::get_immediate_parents(Link * link) const
+std::vector<LinkID> LinkRelations::get_immediate_parents(LinkID link) const
 {
 	return get_immediate_porc_internal(link, &graph::Graph::dir_neigh_r);
 }
 
-std::vector<Link*> LinkRelations::get_immediate_children(Link * link) const
+std::vector<LinkID> LinkRelations::get_immediate_children(LinkID link) const
 {
 	return get_immediate_porc_internal(link, &graph::Graph::dir_neigh);
 }
 
-std::vector<Link*> LinkRelations::get_immediate_porc_internal(Link * link,
+std::vector<LinkID> LinkRelations::get_parents(LinkID link, NetType type) const
+{
+	return get_porc_internal(link, type, &graph::Graph::dir_neigh_r);
+}
+
+std::vector<LinkID> LinkRelations::get_children(LinkID link, NetType type) const
+{
+	return get_porc_internal(link, type, &graph::Graph::dir_neigh);
+}
+
+std::vector<LinkID> LinkRelations::get_immediate_porc_internal(LinkID link,
 	graph::VList(graph::Graph::* grafunc)(graph::VertexID) const) const
 {
 	using namespace graph;
-	std::vector<Link*> result;
+	std::vector<LinkID> result;
 
-	auto it = m_link2v.find(link);
-	assert(it != m_link2v.end());
-	VertexID link_v = it->second;
+	VertexID link_v = (VertexID)link;
 
 	auto neighs = (m_graph.*grafunc)(link_v);
 	for (auto neigh_v : neighs)
 	{
-		auto neigh_it = m_v2link.find(neigh_v);
-		assert(neigh_it != m_v2link.end());
-		result.push_back(neigh_it->second);
+		result.push_back((LinkID)neigh_v);
 	}
 
 	return result;
 }
 
-void LinkRelations::get_porc_internal(Link * link, NetType net, 
+void LinkRelations::get_porc_internal(Link * link, NetType net, NodeSystem* sys,
 	graph::VList(graph::Graph::* grafunc)(graph::VertexID) const, void * pout,
 	const ThuncFunc& thunk) const
 {
 	using namespace graph;
 	std::vector<void*>& out = *((std::vector<void*>*)pout);
 	
-	auto it = m_link2v.find(link);
-	assert(it != m_link2v.end());
+	std::vector<LinkID> out_ids = get_porc_internal(link->get_id(), net, grafunc);
+	for (auto id : out_ids)
+	{
+		Link* link = sys->get_link(id);
+		out.push_back(thunk(link));
+	}
+}
 
-	VertexID firstv = it->second;
-	
+std::vector<LinkID> LinkRelations::get_porc_internal(LinkID link, NetType net,
+	graph::VList(graph::Graph::* grafunc)(graph::VertexID) const) const
+{
+	using namespace graph;
+
+	std::vector<LinkID> result;
+
+	VertexID firstv = (VertexID)link;
+
 	std::stack<VertexID> to_visit;
 	to_visit.push(firstv);
 
@@ -520,17 +548,17 @@ void LinkRelations::get_porc_internal(Link * link, NetType net,
 			continue;
 
 		// Get link corresponding to vertex, return it if it's the right type
-		Link* link = m_v2link.find(curv)->second;
-		if (link->get_type() == net)
+		LinkID curv_linkid = (LinkID)curv;
+		if (curv_linkid.get_type() == net)
 		{
-			// Cast the link pointer to a derived type, and do pointer adjustment, using
-			// the thunk function
-			out.push_back(thunk(link));
+			result.push_back(curv_linkid);
 		}
 	}
+
+	return result;
 }
 
-LinkRelations* LinkRelations::clone(const Node * srcsys, Node * destsys) const
+LinkRelations* LinkRelations::clone(Node * destsys) const
 {
 	// Create empty
 	LinkRelations* result = new LinkRelations;
@@ -538,93 +566,27 @@ LinkRelations* LinkRelations::clone(const Node * srcsys, Node * destsys) const
 	// Copy the graph verbatim
 	result->m_graph = m_graph;
 
-	// Traverse links(= vertices) in source (this)
-	for (auto& it : m_v2link)
+	// Remove all links not present in destsys
+	for (auto v : m_graph.iter_verts)
 	{
-		auto v = it.first;
-		auto& link = it.second;
+		auto linkid = (LinkID)v;
 
-		auto srcname = link->get_src()->get_hier_path(srcsys);
-		auto sinkname = link->get_sink()->get_hier_path(srcsys);
-
-		// Get version of old link in new system, using endpoint names.
-		// It's ok if it doesn't exist - just ignore the link
-		auto newsrc = dynamic_cast<HierObject*>(destsys->get_child(srcname));
-		auto newsink = dynamic_cast<HierObject*>(destsys->get_child(sinkname));
-		if (!newsrc || !newsink)
+		if (!destsys->get_link(linkid))
 		{
 			result->m_graph.delv(v);
 			continue;
 		}
-
-		// Get the link in new system, if it exists
-		auto newlinks = destsys->get_links(newsrc, newsink, link->get_type());
-		if (newlinks.empty())
-		{
-			result->m_graph.delv(v);
-			continue;
-		}
-
-		// Might want to handle this properly later
-		assert(newlinks.size() == 1);
-
-		// Insert v<->edge mapping into new relations structure.
-		// The vertex exists.
-		result->m_v2link[v] = newlinks.front();
-		result->m_link2v[link] = v;
 	}
 
-	// (The edges were copied from the source graph. Some may have been pruned)
+	// (The edges were copied from the source graph. Some may have been pruned by delv)
 
 	return result;
 }
 
-void LinkRelations::reintegrate(LinkRelations * src, const Node* srcsys,
-	const Node* destsys)
+void LinkRelations::reintegrate(LinkRelations * src)
 {
 	// Perform a union of the graphs
 	m_graph.union_with(src->m_graph);
-	
-	// Copy only new entries from the v<->link maps
-	for (auto src_v2link : src->m_v2link)
-	{
-		auto v = src_v2link.first;
-		auto src_link = src_v2link.second;
-
-		if (m_v2link.count(v) == 0)
-		{
-			// The link pointer needs to be updated.
-			// The link can exist in the src system, or in the dest system (it's been moved).
-			// Need to try both possibilities before giving up.
-			std::string srcname;
-			std::string sinkname;
-
-			if (srcsys->is_parent_of(src_link->get_src()))
-				srcname = src_link->get_src()->get_hier_path(srcsys);
-			else if (destsys->is_parent_of(src_link->get_src()))
-				srcname = src_link->get_src()->get_hier_path(destsys);
-			else
-				assert(false);
-
-			if (srcsys->is_parent_of(src_link->get_sink()))
-				sinkname = src_link->get_sink()->get_hier_path(srcsys);
-			else if (destsys->is_parent_of(src_link->get_sink()))
-				sinkname = src_link->get_sink()->get_hier_path(destsys);
-
-			auto newsrc = dynamic_cast<HierObject*>(destsys->get_child(srcname));
-			auto newsink = dynamic_cast<HierObject*>(destsys->get_child(sinkname));
-			assert(newsrc && newsink);
-			
-			auto newlinks = destsys->get_links(newsrc, newsink, src_link->get_type());
-			assert(newlinks.size() == 1);
-
-			auto link = newlinks.front();
-
-			// New entry
-			m_v2link[v] = link;
-			m_link2v[link] = v;
-		}
-	}
 }
 
 

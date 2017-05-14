@@ -37,7 +37,7 @@ LinkInternal::LinkInternal()
 }
 
 LinkInternal::LinkInternal(const LinkInternal& o)
-	: m_latency(o.m_latency)
+	: Link(o), m_latency(o.m_latency)
 {
 }
 

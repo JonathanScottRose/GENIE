@@ -19,7 +19,8 @@ namespace flow
 	{
 	public:
 		static constexpr unsigned INVALID = std::numeric_limits<unsigned>::max();
-		using Links = std::vector<LinkRSLogical*>;
+		using Links = std::vector<LinkID>;
+		using Transmissions = std::vector<unsigned>;
 
 		DomainRS();
 		DomainRS(const DomainRS&) = default;
@@ -29,8 +30,11 @@ namespace flow
 		PROP_GET_SET(is_manual, bool, m_is_manual);
 		PROP_GET_SET(name, const std::string&, m_name);
 
-		void add_link(LinkRSLogical*);
+		void add_link(LinkID);
 		const Links& get_links() const;
+
+		void add_transmission(unsigned);
+		const Transmissions& get_transmissions() const;
 
 		static unsigned get_port_domain(PortRS*, NodeSystem* context);
 
@@ -38,7 +42,8 @@ namespace flow
 		unsigned m_id;
 		std::string m_name;
 		bool m_is_manual;
-		Links m_links; // TODO: store by ID to make cloning easier
+		Links m_links;
+		Transmissions m_xmis;
 	};
 
 	class FlowStateInner
@@ -46,23 +51,8 @@ namespace flow
 	public:
 		AddressRep& get_flow_rep() { return m_flow_rep; }
 
-		unsigned new_transmission();
-		void add_link_to_transmission(unsigned xmis, LinkRSLogical* link);
-		const std::vector<LinkRSLogical*>& get_transmission_links(unsigned id);
-		PortRS* get_transmission_src(unsigned id);
-		unsigned get_n_transmissions() const;
-		unsigned get_transmission_for_link(LinkRSLogical*);
-
 	protected:
-		struct TransmissionInfo
-		{
-			std::vector<LinkRSLogical*> links;
-			PortRS* src;
-		};
-
 		AddressRep m_flow_rep;
-		std::vector<TransmissionInfo> m_transmissions;
-		std::unordered_map<LinkRSLogical*, unsigned> m_link_to_xmis;
 	};
 
 	class FlowStateOuter
@@ -71,18 +61,27 @@ namespace flow
 		using RSDomains = std::vector<DomainRS>;
 
 		FlowStateOuter() = default;
-		FlowStateOuter(const FlowStateOuter*, const NodeSystem* old_sys, 
-			NodeSystem* new_sys);
 		~FlowStateOuter() = default;
-
-		void reintegrate(FlowStateOuter& src);
 
 		const RSDomains& get_rs_domains() const;
 		DomainRS* get_rs_domain(unsigned);
 		DomainRS& new_rs_domain(unsigned id);
 
+		unsigned new_transmission();
+		void add_link_to_transmission(unsigned xmis, LinkID link);
+		const std::vector<LinkID>& get_transmission_links(unsigned xmis);
+		unsigned get_n_transmissions() const;
+		unsigned get_transmission_for_link(LinkID link);
+
 	protected:
+		struct TransmissionInfo
+		{
+			std::vector<LinkID> links;
+		};
+
 		RSDomains m_rs_domains;
+		std::vector<TransmissionInfo> m_transmissions;
+		std::unordered_map<LinkID, unsigned> m_link_to_xmis;
 	};
 
 	using N2GRemapFunc = std::function<HierObject*(HierObject*)>;

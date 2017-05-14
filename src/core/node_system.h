@@ -42,7 +42,7 @@ namespace impl
         NodeSystem* instantiate() const override;
 		void prepare_for_hdl() override;
         
-		PROP_GET_SET(flow_state_outer, flow::FlowStateOuter*, m_flow_state_outer);
+		PROP_GET_SET(flow_state_outer, std::shared_ptr<flow::FlowStateOuter>, m_flow_state_outer);
 		PROP_GET_SET(flow_state_inner, flow::FlowStateInner*, m_flow_state_inner);
         std::vector<Node*> get_nodes() const;
 
@@ -52,7 +52,7 @@ namespace impl
     protected:
 		NodeSystem(const NodeSystem&);
 
-		flow::FlowStateOuter* m_flow_state_outer;
+		std::shared_ptr<flow::FlowStateOuter> m_flow_state_outer;
 		flow::FlowStateInner* m_flow_state_inner;
     };
 }

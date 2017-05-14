@@ -16,6 +16,7 @@
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
+#include <memory>
 
 // GENIE stuff
 #include "genie/genie.h"

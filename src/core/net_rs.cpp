@@ -51,7 +51,7 @@ LinkRSLogical::LinkRSLogical()
 }
 
 LinkRSLogical::LinkRSLogical(const LinkRSLogical& o)
-	: m_src_addr(o.m_src_addr), m_sink_addr(o.m_sink_addr),
+	: Link(o), m_src_addr(o.m_src_addr), m_sink_addr(o.m_sink_addr),
 	m_domain_id(o.m_domain_id)
 {
 }
@@ -97,6 +97,7 @@ LinkRSPhys::LinkRSPhys()
 }
 
 LinkRSPhys::LinkRSPhys(const LinkRSPhys& o)
+	: Link(o)
 {
 }
 
@@ -141,6 +142,7 @@ LinkRSSub::LinkRSSub()
 }
 
 LinkRSSub::LinkRSSub(const LinkRSSub& o)
+	: Link(o)
 {
 }
 

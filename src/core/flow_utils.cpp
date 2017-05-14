@@ -100,7 +100,7 @@ DomainRS::DomainRS()
 {
 }
 
-void DomainRS::add_link(LinkRSLogical* link)
+void DomainRS::add_link(LinkID link)
 {
 	m_links.push_back(link);
 }
@@ -108,6 +108,16 @@ void DomainRS::add_link(LinkRSLogical* link)
 const DomainRS::Links& DomainRS::get_links() const
 {
 	return m_links;
+}
+
+void DomainRS::add_transmission(unsigned xmis)
+{
+	m_xmis.push_back(xmis);
+}
+
+const DomainRS::Transmissions & DomainRS::get_transmissions() const
+{
+	return m_xmis;
 }
 
 unsigned DomainRS::get_port_domain(PortRS * port, NodeSystem * context)
@@ -128,45 +138,6 @@ unsigned DomainRS::get_port_domain(PortRS * port, NodeSystem * context)
 //
 // FlowStateOuter
 //
-
-FlowStateOuter::FlowStateOuter(const FlowStateOuter* that, const NodeSystem* old_sys,
-	NodeSystem * new_sys)
-{
-	// Redo references
-
-	for (auto& old_dom : that->m_rs_domains)
-	{
-		auto& new_dom = this->new_rs_domain(old_dom.get_id());
-
-		for (auto& old_link: old_dom.get_links())
-		{
-			auto src_path = old_link->get_src()->get_hier_path(old_sys);
-			auto sink_path = old_link->get_sink()->get_hier_path(old_sys);
-
-			auto new_src = dynamic_cast<HierObject*>(new_sys->get_child(src_path));
-			auto new_sink = dynamic_cast<HierObject*>(new_sys->get_child(sink_path));
-			if (!new_src || !new_sink)
-				continue;
-
-			// Find the equivalent link in the new system. It might not exist, even
-			// if the endpoints do, because it belongs to a different domain. This is okay.
-			auto new_links = new_sys->get_links(new_src, new_sink, NET_RS_LOGICAL);
-			if (new_links.empty())
-				continue;
-
-			// But if it DOES exist, there should just be one. Can expand on this later.
-			assert(new_links.size() == 1);
-			
-			new_dom.add_link(static_cast<LinkRSLogical*>(new_links.front()));
-		}
-	}
-}
-
-void FlowStateOuter::reintegrate(FlowStateOuter & src)
-{
-	// TODO: move data from src that could have been added.
-	// Nothing for now.
-}
 
 const FlowStateOuter::RSDomains& FlowStateOuter::get_rs_domains() const
 {
@@ -195,27 +166,18 @@ DomainRS& FlowStateOuter::new_rs_domain(unsigned id)
 	return result;
 }
 
-//
-// FlowStateInner
-//
-
-unsigned FlowStateInner::new_transmission()
+unsigned FlowStateOuter::new_transmission()
 {
 	unsigned result = m_transmissions.size();
 
-	m_transmissions.emplace_back(TransmissionInfo{ {}, nullptr });
+	m_transmissions.emplace_back(TransmissionInfo{ {} });
 
 	return result;
 }
 
-void FlowStateInner::add_link_to_transmission(unsigned xmis, LinkRSLogical * link)
+void FlowStateOuter::add_link_to_transmission(unsigned xmis, LinkID link)
 {
 	auto& xm = m_transmissions[xmis];
-	
-	auto link_src = static_cast<PortRS*>(link->get_src());
-
-	if (!xm.src) xm.src = link_src;
-	else assert(xm.src == link_src);
 
 	xm.links.push_back(link);
 	
@@ -223,27 +185,25 @@ void FlowStateInner::add_link_to_transmission(unsigned xmis, LinkRSLogical * lin
 	m_link_to_xmis[link] = xmis;
 }
 
-const std::vector<LinkRSLogical*>& FlowStateInner::get_transmission_links(unsigned id)
+const std::vector<LinkID>& FlowStateOuter::get_transmission_links(unsigned xmis)
 {
-	return m_transmissions[id].links;
+	return m_transmissions[xmis].links;
 }
 
-PortRS * FlowStateInner::get_transmission_src(unsigned id)
-{
-	return m_transmissions[id].src;
-}
-
-unsigned FlowStateInner::get_n_transmissions() const
+unsigned FlowStateOuter::get_n_transmissions() const
 {
 	return m_transmissions.size();
 }
 
-unsigned genie::impl::flow::FlowStateInner::get_transmission_for_link(LinkRSLogical * link)
+unsigned genie::impl::flow::FlowStateOuter::get_transmission_for_link(LinkID link)
 {
 	auto it = m_link_to_xmis.find(link);
 	assert(it != m_link_to_xmis.end());
 	return it->second;
 }
 	
+//
+// FlowStateInner
+//
 
 

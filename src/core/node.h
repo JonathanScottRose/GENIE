@@ -2,6 +2,7 @@
 
 #include "hierarchy.h"
 #include "hdl.h"
+#include "network.h"
 #include "genie/node.h"
 
 namespace genie
@@ -57,7 +58,12 @@ namespace impl
 		}
 
 		Links get_links() const;
-		const Links& get_links(NetType);
+		template<class T=Link>
+		std::vector<T*> get_links_casted(NetType net)
+		{
+			return get_links_cont(net).get_all_casted<T>();
+		}
+		Links get_links(NetType);
 		Links get_links(HierObject* src, HierObject* sink, NetType net) const;
 		Link* get_link(LinkID);
 		Link* connect(HierObject* src, HierObject* sink, NetType net);
@@ -73,8 +79,7 @@ namespace impl
 		Node(const Node&);
 
 		void set_param(const std::string& name, NodeParam* param);
-		void copy_links(const Node& src, const Links* just_these = nullptr);
-		void copy_link_rel(const Node& src);
+		void copy_links_from(const Node& src, const Links* just_these = nullptr);
 
 		LinkID add_link(NetType, Link*);
 		LinksContainer& get_links_cont(NetType);

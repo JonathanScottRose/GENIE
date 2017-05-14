@@ -116,8 +116,55 @@ namespace
 				dom->set_name(link->get_src()->get_hier_path(sys));
 			}
 
-			dom->add_link(link);
+			dom->add_link(link->get_id());
 			link->set_domain_id(dom_id);
+		}
+	}
+
+	void rs_create_transmissions(NodeSystem* sys)
+	{
+		auto fstate = sys->get_flow_state_outer();
+
+		// Go through all flows (logical RS links).
+		// Bin them by source
+		auto links = sys->get_links(NET_RS_LOGICAL);
+
+		std::unordered_map<HierObject*, std::vector<LinkRSLogical*>> bin_by_src;
+
+		for (auto link : links)
+		{
+			auto src = link->get_src();
+			bin_by_src[src].push_back(static_cast<LinkRSLogical*>(link));
+		}
+
+		// Within each source bin, bin again by source address. 
+		// Each of these bins is a transmission
+		unsigned flow_id = 0;
+		for (auto src_bin : bin_by_src)
+		{
+			std::unordered_map<unsigned, std::vector<LinkRSLogical*>> bin_by_addr;
+			for (auto link : src_bin.second)
+			{
+				bin_by_addr[link->get_src_addr()].push_back(link);
+			}
+
+			for (auto addr_bin : bin_by_addr)
+			{
+				// Create the transmission
+				unsigned xmis_id = fstate->new_transmission();
+
+				// Add links to the transmission
+				for (auto link : addr_bin.second)
+				{
+					fstate->add_link_to_transmission(xmis_id, link->get_id());
+				}
+
+				// Add transmission to domain
+				unsigned dom_id = addr_bin.second.front()->get_domain_id();
+				auto dom = fstate->get_rs_domain(dom_id);
+				assert(dom);
+				dom->add_transmission(xmis_id);
+			}
 		}
 	}
 
@@ -172,7 +219,7 @@ namespace
 	void make_crossbar_topo(NodeSystem* sys)
 	{
 		// Get all logical RS links
-		auto& logical_links = sys->get_links(NET_RS_LOGICAL);
+		auto logical_links = sys->get_links(NET_RS_LOGICAL);
 
 		// For each original topo source, and sink record:
 		struct Entry
@@ -268,7 +315,7 @@ namespace
 	{
 		using namespace graph;
 
-		auto& rs_links = sys->get_links(NET_RS_LOGICAL);
+		auto rs_links = sys->get_links(NET_RS_LOGICAL);
 
 		// Turn the RS logical network into a graph.
 		// Maintain: vertexid<->port, edgeid->link mappings
@@ -307,7 +354,7 @@ namespace
 			for (auto& route_edge : route_edges)
 			{
 				Link* route_link = eid_to_link[route_edge];
-				link_rel->add(rs_link, route_link);
+				link_rel->add(rs_link->get_id(), route_link->get_id());
 			}
 		}
 	}
@@ -414,9 +461,10 @@ namespace
     void do_system(NodeSystem* sys)
     {
 		sys->resolve_params();
-		sys->set_flow_state_outer(new flow::FlowStateOuter());
+		sys->set_flow_state_outer(std::make_shared<flow::FlowStateOuter>());
 
 		rs_assign_domains(sys);
+		rs_create_transmissions(sys);
 		rs_find_manual_domains(sys);
 		rs_print_domain_stats(sys);
 

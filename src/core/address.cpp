@@ -79,16 +79,20 @@ unsigned AddressRep::get_size_in_bits() const
 }
 
 
-void flow::make_internal_flow_rep(NodeSystem* sys)
+void flow::make_internal_flow_rep(NodeSystem* sys, unsigned dom_id)
 {
-	auto fs = sys->get_flow_state_inner();
-	auto& rep = fs->get_flow_rep();
+	auto fs_in = sys->get_flow_state_inner();
+	auto fs_out = sys->get_flow_state_outer();
+	auto& rep = fs_in->get_flow_rep();
+	auto dom = fs_out->get_rs_domain(dom_id);
+	auto& dom_xmis = dom->get_transmissions();
 
-	// For now, assign each transmission its own id as its address.
-	unsigned n_xmis = fs->get_n_transmissions();
+	// Take each transmission in one domain, and give it a unique ID
+	unsigned n_xmis = dom_xmis.size();
 	for (unsigned i = 0; i < n_xmis; i++)
 	{
-		rep.insert(i, i);
+		unsigned xmis_id = dom_xmis[i];
+		rep.insert(xmis_id, i);
 	}
 }
 
@@ -96,7 +100,8 @@ AddressRep flow::make_split_node_rep(NodeSystem* sys, NodeSplit* sp)
 {
 	AddressRep result;
 
-	auto fs = sys->get_flow_state_inner();
+	auto fs_out = sys->get_flow_state_outer();
+	auto& glob_rep = sys->get_flow_state_inner()->get_flow_rep();
 	auto link_rel = sys->get_link_relations();
 
 	// transmission ID to address.
@@ -111,14 +116,16 @@ AddressRep flow::make_split_node_rep(NodeSystem* sys, NodeSplit* sp)
 		auto out_link = port->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->get_link0();
 		
 		// Get logical links from physical link
-		auto rs_links = link_rel->get_parents<LinkRSLogical>(out_link, NET_RS_LOGICAL);
+		auto rs_links = link_rel->get_parents(out_link->get_id(), NET_RS_LOGICAL);
 
 		for (auto rs_link : rs_links)
 		{
 			// Find the transmission and its ID for each rs link.
 			// Add to bitmask
-			auto xmis_id = fs->get_transmission_for_link(rs_link);
-			trans2addr[xmis_id] |= (1 << i);
+			auto xmis_id = fs_out->get_transmission_for_link(rs_link);
+			auto xmis_addr = glob_rep.get_addr(xmis_id);
+
+			trans2addr[xmis_addr] |= (1 << i);
 		}
 	}
 
@@ -135,7 +142,8 @@ AddressRep flow::make_srcsink_flow_rep(NodeSystem* sys, PortRS* srcsink)
 {
 	AddressRep result;
 
-	auto fs = sys->get_flow_state_inner();
+	auto fs_out = sys->get_flow_state_outer();
+	auto& glob_rep = sys->get_flow_state_inner()->get_flow_rep();
 
 	// Find out whether we're dealing with a source or sink.
 	auto dir = srcsink->get_effective_dir(sys);
@@ -150,11 +158,13 @@ AddressRep flow::make_srcsink_flow_rep(NodeSystem* sys, PortRS* srcsink)
 	for (auto link : links)
 	{
 		auto rs_link = static_cast<LinkRSLogical*>(link);
-		auto xmis = fs->get_transmission_for_link(rs_link);
-		auto addr = dir == Port::Dir::OUT ?
+		auto xmis_id = fs_out->get_transmission_for_link(rs_link->get_id());
+		auto xmis_addr = glob_rep.get_addr(xmis_id);
+
+		auto user_addr = dir == Port::Dir::OUT ?
 			rs_link->get_src_addr() : rs_link->get_sink_addr();
 
-		result.insert(xmis, addr);
+		result.insert(xmis_addr, user_addr);
 	}
 
 	return result;

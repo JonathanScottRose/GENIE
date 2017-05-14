@@ -20,44 +20,7 @@ using Dir = genie::Port::Dir;
 
 namespace
 {
-	void create_transmissions(NodeSystem* sys)
-	{
-		auto fstate = sys->get_flow_state_inner();
-
-		// Go through all flows (logical RS links) in the domain.
-		// Bin them by source
-		auto links = sys->get_links(NET_RS_LOGICAL);
-
-		std::unordered_map<HierObject*, std::vector<LinkRSLogical*>> bin_by_src;
-
-		for (auto link : links)
-		{
-			auto src = link->get_src();
-			bin_by_src[src].push_back(static_cast<LinkRSLogical*>(link));
-		}
-
-		// Within each source bin, bin again by source address. 
-		// Each of these bins is a transmission
-		unsigned flow_id = 0;
-		for (auto src_bin : bin_by_src)
-		{
-			std::unordered_map<unsigned, std::vector<LinkRSLogical*>> bin_by_addr;
-			for (auto link : src_bin.second)
-			{
-				bin_by_addr[link->get_src_addr()].push_back(link);
-			}
-
-			for (auto addr_bin : bin_by_addr)
-			{
-				unsigned tid = fstate->new_transmission();
-
-				for (auto link : addr_bin.second)
-				{
-					fstate->add_link_to_transmission(tid, link);
-				}
-			}
-		}
-	}
+	
 
 	void realize_topo_links(NodeSystem* sys)
 	{
@@ -154,7 +117,7 @@ namespace
 			auto rs_link = static_cast<LinkRSPhys*>(sys->connect(rs_src, rs_sink, NET_RS_PHYS));
 
 			// Associate
-			link_rel->add(topo_link, rs_link);
+			link_rel->add(topo_link->get_id(), rs_link->get_id());
 		}
 	}
 
@@ -340,7 +303,7 @@ namespace
 
 					// If this physical link carries the end-to-end transmission we want,
 					// then choose it to continue tranversal.
-					if (link_rel->is_contained_in(e2e_link, cand_feeder))
+					if (link_rel->is_contained_in(e2e_link->get_id(), cand_feeder->get_id()))
 					{
 						cur_sink = cand_sink;
 						break;
@@ -461,8 +424,10 @@ namespace
 
 	void default_xmis_ids(NodeSystem* sys)
 	{
-		auto fstate = sys->get_flow_state_inner();
+		auto fstate_out = sys->get_flow_state_outer();
+		auto fstate_in = sys->get_flow_state_inner();
 		auto link_rel = sys->get_link_relations();
+		auto& addr_rep = fstate_in->get_flow_rep();
 
 		// Gather all physical RS links where:
 		// - the sink needs an xmis_id field
@@ -483,12 +448,12 @@ namespace
 				// Once we have this single transmission's ID, we can insert it as a constant
 				// into the sink's port protocol.
 
-				auto log_links = link_rel->get_parents<LinkRSLogical>(phys_link, NET_RS_LOGICAL);
+				auto log_link_ids = link_rel->get_parents(phys_link->get_id(), NET_RS_LOGICAL);
 				unsigned xmis_id = AddressRep::ADDR_INVALID;
 
-				for (auto log_link : log_links)
+				for (auto log_link_id : log_link_ids)
 				{
-					auto this_xmis_id = fstate->get_transmission_for_link(log_link);
+					auto this_xmis_id = fstate_out->get_transmission_for_link(log_link_id);
 
 					// Make sure all logical links have the same transmission ID
 					if (xmis_id != AddressRep::ADDR_INVALID && xmis_id != this_xmis_id)
@@ -500,10 +465,13 @@ namespace
 						xmis_id = this_xmis_id;
 					}
 				}
+
+				// Convert transmission ID into address
+				unsigned xmis_addr = addr_rep.get_addr(xmis_id);
 				
 				FieldInst* field = sink->get_field(FIELD_XMIS_ID);
 				BitsVal xmis_id_val(field->get_width());
-				xmis_id_val.set_val(0, 0, xmis_id, field->get_width());
+				xmis_id_val.set_val(0, 0, xmis_addr, field->get_width());
 
 				auto& sink_proto = sink->get_proto();
 				sink_proto.set_const(FIELD_XMIS_ID, xmis_id_val);
@@ -764,8 +732,9 @@ namespace
 
 			// Create and add clockx node
 			auto cxnode = new NodeClockX();
-			cxnode->set_name("clockx" + std::to_string(dom_id) + 
-				std::to_string(nodenum++));
+			cxnode->set_name(util::str_con_cat("clockx",
+				std::to_string(dom_id),
+				std::to_string(nodenum++)));
 			sys->add_child(cxnode);
 
 			// Connect its clock inputs
@@ -783,8 +752,7 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id)
 {
 	sys->set_flow_state_inner(new FlowStateInner);
 
-	create_transmissions(sys);
-	flow::make_internal_flow_rep(sys);
+	flow::make_internal_flow_rep(sys, dom_id);
 
 	realize_topo_links(sys);
 	insert_addr_converters_user(sys);

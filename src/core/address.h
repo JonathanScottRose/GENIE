@@ -40,7 +40,7 @@ namespace impl
 
 	namespace flow
 	{
-		void make_internal_flow_rep(NodeSystem* sys);
+		void make_internal_flow_rep(NodeSystem* sys, unsigned dom_id);
 		AddressRep make_split_node_rep(NodeSystem*, NodeSplit*);
 		AddressRep make_srcsink_flow_rep(NodeSystem*, PortRS*);
 	}

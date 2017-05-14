@@ -236,7 +236,7 @@ Node::Links Node::get_links() const
 	return result;
 }
 
-const Node::Links& Node::get_links(NetType type)
+Node::Links Node::get_links(NetType type)
 {
 	auto& cont = get_links_cont(type);
 	return cont.get_all();
@@ -273,7 +273,7 @@ Link * Node::get_link(LinkID id)
 LinkID Node::add_link(NetType type, Link* link)
 {
 	auto& cont = get_links_cont(type);
-	return cont.insert(link);
+	return cont.insert_new(link);
 }
 
 
@@ -379,7 +379,7 @@ void Node::disconnect(Link* link)
 	auto link_rel = get_link_relations();
 	if (link_rel)
 	{
-		link_rel->unregister_link(link);
+		link_rel->unregister_link(link->get_id());
 	}
 
 	// Remove the link from the System and destroy it
@@ -422,11 +422,11 @@ Link * Node::splice(Link * orig, HierObject * new_sink, HierObject * new_src)
 
 	// Transfer containment relationships. Just immediate parents
 	auto link_rel = get_link_relations();
-	auto old_parents = link_rel->get_immediate_parents(orig);
+	auto old_parents = link_rel->get_immediate_parents(orig->get_id());
 
 	for (auto parent : old_parents)
 	{
-		link_rel->add(parent, new_link);
+		link_rel->add(parent, new_link->get_id());
 	}
 
 	return new_link;
@@ -478,7 +478,7 @@ void Node::set_param(const std::string& name, NodeParam * param)
 	m_params[name] = param;
 }
 
-void Node::copy_links(const Node & src, const Links* just_these)
+void Node::copy_links_from(const Node & src, const Links* just_these)
 {
 	// If just_these is not null, we'll copy that list. Otherwise,
 	// we need to create a temporary vector of ALL links
@@ -501,11 +501,10 @@ void Node::copy_links(const Node & src, const Links* just_these)
 		if (!new_src || !new_sink)
 			continue;
 
-		// Ignore internal structure
-		//if (src->get_node() != &o || sink->get_node() != &o)
-		//	continue;
-
+		// Make new link
 		auto new_link = orig_link->clone();
+
+		// Find endpoints in target(this) context, connect
 		auto new_src_ep = new_src->get_endpoint(orig_link->get_type(), Port::Dir::OUT);
 		auto new_sink_ep = new_sink->get_endpoint(orig_link->get_type(), Port::Dir::IN);
 
@@ -515,19 +514,14 @@ void Node::copy_links(const Node & src, const Links* just_these)
 		new_link->set_src_ep(new_src_ep);
 		new_link->set_sink_ep(new_sink_ep);
 
-		add_link(orig_link->get_type(), new_link);
+		// Do an add-in-place using existing ID
+		auto& cont = get_links_cont(orig_link->get_type());
+		cont.insert_existing(new_link);
 	}
 
 	// Destroy temp copy of all links if we created one
 	if (all_links)
 		delete all_links;
-}
-
-void Node::copy_link_rel(const Node & src)
-{
-	assert(!m_link_rel);
-	if (src.m_link_rel)
-		m_link_rel = src.m_link_rel->clone(&src, this);
 }
 
 LinksContainer & Node::get_links_cont(NetType type)

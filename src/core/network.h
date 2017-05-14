@@ -150,18 +150,31 @@ namespace impl
 		LinksContainer();
 
 		PROP_GET_SET(type, NetType, m_type);
-		LinkID insert(Link*);
+		LinkID insert_new(Link*);
+		void insert_existing(Link*);
+		std::vector<Link*> move_new_from(LinksContainer&);
+		void clone_empty_from(LinksContainer&);
 		Link* get(LinkID);
 		Link* remove(LinkID);
-		const std::vector<Link*>& get_all() const;
+		std::vector<Link*> get_all() const;
+
+		template<class T=Link>
+		std::vector<T*> get_all_casted() const
+		{
+			std::vector<T*> result;
+			get_all_internal(&result, [](Link* p) { return static_cast<T*>(p); });
+			return result;
+		}
 
 	protected:
-		uint16_t find_pos(LinkID);
+		using ThuncFunc = std::function<void*(Link*)>;
+
+		void get_all_internal(void* out, const ThuncFunc&) const;
+		void ensure_size_for_index(uint16_t idx);
 
 		NetType m_type;
+		uint16_t m_next_id;
 		std::vector<Link*> m_links;
-		uint16_t m_next_index;
-		bool m_compact;
 	};
 
 	class EndpointPair
@@ -178,32 +191,33 @@ namespace impl
 	class LinkRelations
 	{
 	public:
-		LinkRelations* clone(const Node * srcsys, Node * destsys) const;
-		void reintegrate(LinkRelations* src, const Node* srcsys,
-			const Node* destsys);
+		LinkRelations* clone(Node * destsys) const;
+		void reintegrate(LinkRelations* src);
 
-		void add(Link* parent, Link* child);
-		void remove(Link* parent, Link* child);
-		bool is_contained_in(Link* parent, Link* child) const;
-		void unregister_link(Link* link);
+		void add(LinkID parent, LinkID child);
+		void remove(LinkID parent, LinkID child);
+		bool is_contained_in(LinkID parent, LinkID child) const;
+		void unregister_link(LinkID link);
 
-		std::vector<Link*> get_immediate_parents(Link* link) const;
-		std::vector<Link*> get_immediate_children(Link* link) const;
+		std::vector<LinkID> get_immediate_parents(LinkID link) const;
+		std::vector<LinkID> get_immediate_children(LinkID link) const;
+		std::vector<LinkID> get_parents(LinkID link, NetType type) const;
+		std::vector<LinkID> get_children(LinkID link, NetType type) const;
 
 		template<class T = Link>
-		std::vector<T*> get_parents(Link* link, NetType net) const
+		std::vector<T*> get_parents(Link* link, NetType net, NodeSystem* sys) const
 		{
 			std::vector<T*> result;
-			get_porc_internal(link, net, &graph::Graph::dir_neigh_r, &result,
+			get_porc_internal(link, net, sys, &graph::Graph::dir_neigh_r, &result,
 				[](Link* p) { return static_cast<T*>(p); });
 			return result;
 		}
 
 		template<class T = Link>
-		std::vector<T*> get_children(Link* link, NetType net) const
+		std::vector<T*> get_children(Link* link, NetType net, NodeSystem* sys) const
 		{
 			std::vector<T*> result;
-			get_porc_internal(link, net, &graph::Graph::dir_neigh, &result,
+			get_porc_internal(link, net,sys,  &graph::Graph::dir_neigh, &result,
 				[](Link* p) { return static_cast<T*>(p); });
 			return result;
 		}
@@ -211,15 +225,16 @@ namespace impl
 	protected:
 		using ThuncFunc = std::function<void*(Link*)>;
 
-		void get_porc_internal(Link* link, NetType net,
+		void get_porc_internal(Link* link, NetType net, NodeSystem* sys,
 			graph::VList(graph::Graph::*)(graph::VertexID) const,
 			void* out, const ThuncFunc&) const;
 
-		std::vector<Link*> get_immediate_porc_internal(Link*,
+		std::vector<LinkID> get_immediate_porc_internal(LinkID link,
 			graph::VList(graph::Graph::*)(graph::VertexID) const) const;
 
-		graph::V2Attr<Link*> m_v2link;
-		graph::Attr2V<Link*> m_link2v;
+		std::vector<LinkID> get_porc_internal(LinkID link, NetType net,
+			graph::VList(graph::Graph::*)(graph::VertexID) const) const;
+
 		graph::Graph m_graph;
 	};
 }
