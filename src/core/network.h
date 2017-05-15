@@ -12,7 +12,6 @@ namespace genie
 namespace impl
 {
 	class Node;
-	class NodeSystem;
 	class HierObject;
 	class Link;
 	class Endpoint;
@@ -153,7 +152,7 @@ namespace impl
 		LinkID insert_new(Link*);
 		void insert_existing(Link*);
 		std::vector<Link*> move_new_from(LinksContainer&);
-		void clone_empty_from(LinksContainer&);
+		void prepare_for_copy(const LinksContainer&);
 		Link* get(LinkID);
 		Link* remove(LinkID);
 		std::vector<Link*> get_all() const;
@@ -191,8 +190,8 @@ namespace impl
 	class LinkRelations
 	{
 	public:
-		LinkRelations* clone(Node * destsys) const;
-		void reintegrate(LinkRelations* src);
+		void prune(Node* dest);
+		void reintegrate(LinkRelations& src);
 
 		void add(LinkID parent, LinkID child);
 		void remove(LinkID parent, LinkID child);
@@ -205,7 +204,7 @@ namespace impl
 		std::vector<LinkID> get_children(LinkID link, NetType type) const;
 
 		template<class T = Link>
-		std::vector<T*> get_parents(Link* link, NetType net, NodeSystem* sys) const
+		std::vector<T*> get_parents(Link* link, NetType net, Node* sys) const
 		{
 			std::vector<T*> result;
 			get_porc_internal(link, net, sys, &graph::Graph::dir_neigh_r, &result,
@@ -214,7 +213,7 @@ namespace impl
 		}
 
 		template<class T = Link>
-		std::vector<T*> get_children(Link* link, NetType net, NodeSystem* sys) const
+		std::vector<T*> get_children(Link* link, NetType net, Node* sys) const
 		{
 			std::vector<T*> result;
 			get_porc_internal(link, net,sys,  &graph::Graph::dir_neigh, &result,
@@ -225,7 +224,7 @@ namespace impl
 	protected:
 		using ThuncFunc = std::function<void*(Link*)>;
 
-		void get_porc_internal(Link* link, NetType net, NodeSystem* sys,
+		void get_porc_internal(Link* link, NetType net, Node* sys,
 			graph::VList(graph::Graph::*)(graph::VertexID) const,
 			void* out, const ThuncFunc&) const;
 

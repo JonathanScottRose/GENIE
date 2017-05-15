@@ -136,20 +136,17 @@ Node::~Node()
 			util::delete_all(links);
 		}
 	}
-
-	delete m_link_rel;
 }
 
 Node::Node(const std::string & name, const std::string & hdl_name)
     : m_hdl_name(hdl_name), m_hdl_state(this)
 {
-	m_link_rel = new LinkRelations();
 	set_name(name);
 }
 
 Node::Node(const Node& o)
     : HierObject(o), m_hdl_name(o.m_hdl_name),
-    m_hdl_state(o.m_hdl_state), m_link_rel(nullptr)
+    m_hdl_state(o.m_hdl_state)
 {
     // Copy over all the things that every Node has
 
@@ -375,12 +372,8 @@ void Node::disconnect(Link* link)
 	src_ep->remove_link(link);
 	sink_ep->remove_link(link);
 
-	// Remove link from relations struct
-	auto link_rel = get_link_relations();
-	if (link_rel)
-	{
-		link_rel->unregister_link(link->get_id());
-	}
+	// Remove link from relations
+	m_link_rel.unregister_link(link->get_id());
 
 	// Remove the link from the System and destroy it
 	auto& cont = get_links_cont(id.get_type());
@@ -421,12 +414,11 @@ Link * Node::splice(Link * orig, HierObject * new_sink, HierObject * new_src)
 	add_link(net, new_link);
 
 	// Transfer containment relationships. Just immediate parents
-	auto link_rel = get_link_relations();
-	auto old_parents = link_rel->get_immediate_parents(orig->get_id());
+	auto old_parents = m_link_rel.get_immediate_parents(orig->get_id());
 
 	for (auto parent : old_parents)
 	{
-		link_rel->add(parent, new_link->get_id());
+		m_link_rel.add(parent, new_link->get_id());
 	}
 
 	return new_link;
@@ -480,6 +472,13 @@ void Node::set_param(const std::string& name, NodeParam * param)
 
 void Node::copy_links_from(const Node & src, const Links* just_these)
 {
+	// Prepare link containers
+	for (auto& other_cont : src.m_links)
+	{
+		auto& cont = get_links_cont(other_cont.get_type());
+		cont.prepare_for_copy(other_cont);
+	}
+
 	// If just_these is not null, we'll copy that list. Otherwise,
 	// we need to create a temporary vector of ALL links
 	Links* all_links = nullptr;

@@ -56,16 +56,14 @@ namespace impl
         Node* instantiate() const override;
 		void prepare_for_hdl() override;
         
-		PROP_GET_SET(flow_state_outer, std::shared_ptr<flow::FlowStateOuter>, m_flow_state_outer);
         std::vector<Node*> get_nodes() const;
 
-		NodeSystem* create_snapshot(unsigned dom_id);
+		NodeSystem* create_snapshot(const std::unordered_set<HierObject*>&, 
+			const std::vector<Link*>&);
 		void reintegrate_snapshot(NodeSystem* src);
 
     protected:
 		NodeSystem(const NodeSystem&);
-
-		std::shared_ptr<flow::FlowStateOuter> m_flow_state_outer;
     };
 }
 }

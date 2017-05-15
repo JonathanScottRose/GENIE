@@ -184,8 +184,7 @@ void NodeSystem::set_mutually_exclusive(const std::vector<genie::LinkRS*>& links
 //
 
 NodeSystem::NodeSystem(const std::string & name)
-    : Node(name, name), 
-	m_flow_state_outer(std::make_shared<flow::FlowStateOuter>())
+    : Node(name, name)
 {
 }
 
@@ -227,10 +226,8 @@ NodeSystem* NodeSystem::clone() const
 
 	// Now copy links and link relations
 	result->copy_links_from(*this);
-	result->m_link_rel = this->m_link_rel->clone(result);
-
-	// Flow state is shared
-	result->m_flow_state_outer = m_flow_state_outer;
+	result->m_link_rel = m_link_rel;
+	result->m_link_rel.prune(result);
 
 	return result;
 }
@@ -240,67 +237,25 @@ std::vector<Node*> NodeSystem::get_nodes() const
     return get_children_by_type<Node>();
 }
 
-NodeSystem * NodeSystem::create_snapshot(unsigned dom_id)
+NodeSystem * NodeSystem::create_snapshot(
+	const std::unordered_set<HierObject*>& preserve_objs, 
+	const std::vector<Link*>& preserve_links)
 {
-	auto fstate = get_flow_state_outer();
-
 	// Copies the node and ports only
 	auto result = new NodeSystem(*this);
 
-	// Gather all RS logical links for the given domain
-	auto& dom_rs_link_ids = fstate->get_rs_domain(dom_id)->get_links();
-	std::vector<Link*> dom_rs_links;
-
-	// Gather all Nodes that these RS Links touch
-	std::unordered_set<Node*> dom_nodes;
-	for (auto rs_link_id : dom_rs_link_ids)
-	{
-		auto rs_link = static_cast<LinkRSLogical*>(get_link(rs_link_id));
-		dom_rs_links.push_back(rs_link);
-
-		for (auto obj : { rs_link->get_src(), rs_link->get_sink() })
-		{
-			// If the link connects a Port, get the Node of that Port
-			if (auto port = dynamic_cast<Port*>(obj))
-			{
-				// Ignore top-level ports (don't add the system itself info this set)
-				auto node = port->get_node();
-				if (node != this)
-					dom_nodes.insert(node);
-			}
-		}
-	}
-
 	// Make clones of those nodes into the snapshot
-	for (auto node : dom_nodes)
+	for (auto node : preserve_objs)
 	{
 		result->add_child(node->clone());
 	}
-	
-	// Prepare result link containers
-	for (auto& my_cont : m_links)
-	{
-		auto& new_cont = result->get_links_cont(my_cont.get_type());
-		new_cont.clone_empty_from(my_cont);
-	}
 
-	// Add copies of the domain's RS links
-	result->copy_links_from(*this, &dom_rs_links);
+	// Copy links
+	result->copy_links_from(*this, &preserve_links);
 
-	// Add the clock links that touch the copied Nodes.
-	// copy_links will do that by only copying the links whose endpoints exist.
-	auto clock_links = get_links(NET_CLOCK);
-	result->copy_links_from(*this, &clock_links);
-
-	// Same for resets
-	auto reset_links = get_links(NET_RESET);
-	result->copy_links_from(*this, &reset_links);
-
-	// Copy link relations
-	result->m_link_rel = this->m_link_rel->clone(result);
-	
-	// Outer flow state is shared
-	result->set_flow_state_outer(this->get_flow_state_outer());
+	// Copy link relations and prune it
+	result->m_link_rel = m_link_rel;
+	result->m_link_rel.prune(result);
 
 	return result;
 }
@@ -401,15 +356,11 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 		sink_ep->add_link(link);
 	}
 
-	//
 	// Reintegrate link relations
-	//
-	m_link_rel->reintegrate(src->m_link_rel);
-	delete src->m_link_rel;
-	src->m_link_rel = nullptr;
+	m_link_rel.reintegrate(src->m_link_rel);
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)
-    : Node(o), m_flow_state_outer(nullptr)
+    : Node(o)
 {
 }

@@ -52,8 +52,7 @@ namespace flow
 	public:
 		using RSDomains = std::vector<DomainRS>;
 
-		FlowStateOuter() = default;
-		~FlowStateOuter() = default;
+		NodeSystem* sys = nullptr;
 
 		const RSDomains& get_rs_domains() const;
 		DomainRS* get_rs_domain(unsigned);

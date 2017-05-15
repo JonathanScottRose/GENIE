@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "network.h"
 #include "node.h"
-#include "node_system.h"
 #include "genie_priv.h"
 #include "genie/port.h"
 #include "genie/genie.h"
@@ -122,7 +121,7 @@ std::vector<Link*> LinksContainer::move_new_from(LinksContainer &o)
 	return result;
 }
 
-void LinksContainer::clone_empty_from(LinksContainer &o)
+void LinksContainer::prepare_for_copy(const LinksContainer &o)
 {
 	m_next_id = o.m_next_id;
 	if (m_next_id >= m_links.size())
@@ -505,7 +504,7 @@ std::vector<LinkID> LinkRelations::get_immediate_porc_internal(LinkID link,
 	return result;
 }
 
-void LinkRelations::get_porc_internal(Link * link, NetType net, NodeSystem* sys,
+void LinkRelations::get_porc_internal(Link * link, NetType net, Node* sys,
 	graph::VList(graph::Graph::* grafunc)(graph::VertexID) const, void * pout,
 	const ThuncFunc& thunk) const
 {
@@ -558,35 +557,32 @@ std::vector<LinkID> LinkRelations::get_porc_internal(LinkID link, NetType net,
 	return result;
 }
 
-LinkRelations* LinkRelations::clone(Node * destsys) const
+void LinkRelations::prune(Node* dest)
 {
-	// Create empty
-	LinkRelations* result = new LinkRelations;
-
-	// Copy the graph verbatim
-	result->m_graph = m_graph;
-
-	// Remove all links not present in destsys
+	// Remove all vertices not present in dest
+	std::vector<graph::VertexID> to_remove;
 	for (auto v : m_graph.iter_verts)
 	{
 		auto linkid = (LinkID)v;
 
-		if (!destsys->get_link(linkid))
+		if (!dest->get_link(linkid))
 		{
-			result->m_graph.delv(v);
-			continue;
+			to_remove.push_back(v);
 		}
 	}
 
-	// (The edges were copied from the source graph. Some may have been pruned by delv)
+	for (auto v : to_remove)
+	{
+		m_graph.delv(v);
+	}
 
-	return result;
+	// (The edges were copied from the source graph. Some may have been pruned by delv)
 }
 
-void LinkRelations::reintegrate(LinkRelations * src)
+void LinkRelations::reintegrate(LinkRelations& src)
 {
 	// Perform a union of the graphs
-	m_graph.union_with(src->m_graph);
+	m_graph.union_with(src.m_graph);
 }
 
 

@@ -72,7 +72,7 @@ namespace impl
 		Link* splice(Link* orig, HierObject* new_sink, HierObject* new_src);
 		bool is_link_internal(Link*) const;
 
-		PROP_GET_SET(link_relations, LinkRelations*, m_link_rel);
+		PROP_GETR(link_relations, LinkRelations&, m_link_rel);
 
     protected:
 		Node(const std::string& name, const std::string& hdl_name);
@@ -88,7 +88,7 @@ namespace impl
 		Params m_params;
         hdl::HDLState m_hdl_state;
 		std::vector<LinksContainer> m_links;
-		LinkRelations* m_link_rel;
+		LinkRelations m_link_rel;
     };
 
 	class IInstantiable

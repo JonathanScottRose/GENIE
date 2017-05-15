@@ -30,9 +30,6 @@ namespace
 		AddressRep domain_flow_rep;
 	};
 
-	void make_internal_flow_rep(FlowStateInner& fs_in);
-	AddressRep make_split_node_rep(NodeSystem*, NodeSplit*);
-	AddressRep make_srcsink_flow_rep(NodeSystem*, PortRS*);
 
 	void make_internal_flow_rep(FlowStateInner& fs_in)
 	{
@@ -50,12 +47,13 @@ namespace
 		}
 	}
 
-	AddressRep make_split_node_rep(NodeSystem* sys, NodeSplit* sp)
+	AddressRep make_split_node_rep(FlowStateInner& fstate, NodeSplit* sp)
 	{
 		AddressRep result;
 
-		auto fs_out = sys->get_flow_state_outer();
-		auto link_rel = sys->get_link_relations();
+		auto sys = fstate.sys;
+		auto fs_out = fstate.outer;
+		auto& link_rel = sys->get_link_relations();
 
 		// transmission ID to address.
 		std::unordered_map<unsigned, unsigned> trans2addr;
@@ -69,7 +67,7 @@ namespace
 			auto out_link = port->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->get_link0();
 
 			// Get logical links from physical link
-			auto rs_links = link_rel->get_parents(out_link->get_id(), NET_RS_LOGICAL);
+			auto rs_links = link_rel.get_parents(out_link->get_id(), NET_RS_LOGICAL);
 
 			for (auto rs_link : rs_links)
 			{
@@ -90,11 +88,12 @@ namespace
 		return result;
 	}
 
-	AddressRep make_srcsink_flow_rep(NodeSystem* sys, PortRS* srcsink)
+	AddressRep make_srcsink_flow_rep(FlowStateInner& fstate, PortRS* srcsink)
 	{
 		AddressRep result;
 
-		auto fs_out = sys->get_flow_state_outer();
+		auto sys = fstate.sys;
+		auto fs_out = fstate.outer;
 
 		// Find out whether we're dealing with a source or sink.
 		auto dir = srcsink->get_effective_dir(sys);
@@ -124,7 +123,7 @@ namespace
 	void realize_topo_links(FlowStateInner& fstate)
 	{
 		auto sys = fstate.sys;
-		auto link_rel = sys->get_link_relations();
+		auto& link_rel = sys->get_link_relations();
 
 		// Gather splits and merges for this domain
 		auto splits = sys->get_children_by_type<NodeSplit>();
@@ -217,7 +216,7 @@ namespace
 			auto rs_link = static_cast<LinkRSPhys*>(sys->connect(rs_src, rs_sink, NET_RS_PHYS));
 
 			// Associate
-			link_rel->add(topo_link->get_id(), rs_link->get_id());
+			link_rel.add(topo_link->get_id(), rs_link->get_id());
 		}
 	}
 
@@ -255,7 +254,7 @@ namespace
 				// Derive user address representation.
 				// If only one address bin exists, no conversion is necessary,
 				// as that one bin's value can be injected as a constant.
-				auto user_rep = make_srcsink_flow_rep(sys, user_port);
+				auto user_rep = make_srcsink_flow_rep(fstate, user_port);
 				if (user_rep.get_n_addr_bins() <= 1)
 				{
 					continue;
@@ -301,7 +300,7 @@ namespace
 		for (auto sp : sys->get_children_by_type<NodeSplit>())
 		{
 			// Make an addr representation for its input
-			auto sp_rep = make_split_node_rep(sys, sp);
+			auto sp_rep = make_split_node_rep(fstate, sp);
 
 			// If there's just one address bin, then the split node always
 			// broadcasts to the same outputs. We can tie off the mask with
@@ -346,7 +345,7 @@ namespace
 		auto sys = fstate.sys;
 
 		auto e2e_links = sys->get_links(NET_RS_LOGICAL);
-		auto link_rel = sys->get_link_relations();
+		auto& link_rel = sys->get_link_relations();
 
 		// Traverse every end-to-end elemental transmission
 		for (auto& e2e_link : e2e_links)
@@ -405,7 +404,7 @@ namespace
 
 					// If this physical link carries the end-to-end transmission we want,
 					// then choose it to continue tranversal.
-					if (link_rel->is_contained_in(e2e_link->get_id(), cand_feeder->get_id()))
+					if (link_rel.is_contained_in(e2e_link->get_id(), cand_feeder->get_id()))
 					{
 						cur_sink = cand_sink;
 						break;
@@ -529,7 +528,7 @@ namespace
 	{
 		auto sys = fstate_in.sys;
 		auto fstate_out = fstate_in.outer;
-		auto link_rel = sys->get_link_relations();
+		auto& link_rel = sys->get_link_relations();
 		auto& addr_rep = fstate_in.domain_flow_rep;
 
 		// Gather all physical RS links where:
@@ -551,7 +550,7 @@ namespace
 				// Once we have this single transmission's ID, we can insert it as a constant
 				// into the sink's port protocol.
 
-				auto log_link_ids = link_rel->get_parents(phys_link->get_id(), NET_RS_LOGICAL);
+				auto log_link_ids = link_rel.get_parents(phys_link->get_id(), NET_RS_LOGICAL);
 				unsigned xmis_id = AddressRep::ADDR_INVALID;
 
 				for (auto log_link_id : log_link_ids)

@@ -11,16 +11,60 @@
 #include "net_conduit.h"
 #include "net_rs.h"
 #include "net_topo.h"
+#include "net_clockreset.h"
 #include "port_conduit.h"
 #include "port_rs.h"
 
 using namespace genie::impl;
 using genie::Exception;
+using flow::FlowStateOuter;
 
 namespace
 {
-	void init_user_rs_ports(NodeSystem* sys)
+	NodeSystem * create_snapshot(FlowStateOuter& fstate,
+		unsigned dom_id)
 	{
+		std::unordered_set<HierObject*> dom_nodes;
+		std::vector<Link*> dom_links;
+
+		auto sys = fstate.sys;
+
+		// Gather all RS logical links for the given domain
+		auto& dom_rs_link_ids = fstate.get_rs_domain(dom_id)->get_links();
+
+		// Gather all Nodes that these RS Links touch
+		for (auto rs_link_id : dom_rs_link_ids)
+		{
+			auto rs_link = static_cast<LinkRSLogical*>(sys->get_link(rs_link_id));
+			dom_links.push_back(rs_link);
+
+			for (auto obj : { rs_link->get_src(), rs_link->get_sink() })
+			{
+				// If the link connects a Port, get the Node of that Port
+				if (auto port = dynamic_cast<Port*>(obj))
+				{
+					// Ignore top-level ports (don't add the system itself info this set)
+					auto node = port->get_node();
+					if (node != sys)
+						dom_nodes.insert(node);
+				}
+			}
+		}
+
+		// Add clock and reset links to the preserve set
+		for (auto net : { NET_CLOCK, NET_RESET })
+		{
+			auto add_links = sys->get_links(net);
+			dom_links.insert(dom_links.end(), add_links.begin(), add_links.end());
+		}
+
+		return sys->create_snapshot(dom_nodes, dom_links);
+	}
+
+	void init_user_rs_ports(FlowStateOuter& fstate)
+	{
+		auto sys = fstate.sys;
+
 		// Visit RS ports in user modules as well as top-level ones in the system that
 		// may have been exported.
 		auto ports = sys->get_children_by_type<PortRS>();
@@ -83,9 +127,11 @@ namespace
 		}
 	}
 
-	void rs_assign_domains(NodeSystem* sys)
+	void rs_assign_domains(FlowStateOuter& fstate)
 	{
 		using namespace graph;
+
+		auto sys = fstate.sys;
 
 		// We care about port->vid mapping and link->eid mapping
 		Attr2E<Link*> link_to_eid;
@@ -99,7 +145,6 @@ namespace
 		connected_comp(rs_g, &vid_to_domain, &eid_to_domain);
 
 		// Create the domain structures and sort the links into the domains.
-		auto fstate = sys->get_flow_state_outer();
 		for (auto& it : link_to_eid)
 		{
 			auto link = static_cast<LinkRSLogical*>(it.first);
@@ -108,10 +153,10 @@ namespace
 			assert(eid_to_domain.count(eid));
 			unsigned dom_id = eid_to_domain[eid];
 
-			auto dom = fstate->get_rs_domain(dom_id);
+			auto dom = fstate.get_rs_domain(dom_id);
 			if (!dom)
 			{
-				dom = &fstate->new_rs_domain(dom_id);
+				dom = &fstate.new_rs_domain(dom_id);
 				// Name domain after the first src port seen
 				dom->set_name(link->get_src()->get_hier_path(sys));
 			}
@@ -121,9 +166,9 @@ namespace
 		}
 	}
 
-	void rs_create_transmissions(NodeSystem* sys)
+	void rs_create_transmissions(FlowStateOuter& fstate)
 	{
-		auto fstate = sys->get_flow_state_outer();
+		auto sys = fstate.sys;
 
 		// Go through all flows (logical RS links).
 		// Bin them by source
@@ -151,35 +196,35 @@ namespace
 			for (auto addr_bin : bin_by_addr)
 			{
 				// Create the transmission
-				unsigned xmis_id = fstate->new_transmission();
+				unsigned xmis_id = fstate.new_transmission();
 
 				// Add links to the transmission
 				for (auto link : addr_bin.second)
 				{
-					fstate->add_link_to_transmission(xmis_id, link->get_id());
+					fstate.add_link_to_transmission(xmis_id, link->get_id());
 				}
 
 				// Add transmission to domain
 				unsigned dom_id = addr_bin.second.front()->get_domain_id();
-				auto dom = fstate->get_rs_domain(dom_id);
+				auto dom = fstate.get_rs_domain(dom_id);
 				assert(dom);
 				dom->add_transmission(xmis_id);
 			}
 		}
 	}
 
-	void rs_find_manual_domains(NodeSystem* sys)
+	void rs_find_manual_domains(FlowStateOuter& fstate)
 	{
 		// Look for all existing Topo links.
 		// This early in the flow, all such links were manually-created.
 		// Then, mark the domains of the endpoints as 'manual'.
 
+		auto sys = fstate.sys;
+
 		for (auto link : sys->get_links(NET_TOPO))
 		{
 			auto src_port = dynamic_cast<PortRS*>(link->get_src());
 			auto sink_port = dynamic_cast<PortRS*>(link->get_sink());
-
-			auto fstate = sys->get_flow_state_outer();
 
 			for (auto port : { src_port, sink_port })
 			{
@@ -187,18 +232,18 @@ namespace
 				{
 					unsigned dom_id = flow::DomainRS::get_port_domain(port, sys);
 					assert(dom_id != flow::DomainRS::INVALID);
-					fstate->get_rs_domain(dom_id)->set_is_manual(true);
+					fstate.get_rs_domain(dom_id)->set_is_manual(true);
 				}
 			}
 		}
 	}
 
-	void rs_print_domain_stats(NodeSystem* sys)
+	void rs_print_domain_stats(FlowStateOuter& fstate)
 	{
 		namespace log = genie::log;
 
-		auto fstate = sys->get_flow_state_outer();
-		auto& domains = fstate->get_rs_domains();
+		auto sys = fstate.sys;
+		auto& domains = fstate.get_rs_domains();
 
 		if (domains.size() == 0)
 			return;
@@ -206,7 +251,7 @@ namespace
 		log::info("System %s: found %u transmission domains", 
 			sys->get_name().c_str(), domains.size());
 
-		for (auto& dom : fstate->get_rs_domains())
+		for (auto& dom : domains)
 		{
 			if (dom.get_is_manual())
 			{
@@ -350,11 +395,11 @@ namespace
 			}
 			
 			// Walk the edges and associate the RS link with each constituent TOPO link
-			auto link_rel = sys->get_link_relations();
+			auto& link_rel = sys->get_link_relations();
 			for (auto& route_edge : route_edges)
 			{
 				Link* route_link = eid_to_link[route_edge];
-				link_rel->add(rs_link->get_id(), route_link->get_id());
+				link_rel.add(rs_link->get_id(), route_link->get_id());
 			}
 		}
 	}
@@ -399,9 +444,10 @@ namespace
 		}
 	}
 
-	void do_auto_domain(NodeSystem* sys, unsigned dom_id)
+	void do_auto_domain(FlowStateOuter& fstate, unsigned dom_id)
 	{
-		NodeSystem* snapshot = sys->create_snapshot(dom_id);
+		auto sys = fstate.sys;
+		NodeSystem* snapshot = create_snapshot(fstate, dom_id);
 
 		// Apply crossbar topology and save snapshot
 		make_crossbar_topo(snapshot);
@@ -415,7 +461,7 @@ namespace
 		topo_do_routing(snapshot);
 		
 		// Take the xbar topo system through the inner flow
-		flow::do_inner(snapshot, dom_id, snapshot->get_flow_state_outer().get());
+		flow::do_inner(snapshot, dom_id, &fstate);
 		
 		// Merge changes
 		sys->reintegrate_snapshot(snapshot);
@@ -428,17 +474,18 @@ namespace
 		delete topo_snapshot;
 	}
 
-	void do_manual_domain(NodeSystem* sys, unsigned dom_id)
+	void do_manual_domain(FlowStateOuter& fstate, unsigned dom_id)
 	{
 	}
 
-	void do_all_domains(NodeSystem* sys)
+	void do_all_domains(FlowStateOuter& fstate)
 	{
+		auto sys = fstate.sys;
+
 		// Get IDs of non-manual domains
-		auto fstate = sys->get_flow_state_outer();
 		std::vector<unsigned> auto_domains, manual_domains;
 
-		for (auto& dom : fstate->get_rs_domains())
+		for (auto& dom : fstate.get_rs_domains())
 		{
 			if (dom.get_is_manual())
 				manual_domains.push_back(dom.get_id());
@@ -449,26 +496,29 @@ namespace
 		// Do automatic domains first
 		for (auto dom_id : auto_domains)
 		{
-			do_auto_domain(sys, dom_id);
+			do_auto_domain(fstate, dom_id);
 		}
 
 		for (auto dom_id : manual_domains)
 		{
-			do_manual_domain(sys, dom_id);
+			do_manual_domain(fstate, dom_id);
 		}
 	}
 
     void do_system(NodeSystem* sys)
     {
+		FlowStateOuter fstate;
+		fstate.sys = sys;
+
 		sys->resolve_params();
 
-		rs_assign_domains(sys);
-		rs_create_transmissions(sys);
-		rs_find_manual_domains(sys);
-		rs_print_domain_stats(sys);
+		rs_assign_domains(fstate);
+		rs_create_transmissions(fstate);
+		rs_find_manual_domains(fstate);
+		rs_print_domain_stats(fstate);
 
-		init_user_rs_ports(sys);
-		do_all_domains(sys);
+		init_user_rs_ports(fstate);
+		do_all_domains(fstate);
 
 		connect_conduits(sys);
 		hdl::elab_system(sys);
