@@ -101,7 +101,6 @@ AddressRep flow::make_split_node_rep(NodeSystem* sys, NodeSplit* sp)
 	AddressRep result;
 
 	auto fs_out = sys->get_flow_state_outer();
-	auto& glob_rep = sys->get_flow_state_inner()->get_flow_rep();
 	auto link_rel = sys->get_link_relations();
 
 	// transmission ID to address.
@@ -123,9 +122,8 @@ AddressRep flow::make_split_node_rep(NodeSystem* sys, NodeSplit* sp)
 			// Find the transmission and its ID for each rs link.
 			// Add to bitmask
 			auto xmis_id = fs_out->get_transmission_for_link(rs_link);
-			auto xmis_addr = glob_rep.get_addr(xmis_id);
 
-			trans2addr[xmis_addr] |= (1 << i);
+			trans2addr[xmis_id] |= (1 << i);
 		}
 	}
 
@@ -143,7 +141,6 @@ AddressRep flow::make_srcsink_flow_rep(NodeSystem* sys, PortRS* srcsink)
 	AddressRep result;
 
 	auto fs_out = sys->get_flow_state_outer();
-	auto& glob_rep = sys->get_flow_state_inner()->get_flow_rep();
 
 	// Find out whether we're dealing with a source or sink.
 	auto dir = srcsink->get_effective_dir(sys);
@@ -159,12 +156,11 @@ AddressRep flow::make_srcsink_flow_rep(NodeSystem* sys, PortRS* srcsink)
 	{
 		auto rs_link = static_cast<LinkRSLogical*>(link);
 		auto xmis_id = fs_out->get_transmission_for_link(rs_link->get_id());
-		auto xmis_addr = glob_rep.get_addr(xmis_id);
 
 		auto user_addr = dir == Port::Dir::OUT ?
 			rs_link->get_src_addr() : rs_link->get_sink_addr();
 
-		result.insert(xmis_addr, user_addr);
+		result.insert(xmis_id, user_addr);
 	}
 
 	return result;
