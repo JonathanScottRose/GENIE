@@ -17,13 +17,113 @@
 using namespace genie::impl;
 using genie::Exception;
 using Dir = genie::Port::Dir;
+using flow::FlowStateOuter;
 
 namespace
 {
+	class FlowStateInner
+	{
+	public:
+		NodeSystem* sys = nullptr;
+		FlowStateOuter* outer = nullptr;
+		unsigned dom_id;
+		AddressRep domain_flow_rep;
+	};
+
+	void make_internal_flow_rep(FlowStateInner& fs_in);
+	AddressRep make_split_node_rep(NodeSystem*, NodeSplit*);
+	AddressRep make_srcsink_flow_rep(NodeSystem*, PortRS*);
+
+	void make_internal_flow_rep(FlowStateInner& fs_in)
+	{
+		auto fs_out = fs_in.outer;
+		auto& rep = fs_in.domain_flow_rep;
+		auto dom = fs_out->get_rs_domain(fs_in.dom_id);
+		auto& dom_xmis = dom->get_transmissions();
+
+		// Take each transmission in one domain, and give it a unique ID
+		unsigned n_xmis = dom_xmis.size();
+		for (unsigned i = 0; i < n_xmis; i++)
+		{
+			unsigned xmis_id = dom_xmis[i];
+			rep.insert(xmis_id, i);
+		}
+	}
+
+	AddressRep make_split_node_rep(NodeSystem* sys, NodeSplit* sp)
+	{
+		AddressRep result;
+
+		auto fs_out = sys->get_flow_state_outer();
+		auto link_rel = sys->get_link_relations();
+
+		// transmission ID to address.
+		std::unordered_map<unsigned, unsigned> trans2addr;
+
+		// Find out which outputs each transmission's flows go to, and create
+		// a one-hot mask out of that.
+		unsigned n_out = sp->get_n_outputs();
+		for (unsigned i = 0; i < n_out; i++)
+		{
+			auto port = sp->get_output(i);
+			auto out_link = port->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->get_link0();
+
+			// Get logical links from physical link
+			auto rs_links = link_rel->get_parents(out_link->get_id(), NET_RS_LOGICAL);
+
+			for (auto rs_link : rs_links)
+			{
+				// Find the transmission and its ID for each rs link.
+				// Add to bitmask
+				auto xmis_id = fs_out->get_transmission_for_link(rs_link);
+
+				trans2addr[xmis_id] |= (1 << i);
+			}
+		}
+
+		// Copy address assignments to result
+		for (auto it : trans2addr)
+		{
+			result.insert(it.first, it.second);
+		}
+
+		return result;
+	}
+
+	AddressRep make_srcsink_flow_rep(NodeSystem* sys, PortRS* srcsink)
+	{
+		AddressRep result;
+
+		auto fs_out = sys->get_flow_state_outer();
+
+		// Find out whether we're dealing with a source or sink.
+		auto dir = srcsink->get_effective_dir(sys);
+
+		// Get the appropriate endpoint
+		auto ep = srcsink->get_endpoint(NET_RS_LOGICAL, dir);
+
+		// Get links
+		auto& links = ep->links();
+
+		// Bin by src or sink address
+		for (auto link : links)
+		{
+			auto rs_link = static_cast<LinkRSLogical*>(link);
+			auto xmis_id = fs_out->get_transmission_for_link(rs_link->get_id());
+
+			auto user_addr = dir == Port::Dir::OUT ?
+				rs_link->get_src_addr() : rs_link->get_sink_addr();
+
+			result.insert(xmis_id, user_addr);
+		}
+
+		return result;
+	}
 	
 
-	void realize_topo_links(NodeSystem* sys)
+	void realize_topo_links(FlowStateInner& fstate)
 	{
+		auto sys = fstate.sys;
 		auto link_rel = sys->get_link_relations();
 
 		// Gather splits and merges for this domain
@@ -121,10 +221,10 @@ namespace
 		}
 	}
 
-	void insert_addr_converters_user(NodeSystem* sys)
+	void insert_addr_converters_user(FlowStateInner& fstate)
 	{
-		auto fstate = sys->get_flow_state_inner();
-		auto& glob_rep = fstate->get_flow_rep();
+		auto sys = fstate.sys;
+		auto& glob_rep = fstate.domain_flow_rep;
 
 		// First, handle user addr <-> global rep conversions.
 		// Gather all RS ports from: this system, user modules
@@ -155,7 +255,7 @@ namespace
 				// Derive user address representation.
 				// If only one address bin exists, no conversion is necessary,
 				// as that one bin's value can be injected as a constant.
-				auto user_rep = flow::make_srcsink_flow_rep(sys, user_port);
+				auto user_rep = make_srcsink_flow_rep(sys, user_port);
 				if (user_rep.get_n_addr_bins() <= 1)
 				{
 					continue;
@@ -192,16 +292,16 @@ namespace
 		}
 	}
 
-	void insert_addr_converters_split(NodeSystem* sys)
+	void insert_addr_converters_split(FlowStateInner& fstate)
 	{
-		auto fstate = sys->get_flow_state_inner();
-		auto& glob_rep = fstate->get_flow_rep();
+		auto sys = fstate.sys;
+		auto& glob_rep = fstate.domain_flow_rep;
 
 		// Go through all split nodes
 		for (auto sp : sys->get_children_by_type<NodeSplit>())
 		{
 			// Make an addr representation for its input
-			auto sp_rep = flow::make_split_node_rep(sys, sp);
+			auto sp_rep = make_split_node_rep(sys, sp);
 
 			// If there's just one address bin, then the split node always
 			// broadcasts to the same outputs. We can tie off the mask with
@@ -241,8 +341,10 @@ namespace
 		}
 	}
 
-	void do_protocol_carriage(NodeSystem* sys)
+	void do_protocol_carriage(FlowStateInner& fstate)
 	{
+		auto sys = fstate.sys;
+
 		auto e2e_links = sys->get_links(NET_RS_LOGICAL);
 		auto link_rel = sys->get_link_relations();
 
@@ -316,9 +418,10 @@ namespace
 		}
 	}
 
-	void do_backpressure(NodeSystem* sys)
+	void do_backpressure(FlowStateInner& fstate)
 	{
 		using namespace graph;
+		auto sys = fstate.sys;
 		auto phys_links = sys->get_links(NET_RS_PHYS);
 
 		Attr2V<HierObject*> port_to_v;
@@ -403,10 +506,10 @@ namespace
 		}
 	}
 
-	void default_eops(NodeSystem* sys)
+	void default_eops(FlowStateInner& fstate)
 	{
 		// Default unconnected EOPs to 1
-		auto links = sys->get_links(NET_RS_PHYS);
+		auto links = fstate.sys->get_links(NET_RS_PHYS);
 		for (auto link : links)
 		{
 			auto src = (PortRS*)link->get_src();
@@ -422,12 +525,12 @@ namespace
 		}
 	}
 
-	void default_xmis_ids(NodeSystem* sys)
+	void default_xmis_ids(FlowStateInner& fstate_in)
 	{
-		auto fstate_out = sys->get_flow_state_outer();
-		auto fstate_in = sys->get_flow_state_inner();
+		auto sys = fstate_in.sys;
+		auto fstate_out = fstate_in.outer;
 		auto link_rel = sys->get_link_relations();
-		auto& addr_rep = fstate_in->get_flow_rep();
+		auto& addr_rep = fstate_in.domain_flow_rep;
 
 		// Gather all physical RS links where:
 		// - the sink needs an xmis_id field
@@ -479,8 +582,9 @@ namespace
 		}
 	}
 
-	void connect_resets(NodeSystem* sys)
+	void connect_resets(FlowStateInner& fstate)
 	{
+		auto sys = fstate.sys;
 		// Finds dangling reset inputs and connects them to either:
 		// 1) Any existing reset input in the system
 		// 2) A freshly-created reset input, if 1) didn't find one
@@ -526,6 +630,8 @@ namespace
 		}
 		else
 		{
+			throw Exception(sys->get_hier_path() + ": needs at least one reset port");
+			/*
 			std::string auto_reset_port_name = "reset_autogen";
 
 			// Create one.
@@ -534,6 +640,7 @@ namespace
 
 			reset_src = dynamic_cast<PortReset*>
 				(sys->create_reset_port(auto_reset_port_name, Dir::IN, auto_reset_port_name));
+				*/
 		}
 
 		// Connect.
@@ -543,9 +650,10 @@ namespace
 		}
 	}
 
-	void connect_clocks(NodeSystem* sys)
+	void connect_clocks(FlowStateInner& fstate)
 	{
 		using namespace graph;
+		auto sys = fstate.sys;
 
 		// The system contains interconnect-related nodes which have no clocks connected yet.
 		// When there are multiple clock domains, the choice of which clock domain to assign
@@ -703,8 +811,10 @@ namespace
 		}
 	}
 
-	void insert_clockx(NodeSystem* sys, unsigned dom_id)
+	void insert_clockx(FlowStateInner& fstate)
 	{
+		auto sys = fstate.sys;
+
 		// Insert clock crossing adapters on clock domain boundaries.
 		// A clock domain boundary exists on any phys link where the source/sink clock drivers differ.
 		unsigned nodenum = 0;
@@ -733,7 +843,7 @@ namespace
 			// Create and add clockx node
 			auto cxnode = new NodeClockX();
 			cxnode->set_name(util::str_con_cat("clockx",
-				std::to_string(dom_id),
+				std::to_string(fstate.dom_id),
 				std::to_string(nodenum++)));
 			sys->add_child(cxnode);
 
@@ -748,22 +858,25 @@ namespace
 	}
 }
 
-void flow::do_inner(NodeSystem* sys, unsigned dom_id)
+void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 {
-	sys->set_flow_state_inner(new FlowStateInner);
+	FlowStateInner fstate;
+	fstate.dom_id = dom_id;
+	fstate.sys = sys;
+	fstate.outer = fs_out;
 
-	flow::make_internal_flow_rep(sys, dom_id);
+	make_internal_flow_rep(fstate);
 
-	realize_topo_links(sys);
-	insert_addr_converters_user(sys);
-	insert_addr_converters_split(sys);
-	do_protocol_carriage(sys);
+	realize_topo_links(fstate);
+	insert_addr_converters_user(fstate);
+	insert_addr_converters_split(fstate);
+	do_protocol_carriage(fstate);
 
-	connect_clocks(sys);
-	insert_clockx(sys, dom_id);
+	connect_clocks(fstate);
+	insert_clockx(fstate);
 
-	connect_resets(sys);
-	do_backpressure(sys);
-	default_eops(sys);
-	default_xmis_ids(sys);
+	connect_resets(fstate);
+	do_backpressure(fstate);
+	default_eops(fstate);
+	default_xmis_ids(fstate);
 }

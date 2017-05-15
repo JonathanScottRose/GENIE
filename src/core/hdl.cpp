@@ -393,6 +393,11 @@ void HDLState::resolve_params(ParamResolver& resolv)
 
 void HDLState::reintegrate(HDLState &&o)
 {
+	// This function should not be called until you figure out what to do
+	// about intantiating a NodeSystem that hasn't had new HDL ports added
+	// to it yet.
+	assert(false);
+
 	// Assume that the source has, at most, a superset of our ports
 	// (only has new ones).
 	if (o.m_ports.size() > m_ports.size())

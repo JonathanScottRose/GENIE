@@ -202,8 +202,6 @@ unsigned genie::impl::flow::FlowStateOuter::get_transmission_for_link(LinkID lin
 	return it->second;
 }
 	
-//
-// FlowStateInner
-//
+
 
 

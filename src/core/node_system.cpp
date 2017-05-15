@@ -8,6 +8,7 @@
 #include "port.h"
 #include "node_split.h"
 #include "node_merge.h"
+#include "node_user.h"
 #include "flow.h"
 #include "genie_priv.h"
 
@@ -174,24 +175,39 @@ genie::Node * NodeSystem::create_merge(const std::string & opt_name)
 	return node;
 }
 
+void NodeSystem::set_mutually_exclusive(const std::vector<genie::LinkRS*>& links)
+{
+}
+
 //
 // Internal
 //
 
 NodeSystem::NodeSystem(const std::string & name)
-    : Node(name, name), m_flow_state_outer(nullptr)
+    : Node(name, name), 
+	m_flow_state_outer(std::make_shared<flow::FlowStateOuter>())
 {
 }
 
 NodeSystem::~NodeSystem()
 {
-	delete m_flow_state_inner;
-	m_flow_state_inner = nullptr;
 }
 
-NodeSystem* NodeSystem::instantiate() const
+Node* NodeSystem::instantiate() const
 {
-    return new NodeSystem(*this);
+	// Instantiating a System yields a user node
+	auto result = new NodeUser(get_name(), get_hdl_name());
+
+	// Copy HDL state
+	result->set_hdl_state(const_cast<hdl::HDLState&>(m_hdl_state));
+
+	// Copy ports
+	for (auto port : get_children_by_type<Port>())
+	{
+		result->add_child(port->clone());
+	}
+
+	return result;
 }
 
 void NodeSystem::prepare_for_hdl()
@@ -391,9 +407,6 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 	m_link_rel->reintegrate(src->m_link_rel);
 	delete src->m_link_rel;
 	src->m_link_rel = nullptr;
-	
-	// Reintegrate HDL state in case any new ports were added (auto-gen resets)
-	m_hdl_state.reintegrate(std::move(src->m_hdl_state));
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)

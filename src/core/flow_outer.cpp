@@ -415,7 +415,7 @@ namespace
 		topo_do_routing(snapshot);
 		
 		// Take the xbar topo system through the inner flow
-		flow::do_inner(snapshot, dom_id);
+		flow::do_inner(snapshot, dom_id, snapshot->get_flow_state_outer().get());
 		
 		// Merge changes
 		sys->reintegrate_snapshot(snapshot);
@@ -461,7 +461,6 @@ namespace
     void do_system(NodeSystem* sys)
     {
 		sys->resolve_params();
-		sys->set_flow_state_outer(std::make_shared<flow::FlowStateOuter>());
 
 		rs_assign_domains(sys);
 		rs_create_transmissions(sys);

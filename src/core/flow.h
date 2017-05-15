@@ -10,6 +10,7 @@ namespace genie
 namespace impl
 {
 	class Port;
+	class PortRS;
 	class NodeSystem;
 	class LinkRSLogical;
 
@@ -44,15 +45,6 @@ namespace flow
 		bool m_is_manual;
 		Links m_links;
 		Transmissions m_xmis;
-	};
-
-	class FlowStateInner
-	{
-	public:
-		AddressRep& get_flow_rep() { return m_flow_rep; }
-
-	protected:
-		AddressRep m_flow_rep;
 	};
 
 	class FlowStateOuter
@@ -96,7 +88,7 @@ namespace flow
 		const N2GRemapFunc& remap = N2GRemapFunc()
 	);
 
-	void do_inner(NodeSystem* sys, unsigned dom_id);
+	void do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out);
 }
 }
 }

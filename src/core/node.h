@@ -43,7 +43,7 @@ namespace impl
 
         const std::string& get_hdl_name() const { return m_hdl_name; }
         Node* get_parent_node() const;
-        hdl::HDLState& get_hdl_state() { return m_hdl_state; }
+		PROP_GET_SETR(hdl_state, hdl::HDLState&, m_hdl_state);
 
         void resolve_params();
         NodeParam* get_param(const std::string& name);

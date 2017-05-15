@@ -8,9 +8,6 @@ namespace genie
 namespace impl
 {
 	class LinkRSLogical;
-	class NodeSystem;
-	class NodeSplit;
-	class PortRS;
 
 	class AddressRep
 	{
@@ -37,12 +34,5 @@ namespace impl
 
 		unsigned get_size_in_bits() const;
 	};
-
-	namespace flow
-	{
-		void make_internal_flow_rep(NodeSystem* sys, unsigned dom_id);
-		AddressRep make_split_node_rep(NodeSystem*, NodeSplit*);
-		AddressRep make_srcsink_flow_rep(NodeSystem*, PortRS*);
-	}
 }
 }
