@@ -41,7 +41,7 @@ namespace impl
 
 		virtual void prepare_for_hdl() = 0;
 
-        const std::string& get_hdl_name() const { return m_hdl_name; }
+		PROP_GET_SET(hdl_name, const std::string&, m_hdl_name);
         Node* get_parent_node() const;
 		PROP_GET_SETR(hdl_state, hdl::HDLState&, m_hdl_state);
 

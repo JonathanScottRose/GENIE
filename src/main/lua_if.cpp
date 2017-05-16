@@ -457,7 +457,6 @@ void lua_if::priv::check_object_fail(int narg, const std::type_index& t)
 
 APIObject* priv::to_object(int narg)
 {
-    luaL_checktype(s_state, narg, LUA_TLIGHTUSERDATA);
     return (APIObject*)lua_touserdata(s_state, narg);
 }
 

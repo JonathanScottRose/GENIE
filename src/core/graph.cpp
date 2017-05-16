@@ -68,6 +68,12 @@ namespace graph
 	}
 
 	template<class C, class T>
+	bool Graph::IterContainer<C, T>::iterator::operator==(const iterator & other) const
+	{
+		return it == other.it;
+	}
+
+	template<class C, class T>
 	typename Graph::IterContainer<C, T>::iterator& Graph::IterContainer<C, T>::iterator::operator++()
 	{
 		it++;

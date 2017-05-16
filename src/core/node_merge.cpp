@@ -27,7 +27,7 @@ void NodeMerge::init()
 }
 
 NodeMerge::NodeMerge()
-    : Node(MODNAME, MODNAME), m_n_inputs(0)
+    : Node(MODNAME, MODNAME), m_n_inputs(0), m_is_exclusive(false)
 {
 	init_vlog();
 
@@ -49,12 +49,6 @@ NodeMerge::NodeMerge()
 	// The node itself can be connected to with TOPO links
 	make_connectable(NET_TOPO);
 	get_endpoint(NET_TOPO, Port::Dir::IN)->set_max_links(Endpoint::UNLIMITED);
-}
-
-NodeMerge::NodeMerge(const NodeMerge& o)
-    : Node(o), ProtocolCarrier(o), m_n_inputs(o.m_n_inputs)
-{	
-    // Create a copy of an existing NodeMerge
 }
 
 void NodeMerge::init_vlog()
@@ -97,7 +91,13 @@ void NodeMerge::create_ports()
 			PortBindingRef("i_data", "WIDTH").set_lo_slice(i));
 		p->add_role_binding(PortRS::EOP, PortBindingRef("i_eop").set_lo_bit(i));
 		p->add_role_binding(PortRS::READY, PortBindingRef("o_ready").set_lo_bit(i));
-		p->get_bp_status().force_enable();
+		
+		// A non-exclusive merge node generates, rather than simply carries, backpressure.
+		if (m_is_exclusive)
+			p->get_bp_status().make_configurable();
+		else
+			p->get_bp_status().force_enable();
+		
 		add_port(p);
 
 		auto& proto = p->get_proto();
@@ -122,6 +122,9 @@ void NodeMerge::prepare_for_hdl()
 {
 	auto& proto = get_carried_proto();
 	set_int_param("WIDTH", proto.get_total_width());
-
 	set_int_param("NI", m_n_inputs);
+
+	// This assumes it was set to MODNAME by default before
+	if (m_is_exclusive)
+		set_hdl_name(MODNAME_EX);
 }

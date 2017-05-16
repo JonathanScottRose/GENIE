@@ -307,45 +307,18 @@ function Builder:signal(...)
     self.cur_port:add_signal(...)
 end
 
-
-
-
-
-
-
-
-
-
-
-
 --- Marks a set of RS Links as temporally exclusive.
 -- This is a guarantee by the designer that none of the RS Links in this set
 -- will ever be used simultaneously.
--- @tparam array(string)|array(Link) s an array of RS Links (@{genie.Link}) or RS Link labels
+-- @tparam array(array(LinkRS) s an array of RS Links (@{genie.LinkRS})
 function Builder:make_exclusive(s)
     if not self.cur_sys then error("no current system") end
 
-    -- ignore null args
+    -- ignore nil arg
     if not s then return end;
     
-    -- ensure a table, and ignore empty table
-    if type(s) ~= 'table' then 
-        error('expected array/set of labels or RS link objects')
-    end
-    
-    if not next(s) then return end
-    
-    -- based on the first entry in the table, guess whether or not we have
-    -- been given a list of actual objects, or a list of string labels
-    local k0,v0 = next(s)
-    if type(k0) == 'string' or type(v0) == 'string' then
-         s = names_to_links(self, self.cur_sys, s)
-    elseif type(k0) ~= 'userdata' and type(v0) ~= 'userdata' then
-        error('expected array/set of labels or RS link objects')
-    end
-    
     -- s is now for sure a set of link objects
-    g.make_exclusive(s)    
+    self.cur_sys:make_exclusive(s)    
 end
 
 

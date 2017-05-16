@@ -72,6 +72,8 @@ b:system('sm_test')
 	
 	b:rs_link('the_dispatch.out', 'the_inverter.in', 0)
 	b:rs_link('the_dispatch.out', 'the_reverser.in', 1)
-	b:rs_link('the_inverter.out', 'xorro.in', nil, 0)
-	b:rs_link('the_reverser.out', 'xorro.in', nil, 1)
+	local x = b:rs_link('the_inverter.out', 'xorro.in', nil, 0)
+	local y = b:rs_link('the_reverser.out', 'xorro.in', nil, 1)
 	b:export ('xorro.out', 'out')
+	
+	b:make_exclusive({x, y})

@@ -175,8 +175,23 @@ genie::Node * NodeSystem::create_merge(const std::string & opt_name)
 	return node;
 }
 
-void NodeSystem::set_mutually_exclusive(const std::vector<genie::LinkRS*>& links)
+void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
 {
+	auto excl = get_link_exclusivity();
+
+	for (auto it1 = links.begin(); it1 != links.end(); ++it1)
+	{
+		auto impl1 = dynamic_cast<LinkRSLogical*>(*it1);
+		assert(impl1);
+
+		for (auto it2 = it1 + 1; it2 != links.end(); ++it2)
+		{
+			auto impl2 = dynamic_cast<LinkRSLogical*>(*it2);
+			assert(impl2);
+
+			excl->add(impl1->get_id(), impl2->get_id());
+		}
+	}
 }
 
 //
@@ -184,7 +199,8 @@ void NodeSystem::set_mutually_exclusive(const std::vector<genie::LinkRS*>& links
 //
 
 NodeSystem::NodeSystem(const std::string & name)
-    : Node(name, name)
+    : Node(name, name), 
+	m_excl_info(std::make_shared<ExclusivityInfo>())
 {
 }
 
@@ -235,6 +251,11 @@ NodeSystem* NodeSystem::clone() const
 std::vector<Node*> NodeSystem::get_nodes() const
 {
     return get_children_by_type<Node>();
+}
+
+ExclusivityInfo * NodeSystem::get_link_exclusivity() const
+{
+	return m_excl_info.get();
 }
 
 NodeSystem * NodeSystem::create_snapshot(
@@ -361,6 +382,32 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)
-    : Node(o)
+    : Node(o), m_excl_info(o.m_excl_info)
 {
+}
+
+//
+// Exclusivity Info
+//
+
+void ExclusivityInfo::add(LinkID link1, LinkID link2)
+{
+	// Make canonical ordering
+	if (link2 < link1)
+		std::swap(link1, link2);
+
+	m_sets[link1].insert(link2);
+}
+
+ExclusivityInfo::Set & ExclusivityInfo::get_set(LinkID id)
+{
+	return m_sets[id];
+}
+
+bool ExclusivityInfo::are_exclusive(LinkID link1, LinkID link2)
+{
+	if (link2 < link1)
+		std::swap(link1, link2);
+
+	return m_sets[link1].count(link2) > 0;
 }

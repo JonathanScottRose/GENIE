@@ -61,7 +61,7 @@ namespace genie
 		virtual Node* create_split(const std::string& name = "") = 0;
 		virtual Node* create_merge(const std::string& name = "") = 0;
 
-		virtual void set_mutually_exclusive(const std::vector<LinkRS*>& links) = 0;
+		virtual void make_exclusive(const std::vector<LinkRS*>& links) = 0;
 
     protected:
         ~System() = default;

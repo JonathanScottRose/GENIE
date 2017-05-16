@@ -33,4 +33,38 @@ namespace lua_api
 
 		return result;
 	}
+
+	// Extracts a list of Objects from a Lua array/set
+	// Array: objects are table values
+	// Set: objects are table keys
+	// ARGS: index of table
+	// RETURNS: list of objects
+	template<class T>
+	std::vector<T*> get_array_or_set(lua_State* L, int narg)
+	{
+		std::vector<T*> result;
+		narg = lua_absindex(L, narg);
+
+		lua_pushnil(L);
+		while (lua_next(L, narg))
+		{
+			// Try key
+			T* obj = lua_if::to_object<T>(-2);
+
+			// Try value
+			if (!obj)
+				obj = lua_if::to_object<T>(-1);
+
+			if (!obj)
+			{
+				lua_if::lerror("table entry doesn't have " + lua_if::obj_typename<T>() +
+					" as either key or value");
+			}
+
+			result.push_back(obj);
+			lua_pop(L, 1);
+		}
+
+		return result;
+	}
 }

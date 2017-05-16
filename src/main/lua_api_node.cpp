@@ -364,6 +364,17 @@ namespace
 		return 1;
 	}
 
+	/// Marks a set of RS Links as temporally exclusive
+	/// @function make_exclusive
+	/// @tparam array(Link)|Set(Link) links Array or Set of RS Links
+	LFUNC(sys_make_exclusive)
+	{
+		auto self = lua_if::check_object<System>(1);
+		auto links = lua_api::get_array_or_set<LinkRS>(L, 2);
+		self->make_exclusive(links);
+		return 0;
+	}
+
     LSUBCLASS(System, (Node),
     {
         LM(create_sys_param, sys_create_sys_param),
@@ -375,7 +386,8 @@ namespace
 		LM(create_instance, sys_create_instance),
 		LM(export_port, sys_export_port),
 		LM(create_split, sys_create_split),
-		LM(create_merge, sys_create_merge)
+		LM(create_merge, sys_create_merge),
+		LM(make_exclusive, sys_make_exclusive)
     });
 
 	/// Represents a user-defined module.

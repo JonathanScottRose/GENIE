@@ -118,7 +118,59 @@ namespace
 
 		return result;
 	}
-	
+
+	void check_merge_node_exclusivity(FlowStateInner& fstate, NodeMerge* mg)
+	{
+		// Merge node is exclusive if:
+		// for any two incoming topo links (aka merge node inputs), every
+		// logical link carried by the first topo link is marked temporally mutually
+		// exclusive with every logical link carried by the second topo link.
+		
+		auto sys = fstate.sys;
+		auto excl = sys->get_link_exclusivity();
+		auto& rel = sys->get_link_relations();
+		auto fs_out = fstate.outer;
+
+		auto& tlinks = mg->get_endpoint(NET_TOPO, Dir::IN)->links();
+		bool exclusive = true; // assume until proven otherwise
+
+		for (auto it_topo1 = tlinks.begin(); 
+			exclusive && it_topo1 != tlinks.end(); ++it_topo1)
+		{
+			auto topo1 = *it_topo1;
+			auto logicals1 = rel.get_parents(topo1->get_id(), NET_RS_LOGICAL);
+			
+			for (auto it_topo2 = it_topo1 + 1; 
+				exclusive && it_topo2 != tlinks.end(); ++it_topo2)
+			{
+				auto topo2 = *it_topo2;
+				auto logicals2 = rel.get_parents(topo2->get_id(), NET_RS_LOGICAL);
+
+				// Now check logicals against each other. Two things to check:
+				// 1) do they belong to the same transmission? if so, exclusive.
+				// 2) are they marked explicitly exclusive by the user? 
+				for (auto it_log1 = logicals1.begin(); 
+					exclusive && it_log1 != logicals1.end(); ++it_log1)
+				{
+					auto log1 = *it_log1;
+					auto xmis1 = fs_out->get_transmission_for_link(log1);
+					for (auto it_log2 = logicals2.begin(); 
+						exclusive && it_log2 != logicals2.end(); ++it_log2)
+					{
+						auto log2 = *it_log2;
+						auto xmis2 = fs_out->get_transmission_for_link(log2);
+						if (xmis1 != xmis2 && !excl->are_exclusive(log1, log2))
+						{
+							exclusive = false;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		mg->set_exclusive(exclusive);
+	}
 
 	void realize_topo_links(FlowStateInner& fstate)
 	{
@@ -137,6 +189,7 @@ namespace
 
 		for (auto mg : merges)
 		{
+			check_merge_node_exclusivity(fstate, mg);
 			mg->create_ports();
 		}
 
@@ -435,14 +488,13 @@ namespace
 		// configurable.
 		std::deque<VertexID> to_visit;
 
-		for (auto v : g.iter_verts)
+		std::copy_if(g.iter_verts.begin(), g.iter_verts.end(), std::back_inserter(to_visit),
+			[&](VertexID v)
 		{
-			bool add = g.dir_neigh(v).empty();
-			add |= ((PortRS*)(v_to_port[v]))->get_bp_status().configurable == false;
-
-			if (add)
-				to_visit.push_back(v);
-		}
+			bool is_terminal = g.dir_neigh(v).empty();
+			bool bp_known = ((PortRS*)(v_to_port[v]))->get_bp_status().configurable == false;
+			return is_terminal || bp_known;
+		});
 
 		while (!to_visit.empty())
 		{
@@ -474,7 +526,7 @@ namespace
 				// Is the feeder configurable?
 				if (next_bp.configurable)
 				{
-					// If it's unset, updated it to match.
+					// If it's unset, update it to match.
 					// If it's set to DISABLED and the incoming is ENABLED, update it to match too.
 					// In both cases, put the destination on the visitation stack to continue the update.
 					//

@@ -26,12 +26,15 @@ namespace impl
 		PortRS* get_input(unsigned) const;
 		PortRS* get_output() const;
 
+		PROP_GET_SET(exclusive, bool, m_is_exclusive);
+
     protected:
-		NodeMerge(const NodeMerge&);
+		NodeMerge(const NodeMerge&) = default;
 
 		void init_vlog();
 
 		unsigned m_n_inputs;
+		bool m_is_exclusive;
     };
 }
 }

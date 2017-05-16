@@ -119,7 +119,7 @@ namespace lua_if
 
         try
         {
-            auto obj = (genie::APIObject*)priv::to_object(narg);
+            auto obj = priv::to_object(narg);
 		    result = dynamic_cast<T*>(obj);
         }
         catch (...)

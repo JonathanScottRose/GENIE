@@ -46,7 +46,7 @@ namespace impl
 		genie::Node* create_split(const std::string& name = "") override;
 		genie::Node* create_merge(const std::string& name = "") override;
 
-		void set_mutually_exclusive(const std::vector<genie::LinkRS*>& links) override;
+		void make_exclusive(const std::vector<genie::LinkRS*>& links) override;
 
     public:
         NodeSystem(const std::string& name);
@@ -57,6 +57,7 @@ namespace impl
 		void prepare_for_hdl() override;
         
         std::vector<Node*> get_nodes() const;
+		ExclusivityInfo* get_link_exclusivity() const;
 
 		NodeSystem* create_snapshot(const std::unordered_set<HierObject*>&, 
 			const std::vector<Link*>&);
@@ -64,6 +65,8 @@ namespace impl
 
     protected:
 		NodeSystem(const NodeSystem&);
+
+		std::shared_ptr<ExclusivityInfo> m_excl_info;
     };
 }
 }

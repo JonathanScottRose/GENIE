@@ -83,6 +83,7 @@ namespace graph
 			public:
 				iterator(Graph& g, const typename C::iterator& it) : g(g), it(it) {}
 				bool operator!= (const iterator&) const;
+				bool operator== (const iterator&) const;
 				iterator& operator++ ();
 				const T& operator*() const;
 			};
