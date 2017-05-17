@@ -41,6 +41,28 @@ namespace genie
         ~Module() = default;
     };
 
+	struct SyncConstraint
+	{
+		enum Op
+		{
+			LT,
+			LE,
+			EQ,
+			GE,
+			GT
+		};
+
+		struct ChainTerm
+		{
+			std::vector<LinkRS*> links;
+			enum Sign { PLUS, MINUS } sign;
+		};
+
+		std::vector<ChainTerm> chains;
+		Op op;
+		int rhs;
+	};
+
     class System : virtual public Node
     {
     public:
@@ -62,6 +84,7 @@ namespace genie
 		virtual Node* create_merge(const std::string& name = "") = 0;
 
 		virtual void make_exclusive(const std::vector<LinkRS*>& links) = 0;
+		virtual void add_sync_constraint(const SyncConstraint&) = 0;
 
     protected:
         ~System() = default;

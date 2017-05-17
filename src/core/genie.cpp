@@ -14,7 +14,6 @@
 
 #include "net_clockreset.h"
 #include "net_conduit.h"
-#include "net_internal.h"
 #include "net_rs.h"
 #include "net_topo.h"
 
@@ -234,7 +233,6 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 	NetConduit::init();
 	NetConduitSub::init();
 	NetTopo::init();
-	NetInternal::init();
 	NetRSLogical::init();
 	NetRSPhys::init();
 	NetRSSub::init();

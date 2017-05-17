@@ -46,6 +46,8 @@ namespace genie
         std::vector<std::string> no_topo_opt_systems;
 
         bool no_mdelay = false;
+
+		unsigned max_logic_depth = 2;
     };
 
     struct ArchParams

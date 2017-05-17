@@ -93,11 +93,7 @@ Link* NetRSPhys::create_link() const
 //
 
 LinkRSPhys::LinkRSPhys()
-{
-}
-
-LinkRSPhys::LinkRSPhys(const LinkRSPhys& o)
-	: Link(o)
+	: m_latency(0)
 {
 }
 

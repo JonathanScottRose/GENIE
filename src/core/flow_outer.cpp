@@ -133,10 +133,31 @@ namespace
 
 		auto sys = fstate.sys;
 
-		// We care about port->vid mapping and link->eid mapping
+		// We care about link->eid mapping and port->vid mapping
 		Attr2E<Link*> link_to_eid;
+		Attr2V<HierObject*> port_to_vid;
 		Graph rs_g = flow::net_to_graph(sys, NET_RS_LOGICAL, false, 
-			nullptr, nullptr, nullptr, &link_to_eid);
+			nullptr, &port_to_vid, nullptr, &link_to_eid);
+
+		// Add internal links from usernodes
+		for (auto node : sys->get_children_by_type<NodeUser>())
+		{
+			// Look for existing internal links
+			auto int_links = node->get_links(NET_RS_PHYS);
+
+			// Try to map the link's ports to vertices from the above graph.
+			// If they exist, connect them
+			for (auto link : int_links)
+			{
+				auto src_v_it = port_to_vid.find(link->get_src());
+				auto sink_v_it = port_to_vid.find(link->get_sink());
+				if (src_v_it != port_to_vid.end() &&
+					sink_v_it != port_to_vid.end())
+				{
+					rs_g.connect(src_v_it->second, sink_v_it->second, rs_g.newe());
+				}
+			}
+		}
 
 		// Identify connected components (domains).
 		// Capture vid->domainid mapping and eid->domainid mapping

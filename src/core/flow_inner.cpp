@@ -127,7 +127,7 @@ namespace
 		// exclusive with every logical link carried by the second topo link.
 		
 		auto sys = fstate.sys;
-		auto excl = sys->get_link_exclusivity();
+		auto& excl = sys->get_link_exclusivity();
 		auto& rel = sys->get_link_relations();
 		auto fs_out = fstate.outer;
 
@@ -159,7 +159,7 @@ namespace
 					{
 						auto log2 = *it_log2;
 						auto xmis2 = fs_out->get_transmission_for_link(log2);
-						if (xmis1 != xmis2 && !excl->are_exclusive(log1, log2))
+						if (xmis1 != xmis2 && !excl.are_exclusive(log1, log2))
 						{
 							exclusive = false;
 							break;

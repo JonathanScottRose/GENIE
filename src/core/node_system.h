@@ -26,6 +26,8 @@ namespace impl
 		std::unordered_map <LinkID,Set> m_sets;
 	};
 
+	using SyncConstraints = std::vector<SyncConstraint>;
+
     class NodeSystem : virtual public genie::System, public Node, public IInstantiable
     {
     public:
@@ -47,6 +49,7 @@ namespace impl
 		genie::Node* create_merge(const std::string& name = "") override;
 
 		void make_exclusive(const std::vector<genie::LinkRS*>& links) override;
+		void add_sync_constraint(const SyncConstraint& constraint) override;
 
     public:
         NodeSystem(const std::string& name);
@@ -57,7 +60,8 @@ namespace impl
 		void prepare_for_hdl() override;
         
         std::vector<Node*> get_nodes() const;
-		ExclusivityInfo* get_link_exclusivity() const;
+		ExclusivityInfo& get_link_exclusivity() const;
+		SyncConstraints& get_sync_constraints() const;
 
 		NodeSystem* create_snapshot(const std::unordered_set<HierObject*>&, 
 			const std::vector<Link*>&);
@@ -67,6 +71,7 @@ namespace impl
 		NodeSystem(const NodeSystem&);
 
 		std::shared_ptr<ExclusivityInfo> m_excl_info;
+		std::shared_ptr<SyncConstraints> m_sync_constraints;
     };
 }
 }

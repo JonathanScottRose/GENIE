@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "node_user.h"
 #include "port_rs.h"
-#include "net_internal.h"
+#include "net_rs.h"
 
 using namespace genie::impl;
 
@@ -20,7 +20,9 @@ genie::Link * NodeUser::create_internal_link(genie::PortRS * src, genie::PortRS 
 		}
 	}
 
-	return this->connect(src_imp, sink_imp, NET_INTERNAL);
+	auto link = static_cast<LinkRSPhys*>(this->connect(src_imp, sink_imp, NET_RS_PHYS));
+	link->set_latency(latency);
+	return link;
 }
 
 NodeUser::NodeUser(const std::string & name, const std::string & hdl_name)

@@ -177,7 +177,7 @@ genie::Node * NodeSystem::create_merge(const std::string & opt_name)
 
 void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
 {
-	auto excl = get_link_exclusivity();
+	auto& excl = get_link_exclusivity();
 
 	for (auto it1 = links.begin(); it1 != links.end(); ++it1)
 	{
@@ -189,9 +189,16 @@ void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
 			auto impl2 = dynamic_cast<LinkRSLogical*>(*it2);
 			assert(impl2);
 
-			excl->add(impl1->get_id(), impl2->get_id());
+			excl.add(impl1->get_id(), impl2->get_id());
 		}
 	}
+}
+
+void NodeSystem::add_sync_constraint(const genie::SyncConstraint & constraint)
+{
+	//TODO: verify
+	auto& cnst = get_sync_constraints();
+	cnst.push_back(constraint);
 }
 
 //
@@ -200,7 +207,8 @@ void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
 
 NodeSystem::NodeSystem(const std::string & name)
     : Node(name, name), 
-	m_excl_info(std::make_shared<ExclusivityInfo>())
+	m_excl_info(std::make_shared<ExclusivityInfo>()),
+	m_sync_constraints(std::make_shared<SyncConstraints>())
 {
 }
 
@@ -253,9 +261,14 @@ std::vector<Node*> NodeSystem::get_nodes() const
     return get_children_by_type<Node>();
 }
 
-ExclusivityInfo * NodeSystem::get_link_exclusivity() const
+ExclusivityInfo & NodeSystem::get_link_exclusivity() const
 {
-	return m_excl_info.get();
+	return *m_excl_info.get();
+}
+
+SyncConstraints & NodeSystem::get_sync_constraints() const
+{
+	return *m_sync_constraints.get();
 }
 
 NodeSystem * NodeSystem::create_snapshot(
@@ -382,7 +395,9 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)
-    : Node(o), m_excl_info(o.m_excl_info)
+    : Node(o), 
+	m_excl_info(o.m_excl_info),
+	m_sync_constraints(o.m_sync_constraints)
 {
 }
 

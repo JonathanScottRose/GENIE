@@ -3,7 +3,6 @@
 #include "port_clockreset.h"
 #include "net_rs.h"
 #include "net_topo.h"
-#include "net_internal.h"
 #include "node_system.h"
 #include "sig_role.h"
 #include "genie_priv.h"
@@ -154,7 +153,6 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir,
 	make_connectable(NET_RS_LOGICAL);
 	make_connectable(NET_RS_PHYS);
 	make_connectable(NET_TOPO);
-	make_connectable(NET_INTERNAL, dir.rev());
 }
 
 PortRS::PortRS(const std::string & name, genie::Port::Dir dir)

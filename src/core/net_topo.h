@@ -32,6 +32,7 @@ namespace impl
 		LinkTopo* clone() const override;
 
 		PROP_GET(min_regs, unsigned, m_min_regs);
+		PROP_GET(max_regs, unsigned, m_max_regs);
 
 	protected:
 		unsigned m_min_regs;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "prop_macros.h"
 #include "network.h"
 #include "genie/link.h"
 
@@ -70,11 +71,16 @@ namespace impl
 	{
 	public:
 		LinkRSPhys();
-		LinkRSPhys(const LinkRSPhys&);
 		~LinkRSPhys();
 
 		Link* clone() const override;
+
+		PROP_GET_SET(latency, unsigned, m_latency);
+
 	protected:
+		LinkRSPhys(const LinkRSPhys&) = default;
+
+		unsigned m_latency;
 	};
 
 	///

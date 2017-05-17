@@ -88,6 +88,7 @@ namespace flow
 	);
 
 	void do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out);
+	void solve_latency_constraints(NodeSystem* sys);
 }
 }
 }

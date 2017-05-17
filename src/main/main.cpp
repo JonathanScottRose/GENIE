@@ -83,6 +83,7 @@ namespace
 		args >> GetOpt::OptionPresent("force_full_merge", opts.force_full_merge);
         args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
         args >> GetOpt::OptionPresent("detailed_stats", opts.detailed_stats);
+		args >> GetOpt::Option("max_logic_depth", opts.max_logic_depth);
         
 		{
 			std::string argstr;
