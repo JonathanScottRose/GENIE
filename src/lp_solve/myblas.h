@@ -15,6 +15,7 @@
 /*                              as of now does not have double double.      */
 /* ************************************************************************ */
 
+#define LoadableBlasLib 0
 #define BLAS_BASE         1
 #define UseMacroVector
 #if defined LoadableBlasLib

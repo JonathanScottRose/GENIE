@@ -14,10 +14,12 @@
 /* Initialize BLAS interfacing routines                                     */
 /* ************************************************************************ */
 MYBOOL mustinitBLAS = TRUE;
+#ifdef LoadableBlasLib
 #ifdef _WIN32
   HINSTANCE hBLAS = NULL;
 #else
   void      *hBLAS = NULL;
+#endif
 #endif
 
 

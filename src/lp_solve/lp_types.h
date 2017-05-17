@@ -2,7 +2,7 @@
 #define HEADER_lp_types
 
 #ifdef _WIN32
-  #include <windows.h>
+  //#include <windows.h>
 #endif
 
 /* Define data types                                                         */
@@ -112,7 +112,7 @@
 /* Compiler/target settings                                                  */
 /* ------------------------------------------------------------------------- */
 #if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
-# define __WINAPI WINAPI
+# define __WINAPI __stdcall
 #else
 # define __WINAPI
 #endif

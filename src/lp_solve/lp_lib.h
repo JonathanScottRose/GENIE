@@ -110,7 +110,7 @@
 /* Active inverse logic (default is optimized original etaPFI)               */
 /* ------------------------------------------------------------------------- */
 #if !defined LoadInverseLib
-# define LoadInverseLib TRUE          /* Enable alternate inverse libraries */
+# define LoadInverseLib FALSE          /* Enable alternate inverse libraries */
 #endif
 /*#define ExcludeNativeInverse     */   /* Disable INVERSE_ACTIVE inverse engine */
 
@@ -135,7 +135,7 @@
 /* Active external language interface logic (default is none)                */
 /* ------------------------------------------------------------------------- */
 #if !defined LoadLanguageLib
-# define LoadLanguageLib TRUE         /* Enable alternate language libraries */
+# define LoadLanguageLib FALSE         /* Enable alternate language libraries */
 #endif
 #define ExcludeNativeLanguage                 /* Disable LANGUAGE_ACTIVE XLI */
 

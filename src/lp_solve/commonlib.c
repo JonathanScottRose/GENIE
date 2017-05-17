@@ -4,7 +4,7 @@
 #if defined INTEGERTIME || defined CLOCKTIME || defined PosixTime
 # include <time.h>
 #elif defined EnhTime
-# include <windows.h>
+//# include <windows.h>
 #else
 # include <sys/timeb.h>
 #endif
