@@ -53,7 +53,7 @@ NodeClockX::NodeClockX()
 	inport->add_role_binding(PortRS::VALID, "i_valid");		
 	inport->add_role_binding(PortRS::DATA_CARRIER, "i_data");
     inport->add_role_binding(PortRS::READY, "o_ready");
-    inport->get_bp_status().make_configurable();
+    inport->get_bp_status().force_enable();
 	add_port(inport);
 
 	auto outport = new PortRS(OUTDATAPORT_NAME, Port::Dir::OUT, OUTCLOCKPORT_NAME);
@@ -63,7 +63,7 @@ NodeClockX::NodeClockX()
     outport->get_bp_status().make_configurable();
 	add_port(outport);
 
-	connect(inport, outport, NET_RS_PHYS);
+	//connect(inport, outport, NET_RS_PHYS); // don't
 }
 
 PortClock* NodeClockX::get_inclock_port() const

@@ -27,14 +27,14 @@ namespace
 		NodeSystem* sys = nullptr;
 		FlowStateOuter* outer = nullptr;
 		unsigned dom_id;
-		AddressRep domain_flow_rep;
+		AddressRep domain_addr_rep;
 	};
 
 
-	void make_internal_flow_rep(FlowStateInner& fs_in)
+	void make_domain_addr_rep(FlowStateInner& fs_in)
 	{
 		auto fs_out = fs_in.outer;
-		auto& rep = fs_in.domain_flow_rep;
+		auto& rep = fs_in.domain_addr_rep;
 		auto dom = fs_out->get_rs_domain(fs_in.dom_id);
 		auto& dom_xmis = dom->get_transmissions();
 
@@ -276,7 +276,7 @@ namespace
 	void insert_addr_converters_user(FlowStateInner& fstate)
 	{
 		auto sys = fstate.sys;
-		auto& glob_rep = fstate.domain_flow_rep;
+		auto& glob_rep = fstate.domain_addr_rep;
 
 		// First, handle user addr <-> global rep conversions.
 		// Gather all RS ports from: this system, user modules
@@ -347,7 +347,7 @@ namespace
 	void insert_addr_converters_split(FlowStateInner& fstate)
 	{
 		auto sys = fstate.sys;
-		auto& glob_rep = fstate.domain_flow_rep;
+		auto& glob_rep = fstate.domain_addr_rep;
 
 		// Go through all split nodes
 		for (auto sp : sys->get_children_by_type<NodeSplit>())
@@ -581,7 +581,7 @@ namespace
 		auto sys = fstate_in.sys;
 		auto fstate_out = fstate_in.outer;
 		auto& link_rel = sys->get_link_relations();
-		auto& addr_rep = fstate_in.domain_flow_rep;
+		auto& addr_rep = fstate_in.domain_addr_rep;
 
 		// Gather all physical RS links where:
 		// - the sink needs an xmis_id field
@@ -881,7 +881,7 @@ namespace
 			auto csink_a = port_a->get_clock_port();
 			auto csink_b = port_b->get_clock_port();
 
-			// Clock drivers of clock sinks of each RVD port
+			// Clock drivers of clock sinks of each port
 			auto csrc_a = csink_a->get_driver(sys);
 			auto csrc_b = csink_b->get_driver(sys);
 
@@ -891,7 +891,8 @@ namespace
 			if (csrc_a == csrc_b)
 				continue;
 
-			// Create and add clockx node
+			// Create and add clockx node, and give a name that's unique
+			// even across domains
 			auto cxnode = new NodeClockX();
 			cxnode->set_name(util::str_con_cat("clockx",
 				std::to_string(fstate.dom_id),
@@ -916,7 +917,7 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 	fstate.sys = sys;
 	fstate.outer = fs_out;
 
-	make_internal_flow_rep(fstate);
+	make_domain_addr_rep(fstate);
 
 	realize_topo_links(fstate);
 	insert_addr_converters_user(fstate);
@@ -925,6 +926,8 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 
 	connect_clocks(fstate);
 	insert_clockx(fstate);
+
+	flow::solve_latency_constraints(sys);
 
 	connect_resets(fstate);
 	do_backpressure(fstate);
