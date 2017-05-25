@@ -50,6 +50,7 @@ namespace impl
 
 		void make_exclusive(const std::vector<genie::LinkRS*>& links) override;
 		void add_sync_constraint(const SyncConstraint& constraint) override;
+		void set_max_logic_depth(unsigned max_depth);
 
     public:
         NodeSystem(const std::string& name);
@@ -62,6 +63,7 @@ namespace impl
         std::vector<Node*> get_nodes() const;
 		ExclusivityInfo& get_link_exclusivity() const;
 		SyncConstraints& get_sync_constraints() const;
+		PROP_GET(max_logic_depth, unsigned, m_max_logic_depth);
 
 		NodeSystem* create_snapshot(const std::unordered_set<HierObject*>&, 
 			const std::vector<Link*>&);
@@ -72,6 +74,7 @@ namespace impl
 
 		std::shared_ptr<ExclusivityInfo> m_excl_info;
 		std::shared_ptr<SyncConstraints> m_sync_constraints;
+		unsigned m_max_logic_depth;
     };
 }
 }

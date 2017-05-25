@@ -201,6 +201,11 @@ void NodeSystem::add_sync_constraint(const genie::SyncConstraint & constraint)
 	cnst.push_back(constraint);
 }
 
+void NodeSystem::set_max_logic_depth(unsigned max_depth)
+{
+	m_max_logic_depth = max_depth;
+}
+
 //
 // Internal
 //
@@ -210,6 +215,8 @@ NodeSystem::NodeSystem(const std::string & name)
 	m_excl_info(std::make_shared<ExclusivityInfo>()),
 	m_sync_constraints(std::make_shared<SyncConstraints>())
 {
+	// Max logic depth defaults to global setting
+	m_max_logic_depth = genie::impl::get_flow_options().max_logic_depth;
 }
 
 NodeSystem::~NodeSystem()
@@ -397,7 +404,8 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 NodeSystem::NodeSystem(const NodeSystem& o)
     : Node(o), 
 	m_excl_info(o.m_excl_info),
-	m_sync_constraints(o.m_sync_constraints)
+	m_sync_constraints(o.m_sync_constraints),
+	m_max_logic_depth(o.m_max_logic_depth)
 {
 }
 

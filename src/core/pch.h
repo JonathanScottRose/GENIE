@@ -10,6 +10,7 @@
 #include <functional>
 #include <regex>
 #include <list>
+#include <queue>
 #include <map>
 #include <stack>
 #include <fstream>
