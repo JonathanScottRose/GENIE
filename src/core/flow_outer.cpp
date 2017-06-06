@@ -154,7 +154,7 @@ namespace
 				if (src_v_it != port_to_vid.end() &&
 					sink_v_it != port_to_vid.end())
 				{
-					rs_g.connect(src_v_it->second, sink_v_it->second, rs_g.newe());
+					rs_g.newe(src_v_it->second, sink_v_it->second);
 				}
 			}
 		}

@@ -2,6 +2,7 @@ module genie_split #
 (
 	integer N = 1, // Number of outputs
 	integer WIDTH = 1, // Width of data input/output
+	integer NO_MULTICAST = 0
 )
 (
 	input clk,
@@ -13,7 +14,7 @@ module genie_split #
 	output logic o_ready,
 
 	output logic [WIDTH-1:0] o_data,
-	output logic [N-1:0] o_valid
+	output logic [N-1:0] o_valid,
 	input logic [N-1:0] i_ready
 );
 
@@ -26,19 +27,25 @@ module genie_split #
 // and are simply waiting for everyone else to be ready and get their copy
 // of that same data successfully transmitted.
 reg [N-1:0] done_outputs;
-always_ff @ (posedge clk or posedge reset) begin : forking
-	if (reset) done_outputs <= 0;
-	else begin
-		for (integer i = 0; i < N; i++) begin
-			// Set when output i successfully transfers data, but at least one
-			// other output doesn't (which causes o_ready to be low)
-			if (o_valid[i] && i_ready[i] && !o_ready) done_outputs[i] <= 1'b1;
-			// Clear if during this cycle, everyone who hasn't got their data yet gets
-			// their data (covers the ideal 'everyone' case too).
-			else if (i_valid && o_ready) done_outputs[i] <= 1'b0;
+generate if (NO_MULTICAST) begin : no_mcast
+	always_comb done_outputs <= '0;
+end
+else begin : mcast
+	always_ff @ (posedge clk or posedge reset) begin : forking
+		if (reset) done_outputs <= 0;
+		else begin
+			for (integer i = 0; i < N; i++) begin
+				// Set when output i successfully transfers data, but at least one
+				// other output doesn't (which causes o_ready to be low)
+				if (o_valid[i] && i_ready[i] && !o_ready) done_outputs[i] <= 1'b1;
+				// Clear if during this cycle, everyone who hasn't got their data yet gets
+				// their data (covers the ideal 'everyone' case too).
+				else if (i_valid && o_ready) done_outputs[i] <= 1'b0;
+			end
 		end
 	end
 end
+endgenerate
 
 // Assign all outputs
 always_comb begin : assignment

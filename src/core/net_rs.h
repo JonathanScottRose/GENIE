@@ -75,12 +75,18 @@ namespace impl
 
 		Link* clone() const override;
 
-		PROP_GET_SET(latency, unsigned, m_latency);
+		unsigned get_latency() const;
+		void set_latency(unsigned);
+
+		unsigned get_logic_depth() const;
+		void set_logic_depth(unsigned);
 
 	protected:
 		LinkRSPhys(const LinkRSPhys&) = default;
 
-		unsigned m_latency;
+		// >0 : number of register levels (latency)
+		// <=0 : combinational depth in LUTs
+		int m_lat_or_comb;
 	};
 
 	///

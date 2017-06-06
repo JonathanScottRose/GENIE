@@ -5,6 +5,7 @@
 #include "util.h"
 #include "hierarchy.h"
 #include "sig_role.h"
+#include "prim_db.h"
 
 #include "node_system.h"
 #include "node_user.h"
@@ -60,6 +61,9 @@ namespace
 	// Holds signal role definitions
 	std::vector<SigRoleDef*> m_sig_roles;
 
+	// Primitive database
+	std::unordered_map<std::string, PrimDB*> m_prim_db;
+
     // Stores options
     genie::FlowOptions m_flow_opts;
     genie::ArchParams m_arch_params;
@@ -90,6 +94,22 @@ namespace
 
         return node;
     }
+}
+
+PrimDB* genie::impl::load_prim_db(const std::string & modname, 
+	const SmartEnumTable & col_enum, const SmartEnumTable & tnode_src_enum, 
+	const SmartEnumTable & tnode_sink_enum)
+{
+	std::string filename = util::get_exe_path() + "../data/" + modname + ".txt";
+	
+	auto result = new PrimDB;
+	result->initialize(filename, col_enum, tnode_src_enum, tnode_sink_enum);
+
+	auto ins_result = m_prim_db.emplace(std::make_pair(modname, result));
+	if (!ins_result.second)
+		throw genie::Exception("prim database for " + modname + " already exists");
+
+	return result;
 }
 
 void genie::impl::register_reserved_module(const std::string& name)
@@ -259,6 +279,7 @@ void genie::shutdown()
 	util::delete_all(m_networks);
 	util::delete_all(m_port_types);
 	util::delete_all(m_sig_roles);
+	util::delete_all_2(m_prim_db);
 
 	m_reserved_modules.clear();
 }

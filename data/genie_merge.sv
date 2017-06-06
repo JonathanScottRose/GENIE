@@ -1,3 +1,35 @@
+module genie_mux #
+(
+	parameter lpm_widths = 0,
+	parameter lpm_size = 0,
+	parameter lpm_pipeline = 0,
+	parameter lpm_width = 0
+)
+(
+	input [(lpm_width*lpm_size)-1:0] data,
+	input [lpm_widths-1:0] sel,
+	output [lpm_width-1:0] result
+);
+
+reg [lpm_width-1:0] tmp;
+reg match;
+
+always @* begin : mux
+	integer i;
+	tmp = 0;
+	
+	for (i = 0; i < lpm_size; i = i + 1) begin
+		match = i[lpm_widths-1:0] == sel;
+		tmp = tmp | (data[i*lpm_width +: lpm_width] & {(lpm_width){match}});
+	end
+end
+
+assign result = tmp;
+
+endmodule
+
+
+
 module cur_input_calc #
 (
 	parameter NI = 1,
@@ -29,37 +61,24 @@ module cur_input_calc #
 	// first dibs.
 
 	wire [NI-1:0] sorted_valids;
-	wire [NI*NIBITS-1:0] sorted_idxs;
+	wire [NI-1:0][NIBITS-1:0] sorted_idxs;
 
 	genvar gi;
 	generate
 		for (gi = 0; gi < NI; gi = gi + 1) begin : sort
 			// Generate a packed vector of all the input valid/IDX pairs
-			reg [ (NIBITS+1)*NI - 1 : 0 ] sort_in;
+			logic [NI-1:0][NIBITS+1-1:0] sort_in;
 
 			always @* begin : mksort_in
-				integer i;
-				for (i = 0; i < NI; i = i + 1) begin : mksort_in_loop
+				for (integer i = 0; i < NI; i = i + 1) begin : mksort_in_loop
 					integer in_idx;
 					in_idx = (gi + i + 1) % NI;
-					sort_in[ (NIBITS+1)*i +: (NIBITS+1) ] = { i_valid[in_idx], in_idx[NIBITS-1:0] };
+					sort_in[i] = { i_valid[in_idx], in_idx[NIBITS-1:0] };
 				end
 			end
 			
 			// Do the sorting 
-			genie_mux #
-			(
-				.lpm_width(1 + NIBITS),
-				.lpm_size(NI),
-				.lpm_widths(NIBITS),
-				.lpm_pipeline(0)
-			)
-			sort_mux
-			(
-				.data(sort_in),
-				.result({sorted_valids[gi], sorted_idxs[gi*NIBITS +: NIBITS]}),
-				.sel(i_last_input)
-			);
+			assign {sorted_valids[gi], sorted_idxs[gi]} = sort_in[i_last_input];
 		end
 	endgenerate
 
@@ -68,11 +87,10 @@ module cur_input_calc #
 	// This guy will get the grant next. If no one is making a request,
 	// cur_input stays at last_input
 	always @* begin : pri_enc
-		integer i;
-		o_cur_input = sorted_idxs[NIBITS*(NI-1) +: NIBITS]; // this corresponds to the last input
+		o_cur_input = sorted_idxs[NI-1]; // this corresponds to the last input
 		
-		for (i = NI-2; i >= 0; i = i - 1) begin
-			if (sorted_valids[i]) o_cur_input = sorted_idxs[NIBITS*i +: NIBITS];
+		for (integer i = NI-2; i >= 0; i = i - 1) begin
+			if (sorted_valids[i]) o_cur_input = sorted_idxs[i];
 		end
 	end
 endmodule
@@ -88,7 +106,7 @@ module genie_merge #
 	input clk,
 	input reset,
 	
-	input [NI*WIDTH-1:0] i_data,
+	input [NI-1:0][WIDTH-1:0] i_data,
 	input [NI-1:0] i_valid,
 	output reg [NI-1:0] o_ready,
 	input [NI-1:0] i_eop,
@@ -127,45 +145,11 @@ cur_input_calc #
 
 // Output muxes
 generate if (WIDTH > 0)
-genie_mux #
-(
-	.lpm_width(WIDTH),
-	.lpm_size(NI),
-	.lpm_widths(NIBITS),
-	.lpm_pipeline(0)
-) out_mux_data
-(
-	.data(i_data),
-	.sel(cur_input),
-	.result(o_data)
-);
+	assign o_data = i_data[cur_input];
 endgenerate
 
-genie_mux #
-(
-	.lpm_width(1),
-	.lpm_size(NI),
-	.lpm_widths(NIBITS),
-	.lpm_pipeline(0)
-) out_mux_eop
-(
-	.data(i_eop),
-	.sel(cur_input),
-	.result(o_eop)
-);
-
-genie_mux #
-(
-	.lpm_width(1),
-	.lpm_size(NI),
-	.lpm_widths(NIBITS),
-	.lpm_pipeline(0)
-) out_mux_valid
-(
-	.data(i_valid),
-	.sel(cur_input),
-	.result(o_valid)
-);
+assign o_eop = i_eop[cur_input];
+assign o_valid = i_valid[cur_input];
 
 // Controls last_input register
 always_ff @ (posedge clk or posedge reset) begin

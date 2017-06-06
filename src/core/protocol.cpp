@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "protocol.h"
 #include "port_rs.h"
+#include "net_rs.h"
 #include "node.h"
 
 using namespace genie::impl;
@@ -499,6 +500,13 @@ unsigned flow::calc_transmitted_width(PortRS* src, PortRS* sink)
 	}
 
 	return result;
+}
+
+unsigned flow::calc_transmitted_width(LinkRSPhys* link)
+{
+	auto src = static_cast<PortRS*>(link->get_src());
+	auto sink = static_cast<PortRS*>(link->get_sink());
+	return calc_transmitted_width(src, sink);
 }
 
 void flow::splice_carrier_protocol(PortRS * src, PortRS * sink, ProtocolCarrier * node)

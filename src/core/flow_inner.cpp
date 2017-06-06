@@ -5,6 +5,8 @@
 #include "node_user.h"
 #include "node_conv.h"
 #include "node_clockx.h"
+#include "node_reg.h"
+#include "node_mdelay.h"
 #include "net_topo.h"
 #include "net_rs.h"
 #include "net_clockreset.h"
@@ -903,9 +905,86 @@ namespace
 			sys->connect(csrc_a, cxnode->get_inclock_port(), NET_CLOCK);
 			sys->connect(csrc_b, cxnode->get_outclock_port(), NET_CLOCK);
 
-			// Splice the node into the existing rvd connection
+			// Splice the node into the existing connection
 			sys->splice(orig_link, cxnode->get_indata_port(), cxnode->get_outdata_port());
 			flow::splice_carrier_protocol(port_a, port_b, cxnode);
+		}
+	}
+
+	void realize_latencies(FlowStateInner& fstate)
+	{
+		auto sys = fstate.sys;
+		// Find phys links with nonzero latency.
+		// Insert reg nodes or mdelay nodes.
+		// Reset latencies to zero.
+
+		auto phys_links = sys->get_links_casted<LinkRSPhys>(NET_RS_PHYS);
+		std::vector<LinkRSPhys*> links_to_process;
+		for (auto link : phys_links)
+		{
+			if (link->get_latency() > 0)
+				links_to_process.push_back(link);
+		}
+
+		// Used to make unique names
+		unsigned pipe_no = 0;
+
+		for (auto orig_link : links_to_process)
+		{
+			// Get the clock domain of the source (arbitrarily, could have done sink too)
+			PortClock* clock_driver = nullptr;
+			{
+				auto orig_src = (PortRS*)orig_link->get_src();
+				PortClock* clock_sink = orig_src->get_clock_port();
+				clock_driver = clock_sink->get_driver(sys);
+			}
+			assert(clock_driver);
+
+			unsigned width = flow::calc_transmitted_width(orig_link);
+			unsigned latency = orig_link->get_latency();
+
+			// Insert a chain of regs, or a mem, depending on which is cheaper
+			unsigned reg_cost = width * latency;
+			unsigned mem_cost = width + latency + 8; // TODO: is the 8 hardcoded?
+
+			if (!genie::impl::get_flow_options().no_mdelay && mem_cost < reg_cost)
+			{
+				auto md = new NodeMDelay();
+				md->set_delay(latency);
+				md->set_name(util::str_con_cat("pipe", std::to_string(fstate.dom_id),
+					std::to_string(pipe_no)));
+				sys->add_child(md);
+
+				auto orig_src = (PortRS*)orig_link->get_src();
+				auto orig_sink = (PortRS*)orig_link->get_sink();
+
+				sys->splice(orig_link, md->get_input(), md->get_output());
+				sys->connect(clock_driver, md->get_clock_port(), NET_CLOCK);
+				flow::splice_carrier_protocol(orig_src, orig_sink, md);
+			}
+			else
+			{
+				auto cur_link = orig_link;
+				for (unsigned i = 0; i < latency; i++)
+				{
+					auto rg = new NodeReg();
+					rg->set_name(util::str_con_cat("pipe", std::to_string(fstate.dom_id),
+						std::to_string(pipe_no), std::to_string(i)));
+					sys->add_child(rg);
+
+					auto link_src = (PortRS*)cur_link->get_src();
+					auto link_sink = (PortRS*)cur_link->get_sink();
+
+					cur_link = (LinkRSPhys*)sys->splice(cur_link, 
+						rg->get_input(), rg->get_output());
+
+					sys->connect(clock_driver, rg->get_clock_port(), NET_CLOCK);
+					flow::splice_carrier_protocol(link_src, link_sink, rg);
+				}
+			}
+
+			orig_link->set_latency(0);
+			pipe_no++;
 		}
 	}
 }
@@ -928,6 +1007,7 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 	insert_clockx(fstate);
 
 	flow::solve_latency_constraints(sys);
+	realize_latencies(fstate);
 
 	connect_resets(fstate);
 	do_backpressure(fstate);

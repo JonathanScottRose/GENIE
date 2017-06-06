@@ -32,7 +32,7 @@ NodeUser::NodeUser(const std::string & name, const std::string & hdl_name)
 
 NodeUser* NodeUser::instantiate() const
 {
-    return new NodeUser(*this);
+	return clone();
 }
 
 void NodeUser::prepare_for_hdl()
@@ -41,7 +41,13 @@ void NodeUser::prepare_for_hdl()
 
 NodeUser* NodeUser::clone() const
 {
-	return new NodeUser(*this);
+	auto result = new NodeUser(*this);
+
+	// Now copy links and link relations
+	result->copy_links_from(*this);
+	result->m_link_rel = m_link_rel;
+
+	return result;
 }
 
 NodeUser::NodeUser(const NodeUser& o)

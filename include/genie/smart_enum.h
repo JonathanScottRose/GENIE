@@ -18,41 +18,61 @@
 // also has a to_string() method and a static from_string() method.
 //
 
-//
-// Factor out some common functionality (could have been part of the macro)
-//
-class SmartEnumBase
+class SmartEnumTable
 {
-protected:
-    // Holds a vector of string values for each enum value.
-    // Initialized from a big string, and tokenizes upon construction.
-	struct Table
+public:
+	SmartEnumTable(const char* str)
+		: _str(str)
 	{
-		Table(const char* str)
-			: _str(str)
-		{
-            std::transform(_str.begin(), _str.end(), _str.begin(), ::toupper);
+		std::transform(_str.begin(), _str.end(), _str.begin(), ::toupper);
 
-			char* data = const_cast<char*>(_str.data());
-			char* tok = strtok(data, " ,");
-			while (tok != nullptr)
+		char* data = const_cast<char*>(_str.data());
+		char* tok = strtok(data, " ,");
+		while (tok != nullptr)
+		{
+			_tab.push_back(tok);
+			tok = strtok(nullptr, " ,");
+		}
+	}
+
+	unsigned size() const
+	{
+		return _tab.size();
+	}
+
+	const char* to_string(unsigned val) const
+	{
+		return val >= _tab.size() ? nullptr : _tab[val];
+	}
+
+	bool from_string(const char* str, unsigned& out) const
+	{
+		std::string str_ucase(str);
+		std::transform(str_ucase.begin(), str_ucase.end(), str_ucase.begin(), ::toupper);
+
+		for (auto it = _tab.begin(); it != _tab.end(); ++it)
+		{
+			if (strcmp(*it, str_ucase.c_str()) == 0)
 			{
-				_tab.push_back(tok);
-				tok = strtok(nullptr, " ,");
+				out = it - _tab.begin();
+				return true;
 			}
 		}
-		
-		std::vector<const char*> _tab;
-		std::string _str;
-	};
+		return false;
+	}
+
+protected:
+	std::vector<const char*> _tab;
+	std::string _str;
 };
+
 
 //
 //
 #define ESC_PAREN(...) __VA_ARGS__
 
 #define SMART_ENUM_EX(name, bonus, ...) \
-	class name : private SmartEnumBase \
+	class name \
 	{ \
 	public: \
 		enum name##_e { __VA_ARGS__ }; \
@@ -67,36 +87,27 @@ protected:
 		operator name##_e() const { return _val; } \
 		const char* to_string() const \
 		{ \
-			return table()._tab[(unsigned)_val]; \
+			return get_table().to_string((unsigned)_val); \
 		} \
 		\
 		static bool from_string(const char* str, name& out) \
 		{ \
-			bool result = false; \
-			const auto& tab = table()._tab; \
-            std::string str_ucase(str); \
-            std::transform(str_ucase.begin(), str_ucase.end(), str_ucase.begin(), ::toupper); \
-			\
-			for (unsigned i = 0; i < tab.size(); i++) \
-			{ \
-				if (strcmp(tab[i], str_ucase.c_str()) == 0) \
-				{ \
-					result = true; \
-					out = (name##_e)i; \
-					break; \
-				} \
-			} \
-			\
-			return result; \
+			unsigned tmp; \
+			return get_table().from_string(str, tmp); \
+			out._val = (name##_e)tmp; \
 		} \
 		\
-	protected: \
-		static Table& table() \
+		static unsigned size() \
 		{ \
-			static Table tab(#__VA_ARGS__); \
+			return get_table().size(); \
+		} \
+		\
+		static SmartEnumTable& get_table() \
+		{ \
+			static SmartEnumTable tab(#__VA_ARGS__); \
 			return tab; \
 		} \
-		\
+	protected: \
 		name##_e _val; \
 	ESC_PAREN bonus \
 	};

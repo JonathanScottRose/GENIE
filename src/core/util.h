@@ -248,6 +248,9 @@ namespace impl
 
 			return result;
 		}
+
+		// Declared in separate file
+		extern std::string get_exe_path();
 	}
 }
 }

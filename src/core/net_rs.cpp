@@ -93,7 +93,7 @@ Link* NetRSPhys::create_link() const
 //
 
 LinkRSPhys::LinkRSPhys()
-	: m_latency(0)
+	: m_lat_or_comb(0)
 {
 }
 
@@ -104,6 +104,26 @@ LinkRSPhys::~LinkRSPhys()
 Link * LinkRSPhys::clone() const
 {
 	return new LinkRSPhys(*this);
+}
+
+unsigned LinkRSPhys::get_latency() const
+{
+	return (unsigned)std::max(0, m_lat_or_comb);
+}
+
+void LinkRSPhys::set_latency(unsigned latency)
+{
+	m_lat_or_comb = (int)latency;
+}
+
+unsigned LinkRSPhys::get_logic_depth() const
+{
+	return (unsigned)std::max(0, -m_lat_or_comb);
+}
+
+void LinkRSPhys::set_logic_depth(unsigned depth)
+{
+	m_lat_or_comb = -(int)depth;
 }
 
 //

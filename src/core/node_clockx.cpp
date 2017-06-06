@@ -63,7 +63,11 @@ NodeClockX::NodeClockX()
     outport->get_bp_status().make_configurable();
 	add_port(outport);
 
-	//connect(inport, outport, NET_RS_PHYS); // don't
+	auto int_link = static_cast<LinkRSPhys*>(connect(inport, outport, NET_RS_PHYS));
+	// TODO: this is a nonsensical value, since the input and output are on different
+	// clock domains. However, it allows other parts of GENIE to at least treat
+	// the internal link as a non-purely-combinational path.
+	int_link->set_latency(2);
 }
 
 PortClock* NodeClockX::get_inclock_port() const

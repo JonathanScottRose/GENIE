@@ -321,6 +321,16 @@ function Builder:make_exclusive(s)
     self.cur_sys:make_exclusive(s)    
 end
 
+--- Sets the combinational logic depth of an RS Port.
+--
+-- This tells GENIE that there are `depth` levels of logic (LUTs) between
+-- the port itself and the interior of the Component.
+-- @tparam integer depth logic depth, default 0
+function Builder:logic_depth(depth)
+	if not self.cur_port then error("no current port") end
+	self.cur_port:set_logic_depth(depth)
+end
+
 
 
 --- Creates a latency query.

@@ -72,6 +72,72 @@ namespace
 		E2Attr<unsigned> reg_graph_weights;
 	};
 
+	int get_or_create_lat_var(SolverState& sstate, LinkID link)
+	{
+		auto it = sstate.link_to_varno_lat.find(link);
+		if (it == sstate.link_to_varno_lat.end())
+		{
+			int result = sstate.next_varno++;
+			sstate.varno_lat.push_back(result);
+			sstate.link_to_varno_lat[link] = result;
+			sstate.varno_lat_to_link[result] = link;
+			return result;
+		}
+		else
+		{
+			return it->second;
+		}
+	}
+
+	// In addition to creating a reg variable and associating it
+	// with an external link, it will do the following if creating a reg variable:
+	//   1) get or create the LATENCY variable associated with the same link
+	//   2) create an aux constraint that binds the new reg var and new/existing lat var
+	int get_or_create_reg_var(SolverState& sstate, LinkID link)
+	{
+		auto it = sstate.link_to_varno_reg.find(link);
+		if (it == sstate.link_to_varno_reg.end())
+		{
+			// Creating a reg variable! We will also tie this new
+			// reg variable with the associated lat variable for the same link
+			// with a special constraint.
+			int varno_lat = get_or_create_lat_var(sstate, link);
+			
+			int varno_reg = sstate.next_varno++;
+			sstate.varno_reg.push_back(varno_reg);
+			sstate.link_to_varno_reg[link] = varno_reg;
+			sstate.varno_reg_to_link[varno_reg] = link;
+
+			// Create constraint: var_lat >= var_reg
+			sstate.lp_constraints.emplace_back();
+			auto& cns = sstate.lp_constraints.back();
+
+			cns.coefs.insert(cns.coefs.end(), { 1, -1 });
+			cns.varnos.insert(cns.varnos.end(), { varno_lat, varno_reg });
+			cns.op = ROWTYPE_GE;
+			cns.rhs = 0;
+
+			return varno_reg;
+		}
+		else
+		{
+			return it->second;
+		}
+	}
+
+	void create_forced_nonzero_lat_constraint(SolverState& sstate, int varno)
+	{
+		sstate.lp_constraints.emplace_back();
+		LPConstraint& cns = sstate.lp_constraints.back();
+
+		// 1*var >= 1
+		cns.coefs.push_back(1);
+		cns.varnos.push_back(varno);
+		cns.op = ROWTYPE_GE;
+		cns.rhs = 1;
+	}
+
+
 	// Take a bag of (topo, rslogical) links.
 	// Decompose into external + internal physical links
 	// external ones: find/create var#
@@ -112,22 +178,7 @@ namespace
 		{
 			auto link = it.first;
 			auto sign = it.second;
-
-			unsigned varno = 0;
-
-			auto it = sstate.link_to_varno_lat.find(link);
-			if (it == sstate.link_to_varno_lat.end())
-			{
-				// No variable exists? Create a new one and assign it
-				varno = sstate.next_varno++;
-				sstate.varno_lat.push_back(varno);
-				sstate.link_to_varno_lat[link] = varno;
-				sstate.varno_lat_to_link[varno] = link;
-			}
-			else
-			{
-				varno = it->second;
-			}
+			int varno = get_or_create_lat_var(sstate, link);
 
 			// Return the variable number and its sign
 			out_varnos.push_back(varno);
@@ -313,7 +364,13 @@ namespace
 
 		std::vector<LinkRSPhys*> int_links;
 
-		// Create vertices in reg_graph for each external edge
+		// Go through each physical link. Each can be an external or internal link.
+		// If internal: remember it for next step.
+		// If external:
+		//    - create a vertex for it in the reg graph
+		//    - the src/sink of this external link belong to modules...
+		//      create vertices representing the registered cores of those modules,
+		//      and create edges annotated with the ports' internal combinational depths
 		for (auto eid : g1.iter_edges)
 		{
 			// Make sure the link is external.
@@ -328,29 +385,68 @@ namespace
 				continue;
 			}
 
-			// Create vertex
-			reg_graph.newv((VertexID)ext_link_id);
+			// Create vertex for external edge
+			VertexID ext_v = (VertexID)ext_link_id;
+			reg_graph.newv(ext_v);
 
-			// Create variable
-			int varno = sstate.next_varno++;
-			sstate.varno_reg.push_back(varno);
-			sstate.varno_reg_to_link[varno] = ext_link_id;
-			sstate.link_to_varno_reg[ext_link_id] = varno;
+			// Get the source and sink
+			auto src_port = static_cast<PortRS*>(ext_link->get_src());
+			auto sink_port = static_cast<PortRS*>(ext_link->get_sink());
+
+			for (auto port : { src_port, sink_port })
+			{
+				// Get logic depth of the PORT - this is the number of LUTs
+				// from the port to a register inside the module (worst-cased).
+				unsigned logic_depth = port->get_logic_depth();
+
+				// If logic depth >= max_logic_depth, then this external link must
+				// be registered no matter what.
+				// If this is the case:
+				// Force the latency to be >= 1 of the external link (no need for involving binary variables)
+				// Don't even bother to create a new vertex/edge in the reg graph.
+
+				if (logic_depth >= max_logic_depth)
+				{
+					int varno_lat = get_or_create_lat_var(sstate, ext_link_id);
+					create_forced_nonzero_lat_constraint(sstate, varno_lat);
+				}
+				else if (logic_depth == 0)
+				{
+					// do nothing, create nothing
+				}
+				else
+				{
+					// Create vertex in reg graph representing the terminal.
+					// Its ID means nothing, unlike the other existing vertices whose IDs are link IDs
+					VertexID term_v = reg_graph.newv();
+
+					// Connect terminal v with extlink v and assign it logic depth.
+					bool term_is_src = port == src_port;
+					EdgeID e = reg_graph.newe(
+						term_is_src ? term_v : ext_v,
+						term_is_src ? ext_v : term_v);
+
+					sstate.reg_graph_weights[e] = logic_depth;
+				}
+			}
 		}
 
 		// Tackle the internal links.
+		// An internal physical link can have a combinational logic depth THROUGH
+		// a module. This happens if the latency is 0.
 		// If internal link has >0 latency: ignore it.
-		// If internal link has 0 latency: bridge
+		// If internal link has 0 latency: bridge external links with an edge in reg graph
 		for (auto int_link : int_links)
 		{
 			if (int_link->get_latency() > 0)
 				continue;
 
-			// Get source and sink of internal link, add up their logic depth.
-			auto int_src = static_cast<PortRS*>(int_link->get_src());
-			auto int_sink = static_cast<PortRS*>(int_link->get_sink());
-			unsigned logic_depth = int_src->get_logic_depth() +
-				int_sink->get_logic_depth();
+			// Get logic depth on internal link			
+			unsigned logic_depth = int_link->get_logic_depth();
+
+			// Get endpoints of internal link
+			auto int_src = int_link->get_src();
+			auto int_sink = int_link->get_sink();
 
 			// Get the external links that the internal src/sink are connected to.
 			// Find the vertex IDs representing those edges in the graph.
@@ -362,92 +458,31 @@ namespace
 			auto int_src_link_v = (VertexID)int_src_link->get_id();
 			auto int_sink_link_v = (VertexID)int_sink_link->get_id();
 
-			// If logic_depth already is greater or equal to the max logic depth constraint,
-			// then we absolutely have to place registers on the surrounding external links.
-			// Create constraints that force the reg variables to 1, and treat the vertices
-			// in the reg graph as if they were terminals (so, do not create an edge).
-			if (logic_depth >= max_logic_depth)
-			{
-				// Force reg graph vertices to 1
-				int var1 = sstate.link_to_varno_reg[int_src_link->get_id()];
-				int var2 = sstate.link_to_varno_reg[int_sink_link->get_id()];
-
-				for (int var : { var1, var2 })
-				{
-					sstate.lp_constraints.emplace_back();
-					LPConstraint& cns = sstate.lp_constraints.back();
-
-					// 1*var = 1
-					cns.coefs.push_back(1);
-					cns.varnos.push_back(var);
-					cns.op = ROWTYPE_EQ;
-					cns.rhs = 1;
-				}
-			}
-			else
-			{
-				// Connect the reg graph vertices. We need to solve for their 0/1ness
-				EdgeID e = reg_graph.newe(int_src_link_v, int_sink_link_v);
-				sstate.reg_graph_weights[e] = logic_depth;
-			}
+			// Connect the reg graph vertices. We need to solve for their 0/1ness.
+			// The LP variables for them will be created later.
+			EdgeID e = reg_graph.newe(int_src_link_v, int_sink_link_v);
+			sstate.reg_graph_weights[e] = logic_depth;
 		}
+	}
 
-		// Handle "stub ports".
-		// These are ports that are terminal srces/sinks in the physical graph.
-		// They still contribute a logic depth.
-		// Create vertices for them in the reg_graph, representing the registered core
-		// of the module behind the stub port.
-		for (auto port_v : g1.iter_verts)
+	void postprocess_reg_graph(SolverState& sstate)
+	{
+		using namespace graph;
+		auto sys = sstate.sys;
+		auto& reg_graph = sstate.reg_graph;
+
+		// Get a copy of all the edge IDs
+		auto edges = reg_graph.edges();
+
+		// Remove zero-weight edges from the graph.
+		// This is an optimization.
+		for (auto e : edges)
 		{
-			auto port = static_cast<PortRS*>(g1_v2port[port_v]);
-			bool term_src = !port->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->is_connected();
-			bool term_sink = !port->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->is_connected();
-
-			// We only want ports that are terminal
-			if (!term_src && !term_sink)
-				continue;
-
-			// Get external link connected to terminal port
-			auto term_dir = term_src ? Port::Dir::OUT : Port::Dir::IN;
-			auto ext_link = port->get_endpoint(NET_RS_PHYS, term_dir)->get_link0();
-
-			// and its vertex in the reg graph
-			VertexID ext_v = (VertexID)ext_link->get_id();
-
-			// Get logic depth
-			unsigned logic_depth = port->get_logic_depth();
-
-			// If logic depth >= max_logic_depth, then this external link must
-			// be registered no matter what.
-			// If this is the case:
-			// Force the binary variable for its reg-ness to be 1, and treat it
-			// as a terminal.
-			// Don't even bother to create a new vertex/edge in the reg graph.
-
-			if (logic_depth >= max_logic_depth)
+			unsigned weight = sstate.reg_graph_weights[e];
+			if (weight == 0)
 			{
-				// Get the variable for the ext edge. Force it to 1 with a constraint.
-				int var = sstate.link_to_varno_reg[ext_link->get_id()];
-				sstate.lp_constraints.emplace_back();
-				LPConstraint& cns = sstate.lp_constraints.back();
-
-				cns.coefs.push_back(1);
-				cns.varnos.push_back(var);
-				cns.op = ROWTYPE_EQ;
-				cns.rhs = 1;
-			}
-			else
-			{
-				// Create vertex in reg graph representing the terminal.
-				// Its ID means nothing, unlike the other existing vertices whose IDs are link IDs
-				VertexID term_v = reg_graph.newv();
-
-				// Connect terminal v with extlink v and assign it logic depth.
-				EdgeID e = reg_graph.newe(
-					term_src ? term_v : ext_v,
-					term_src ? ext_v : term_v);
-
-				sstate.reg_graph_weights[e] = logic_depth;
+				auto verts = reg_graph.verts(e);
+				reg_graph.mergev(verts.first, verts.second);
 			}
 		}
 	}
@@ -465,7 +500,7 @@ namespace
 		};
 
 		std::unordered_set<VertexID> visited;
-		std::stack<SnakeState> snakes;
+		std::queue<SnakeState> snakes;
 
 		// Generate initial snakes from terminal src vertices in reg graph
 		for (auto v : reg_graph.iter_verts)
@@ -474,7 +509,7 @@ namespace
 			if (reg_graph.dir_neigh_r(v).empty())
 			{
 				snakes.emplace();
-				auto& newsnake = snakes.top();
+				auto& newsnake = snakes.back();
 				newsnake.verts.push_back(v);
 				newsnake.unvisited = 0;
 				newsnake.total_weight = 0;
@@ -484,7 +519,7 @@ namespace
 		// Process snakes
 		while (!snakes.empty())
 		{
-			auto& cur_snake = snakes.top();
+			auto& cur_snake = snakes.front();
 			bool snake_done = false;
 
 			while (!snake_done)
@@ -497,13 +532,15 @@ namespace
 					cur_snake.unvisited++;
 
 				// See if the total snake weight violates the constraint
-				if (cur_snake.total_weight >= max_weight)
+				if (cur_snake.total_weight > max_weight)
 				{
 					// Advance snake tail until snake weight is under the constraint
 					// again.
-					// We're guaranteed that this won't result in head=tail because
-					// the graph has no single edge that is >= max_weight.
-					do
+					// Make sure to keep a snake that has at least 2 vertices in it
+					// so that head != tail.
+
+					while (cur_snake.total_weight > max_weight &&
+						cur_snake.verts.size() > 2)
 					{
 						// Advance tail.
 						VertexID old_tail = cur_snake.verts.front();
@@ -529,10 +566,18 @@ namespace
 						assert(e != INVALID_E);
 						cur_snake.total_weight -= sstate.reg_graph_weights[e];
 
-					} while (cur_snake.total_weight >= max_weight);
+					};
+
+					// If advancing the tail left us with no unvisited vertices left
+					// in the snake, we can finish.
+					if (cur_snake.unvisited == 0)
+					{
+						snake_done = true;
+						break;
+					}
 
 					// Cur snake status: non-zero length by construction and
-					// total weight less than max total weight.
+					// total weight less than max total weight. Has unvisited vertices.
 					// Emit a constraint for the reg variables that each snake
 					// vertex represents.
 					// Use only vertices in the range [tail, head) of the snake.
@@ -551,7 +596,7 @@ namespace
 					for (auto it = cur_snake.verts.begin(); it < cur_snake.verts.end(); ++it)
 					{
 						LinkID link_id = (LinkID)*it;
-						auto varno = sstate.link_to_varno_reg[link_id];
+						auto varno = get_or_create_reg_var(sstate, link_id);
 
 						lp_constraint.coefs.push_back(1);
 						lp_constraint.varnos.push_back(varno);
@@ -579,15 +624,18 @@ namespace
 				}
 				else
 				{
-					for (auto it = next_vs.begin(); it != next_vs.end(); ++it)
+					// Go backwards through possibilities, such that the first candidate
+					// is done last. This ensures that _this_ snake is modified last,
+					// and pristine copies can be made beforehand.
+					for (auto it = next_vs.rbegin(); it != next_vs.rend(); ++it)
 					{
-						// First vertex: extend current snake.
 						// Other vertices: make a copy of current snake and extend it.
+						// First vertex: extend current snake (this must be done last)
 						auto snake = &cur_snake;
-						if (it == next_vs.begin())
+						if (it != next_vs.rend()-1 )
 						{
-							snakes.emplace(cur_snake); // copy
-							snake = &snakes.top();
+							snakes.emplace(cur_snake); // copy unmodified snake
+							snake = &snakes.back();
 						}
 
 						// The new head vertex
@@ -602,6 +650,8 @@ namespace
 					}
 				} // snake head does/doesn't have forward neighbours
 			} // while !snake_done
+
+			snakes.pop();
 		} // while !snakes.empty()
 	}
 
@@ -614,6 +664,11 @@ namespace
 		// #cols = # of variables (next_
 		int n_rows = (int)sstate.varno_lat.size() + (int)sstate.varno_reg.size();
 		int n_cols = (int)lp_constraints.size();
+
+		// Sometimes, there's just nothing to do
+		if (n_rows == 0 || n_cols == 0)
+			return;
+
 		lprec* lp_prob = make_lp(n_rows, n_cols);
 		assert(lp_prob);
 
@@ -645,7 +700,8 @@ namespace
 
 		// Transcribe all constraints
 		// Rowmode means we add one constraint (row) at a time. Makes it faster.
-		// Do we really have to turn it off after?
+		// Rowmode must be on only when entering constraints. Also, the objective
+		// function must be specified before rowmode (and therefore also constraints).
 		set_add_rowmode(lp_prob, TRUE);
 		for (auto& row : lp_constraints)
 		{
@@ -683,12 +739,14 @@ namespace
 		// Use solutions of latency variables to set latency on physical links
 		for (auto varno : sstate.varno_lat)
 		{
+			int onrows = get_Norig_rows(lp_prob);
+
 			// Argument to get_var is an index into a thing that is laid out as:
 			// 0 : objective function
 			// [1, nrows] : values of constraints
 			// [nrows + 1] : value of first variable (variable number 1)
 			// Since variable numbers are 1-based, take that into account.
-			int index = 1 + n_rows + varno - 1;
+			int index = 1 + onrows + varno - 1;
 			unsigned latency = (unsigned)get_var_primalresult(lp_prob, index);
 
 			// Set the latency of the physical link
@@ -727,31 +785,7 @@ namespace
 		sstate.lp_objective.direction = LPObjective::MIN;
 	}
 
-	void create_aux_constraints(SolverState& sstate)
-	{
-		// Create additional constraints tying together the integer latency vars
-		// and the binary reg vars.
 
-		for (auto var_lat : sstate.varno_lat)
-		{
-			// For each latency variable, get the corresponding external physical link id,
-			// and its corresponding reg variable.
-			// There should be a reg variable for every lat variable.
-			auto link_id = sstate.varno_lat_to_link[var_lat];
-			auto it = sstate.link_to_varno_reg.find(link_id);
-			assert(it != sstate.link_to_varno_reg.end());
-			auto var_reg = it->second;
-
-			sstate.lp_constraints.emplace_back();
-			auto& cns = sstate.lp_constraints.back();
-
-			// Constraint: var_lat >= var_reg
-			cns.coefs.insert(cns.coefs.end(), { 1, -1 });
-			cns.varnos.insert(cns.varnos.end(), { var_lat, var_reg });
-			cns.op = ROWTYPE_GE;
-			cns.rhs = 0;
-		}
-	}
 }
 
 void flow::solve_latency_constraints(NodeSystem* sys)
@@ -765,10 +799,8 @@ void flow::solve_latency_constraints(NodeSystem* sys)
 
 	// Binary reg yes/no related
 	create_reg_graph(sstate);
+	postprocess_reg_graph(sstate);
 	create_reg_constraints(sstate);
-
-	// Links latency and reg variables
-	create_aux_constraints(sstate);
 
 	// Objective function
 	create_obj_func(sstate);
@@ -777,194 +809,3 @@ void flow::solve_latency_constraints(NodeSystem* sys)
 	solve_lp_constraints(sstate);
 }
 
-/*
-void flow::solve_latency_constraints(NodeSystem* sys)
-{
-    
-    
-    std::vector<RowConstraint> lp_constraints;
-
-    // Holds mapping between free RVD links and column variables
-    std::unordered_map<RVDLink*, int> link_to_varno;
-    int next_varno = 1;
-
-    // Process each constraint
-    for (auto& constraint : aconstraints->constraints)
-    {
-        lp_constraints.resize(lp_constraints.size() + 1);
-
-        // Current constraint
-        RowConstraint& cur_row = lp_constraints.back();
-
-        // Sum of constants on LHS of inequality
-        int row_lhs = 0;
-
-        // Process each path term in the constraint
-        for (auto& path_term : constraint.path_terms)
-        {
-            auto path_sign = path_term.first;
-            RSPath& path = path_term.second;
-
-            // Used to chain each RS link's source with the sink of the previous
-            RSPort* last_rs_sink = nullptr;
-
-            // Walk each RS Link in the path
-            for (auto& rs_link : path)
-            {
-                if (last_rs_sink)
-                {
-                    auto cur_rs_src = RSPort::get_rs_port(rs_link->get_src());
-
-                    auto int_links = last_rs_sink->get_node()->get_links(last_rs_sink, cur_rs_src);
-
-                    if (int_links.empty())
-                    {
-                        throw HierException(cur_rs_src->get_node(), 
-                            "can't process latency constraint because there exists no internal RS Link "
-                            "between '" + last_rs_sink->get_name() + "' and '" + cur_rs_src->get_name() + "'");
-                    }
-
-                    // Internal edges contribute a constant latency term to the LHS of the inequality
-                    auto int_link = (RSLink*)int_links.front();
-                    row_lhs += path_sign==RSLatencyConstraint::PLUS?
-                        int_link->get_latency() : -int_link->get_latency();
-                }
-
-                // loop over child RVDEdges, get their latencies, add to constraint
-                auto acont = rs_link->asp_get<ALinkContainment>();
-                for (auto child_link : acont->get_all_child_links(NET_RVD))
-                {
-                    auto rvd_link = (RVDLink*)child_link;
-
-                    // Internal link? Add latency to LHS. Otherwise, it becomes a variable to solve for
-                    bool internal = rvd_link->get_src()->get_node() == rvd_link->get_sink()->get_node();
-                    if (internal)
-                    {
-                        row_lhs += path_sign==RSLatencyConstraint::PLUS?
-                            rvd_link->get_latency() : -rvd_link->get_latency();
-                    }
-                    else
-                    {
-                        // create/get 'column' variable
-                        auto varit = link_to_varno.find(rvd_link);
-                        if (varit == link_to_varno.end())
-                            varit = link_to_varno.emplace(rvd_link, next_varno++).first;
-                        int varno = varit->second;
-
-                        cur_row.coef.resize(next_varno-1);
-                        cur_row.varno.resize(next_varno-1);
-
-                        // add coefficient (+1/-1) to the row
-                        cur_row.coef[varno-1] += path_sign == RSLatencyConstraint::PLUS? 1.0 : -1.0;
-                        cur_row.varno[varno-1] = varno;
-                    }
-                }
-
-                last_rs_sink = RSPort::get_rs_port(rs_link->get_sink());
-            }
-        } // end path terms
-
-        // LHS is done. Set up row's comparison function and RHS
-        cur_row.rhs = constraint.rhs;
-        cur_row.rhs -= row_lhs;
-        
-        switch (constraint.op)
-        {
-        case RSLatencyConstraint::LT:
-            cur_row.rhs--;
-        case RSLatencyConstraint::LEQ:
-            cur_row.op = ROWTYPE_LE;
-            break;
-        case RSLatencyConstraint::CompareOp::EQ:
-            cur_row.op = ROWTYPE_EQ;
-            break;
-        case RSLatencyConstraint::GT:
-            cur_row.rhs++;
-        case RSLatencyConstraint::GEQ:
-            cur_row.op = ROWTYPE_GE;
-            break;
-        }
-    }// for each constraint
-
-     // Set up lp_solve problem
-    lprec* lp_prob = make_lp(lp_constraints.size(), next_varno-1);
-    if (!lp_prob)
-        throw HierException(sys, "couldn't create lp_solve problem");
-
-    set_verbose(lp_prob, NEUTRAL);
-    put_logfunc(lp_prob, nullptr, nullptr);
-    put_msgfunc(lp_prob, nullptr, nullptr, -1);
-    set_presolve(lp_prob, PRESOLVE_ROWS | PRESOLVE_COLS, get_presolveloops(lp_prob));
-    set_add_rowmode(lp_prob, TRUE);
-
-    // Set the objective function to minimize
-    {
-        std::vector<double> cns_coef;
-        std::vector<int> cns_varno;
-
-        for (auto it : link_to_varno)
-        {
-            RVDLink* link = it.first;
-            int varno = it.second;
-
-            // Coefficient = width of RVD link in bits.
-            // Add 1 to width to include overhead of valid bits, etc
-            int cost = link->get_width() + 1;
-
-            cns_coef.push_back((double)cost);
-            cns_varno.push_back(varno);
-        }
-
-        if (!set_obj_fnex(lp_prob, cns_coef.size(), cns_coef.data(), cns_varno.data()))
-            throw HierException(sys, "failed setting objective function");
-    }
-
-    // Register all constraints
-    for (auto& row : lp_constraints)
-    {
-        if (!add_constraintex(lp_prob, row.coef.size(), row.coef.data(), row.varno.data(), 
-            row.op, (double)row.rhs))
-        {
-            throw HierException(sys, "failed adding row constraint");
-        }
-    }
-
-    // Make all variables integers
-    set_add_rowmode(lp_prob, FALSE);
-    for (int i = 1; i < next_varno; i++)
-    {
-        set_int(lp_prob, i, TRUE);
-    }
-
-    // Solve and get results
-    set_minim(lp_prob);
-    switch (solve(lp_prob))
-    {
-    case NOMEMORY: throw HierException(sys, "lpsolve: out of memory"); break;
-    case NOFEASFOUND:
-    case INFEASIBLE: throw HierException(sys, "lpsolve: infeasible solution"); break;
-    case DEGENERATE:
-    case NUMFAILURE:
-    case PROCFAIL: throw HierException(sys, "lpsolve: misc failure"); break;
-    default: break;
-    }
-
-    // Get results and set latencies
-    {
-        int nrows = get_Norig_rows(lp_prob);
-        int ncols = get_Norig_columns(lp_prob);
-
-        auto varno_to_link = util::reverse_map(link_to_varno);
-
-        for (int col = 1; col <= ncols; col++)
-        {
-            int latency = (int)get_var_primalresult(lp_prob, nrows + col);
-
-            RVDLink* link = varno_to_link[col].front();
-            link->set_latency(latency);
-        }
-    }
-
-    delete_lp(lp_prob);
-}
-*/

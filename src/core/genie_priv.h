@@ -13,6 +13,7 @@ namespace impl
 	class NetworkDef;
 	class PortTypeDef;
 	class SigRoleDef;
+	class PrimDB;
 
 	using NetType = uint16_t;
 	constexpr NetType NET_INVALID = std::numeric_limits<NetType>::max();
@@ -26,9 +27,14 @@ namespace impl
 	using SigRoleType = genie::SigRoleType;
 	using SigRoleID = genie::SigRoleID;
 
-	// Node management
+	// Module database
+	PrimDB* load_prim_db(const std::string& modname, const SmartEnumTable& col_enum,
+		const SmartEnumTable& tnode_src_enum, const SmartEnumTable& tnode_sink_enum);
+	PrimDB* get_prim_db(const std::string& modname);
 	void register_reserved_module(const std::string&);
 	bool is_reserved_module(const std::string&);
+
+	// Node management
     Node* get_node(const std::string& name);
     std::vector<NodeSystem*> get_systems();
     void delete_node(Node* node);

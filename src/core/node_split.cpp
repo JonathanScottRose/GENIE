@@ -18,6 +18,11 @@ namespace
 	const char OUTPORT_NAME[] = "out";
 	const char CLOCKPORT_NAME[] = "clock";
 	const char RESETPORT_NAME[] = "reset";
+
+	PrimDB* s_prim_db;
+	SMART_ENUM(DB_COLS, NO_MULTICAST, N, BP);
+	SMART_ENUM(DB_SRC, I_VALID, I_MASK, I_READY, INT);
+	SMART_ENUM(DB_SINK, INT, O_VALID, O_READY);
 }
 
 FieldType genie::impl::FIELD_SPLITMASK;
@@ -25,6 +30,8 @@ FieldType genie::impl::FIELD_SPLITMASK;
 void NodeSplit::init()
 {
 	genie::impl::register_reserved_module(MODNAME);
+	s_prim_db = genie::impl::load_prim_db(MODNAME,
+		DB_COLS::get_table(), DB_SRC::get_table(), DB_SINK::get_table());
 	FIELD_SPLITMASK = register_field();
 }
 
