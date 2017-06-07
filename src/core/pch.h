@@ -8,7 +8,6 @@
 #include <unordered_set>
 #include <algorithm>
 #include <functional>
-#include <regex>
 #include <list>
 #include <queue>
 #include <map>
@@ -18,6 +17,8 @@
 #include <cstdarg>
 #include <cstdio>
 #include <memory>
+
+#include "regex.h" // necessary until GCC 5.4ish
 
 // GENIE stuff
 #include "genie/genie.h"
