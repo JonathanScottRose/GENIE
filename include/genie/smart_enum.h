@@ -93,8 +93,9 @@ protected:
 		static bool from_string(const char* str, name& out) \
 		{ \
 			unsigned tmp; \
-			return get_table().from_string(str, tmp); \
+			bool result = get_table().from_string(str, tmp); \
 			out._val = (name##_e)tmp; \
+			return result; \
 		} \
 		\
 		static unsigned size() \
