@@ -96,8 +96,8 @@ namespace graph
 		Graph();
 		Graph(const Graph&);
 		Graph(Graph&&);
-		Graph& Graph::operator=(const Graph&);
-		Graph& Graph::operator=(Graph&&);
+		Graph& operator=(const Graph&);
+		Graph& operator=(Graph&&);
 
 		// These can be passed to a range-based for loop and support begin() and end() methods
 		IterContainer<VContType, VertexID> iter_verts;

@@ -132,7 +132,7 @@ Node::~Node()
 	{
 		if (link_cont.get_type() != NET_INVALID)
 		{
-			auto& links = link_cont.get_all();
+			auto links = link_cont.get_all();
 			util::delete_all(links);
 		}
 	}
@@ -227,7 +227,7 @@ Node::Links Node::get_links() const
 	Links result;
 	for (auto& cont : m_links)
 	{
-		auto& links = cont.get_all();
+		auto links = cont.get_all();
 		result.insert(result.end(), links.begin(), links.end());
 	}
 	return result;

@@ -12,6 +12,8 @@ namespace lua_api
 	template<class T = genie::HierObject>
 	T* check_obj_or_str_hierpath(lua_State* L, int narg, genie::HierObject* parent)
 	{
+		using namespace genie;
+		
 		T* result = nullptr;
 
 		// Check if it's a string first
@@ -42,6 +44,8 @@ namespace lua_api
 	template<class T>
 	std::vector<T*> get_array_or_set(lua_State* L, int narg)
 	{
+		using namespace genie;
+		
 		std::vector<T*> result;
 		narg = lua_absindex(L, narg);
 

@@ -26,9 +26,9 @@ using namespace genie::impl::util;
 	#include <errno.h>
 	#include <limits.h>
 
-	std::string geni::impl::util::get_exe_path()
+	std::string genie::impl::util::get_exe_path()
 	{
-		std::string result(PATH_MAX);
+		std::string result(PATH_MAX, '\0');
 		ssize_t n = readlink("/proc/self/exe", 
 			const_cast<char*>(result.data()), result.size()+1);
 

@@ -232,6 +232,8 @@ genie::ArchParams& genie::impl::get_arch_params()
 // PUBLIC API
 //
 
+genie::APIObject::~APIObject() {}
+
 void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 {
     // Override default options

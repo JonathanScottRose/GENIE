@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <string>
+#include <stdexcept>
+#include <limits>
 
 namespace genie
 {
@@ -10,7 +12,7 @@ namespace genie
     class APIObject
     {
     protected:
-        virtual ~APIObject() = 0 {};
+        virtual ~APIObject() = 0;
     };
 
 	class HierObject : virtual public APIObject
