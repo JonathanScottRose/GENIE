@@ -23,21 +23,36 @@ logic [CYCLES3-1:0] rdptr;
 logic [CYCLES3-1:0] wrptr;
 logic [CYCLES-1:0] valid;
 
-wire pipe_enable = !o_valid || i_ready;
+logic stalled; // state bit
+logic saved_valid; // gets copy of incoming i_valid at input of shiftreg
 
 always_ff @ (posedge clk or posedge reset) begin
 	if (reset) begin
 		rdptr <= '0;
 		wrptr <= (CYCLES3)'(CYCLES);
 		valid <= '0;
+		stalled <= '0;
+		saved_valid <= '0;
 	end
-	else if (pipe_enable) begin
-		// Shift register for valid signal
-		valid <= {valid[CYCLES-2:0], i_valid};
+	else begin
+		// Output accepted = i_ready.
+		if (i_ready) begin
+			rdptr <= rdptr + (CYCLES3)'(1);
+			saved_valid <= i_valid;
+			
+			// Advance shiftreg chain only when output is ready.
+			// The first bit can come from one of two places
+			valid <= {valid[CYCLES-2:0], stalled? saved_valid : valid[0]};
+		end
+			
+		stalled <= !i_ready;
 		
-		// Pointers always increasing
-		rdptr <= (rdptr == (CYCLES3)'(MEMSIZE-1))? '0 : rdptr + (CYCLES3)'(1);
-		wrptr <= (wrptr == (CYCLES3)'(MEMSIZE-1))? '0 : wrptr + (CYCLES3)'(1);
+		// Advance write pointer only if read side is not in stalled state
+		if (!stalled) begin
+			wrptr <= wrptr + (CYCLES3)'(1);
+			// saved_valid holds the trampled-over version of this
+			valid[0] <= i_valid;
+		end
 	end
 end
 
@@ -46,11 +61,11 @@ end
 logic [WIDTH-1:0] mem [CYCLES:0];
 
 always_ff @ (posedge clk)
-	if (pipe_enable) mem[wrptr] <= i_data;
+	if (!stalled) mem[wrptr] <= i_data;
 
 assign o_valid = valid[CYCLES-1];
 assign o_data = mem[rdptr];
-assign o_ready = pipe_enable;
+assign o_ready = !stalled;
 
 
 endmodule

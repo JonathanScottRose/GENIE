@@ -130,10 +130,12 @@ module genie_clockx #
     localparam ADDR_WIDTH   = 4;
     localparam DEPTH        = 2 ** ADDR_WIDTH;
 
+	(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS; -name DONT_MERGE_REGISTER ON; -name PRESERVE_REGISTER ON; -name SDC_STATEMENT \"set_false_path -to [get_keepers {*altera_std_synchronizer:*|din_s1}]\" "} *) reg din_s1;
+	
     // ---------------------------------------------------------------------
     // Memory Pointers
     // ---------------------------------------------------------------------
-    (* ramstyle="no_rw_check,MLAB" *) reg [WIDTH - 1 : 0] mem [DEPTH - 1 : 0];
+    (* ramstyle="no_rw_check,MLAB", altera_attribute = {"-name IMPLEMENT_MLAB_IN_16_BIT_DEEP_MODE ON"} *) reg [WIDTH - 1 : 0] mem [DEPTH - 1 : 0];
     
     wire [ADDR_WIDTH - 1 : 0] mem_wr_ptr;
     wire [ADDR_WIDTH - 1 : 0] mem_rd_ptr;
