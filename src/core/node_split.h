@@ -24,6 +24,8 @@ namespace impl
         // Generic copy of an existing one
         NodeSplit* clone() const override;
 		void prepare_for_hdl() override;
+		void annotate_timing() override;
+		AreaMetrics annotate_area() override;
 
 		PROP_GET(n_outputs, unsigned, m_n_outputs);
 		void create_ports();

@@ -149,3 +149,15 @@ void NodeConv::prepare_for_hdl()
 }
 
 
+void NodeConv::annotate_timing()
+{
+	// todo
+}
+
+AreaMetrics NodeConv::annotate_area()
+{
+	// todo srsly
+	AreaMetrics result;
+	result.comb = m_out_width;
+	return result;
+}

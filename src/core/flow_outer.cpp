@@ -21,13 +21,11 @@ using flow::FlowStateOuter;
 
 namespace
 {
-	NodeSystem * create_snapshot(FlowStateOuter& fstate,
+	NodeSystem * create_snapshot(NodeSystem* sys, FlowStateOuter& fstate,
 		unsigned dom_id)
 	{
 		std::unordered_set<HierObject*> dom_nodes;
 		std::vector<Link*> dom_links;
-
-		auto sys = fstate.sys;
 
 		// Gather all RS logical links for the given domain
 		auto& dom_rs_link_ids = fstate.get_rs_domain(dom_id)->get_links();
@@ -61,10 +59,8 @@ namespace
 		return sys->create_snapshot(dom_nodes, dom_links);
 	}
 
-	void init_user_rs_ports(FlowStateOuter& fstate)
+	void init_user_rs_ports(NodeSystem* sys)
 	{
-		auto sys = fstate.sys;
-
 		// Visit RS ports in user modules as well as top-level ones in the system that
 		// may have been exported.
 		auto ports = sys->get_children_by_type<PortRS>();
@@ -127,11 +123,9 @@ namespace
 		}
 	}
 
-	void rs_assign_domains(FlowStateOuter& fstate)
+	void rs_assign_domains(NodeSystem* sys, FlowStateOuter& fstate)
 	{
 		using namespace graph;
-
-		auto sys = fstate.sys;
 
 		// We care about link->eid mapping and port->vid mapping
 		Attr2E<Link*> link_to_eid;
@@ -187,10 +181,8 @@ namespace
 		}
 	}
 
-	void rs_create_transmissions(FlowStateOuter& fstate)
+	void rs_create_transmissions(NodeSystem* sys, FlowStateOuter& fstate)
 	{
-		auto sys = fstate.sys;
-
 		// Go through all flows (logical RS links).
 		// Bin them by source
 		auto links = sys->get_links(NET_RS_LOGICAL);
@@ -234,13 +226,11 @@ namespace
 		}
 	}
 
-	void rs_find_manual_domains(FlowStateOuter& fstate)
+	void rs_find_manual_domains(NodeSystem* sys, FlowStateOuter& fstate)
 	{
 		// Look for all existing Topo links.
 		// This early in the flow, all such links were manually-created.
 		// Then, mark the domains of the endpoints as 'manual'.
-
-		auto sys = fstate.sys;
 
 		for (auto link : sys->get_links(NET_TOPO))
 		{
@@ -259,11 +249,10 @@ namespace
 		}
 	}
 
-	void rs_print_domain_stats(FlowStateOuter& fstate)
+	void rs_print_domain_stats(NodeSystem* sys, FlowStateOuter& fstate)
 	{
 		namespace log = genie::log;
 
-		auto sys = fstate.sys;
 		auto& domains = fstate.get_rs_domains();
 
 		if (domains.size() == 0)
@@ -465,81 +454,120 @@ namespace
 		}
 	}
 
-	void do_auto_domain(FlowStateOuter& fstate, unsigned dom_id)
+	AreaMetrics measure_impl_area(NodeSystem* sys)
 	{
-		auto sys = fstate.sys;
-		NodeSystem* snapshot = create_snapshot(fstate, dom_id);
+		AreaMetrics result;
 
-		// Apply crossbar topology and save snapshot
-		make_crossbar_topo(snapshot);
-		NodeSystem* topo_snapshot = snapshot->clone();
+		for (auto node : sys->get_nodes())
+		{
+			result += node->annotate_area();
+		}
+
+		return result;
+	}
+
+	NodeSystem* do_auto_domain(NodeSystem * snapshot, FlowStateOuter& fstate, unsigned dom_id)
+	{
+		// A pair representing a "system configuration":
+		// a topology-only system and the full system that it implements/elaborates into.
+		// It also holds the area usage of the implementation.
+		// Our goal is to find the best such pair!
+		struct SysConfig
+		{
+			NodeSystem* topo = nullptr;
+			NodeSystem* impl = nullptr;
+			AreaMetrics area;
+		};
+
+		// The current 'best' sysconfig: initialized with a crossbar
+		// topology and the implementation that results from it.
+		SysConfig best_config;
+
+		// Take the given system snapshot, which contains just the domain we want.
+		// It has only logical links. Give it a crossbar topology.
+		best_config.topo = snapshot;
+		make_crossbar_topo(best_config.topo);
+		
+		// Implement the initial crossbar topology and measure its area
+		best_config.impl = best_config.topo->clone();
+		topo_do_routing(best_config.impl);
+		flow::do_inner(best_config.impl, dom_id, &fstate);
+		best_config.area = measure_impl_area(best_config.impl);
 
 		//
 		// Outer loop starts here
 		//
+		for (bool outer_loop_done = false; !outer_loop_done; )
+		{
+			outer_loop_done = true;
 
-		// Do automatic routing
+			// Create next candidate topology from best_config.topo
+			// If candidate is acceptable, implement it and measure its area.
+			// Two possibilities:
+			//  1) Candidate has worse area: ignore and dispose of candidate config
+			//  2) Candidate has better area: candidate replaces best, dispose of old best, 
+			//     set outer_loop_done = false
+
+			// result: outer_loop_done will eventually remain true because no more acceptable
+			// AND better candidates will be found than the current best
+		}
+	
+		// Return the best possible implementation of the original
+		// domain snapshot
+		delete best_config.topo;
+		return best_config.impl;
+	}
+
+	NodeSystem* do_manual_domain(NodeSystem* snapshot, FlowStateOuter& fstate, unsigned dom_id)
+	{
+		// Do automatic routing on the existing manual topology
 		topo_do_routing(snapshot);
-		
-		// Take the xbar topo system through the inner flow
+
+		// Do the inner flow just once
 		flow::do_inner(snapshot, dom_id, &fstate);
-		
-		// Merge changes
-		sys->reintegrate_snapshot(snapshot);
-		delete snapshot;
 
-		//
-		// Outer loop ends here
-		//
-
-		delete topo_snapshot;
+		return snapshot;
 	}
 
-	void do_manual_domain(FlowStateOuter& fstate, unsigned dom_id)
+	void do_all_domains(NodeSystem* sys, FlowStateOuter& fstate)
 	{
-	}
-
-	void do_all_domains(FlowStateOuter& fstate)
-	{
-		auto sys = fstate.sys;
-
-		// Get IDs of non-manual domains
-		std::vector<unsigned> auto_domains, manual_domains;
-
 		for (auto& dom : fstate.get_rs_domains())
 		{
+			auto dom_id = dom.get_id();
+
+			// Create snapshot of original system, just containing
+			// the current domain and all the nodes connected to it.
+			NodeSystem* in_snapshot = create_snapshot(sys, fstate, dom_id);
+			NodeSystem* out_snapshot = nullptr;
+
 			if (dom.get_is_manual())
-				manual_domains.push_back(dom.get_id());
+			{
+				out_snapshot = do_manual_domain(in_snapshot, fstate, dom_id);
+			}
 			else
-				auto_domains.push_back(dom.get_id());
-		}
+			{
+				out_snapshot = do_auto_domain(in_snapshot, fstate, dom_id);
+			}
 
-		// Do automatic domains first
-		for (auto dom_id : auto_domains)
-		{
-			do_auto_domain(fstate, dom_id);
-		}
-
-		for (auto dom_id : manual_domains)
-		{
-			do_manual_domain(fstate, dom_id);
+			// Integrate the fleshed-out domain into the master system
+			sys->reintegrate_snapshot(out_snapshot);
+			delete out_snapshot;
 		}
 	}
 
     void do_system(NodeSystem* sys)
     {
 		FlowStateOuter fstate;
-		fstate.sys = sys;
 
 		sys->resolve_params();
 
-		rs_assign_domains(fstate);
-		rs_create_transmissions(fstate);
-		rs_find_manual_domains(fstate);
-		rs_print_domain_stats(fstate);
+		rs_assign_domains(sys, fstate);
+		rs_create_transmissions(sys, fstate);
+		rs_find_manual_domains(sys, fstate);
+		rs_print_domain_stats(sys, fstate);
 
-		init_user_rs_ports(fstate);
-		do_all_domains(fstate);
+		init_user_rs_ports(sys);
+		do_all_domains(sys, fstate);
 
 		connect_conduits(sys);
 		hdl::elab_system(sys);

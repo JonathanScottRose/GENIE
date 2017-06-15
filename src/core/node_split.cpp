@@ -6,6 +6,7 @@
 #include "port_clockreset.h"
 #include "address.h"
 #include "genie_priv.h"
+#include "prim_db.h"
 
 using namespace genie::impl;
 using hdl::PortBindingRef;
@@ -126,6 +127,78 @@ void NodeSplit::prepare_for_hdl()
 	auto& proto = get_carried_proto();
 	set_int_param("WIDTH", proto.get_total_width());
 	set_int_param("N", m_n_outputs);
+}
+
+void NodeSplit::annotate_timing()
+{
+	// Get node config
+	bool bp = get_input()->get_bp_status().status == RSBackpressure::ENABLED;
+
+	unsigned col_vals[DB_COLS::size()];
+	col_vals[DB_COLS::N] = m_n_outputs; assert(m_n_outputs <= 32);
+	col_vals[DB_COLS::BP] = bp ? 1 : 0;
+	col_vals[DB_COLS::NO_MULTICAST] = 0; // TODO: implement this
+
+	auto row = s_prim_db->get_row(col_vals);
+	auto tnodes = s_prim_db->get_tnodes(row);
+	assert(row);
+	assert(tnodes);
+
+	unsigned in_delay = 0;
+	unsigned out_delay = 0;
+	unsigned thru_delay = 0;
+
+	for (auto src : { DB_SRC::I_VALID, DB_SRC::I_MASK, DB_SRC::I_READY })
+	{
+		in_delay = std::max(in_delay,
+			s_prim_db->get_tnode_val(tnodes, src, DB_SINK::INT));
+	}
+
+	for (auto sink : { DB_SINK::O_VALID, DB_SINK::O_READY })
+	{
+		in_delay = std::max(in_delay,
+			s_prim_db->get_tnode_val(tnodes, DB_SRC::INT, sink));
+	}
+
+	for (auto pair : {
+		std::make_pair(DB_SRC::I_VALID, DB_SINK::O_VALID),
+		std::make_pair(DB_SRC::I_VALID, DB_SINK::O_READY),
+		std::make_pair(DB_SRC::I_MASK, DB_SINK::O_VALID),
+		std::make_pair(DB_SRC::I_MASK, DB_SINK::O_READY),
+		std::make_pair(DB_SRC::I_READY, DB_SINK::O_READY)})
+	{
+		thru_delay = std::max(thru_delay,
+			s_prim_db->get_tnode_val(tnodes, pair.first, pair.second));
+	}
+
+	for (unsigned i = 0; i < m_n_outputs; i++)
+	{
+		auto p = get_output(i);
+		p->set_logic_depth(out_delay);
+		auto lnk = (LinkRSPhys*)p->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->get_link0();
+		lnk->set_logic_depth(thru_delay);
+	}
+
+	get_input()->set_logic_depth(in_delay);
+}
+
+AreaMetrics NodeSplit::annotate_area()
+{
+	// Get node config
+	bool bp = get_input()->get_bp_status().status == RSBackpressure::ENABLED;
+
+	unsigned col_vals[DB_COLS::size()];
+	col_vals[DB_COLS::N] = m_n_outputs; assert(m_n_outputs <= 32);
+	col_vals[DB_COLS::BP] = bp ? 1 : 0;
+	col_vals[DB_COLS::NO_MULTICAST] = 0; // TODO: implement this
+
+	auto row = s_prim_db->get_row(col_vals);
+	assert(row);
+
+	auto metrics = s_prim_db->get_area_metrics(row);
+	assert(metrics);
+
+	return *metrics;
 }
 
 PortRS * NodeSplit::get_input() const

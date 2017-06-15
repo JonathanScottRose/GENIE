@@ -4,6 +4,7 @@
 #include "port_clockreset.h"
 #include "port_rs.h"
 #include "genie_priv.h"
+#include "prim_db.h"
 
 using namespace genie::impl;
 using hdl::PortBindingRef;
@@ -16,11 +17,19 @@ namespace
 	const char OUTPORT_NAME[] = "out";
 	const char CLOCKPORT_NAME[] = "clock";
 	const char RESETPORT_NAME[] = "reset";
+
+	PrimDB* s_prim_db;
+	SMART_ENUM(DB_COLS, WIDTH, CYCLES, BP);
+	SMART_ENUM(DB_SRC, I_VALID, I_READY, I_DATA, INT);
+	SMART_ENUM(DB_SINK, O_VALID, O_READY, O_DATA, INT);
 }
 
 void NodeMDelay::init()
 {
 	genie::impl::register_reserved_module(MODNAME);
+
+	s_prim_db = genie::impl::load_prim_db(MODNAME,
+		DB_COLS::get_table(), DB_SRC::get_table(), DB_SINK::get_table());
 }
 
 NodeMDelay::NodeMDelay()
@@ -110,4 +119,65 @@ void NodeMDelay::prepare_for_hdl()
 	set_int_param("CYCLES", m_delay);
 }
 
+void NodeMDelay::annotate_timing()
+{
+	// kinda pointless, since this is inserted after reg constraints
+}
 
+AreaMetrics NodeMDelay::annotate_area()
+{
+	AreaMetrics result;
+	unsigned node_width = get_carried_proto().get_total_width();
+	bool bp = get_output()->get_bp_status().status == RSBackpressure::ENABLED;
+	unsigned col_vals[DB_COLS::size()];
+
+	col_vals[DB_COLS::BP] = bp ? 1 : 0;
+
+	auto& ap = genie::impl::get_arch_params();
+
+	if (node_width == 0)
+	{
+		col_vals[DB_COLS::WIDTH] = 0;
+		col_vals[DB_COLS::CYCLES] = 2;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics = s_prim_db->get_area_metrics(row);
+		assert(metrics);
+		result = *metrics;
+	}
+	else
+	{
+		// Base cycles, base width
+		col_vals[DB_COLS::WIDTH] = 1;
+		col_vals[DB_COLS::CYCLES] = 2;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_base = s_prim_db->get_area_metrics(row);
+		assert(metrics_base);
+
+		// Base cycles, next width
+		col_vals[DB_COLS::WIDTH] = (ap.lutram_width + 1);
+		col_vals[DB_COLS::CYCLES] = 2;
+		row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_width = s_prim_db->get_area_metrics(row);
+		assert(metrics_width);
+
+		// Next cycles, base width
+		col_vals[DB_COLS::WIDTH] = 1;
+		col_vals[DB_COLS::CYCLES] = (ap.lutram_depth + 1);
+		row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_depth = s_prim_db->get_area_metrics(row);
+		assert(metrics_depth);
+
+		unsigned w_slices = (node_width + ap.lutram_width - 1) / ap.lutram_width;
+		unsigned d_slices = (m_delay + ap.lutram_depth - 1) / ap.lutram_depth;
+
+		result = *metrics_base +
+			(*metrics_width - *metrics_base)*w_slices +
+			(*metrics_depth - *metrics_base)*d_slices;
+	}
+
+	return result;
+}

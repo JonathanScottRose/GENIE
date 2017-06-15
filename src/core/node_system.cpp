@@ -244,6 +244,17 @@ void NodeSystem::prepare_for_hdl()
 {
 }
 
+void NodeSystem::annotate_timing()
+{
+	// this should never be called
+	assert(false);
+}
+
+AreaMetrics NodeSystem::annotate_area()
+{
+	return AreaMetrics();
+}
+
 NodeSystem* NodeSystem::clone() const
 {
 	auto result = new NodeSystem(*this);

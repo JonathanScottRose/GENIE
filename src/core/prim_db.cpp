@@ -34,6 +34,7 @@ void PrimDB::initialize(const std::string& filename,
 	// Get and validate number of columns
 	assert(fscanf(fp, " COLS %u", &n_cols) == 1);
 	assert(n_cols == col_enum.size());
+	m_n_cols = n_cols;
 
 	// Create mapping between file column names and enum column name order
 	for (unsigned i = 0; i < n_cols; i++)
@@ -136,7 +137,7 @@ auto PrimDB::get_row(ColumnVal cols[]) -> RowHandle
 	// Lookup in row data hash table (this hashes it again... oh well)
 	auto it = m_row_data.find(hash);
 	return (it == m_row_data.end()) ? nullptr :
-		static_cast<void*>(&*it);
+		static_cast<RowData*>(&it->second);
 }
 
 AreaMetrics* PrimDB::get_area_metrics(RowHandle row)
@@ -166,5 +167,57 @@ unsigned PrimDB::get_tnode_val(TNodesHandle tnodes, unsigned src, unsigned sink)
 	// Check for existence
 	assert(result != TNODE_GUARD_VAL);
 	return result;
+}
+
+AreaMetrics AreaMetrics::operator+(const AreaMetrics &o) const
+{
+	AreaMetrics result = *this;
+	result += o;
+	return result;
+}
+
+AreaMetrics AreaMetrics::operator-(const AreaMetrics &o) const
+{
+	AreaMetrics result = *this;
+	result -= o;
+	return result;
+}
+
+AreaMetrics genie::impl::AreaMetrics::operator*(unsigned x) const
+{
+	AreaMetrics result = *this;
+	result *= x;
+	return result;
+}
+
+AreaMetrics & AreaMetrics::operator+=(const AreaMetrics &o)
+{
+	this->alm += o.alm;
+	this->comb += o.comb;
+	this->reg += o.reg;
+	this->mem_alm += o.mem_alm;
+	return *this;
+}
+
+AreaMetrics & AreaMetrics::operator-=(const AreaMetrics &o)
+{
+	assert(this->alm >= o.alm);
+	assert(this->comb >= o.comb);
+	assert(this->reg >= o.reg);
+	assert(this->mem_alm >= o.mem_alm);
+	this->alm -= o.alm;
+	this->comb -= o.comb;
+	this->reg -= o.reg;
+	this->mem_alm -= o.mem_alm;
+	return *this;
+}
+
+AreaMetrics & genie::impl::AreaMetrics::operator*=(unsigned x)
+{
+	this->alm *= x;
+	this->comb *= x;
+	this->reg *= x;
+	this->mem_alm *= x;
+	return *this;
 }
 

@@ -3,6 +3,7 @@
 #include "port_clockreset.h"
 #include "port_rs.h"
 #include "net_rs.h"
+#include "prim_db.h"
 
 using namespace genie::impl;
 using hdl::PortBindingRef;
@@ -16,11 +17,19 @@ namespace
 	const char OUTDATAPORT_NAME[] = "out_data";
 	const char OUTCLOCKPORT_NAME[] = "out_clock";
 	const char RESETPORT_NAME[] = "reset";
+
+	PrimDB* s_prim_db;
+	SMART_ENUM(DB_COLS, WIDTH, BP);
+	SMART_ENUM(DB_SRC, I_DATA, I_VALID, I_READY, INT);
+	SMART_ENUM(DB_SINK, O_DATA, O_VALID, O_READY, INT);
 }
 
 void NodeClockX::init()
 {
 	genie::impl::register_reserved_module(MODNAME);
+
+	s_prim_db = genie::impl::load_prim_db(MODNAME,
+		DB_COLS::get_table(), DB_SRC::get_table(), DB_SINK::get_table());
 }
 
 void NodeClockX::init_vlog()
@@ -99,5 +108,82 @@ void NodeClockX::prepare_for_hdl()
 {
 	auto& proto = get_carried_proto();
 	set_int_param("WIDTH", proto.get_total_width());
+}
+
+void NodeClockX::annotate_timing()
+{
+	bool bp = get_outdata_port()->get_bp_status().status == RSBackpressure::ENABLED;
+	unsigned col_vals[DB_COLS::size()];
+
+	col_vals[DB_COLS::BP] = bp ? 1 : 0;
+	col_vals[DB_COLS::WIDTH] = 1; // irrelevant for timing
+	auto row = s_prim_db->get_row(col_vals);
+	auto tnodes = s_prim_db->get_tnodes(row);
+	assert(row);
+	assert(tnodes);
+
+	unsigned in_delay = 0;
+	unsigned out_delay = 0;
+
+	in_delay = std::max(
+		s_prim_db->get_tnode_val(tnodes, DB_SRC::I_DATA, DB_SINK::INT),
+		s_prim_db->get_tnode_val(tnodes, DB_SRC::I_VALID, DB_SINK::INT)
+	);
+	
+	out_delay = std::max(
+		s_prim_db->get_tnode_val(tnodes, DB_SRC::INT, DB_SINK::O_DATA),
+		s_prim_db->get_tnode_val(tnodes, DB_SRC::INT, DB_SINK::O_VALID)
+	);
+
+	if (bp)
+	{
+		in_delay =
+			std::max(in_delay, s_prim_db->get_tnode_val(tnodes, DB_SRC::I_READY, DB_SINK::INT));
+
+		out_delay =
+			std::max(out_delay, s_prim_db->get_tnode_val(tnodes, DB_SRC::INT, DB_SINK::O_READY));
+	}
+
+	get_indata_port()->set_logic_depth(in_delay);
+	get_outdata_port()->set_logic_depth(out_delay);
+}
+
+AreaMetrics NodeClockX::annotate_area()
+{
+	AreaMetrics result;
+
+	unsigned node_width = get_carried_proto().get_total_width();
+	bool bp = get_outdata_port()->get_bp_status().status == RSBackpressure::ENABLED;
+	unsigned col_vals[DB_COLS::size()];
+	
+	col_vals[DB_COLS::BP] = bp ? 1 : 0;
+
+	if (node_width == 0)
+	{
+		col_vals[DB_COLS::WIDTH] = 0;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics = s_prim_db->get_area_metrics(row);
+		assert(metrics);
+		result = *metrics;
+	}
+	else
+	{
+		col_vals[DB_COLS::WIDTH] = 2;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_2 = s_prim_db->get_area_metrics(row);
+		assert(metrics_2);
+		
+		col_vals[DB_COLS::WIDTH] = 1;
+		row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_1 = s_prim_db->get_area_metrics(row);
+		assert(metrics_1);
+
+		result = *metrics_1 + (*metrics_2 - *metrics_1)*node_width;
+	}
+
+	return result;
 }
 

@@ -375,6 +375,22 @@ namespace
 		return 0;
 	}
 
+	/// Sets the maximum logic depth for the system
+	///
+	/// Overrides the global setting.
+	/// @function set_max_logic_depth
+	/// @tparam int depth
+	LFUNC(sys_set_max_logic_depth)
+	{
+		auto self = lua_if::check_object<System>(1);
+		lua_Integer depth = luaL_checkinteger(L, 2);
+		luaL_argcheck(L, depth >= 1, 2, "logic depth must be at least 1");
+
+		self->set_max_logic_depth((unsigned)depth);
+
+		return 0;
+	}
+
     LSUBCLASS(System, (Node),
     {
         LM(create_sys_param, sys_create_sys_param),
@@ -387,7 +403,8 @@ namespace
 		LM(export_port, sys_export_port),
 		LM(create_split, sys_create_split),
 		LM(create_merge, sys_create_merge),
-		LM(make_exclusive, sys_make_exclusive)
+		LM(make_exclusive, sys_make_exclusive),
+		LM(set_max_logic_depth, sys_set_max_logic_depth)
     });
 
 	/// Represents a user-defined module.

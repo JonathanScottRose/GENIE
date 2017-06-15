@@ -59,7 +59,9 @@ namespace impl
 		NodeSystem* clone() const override;
         Node* instantiate() const override;
 		void prepare_for_hdl() override;
-        
+		void annotate_timing() override;
+		AreaMetrics annotate_area() override;
+
         std::vector<Node*> get_nodes() const;
 		ExclusivityInfo& get_link_exclusivity() const;
 		SyncConstraints& get_sync_constraints() const;

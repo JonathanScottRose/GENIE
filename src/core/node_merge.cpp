@@ -5,6 +5,7 @@
 #include "port_clockreset.h"
 #include "port_rs.h"
 #include "genie_priv.h"
+#include "prim_db.h"
 
 using namespace genie::impl;
 using hdl::PortBindingRef;
@@ -18,12 +19,27 @@ namespace
 	const char OUTPORT_NAME[] = "out";
 	const char CLOCKPORT_NAME[] = "clock";
 	const char RESETPORT_NAME[] = "reset";
+
+	PrimDB* s_prim_db;
+	SMART_ENUM(DB_COLS, NI, WIDTH, BP, EOP);
+	SMART_ENUM(DB_SRC, I_VALID, I_READY, I_DATA, I_EOP, INT);
+	SMART_ENUM(DB_SINK, O_VALID, O_READY, O_DATA, O_EOP, INT);
+
+	PrimDB* s_prim_db_ex;
+	SMART_ENUM(DB_EX_COLS, NI, WIDTH);
+	SMART_ENUM(DB_EX_SRC, I_VALID, I_DATA, I_EOP);
+	SMART_ENUM(DB_EX_SINK, O_VALID, O_DATA, O_EOP);
 }
 
 void NodeMerge::init()
 {
 	genie::impl::register_reserved_module(MODNAME);
 	genie::impl::register_reserved_module(MODNAME_EX);
+
+	s_prim_db = genie::impl::load_prim_db(MODNAME,
+		DB_COLS::get_table(), DB_SRC::get_table(), DB_SINK::get_table());
+	s_prim_db_ex = genie::impl::load_prim_db(MODNAME_EX,
+		DB_EX_COLS::get_table(), DB_EX_SRC::get_table(), DB_EX_SINK::get_table());
 }
 
 NodeMerge::NodeMerge()
@@ -127,4 +143,205 @@ void NodeMerge::prepare_for_hdl()
 	// This assumes it was set to MODNAME by default before
 	if (m_is_exclusive)
 		set_hdl_name(MODNAME_EX);
+}
+
+void NodeMerge::annotate_timing()
+{
+	m_is_exclusive ? annotate_timing_ex() : annotate_timing_nonex();
+}
+
+AreaMetrics NodeMerge::annotate_area()
+{
+	return m_is_exclusive ? annotate_area_ex() : annotate_area_nonex();
+}
+
+void NodeMerge::annotate_timing_nonex()
+{
+	// Get merge node config
+	unsigned width = get_carried_proto().get_total_width();
+	bool bp = get_output()->get_bp_status().status == RSBackpressure::ENABLED;
+	bool eop = false;
+	for (unsigned i = 0; i < m_n_inputs; i++)
+	{
+		// If any input has a non-const EOP, then EOP is used
+		if (get_input(i)->get_proto().get_const(FIELD_EOP) == nullptr)
+		{
+			eop = true;
+			break;
+		}
+	}
+	
+	unsigned col_vals[DB_COLS::size()];
+	col_vals[DB_COLS::NI] = m_n_inputs; assert(m_n_inputs <= 32);
+	col_vals[DB_COLS::BP] = bp ? 1 : 0;
+	col_vals[DB_COLS::EOP] = eop ? 1 : 0;
+	col_vals[DB_COLS::WIDTH] = 1;
+
+	auto row = s_prim_db->get_row(col_vals);
+	auto tnodes = s_prim_db->get_tnodes(row);
+	assert(row);
+	assert(tnodes);
+
+	unsigned in_delay = 0;
+	unsigned out_delay = 0;
+	unsigned thru_delay = 0;
+
+	for (auto src : { DB_SRC::I_VALID, DB_SRC::I_EOP, DB_SRC::I_READY })
+	{
+		in_delay = std::max(in_delay,
+			s_prim_db->get_tnode_val(tnodes, src, DB_SINK::INT));
+	}
+
+	for (auto sink : { DB_SINK::O_EOP, DB_SINK::O_VALID, DB_SINK::O_DATA, DB_SINK::O_READY })
+	{
+		in_delay = std::max(in_delay,
+			s_prim_db->get_tnode_val(tnodes, DB_SRC::INT, sink));
+	}
+
+	for (auto pair : {
+		std::make_pair(DB_SRC::I_DATA, DB_SINK::O_DATA),
+		std::make_pair(DB_SRC::I_VALID, DB_SINK::O_VALID),
+		std::make_pair(DB_SRC::I_VALID, DB_SINK::O_DATA),
+		std::make_pair(DB_SRC::I_VALID, DB_SINK::O_EOP),
+		std::make_pair(DB_SRC::I_VALID, DB_SINK::O_READY),
+		std::make_pair(DB_SRC::I_EOP, DB_SINK::O_EOP),
+		std::make_pair(DB_SRC::I_READY, DB_SINK::O_READY) })
+	{
+		thru_delay = std::max(thru_delay,
+			s_prim_db->get_tnode_val(tnodes, pair.first, pair.second));
+	}
+
+	for (unsigned i = 0; i < m_n_inputs; i++)
+	{
+		auto p = get_input(i);
+		p->set_logic_depth(in_delay);
+		auto lnk = (LinkRSPhys*)p->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->get_link0();
+		lnk->set_logic_depth(thru_delay);
+	}
+
+	get_output()->set_logic_depth(out_delay);
+}
+
+void NodeMerge::annotate_timing_ex()
+{
+	// Get merge node config
+	unsigned width = get_carried_proto().get_total_width();
+
+	unsigned col_vals[DB_EX_COLS::size()];
+	col_vals[DB_EX_COLS::NI] = m_n_inputs; assert(m_n_inputs <= 32);
+	col_vals[DB_EX_COLS::WIDTH] = 1;
+
+	auto row = s_prim_db_ex->get_row(col_vals);
+	auto tnodes = s_prim_db_ex->get_tnodes(row);
+	assert(row);
+	assert(tnodes);
+
+	unsigned thru_delay = 0;
+
+	for (auto pair : {
+		std::make_pair(DB_EX_SRC::I_DATA, DB_EX_SINK::O_DATA),
+		std::make_pair(DB_EX_SRC::I_VALID, DB_EX_SINK::O_VALID),
+		std::make_pair(DB_EX_SRC::I_VALID, DB_EX_SINK::O_DATA),
+		std::make_pair(DB_EX_SRC::I_VALID, DB_EX_SINK::O_EOP),
+		std::make_pair(DB_EX_SRC::I_EOP, DB_EX_SINK::O_EOP) })
+	{
+		thru_delay = std::max(thru_delay,
+			s_prim_db_ex->get_tnode_val(tnodes, pair.first, pair.second));
+	}
+
+	for (auto lnk : get_output()->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->links())
+	{
+		((LinkRSPhys*)lnk)->set_logic_depth(thru_delay);
+	}
+}
+
+AreaMetrics NodeMerge::annotate_area_nonex()
+{
+	AreaMetrics result;
+	unsigned node_width = get_carried_proto().get_total_width();
+	bool bp = get_output()->get_bp_status().status == RSBackpressure::ENABLED;
+	bool eop = false;
+	for (unsigned i = 0; i < m_n_inputs; i++)
+	{
+		// If any input has a non-const EOP, then EOP is used
+		if (get_input(i)->get_proto().get_const(FIELD_EOP) == nullptr)
+		{
+			eop = true;
+			break;
+		}
+	}
+	unsigned col_vals[DB_COLS::size()];
+
+	col_vals[DB_COLS::BP] = bp ? 1 : 0;
+	col_vals[DB_COLS::EOP] = eop ? 1 : 0;
+	col_vals[DB_COLS::NI] = m_n_inputs;
+
+	if (node_width == 0)
+	{
+		col_vals[DB_COLS::WIDTH] = 0;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics = s_prim_db->get_area_metrics(row);
+		assert(metrics);
+		result = *metrics;
+	}
+	else
+	{
+		// width 1
+		col_vals[DB_COLS::WIDTH] = 1;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_1 = s_prim_db->get_area_metrics(row);
+		assert(metrics_1);
+
+		// width 2
+		col_vals[DB_COLS::WIDTH] = 2;
+		row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_2 = s_prim_db->get_area_metrics(row);
+		assert(metrics_2);
+
+		result = *metrics_1 + (*metrics_2 - *metrics_1)*node_width;
+	}
+
+	return result;
+}
+
+AreaMetrics NodeMerge::annotate_area_ex()
+{
+	AreaMetrics result;
+	unsigned node_width = get_carried_proto().get_total_width();
+
+	unsigned col_vals[DB_EX_COLS::size()];
+	col_vals[DB_EX_COLS::NI] = m_n_inputs;
+
+	if (node_width == 0)
+	{
+		col_vals[DB_EX_COLS::WIDTH] = 0;
+		auto row = s_prim_db_ex->get_row(col_vals);
+		assert(row);
+		auto metrics = s_prim_db_ex->get_area_metrics(row);
+		assert(metrics);
+		result = *metrics;
+	}
+	else
+	{
+		// width 1
+		col_vals[DB_EX_COLS::WIDTH] = 1;
+		auto row = s_prim_db_ex->get_row(col_vals);
+		assert(row);
+		auto metrics_1 = s_prim_db_ex->get_area_metrics(row);
+		assert(metrics_1);
+
+		// width 2
+		col_vals[DB_EX_COLS::WIDTH] = 2;
+		row = s_prim_db_ex->get_row(col_vals);
+		assert(row);
+		auto metrics_2 = s_prim_db_ex->get_area_metrics(row);
+		assert(metrics_2);
+
+		result = *metrics_1 + (*metrics_2 - *metrics_1)*node_width;
+	}
+
+	return result;
 }

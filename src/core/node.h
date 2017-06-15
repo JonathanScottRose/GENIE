@@ -4,6 +4,7 @@
 #include "hdl.h"
 #include "network.h"
 #include "genie/node.h"
+#include "prim_db.h"
 
 namespace genie
 {
@@ -40,6 +41,8 @@ namespace impl
 		virtual ~Node();
 
 		virtual void prepare_for_hdl() = 0;
+		virtual void annotate_timing() = 0;
+		virtual AreaMetrics annotate_area() = 0;
 
 		PROP_GET_SET(hdl_name, const std::string&, m_hdl_name);
         Node* get_parent_node() const;

@@ -559,6 +559,43 @@ namespace
 		}
 	}
 
+	void splice_backpressure(PortRS* orig_src, PortRS* new_sink, PortRS* new_src, PortRS* orig_sink)
+	{
+		auto& orig_sink_bp = orig_sink->get_bp_status();
+		RSBackpressure::Status cur_status = orig_sink_bp.status;
+		
+		// Make sure orig_sink has been decided already.
+		// We will propagate this backwards.
+		assert(cur_status != RSBackpressure::UNSET);
+
+		// Propagate through new_src and new_sink
+		for (auto port : { new_src, new_sink })
+		{
+			auto& bp = port->get_bp_status();
+
+			if (bp.configurable)
+			{
+				// If it's disabled, keep it the same or upgrade it to enabled.
+				// If it's enabled, keep it that way and propagate the enabledness further back
+				if (bp.status == RSBackpressure::DISABLED ||
+					bp.status == RSBackpressure::UNSET)
+					bp.status = cur_status;
+				else
+					cur_status = RSBackpressure::ENABLED;
+			}
+			else
+			{
+				// If not configurable, make sure it's not mismatched in a bad way
+				assert(!(cur_status == RSBackpressure::ENABLED &&
+					bp.status == RSBackpressure::DISABLED));
+			}
+		}
+
+		// Make sure orig_src is the same setting
+		auto& orig_src_bp = orig_src->get_bp_status();
+		assert(orig_src_bp.status == cur_status);
+	}
+
 	void default_eops(FlowStateInner& fstate)
 	{
 		// Default unconnected EOPs to 1
@@ -961,6 +998,7 @@ namespace
 				sys->splice(orig_link, md->get_input(), md->get_output());
 				sys->connect(clock_driver, md->get_clock_port(), NET_CLOCK);
 				flow::splice_carrier_protocol(orig_src, orig_sink, md);
+				splice_backpressure(orig_src, md->get_input(), md->get_output(), orig_sink);
 			}
 			else
 			{
@@ -980,11 +1018,23 @@ namespace
 
 					sys->connect(clock_driver, rg->get_clock_port(), NET_CLOCK);
 					flow::splice_carrier_protocol(link_src, link_sink, rg);
+					splice_backpressure(link_src, rg->get_input(), rg->get_output(), link_sink);
 				}
 			}
 
+			// Reset link latency to 0 now that it's been realized
 			orig_link->set_latency(0);
 			pipe_no++;
+		}
+	}
+
+	void annotate_timing(FlowStateInner& fstate)
+	{
+		auto sys = fstate.sys;
+
+		for (auto node : sys->get_nodes())
+		{
+			node->annotate_timing();
 		}
 	}
 }
@@ -1001,16 +1051,18 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 	realize_topo_links(fstate);
 	insert_addr_converters_user(fstate);
 	insert_addr_converters_split(fstate);
-	do_protocol_carriage(fstate);
+	do_protocol_carriage(fstate); // all protocol updating is incremental past this point
 
 	connect_clocks(fstate);
 	insert_clockx(fstate);
 
+	do_backpressure(fstate); // all backpressure updating is incremental past this point
+
+	annotate_timing(fstate);
 	flow::solve_latency_constraints(sys);
 	realize_latencies(fstate);
 
 	connect_resets(fstate);
-	do_backpressure(fstate);
 	default_eops(fstate);
 	default_xmis_ids(fstate);
 }

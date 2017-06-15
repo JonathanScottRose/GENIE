@@ -205,8 +205,6 @@ void Graph::newv(VertexID id)
 {
 	assert(V.count(id) == 0);
 	V.emplace(id, Vertex());
-	while (V.count(m_next_vid = ++id) > 0)
-		;
 }
 
 EdgeID Graph::newe(VertexID v1, VertexID v2)

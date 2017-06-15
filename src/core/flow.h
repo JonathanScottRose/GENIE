@@ -52,8 +52,6 @@ namespace flow
 	public:
 		using RSDomains = std::vector<DomainRS>;
 
-		NodeSystem* sys = nullptr;
-
 		const RSDomains& get_rs_domains() const;
 		DomainRS* get_rs_domain(unsigned);
 		DomainRS& new_rs_domain(unsigned id);

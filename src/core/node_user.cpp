@@ -39,6 +39,16 @@ void NodeUser::prepare_for_hdl()
 {
 }
 
+void NodeUser::annotate_timing()
+{
+	// do nothing for user nodes
+}
+
+AreaMetrics NodeUser::annotate_area()
+{
+	return AreaMetrics();
+}
+
 NodeUser* NodeUser::clone() const
 {
 	auto result = new NodeUser(*this);

@@ -331,6 +331,15 @@ function Builder:logic_depth(depth)
 	self.cur_port:set_logic_depth(depth)
 end
 
+--- Sets the maximum logic depth for the System
+--
+-- This overrides the global setting in the GENIE options.
+-- @tparam integer depth
+function Builder:logic_depth(depth)
+	if not self.sys then error("no current system") end
+	self.cur_sys:set_max_logic_depth(depth)
+end
+
 
 
 --- Creates a latency query.

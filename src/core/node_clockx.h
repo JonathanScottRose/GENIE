@@ -19,6 +19,8 @@ namespace impl
 
 		NodeClockX* clone() const override;
 		void prepare_for_hdl() override;
+		void annotate_timing() override;
+		AreaMetrics annotate_area() override;
 
 		PortRS* get_indata_port() const;
 		PortRS* get_outdata_port() const;
