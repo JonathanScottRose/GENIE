@@ -701,3 +701,7 @@ std::string PortBindingRef::to_string() const
     return result;
 }
 
+bool Port::sizes_are_resolved()
+{
+	return m_width.is_const() && m_depth.is_const();
+}

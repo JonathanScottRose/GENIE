@@ -62,7 +62,7 @@ NodeClockX::NodeClockX()
 	inport->add_role_binding(PortRS::VALID, "i_valid");		
 	inport->add_role_binding(PortRS::DATA_CARRIER, "i_data");
     inport->add_role_binding(PortRS::READY, "o_ready");
-    inport->get_bp_status().force_enable();
+    inport->get_bp_status().make_configurable();
 	add_port(inport);
 
 	auto outport = new PortRS(OUTDATAPORT_NAME, Port::Dir::OUT, OUTCLOCKPORT_NAME);
@@ -77,6 +77,9 @@ NodeClockX::NodeClockX()
 	// clock domains. However, it allows other parts of GENIE to at least treat
 	// the internal link as a non-purely-combinational path.
 	int_link->set_latency(2);
+
+	// also TODO: if going from slower domain to faster domain, output's lack of backpressure
+	// means input can turn off backpressure too
 }
 
 PortClock* NodeClockX::get_inclock_port() const
@@ -158,9 +161,9 @@ AreaMetrics NodeClockX::annotate_area()
 	
 	col_vals[DB_COLS::BP] = bp ? 1 : 0;
 
-	if (node_width == 0)
+	if (node_width == 0 || node_width == 1)
 	{
-		col_vals[DB_COLS::WIDTH] = 0;
+		col_vals[DB_COLS::WIDTH] = node_width;
 		auto row = s_prim_db->get_row(col_vals);
 		assert(row);
 		auto metrics = s_prim_db->get_area_metrics(row);
@@ -169,19 +172,19 @@ AreaMetrics NodeClockX::annotate_area()
 	}
 	else
 	{
-		col_vals[DB_COLS::WIDTH] = 2;
+		col_vals[DB_COLS::WIDTH] = 3;
 		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_3 = s_prim_db->get_area_metrics(row);
+		assert(metrics_3);
+		
+		col_vals[DB_COLS::WIDTH] = 2;
+		row = s_prim_db->get_row(col_vals);
 		assert(row);
 		auto metrics_2 = s_prim_db->get_area_metrics(row);
 		assert(metrics_2);
-		
-		col_vals[DB_COLS::WIDTH] = 1;
-		row = s_prim_db->get_row(col_vals);
-		assert(row);
-		auto metrics_1 = s_prim_db->get_area_metrics(row);
-		assert(metrics_1);
 
-		result = *metrics_1 + (*metrics_2 - *metrics_1)*node_width;
+		result = *metrics_2 + (*metrics_3 - *metrics_2)*(node_width-1);
 	}
 
 	return result;

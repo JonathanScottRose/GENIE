@@ -46,6 +46,8 @@ namespace impl
 		void add_signal_ex(const SigRoleID& role,
 			const HDLPortSpec&, const HDLBindSpec&) override;
 		void set_logic_depth(unsigned) override;
+		void set_default_packet_size(unsigned) override;
+		void set_default_importance(float) override;
 
     public:
 		struct RoleBinding
@@ -60,7 +62,7 @@ namespace impl
 
         PortRS(const std::string& name, genie::Port::Dir dir);
 		PortRS(const std::string& name, genie::Port::Dir dir, const std::string& clk_port_name);
-        PortRS(const PortRS&);
+		PortRS(const PortRS&) = default;
         ~PortRS();
 
         PortRS* clone() const override;
@@ -69,6 +71,8 @@ namespace impl
 		PortType get_type() const override { return PORT_RS; }
 		void reintegrate(HierObject*) override;
 
+		PROP_GET(default_packet_size, unsigned, m_default_pkt_size);
+		PROP_GET(default_importance, float, m_default_importance);
 		PROP_GET(logic_depth, unsigned, m_logic_depth);
         PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
 		PROP_GET_SETR(proto, PortProtocol&, m_proto);
@@ -95,6 +99,8 @@ namespace impl
 		FieldInst* get_field(const FieldID&);
 
     protected:
+		float m_default_importance; // only for user specification
+		unsigned m_default_pkt_size; // only for user specification
 		unsigned m_logic_depth;
         std::string m_clk_port_name;
 		PortProtocol m_proto;

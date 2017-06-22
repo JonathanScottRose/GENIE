@@ -6,6 +6,7 @@
 #include "net_rs.h"
 #include "net_topo.h"
 #include "port.h"
+#include "port_rs.h"
 #include "node_split.h"
 #include "node_merge.h"
 #include "node_user.h"
@@ -107,8 +108,7 @@ genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & op
 	assert(orig);
 
 	// We must resolve parameters first
-	resolve_params();
-	orig_impl->get_node()->resolve_params();
+	orig_impl->get_node()->resolve_size_params();
 
 	// 1) Check if port is exportable: must not already belong to the system
 	if (orig_impl->get_node() == this)
@@ -177,7 +177,7 @@ genie::Node * NodeSystem::create_merge(const std::string & opt_name)
 
 void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
 {
-	auto& excl = get_link_exclusivity();
+	auto& excl = get_spec().excl_info;
 
 	for (auto it1 = links.begin(); it1 != links.end(); ++it1)
 	{
@@ -197,13 +197,48 @@ void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
 void NodeSystem::add_sync_constraint(const genie::SyncConstraint & constraint)
 {
 	//TODO: verify
-	auto& cnst = get_sync_constraints();
+	auto& cnst = get_spec().sync_constraints;
 	cnst.push_back(constraint);
 }
 
 void NodeSystem::set_max_logic_depth(unsigned max_depth)
 {
-	m_max_logic_depth = max_depth;
+	get_spec().max_logic_depth = max_depth;
+}
+
+void NodeSystem::create_latency_query(std::vector<genie::LinkRS*> chain, const std::string & param_name)
+{
+	auto& lat_queries = get_spec().latency_queries;
+	lat_queries.emplace_back();
+	auto& query = lat_queries.back();
+
+	PortRS* last_sink = nullptr;
+	
+	for (auto link_pub : chain)
+	{
+		auto link_impl = static_cast<LinkRSLogical*>(link_pub);
+
+		// Get source and sink ports
+		auto src = static_cast<PortRS*>(link_impl->get_src());
+		auto sink = static_cast<PortRS*>(link_impl->get_sink());
+
+		// Test to make sure that the last link's sink and this link's src are bonded
+		// via an internal link through an intervening node
+		if (last_sink)
+		{
+			auto node = src->get_node();
+			if (node->get_links(last_sink, src, NET_RS_PHYS).empty())
+			{
+				throw Exception(node->get_hier_path() + ": has no internal link connecting " +
+					last_sink->get_hier_path() + " and " + src->get_hier_path());
+			}
+		}
+
+		query.chain_links.push_back(link_impl->get_id());
+	}
+
+	// Name of system-level HDL parameter to stuff the answer into later
+	query.param_name = param_name;
 }
 
 //
@@ -212,11 +247,10 @@ void NodeSystem::set_max_logic_depth(unsigned max_depth)
 
 NodeSystem::NodeSystem(const std::string & name)
     : Node(name, name), 
-	m_excl_info(std::make_shared<ExclusivityInfo>()),
-	m_sync_constraints(std::make_shared<SyncConstraints>())
+	m_spec(std::make_shared<SystemSpec>())
 {
 	// Max logic depth defaults to global setting
-	m_max_logic_depth = genie::impl::get_flow_options().max_logic_depth;
+	get_spec().max_logic_depth = genie::impl::get_flow_options().max_logic_depth;
 }
 
 NodeSystem::~NodeSystem()
@@ -279,14 +313,9 @@ std::vector<Node*> NodeSystem::get_nodes() const
     return get_children_by_type<Node>();
 }
 
-ExclusivityInfo & NodeSystem::get_link_exclusivity() const
+SystemSpec& NodeSystem::get_spec() const
 {
-	return *m_excl_info.get();
-}
-
-SyncConstraints & NodeSystem::get_sync_constraints() const
-{
-	return *m_sync_constraints.get();
+	return *m_spec.get();
 }
 
 NodeSystem * NodeSystem::create_snapshot(
@@ -413,10 +442,7 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)
-    : Node(o), 
-	m_excl_info(o.m_excl_info),
-	m_sync_constraints(o.m_sync_constraints),
-	m_max_logic_depth(o.m_max_logic_depth)
+    : Node(o), m_spec(o.m_spec)
 {
 }
 

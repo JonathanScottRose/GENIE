@@ -8,11 +8,7 @@ namespace genie
 {
 namespace impl
 {
-	namespace flow
-	{
-		class FlowStateOuter;
-	}
-
+	// TODO: move spec types to separate file?
 	class ExclusivityInfo
 	{
 	public:
@@ -26,7 +22,22 @@ namespace impl
 		std::unordered_map <LinkID,Set> m_sets;
 	};
 
-	using SyncConstraints = std::vector<SyncConstraint>;
+	struct LatencyQuery
+	{
+		std::vector<LinkID> chain_links;
+		std::string param_name;
+	};
+
+	struct SystemSpec
+	{
+		using LatencyQueries = std::vector<LatencyQuery>;
+		using SyncConstraints = std::vector<genie::SyncConstraint>;
+
+		LatencyQueries latency_queries;
+		SyncConstraints sync_constraints;
+		ExclusivityInfo excl_info;
+		unsigned max_logic_depth;
+	};
 
     class NodeSystem : virtual public genie::System, public Node, public IInstantiable
     {
@@ -50,9 +61,14 @@ namespace impl
 
 		void make_exclusive(const std::vector<genie::LinkRS*>& links) override;
 		void add_sync_constraint(const SyncConstraint& constraint) override;
-		void set_max_logic_depth(unsigned max_depth);
+		void set_max_logic_depth(unsigned max_depth) override;
+		void create_latency_query(std::vector<LinkRS*> chain,
+			const std::string& param_name) override;;
 
     public:
+		using SyncConstraints = std::vector<SyncConstraint>;
+		using LatencyQueries = std::vector<LatencyQuery>;
+
         NodeSystem(const std::string& name);
 		~NodeSystem();
 
@@ -63,9 +79,7 @@ namespace impl
 		AreaMetrics annotate_area() override;
 
         std::vector<Node*> get_nodes() const;
-		ExclusivityInfo& get_link_exclusivity() const;
-		SyncConstraints& get_sync_constraints() const;
-		PROP_GET(max_logic_depth, unsigned, m_max_logic_depth);
+		SystemSpec& get_spec() const;
 
 		NodeSystem* create_snapshot(const std::unordered_set<HierObject*>&, 
 			const std::vector<Link*>&);
@@ -74,9 +88,7 @@ namespace impl
     protected:
 		NodeSystem(const NodeSystem&);
 
-		std::shared_ptr<ExclusivityInfo> m_excl_info;
-		std::shared_ptr<SyncConstraints> m_sync_constraints;
-		unsigned m_max_logic_depth;
+		std::shared_ptr<SystemSpec> m_spec;
     };
 }
 }

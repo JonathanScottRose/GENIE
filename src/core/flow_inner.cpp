@@ -129,7 +129,7 @@ namespace
 		// exclusive with every logical link carried by the second topo link.
 		
 		auto sys = fstate.sys;
-		auto& excl = sys->get_link_exclusivity();
+		auto& excl = sys->get_spec().excl_info;
 		auto& rel = sys->get_link_relations();
 		auto fs_out = fstate.outer;
 
@@ -298,7 +298,8 @@ namespace
 		for (auto user_port : user_ports)
 		{
 			// System-facing endpoint
-			auto ep = user_port->get_endpoint(NET_RS_PHYS, user_port->get_effective_dir(sys));
+			auto user_port_dir = user_port->get_effective_dir(sys);
+			auto ep = user_port->get_endpoint(NET_RS_PHYS, user_port_dir);
 			auto rs_link = static_cast<LinkRSPhys*>(ep->get_link0());
 			if (!rs_link)
 				continue;
@@ -310,8 +311,32 @@ namespace
 				// If only one address bin exists, no conversion is necessary,
 				// as that one bin's value can be injected as a constant.
 				auto user_rep = make_srcsink_flow_rep(fstate, user_port);
-				if (user_rep.get_n_addr_bins() <= 1)
+
+				auto& addr_bins = user_rep.get_addr_bins();
+				if (addr_bins.size() == 1)
 				{
+					// Just one bin. We can const it!
+					unsigned addr = addr_bins.begin()->first;
+					unsigned addr_bits = std::max(1U, user_rep.get_size_in_bits());
+
+					// If this addr is ADDR_ANY, then the user did a silly thing:
+					// they gave this port an address signal but didn't make use of it.
+					// Since they don't care, we'll pick an const 0.
+
+					if (addr == AddressRep::ADDR_ANY)
+					{
+						genie::log::warn("%s: has address signal but no bound transmissions.",
+							user_port->get_hier_path().c_str());
+						addr = 0;
+					}
+
+					// Do this for sink ports only
+					if (user_port_dir == Port::Dir::IN)
+					{
+						proto.set_const(FIELD_USERADDR, 
+							BitsVal(addr_bits).set_val(0, 0, addr, addr_bits));
+					}
+										
 					continue;
 				}
 				else if (user_rep.exists(AddressRep::ADDR_ANY))
@@ -432,7 +457,7 @@ namespace
 				auto& src_proto = cur_src->get_proto();
 
 				// Carriage set += (what sink needs) - (what src provides)
-				carriage_set.add(sink_proto.terminal_fields());
+				carriage_set.add(sink_proto.terminal_fields_nonconst());
 				carriage_set.subtract(src_proto.terminal_fields());
 
 				// Make the intermediate Node carry the carriage set, if it is able.

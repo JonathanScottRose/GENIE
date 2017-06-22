@@ -100,6 +100,8 @@ namespace genie
 		virtual void add_signal_ex(const SigRoleID& role,
 			const HDLPortSpec&, const HDLBindSpec&) = 0;
 		virtual void set_logic_depth(unsigned) = 0;
+		virtual void set_default_packet_size(unsigned) = 0;
+		virtual void set_default_importance(float) = 0;
 
 	protected:
 		virtual ~PortRS() = default;

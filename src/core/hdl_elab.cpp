@@ -264,7 +264,7 @@ namespace
 						sink_lsb = 0;
 					}
 
-					// Check if the fieled was marked const, and if so, tie it to the const value
+					// Check if the field was marked const, and if so, tie it to the const value
 					if (auto const_val = sink_proto.get_const(field.get_id()))
 					{
 						tie_rb(sys, sink_node, sink_rb, *const_val, sink_lsb);
@@ -321,7 +321,7 @@ void hdl::elab_system(NodeSystem* sys)
 	for (auto child : sys->get_children_by_type<Node>())
 	{
 		child->prepare_for_hdl();
-		child->resolve_params();
+		child->resolve_all_params();
 	}
 
 	do_clockreset<PortClock>(sys, NET_CLOCK);

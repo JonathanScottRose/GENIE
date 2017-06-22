@@ -1,3 +1,4 @@
+#include <unordered_map>
 #include "genie/genie.h"
 #include "genie/node.h"
 #include "lua_api_common.h"
@@ -182,7 +183,7 @@ namespace
 
     /// Create system parameter.
     ///
-    /// Creates a top-level SystemVerilog parameter for the System that has no
+    /// Creates a top-level HDL parameter for the System that has no
     /// assigned value, but can be set later when the system is instantiated.
     /// System parameters can not participate in expressions, and their only 
     /// intended use is to be passed down to @{Node} instances within the @{System} 
@@ -391,6 +392,162 @@ namespace
 		return 0;
 	}
 
+	/// Creates a latency query.
+	///
+	/// Once the system is generated, this will measure the end-to-end latency in clock cycles
+	/// through the generated interconnect and any intervening user modules, and store the result
+	/// in the named HDL parameter, attached to the system. This can be passed down into any
+	/// intantiated components within the system.
+	/// The query is performed on chains consisting of one or more logical RS Links. If the specified
+	/// chain contains more than one link, the intervening components must have internal links defined
+	/// between the sink of the preceding link and the source of the next link.
+	/// @function create_latency_query
+	/// @tparam array_or_set(RSLink) chain an array or set of RS Links that form the chain to measure
+	/// @tparam string parm_name name of system-level HDL parameter to store the result into
+	LFUNC(system_create_latency_query)
+	{
+		auto self = lua_if::check_object<System>(1);
+		auto chain = lua_api::get_array_or_set<LinkRS>(L, 2);
+		const char* parmname = luaL_checkstring(L, 3);
+
+		self->create_latency_query(chain, parmname);
+
+		return 0;
+	}
+
+	/// Creates a synchronization constraint.
+	///
+	/// A constraint imposes a mathematical relationship between the end-to-end latency of 
+	/// one ore more Chains and an integer constant.
+	///
+	/// A Chain is a sequence of one or more RS Links starting at a source port and ending at a sink
+	/// port. When it contains more than one RS Link, there must exist internal links between the
+	/// sinks and sources of intermediate modules.
+	///
+	/// Each constraint takes the form: `p1 [+/-p2, +/-p3, ...] OP bound` where
+	/// OP is `'<'`, `'<='`, `'='`, `'>='`, or `'>'`, bound is an integer, and p1, p2, ... are Paths.
+	/// @function create_sync_constraint
+	/// @tparam array(RSLink) p1 First path
+	/// @tparam[opt] string p2sign Sign for second path, either `+` or `-`
+	/// @tparam[opt] array(RSLink) p2 Second path
+	/// @tparam[opt] ... Additional signs+paths
+	/// @tparam string op Comparison operator, as described
+	/// @tparam int bound latency bound
+	LFUNC(system_create_sync_constraint)
+	{
+		using genie::SyncConstraint;
+		auto self = lua_if::check_object<System>(1);
+
+		// The constraint we're building and adding
+		SyncConstraint constraint;
+
+		// State machine
+		enum
+		{
+			REQ_PATH, OPT_CHECK, OPT_SIGN, OPT_PATH, BOUNDS, DONE
+		} state = REQ_PATH;
+
+		// Current argument being processed
+		int narg = 2;
+
+		// Current path term (+/- sign and array of links)
+		SyncConstraint::ChainTerm cur_term;
+
+		while (state != DONE)
+		{
+			switch (state)
+			{
+				// First (required) and subsequent (optional) path arrays
+			case REQ_PATH:
+			case OPT_PATH:
+			{
+				// Clear array of links, we're about to populate it
+				cur_term.links.clear();
+
+				// Required path has an implicit + sign. Signs for optional terms are parsed elsewhere.  
+				if (state == REQ_PATH)
+					cur_term.sign = SyncConstraint::ChainTerm::PLUS;
+
+				// Parse RS Link array
+				cur_term.links = lua_api::get_array_or_set<LinkRS>(L, narg);
+
+				// cur_term should have a sign and link array by now. fully complete. add it to
+				// the constraint.
+				constraint.chains.push_back(cur_term);
+
+				state = OPT_CHECK;
+				narg++;
+			}
+			break;
+
+			// State to check whether we should parse an optional path term, or we're done with
+			// optional terms and are now parsing the Lower/Upper bounds arguments
+			case OPT_CHECK:
+			{
+				int total_args = lua_gettop(L);
+				int args_remaining = total_args - narg;
+
+				if (args_remaining > 2) state = OPT_SIGN;
+				else state = BOUNDS;
+			}
+			break;
+
+			// Beginning of pair of aguments to specify an optional path term. This is the +/- sign.
+			case OPT_SIGN:
+			{
+				auto str = luaL_checkstring(L, narg);
+				switch (str[0])
+				{
+				case '+': cur_term.sign = SyncConstraint::ChainTerm::PLUS; break;
+				case '-': cur_term.sign = SyncConstraint::ChainTerm::MINUS; break;
+				default:
+					luaL_argerror(L, narg, (std::string("expected '+' or '-', got: ") + str).c_str());
+				}
+
+				state = OPT_PATH;
+				narg++;
+			}
+			break;
+
+			// The final two arguments are the comparison operator and the RHS constant
+			case BOUNDS:
+			{
+				// Get operator
+				static std::unordered_map<std::string, SyncConstraint::Op> op_mapping =
+				{
+					{ "<", SyncConstraint::LT },
+					{ "<=", SyncConstraint::LE },
+					{ "=", SyncConstraint::EQ },
+					{ ">=", SyncConstraint::GE },
+					{ ">", SyncConstraint::GT }
+				};
+
+				std::string opstr = luaL_checkstring(L, narg);
+				auto op_it = op_mapping.find(opstr);
+				if (op_it == op_mapping.end())
+				{
+					luaL_argerror(L, narg, "invalid comparison operator");
+				}
+
+				constraint.op = op_it->second;
+
+				// Get RHS constant
+				narg++;
+				constraint.rhs = (int)luaL_checkinteger(L, narg);
+				state = DONE;
+			}
+			break;
+
+			default: assert(false);
+			}
+		} // while state != DONE
+
+		// Add completed sync constraint to system
+		self->add_sync_constraint(constraint);
+
+		return 0;
+	}
+
     LSUBCLASS(System, (Node),
     {
         LM(create_sys_param, sys_create_sys_param),
@@ -404,7 +561,9 @@ namespace
 		LM(create_split, sys_create_split),
 		LM(create_merge, sys_create_merge),
 		LM(make_exclusive, sys_make_exclusive),
-		LM(set_max_logic_depth, sys_set_max_logic_depth)
+		LM(set_max_logic_depth, sys_set_max_logic_depth),
+		LM(create_sync_constraint, system_create_sync_constraint),
+		LM(create_latency_query, system_create_latency_query)
     });
 
 	/// Represents a user-defined module.

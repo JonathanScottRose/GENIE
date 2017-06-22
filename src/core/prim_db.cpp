@@ -60,7 +60,8 @@ void PrimDB::initialize(const std::string& filename,
 	
 	unsigned tnode_blk_size = m_n_tnode_src * m_n_tnode_sink;
 	m_tnode_data = new unsigned[n_rows * tnode_blk_size];
-	memset(m_tnode_data, TNODE_GUARD_VAL, tnode_blk_size * n_rows * sizeof(unsigned));
+	//memset(m_tnode_data, TNODE_GUARD_VAL, tnode_blk_size * n_rows * sizeof(unsigned));
+	memset(m_tnode_data, 0, tnode_blk_size * n_rows * sizeof(unsigned));
 	
 	// Get row data
 	for (unsigned rowno = 0; rowno < n_rows; rowno++)
@@ -165,7 +166,7 @@ unsigned PrimDB::get_tnode_val(TNodesHandle tnodes, unsigned src, unsigned sink)
 	unsigned* base = tnodes;
 	unsigned result = base[idx];
 	// Check for existence
-	assert(result != TNODE_GUARD_VAL);
+	//assert(result != TNODE_GUARD_VAL);
 	return result;
 }
 
@@ -201,11 +202,11 @@ AreaMetrics & AreaMetrics::operator+=(const AreaMetrics &o)
 
 AreaMetrics & AreaMetrics::operator-=(const AreaMetrics &o)
 {
-	assert(this->alm >= o.alm);
+	//assert(this->alm >= o.alm);
 	assert(this->comb >= o.comb);
 	assert(this->reg >= o.reg);
 	assert(this->mem_alm >= o.mem_alm);
-	this->alm -= o.alm;
+	//this->alm -= o.alm;
 	this->comb -= o.comb;
 	this->reg -= o.reg;
 	this->mem_alm -= o.mem_alm;

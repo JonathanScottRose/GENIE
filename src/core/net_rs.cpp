@@ -43,16 +43,25 @@ unsigned LinkRSLogical::get_sink_addr() const
 	return m_sink_addr;
 }
 
+void LinkRSLogical::set_packet_size(unsigned size)
+{
+	m_pkt_size = size;
+}
+
+void LinkRSLogical::set_importance(float imp)
+{
+	if (imp < 0 || imp > 1)
+		throw Exception("Importance must be between 0 and 1");
+
+	m_importance = imp;
+}
+
 LinkRSLogical::LinkRSLogical()
 	: m_src_addr(genie::LinkRS::ADDR_ANY),
 	m_sink_addr(genie::LinkRS::ADDR_ANY),
-	m_domain_id(flow::DomainRS::INVALID)
-{
-}
-
-LinkRSLogical::LinkRSLogical(const LinkRSLogical& o)
-	: Link(o), m_src_addr(o.m_src_addr), m_sink_addr(o.m_sink_addr),
-	m_domain_id(o.m_domain_id)
+	m_domain_id(flow::DomainRS::INVALID),
+	m_pkt_size(PKT_SIZE_UNSET),
+	m_importance(IMPORTANCE_UNSET)
 {
 }
 

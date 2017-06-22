@@ -61,10 +61,46 @@ namespace
 		return 1;
 	}
 
+	/// Set transmission packet size.
+	///
+	/// Defaults to 1 if unset. Overrides default packet size setting
+	/// associated with the source RS port.
+	/// @function set_packet_size
+	/// @tparam unsigned size
+	LFUNC(linkrs_set_packet_size)
+	{
+		auto self = lua_if::check_object<LinkRS>(1);
+		lua_Integer size = luaL_checkinteger(L, 2);
+		luaL_argcheck(L, size >= 1, 2, "packet size must be at least 1");
+
+		self->set_packet_size((unsigned)size);
+
+		return 0;
+	}
+
+	/// Set transmission importance.
+	///
+	/// Defaults to 1 if unset. Overrides default importance setting
+	/// associated with the source RS port.
+	/// @function set_importance
+	/// @tparam float importance, between 0 and 1 inclusive
+	LFUNC(linkrs_set_importance)
+	{
+		auto self = lua_if::check_object<LinkRS>(1);
+		lua_Number imp = luaL_checknumber(L, 2);
+		luaL_argcheck(L, imp >= 0 && imp <= 1, 2, "importance must be in the range [0,1]");
+
+		self->set_importance((float)imp);
+
+		return 0;
+	}
+
 	LSUBCLASS(LinkRS, (Link), 
 	{
 		LM(get_src_addr, linkrs_get_src_addr),
-		LM(get_sink_addr, linkrs_get_sink_addr)
+		LM(get_sink_addr, linkrs_get_sink_addr),
+		LM(set_packet_size, linkrs_set_packet_size),
+		LM(set_importance, linkrs_set_importance)
 	});
 
 	/// Topology links.

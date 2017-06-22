@@ -431,5 +431,12 @@ function util.md_array(...)
 	
 	return result
 end
+
+--- Returns ceiling of log base 2.
+-- @param number
+-- @treturn integer
+function util.clog2(x)
+	return math.ceil(math.log(x, 2))
+end
 			
 		

@@ -62,7 +62,7 @@ namespace genie
 		Op op;
 		int rhs;
 	};
-
+	
     class System : virtual public Node
     {
     public:
@@ -86,6 +86,8 @@ namespace genie
 		virtual void make_exclusive(const std::vector<LinkRS*>& links) = 0;
 		virtual void add_sync_constraint(const SyncConstraint&) = 0;
 		virtual void set_max_logic_depth(unsigned max_depth) = 0;
+		virtual void create_latency_query(std::vector<LinkRS*> chain,
+			const std::string& param_name) = 0;
 
     protected:
         ~System() = default;

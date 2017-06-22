@@ -16,12 +16,14 @@ namespace impl
 
 namespace flow
 {
+	using TransmissionID = unsigned;
+
 	class DomainRS
 	{
 	public:
 		static constexpr unsigned INVALID = std::numeric_limits<unsigned>::max();
 		using Links = std::vector<LinkID>;
-		using Transmissions = std::vector<unsigned>;
+		using Transmissions = std::vector<TransmissionID>;
 
 		DomainRS();
 		DomainRS(const DomainRS&) = default;
@@ -34,7 +36,7 @@ namespace flow
 		void add_link(LinkID);
 		const Links& get_links() const;
 
-		void add_transmission(unsigned);
+		void add_transmission(TransmissionID);
 		const Transmissions& get_transmissions() const;
 
 		static unsigned get_port_domain(PortRS*, NodeSystem* context);

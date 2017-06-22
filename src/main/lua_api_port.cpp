@@ -308,11 +308,49 @@ namespace
 		return 0;
 	}
 
+	// Set default packet size.
+	//
+	// Sets the default length, in cycles, of transmissions starting
+	// at this port. Has no effect on sink ports. When unspecified,
+	// the default is 1.
+	// @function set_default_packet_size
+	// @tparam unsigned size
+	LFUNC(rsport_set_default_packet_size)
+	{
+		auto self = lua_if::check_object<PortRS>(1);
+		lua_Integer size = luaL_checkinteger(L, 2);
+		luaL_argcheck(L, size >= 1, 2, "packet size must be at least 1");
+
+		self->set_default_packet_size((unsigned)size);
+
+		return 0;
+	}
+
+	// Set default transmission importance.
+	//
+	// Sets the importance of transmissions starting at this port.
+	// Importance is a float value in the range [0,1] and defaults
+	// to 1.
+	// @function set_default_importance
+	// @tparam float importance
+	LFUNC(rsport_set_default_importance)
+	{
+		auto self = lua_if::check_object<PortRS>(1);
+		lua_Number imp = luaL_checknumber(L, 2);
+		luaL_argcheck(L, imp >= 0 && imp <= 1, 2, "importance must be in the range [0,1]");
+
+		self->set_default_importance((float)imp);
+
+		return 0;
+	}
+
 	LSUBCLASS(PortRS, (Port),
 	{
 		LM(add_signal, rsport_add_signal),
 		LM(add_signal_ex, rsport_add_signal_ex),
-		LM(set_logic_depth, rsport_set_logic_depth)
+		LM(set_logic_depth, rsport_set_logic_depth),
+		LM(set_default_packet_size, rsport_set_default_packet_size),
+		LM(set_default_importance, rsport_set_default_importance)
 	});
 }
 

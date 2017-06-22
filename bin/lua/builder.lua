@@ -282,7 +282,7 @@ function Builder:str_param(name, val)
     self.cur_param_tgt:set_str_param(name, val)
 end
 
---- Defines a literal paremeter.
+--- Defines a literal parameter.
 -- Applies to the most recently defined Component, System, or Instance.
 -- The given expression is passed, verbatim, to the Verilog instantiation of the module.
 -- 
@@ -291,6 +291,17 @@ end
 function Builder:lit_param(name, val)
     if not self.cur_param_tgt then error("no current component or system") end
     self.cur_param_tgt:set_lit_param(name, val)
+end
+
+--- Defines a system parameter.
+-- Applies to the most recently defined System.
+-- Creates a parameter without a value, that is to be set by an insantiator of the
+-- system, outside the scope of GENIE.
+-- 
+-- @tparam string name name
+function Builder:sys_param(name)
+    if not self.cur_sys then error("no current system") end
+    self.cur_sys:create_sys_param(name)
 end
 
 --- Registers a Verilog signal with an Interface.
@@ -340,61 +351,63 @@ function Builder:logic_depth(depth)
 	self.cur_sys:set_max_logic_depth(depth)
 end
 
-
-
---- Creates a latency query.
--- Creates a new system-level parameter of the given name, whose value is set to the latency of the given RS link.
--- The link can be specified by string label or by a reference to a Link object.
--- @tparam string|Link link the Routed Streaming link to query, specified by string link label or directly by object
--- @tparam string param name of the system-level parameter to create and populate
-function Builder:latency_query(link, param)
-    if not self.cur_sys then error("no current system") end
-    
-    -- function overload: link may be a label, or an actual link.
-    -- convert to an actual link if it's just a label
-    if type(link) == 'string' then
-        link = name_to_link(self, self.cur_sys, link)
-    elseif type(link) ~= 'userdata' then
-        error('expected a link object or a link label')
-    end
-    
-    self.cur_sys:create_latency_query(link, param)
-end
-
---- Creates a latency constraint.
--- Constrains the final latency, in cycles, of one or more Paths. A Path is a sequence of one or more RS Links, 
--- starting at an ultimate RS Source and ending at an ultimate RS Sink. Intermediate Components that serve as a 
--- terminus for one Link and the source of the next Link in the Path must have an internal Link defined between
--- the sink and source Interfaces to make the Path contiguous.
---
--- The constraint takes on the form: `p1 [+/-p2, +/-p3, ...] OP rhs` where rhs is an integer, OP is a comparison operator
--- (<, <=, =, >= >), and `pn` are paths, represented as arrays of RS Links. Terms p2 and up are optional.
--- @tparam array(RSLink) p1 first path term
--- @tparam[opt] string pn_sign sign of successive path term, either `+` or `-`
--- @tparam[opt] array(RSLink) pn successive path term
--- @tparam string op comparison operator
--- @tparam int rhs comparison constant
-function Builder:latency_constraint(...)
-	if not self.cur_sys then error("no current system") end
-	self.cur_sys:create_latency_constraint(...)
-end
-
 --- Sets default packet size of an RS source/sink.
 -- Sets the default packet size of connected RS links, in clock cycles. If unspecified, the default is 1.
 -- @tparam int size transmission size in clock cycles
 function Builder:packet_size(size)
 	if not self.cur_port then error("no current port") end
-	if self.cur_port:get_type() ~= 'rs' then error("need an RS port") end
+	if self.cur_port:get_type() ~= 'rs' then error("not an RS port") end
 	
-	self.cur_port:set_pktsize(size)
+	self.cur_port:set_default_packet_size(size)
 end
 
---- Sets default importance of an RS source/sink.
+--- Sets default importance of transmissions starting at an RS source port.
 -- Sets the default importance of connected RS links from 0-1. If unspecified, the default is 1.
 -- @tparam int imp importance from 0-1
 function Builder:importance(importance)
 	if not self.cur_port then error("no current port") end
-	if self.cur_port:get_type() ~= 'rs' then error("need an RS port") end
+	if self.cur_port:get_type() ~= 'rs' then error("not an RS port") end
 	
-	self.cur_port:set_importance(importance)
+	self.cur_port:set_default_importance(importance)
 end
+
+--- Creates a synchronization constraint.
+-- Constrains the final latency, in cycles, of one or more Chains. A Chain is a sequence of one or more RS Links, 
+-- starting at an ultimate RS Source and ending at an ultimate RS Sink. Intermediate Components that serve as a 
+-- terminus for one Link and the source of the next Link in the Chain must have an internal Link defined between
+-- the sink and source Interfaces to make the Chain contiguous.
+--
+-- The constraint takes on the form: `p1 [+/-p2, +/-p3, ...] OP rhs` where rhs is an integer, OP is a comparison operator
+-- (<, <=, =, >= >), and `pn` are paths, represented as arrays of RS Links. Terms p2 and up are optional.
+-- @tparam array(RSLink) p1 first chain term
+-- @tparam[opt] string pn_sign sign of successive chain term, either `+` or `-`
+-- @tparam[opt] array(RSLink) pn successive chain term
+-- @tparam string op comparison operator: `<`, `<=`, `=`, `>=`, `>`
+-- @tparam int rhs comparison constant
+function Builder:sync_constraint(...)
+	if not self.cur_sys then error("no current system") end
+	self.cur_sys:create_sync_constraint(...)
+end
+
+
+--- Creates a latency query.
+--
+-- Once the system is generated, this will measure the end-to-end latency in clock cycles
+-- through the generated interconnect and any intervening user modules, and store the result
+-- in the named HDL parameter, attached to the system. This can be passed down into any
+-- intantiated components within the system.
+-- The query is performed on chains consisting of one or more logical RS Links. If the specified
+-- chain contains more than one link, the intervening components must have internal links defined
+-- between the sink of the preceding link and the source of the next link.
+-- @tparam array_or_set(RSLink) chain an array or set of RS Links that form the chain to measure
+-- @tparam string parm_name name of system-level HDL parameter to store the result into
+function Builder:latency_query(...)
+    if not self.cur_sys then error("no current system") end
+    self.cur_sys:create_latency_query(...)
+end
+
+
+
+
+
+

@@ -40,6 +40,8 @@ namespace impl
         // Internal API
 		virtual ~Node();
 
+		void reintegrate(HierObject*) override;
+
 		virtual void prepare_for_hdl() = 0;
 		virtual void annotate_timing() = 0;
 		virtual AreaMetrics annotate_area() = 0;
@@ -48,7 +50,8 @@ namespace impl
         Node* get_parent_node() const;
 		PROP_GET_SETR(hdl_state, hdl::HDLState&, m_hdl_state);
 
-        void resolve_params();
+        void resolve_size_params();
+		void resolve_all_params();
         NodeParam* get_param(const std::string& name);
         const Params& get_params() const { return m_params; }
 		void set_bits_param(const std::string parm_name, const BitsVal& val);

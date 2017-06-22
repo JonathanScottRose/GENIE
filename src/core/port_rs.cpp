@@ -113,6 +113,19 @@ void PortRS::set_logic_depth(unsigned depth)
 	m_logic_depth = depth;
 }
 
+void PortRS::set_default_packet_size(unsigned size)
+{
+	m_default_pkt_size = size;
+}
+
+void PortRS::set_default_importance(float imp)
+{
+	if (imp < 0 || imp > 1)
+		throw Exception(get_hier_path() + ": importance must be between 0 and 1");
+
+	m_default_importance = imp;
+}
+
 //
 // Internal
 //
@@ -148,7 +161,9 @@ void PortRS::init()
 PortRS::PortRS(const std::string & name, genie::Port::Dir dir, 
 	const std::string & clk_port_name)
     : Port(name, dir), m_clk_port_name(clk_port_name),
-	m_logic_depth(0)
+	m_logic_depth(0),
+	m_default_pkt_size(1),
+	m_default_importance(1.0f)
 {
 	make_connectable(NET_RS_LOGICAL);
 	make_connectable(NET_RS_PHYS);
@@ -157,14 +172,6 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir,
 
 PortRS::PortRS(const std::string & name, genie::Port::Dir dir)
 	: PortRS(name, dir, "")
-{
-}
-
-PortRS::PortRS(const PortRS &o)
-    : Port(o), m_clk_port_name(o.m_clk_port_name), 
-	m_proto(o.m_proto),
-	m_logic_depth(o.m_logic_depth), m_role_bindings(o.m_role_bindings),
-	m_bp_status(o.m_bp_status)
 {
 }
 
@@ -244,7 +251,7 @@ Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 	{
 		auto& role = old_rb.role;
 		const auto& old_bind = old_rb.binding;
-		const auto& old_hdl_port = get_node()->get_hdl_state().get_port(old_bind.get_port_name());
+		auto old_hdl_port = get_node()->get_hdl_state().get_port(old_bind.get_port_name());
 
 		// Create a new HDL port on the system
 		std::string new_hdl_name;
@@ -253,6 +260,7 @@ Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 		else
 			new_hdl_name = util::str_con_cat(name, util::str_tolower(role.type.to_string()));
 
+		assert(old_hdl_port->sizes_are_resolved());
 		context->get_hdl_state().get_or_create_port(new_hdl_name, old_hdl_port->get_width(),
 			old_hdl_port->get_depth(), old_hdl_port->get_dir());
 

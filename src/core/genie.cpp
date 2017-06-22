@@ -12,6 +12,9 @@
 #include "node_split.h"
 #include "node_merge.h"
 #include "node_conv.h"
+#include "node_clockx.h"
+#include "node_mdelay.h"
+#include "node_reg.h"
 
 #include "net_clockreset.h"
 #include "net_conduit.h"
@@ -269,6 +272,9 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
     NodeSplit::init();
 	NodeMerge::init();
 	NodeConv::init();
+	NodeClockX::init();
+	NodeMDelay::init();
+	NodeReg::init();
 }
 
 void genie::shutdown()

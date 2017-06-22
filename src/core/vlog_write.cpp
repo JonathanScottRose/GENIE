@@ -12,6 +12,7 @@ using genie::impl::NodeParam;
 using genie::impl::NodeStringParam;
 using genie::impl::NodeIntParam;
 using genie::impl::NodeBitsParam;
+using genie::impl::NodeLiteralParam;
 using genie::impl::IntExpr;
 using genie::impl::BitsVal;
 
@@ -214,9 +215,15 @@ namespace
         {
             auto bits_param = static_cast<NodeBitsParam*>(param);
             auto& val = bits_param->get_val();
-            result += format_bits_val(val);
+            result = format_bits_val(val);
             break;
         }
+		case NodeParam::LITERAL:
+		{
+			auto lit_param = static_cast<NodeLiteralParam*>(param);
+			result = lit_param->get_val();
+			break;
+		}
         default:
             assert(false);
         }

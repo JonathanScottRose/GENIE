@@ -14,10 +14,12 @@
 #include "net_clockreset.h"
 #include "port_conduit.h"
 #include "port_rs.h"
+#include "topo_optimize.h"
 
 using namespace genie::impl;
 using genie::Exception;
 using flow::FlowStateOuter;
+using flow::TransmissionID;
 
 namespace
 {
@@ -59,27 +61,47 @@ namespace
 		return sys->create_snapshot(dom_nodes, dom_links);
 	}
 
-	void init_user_rs_ports(NodeSystem* sys)
+	void init_elemental_transmission_specs(NodeSystem* sys)
 	{
-		// Visit RS ports in user modules as well as top-level ones in the system that
-		// may have been exported.
+		// Apply RS Port packet size/importance to individual RS logical links
+		auto rs_links = sys->get_links_casted<LinkRSLogical>(NET_RS_LOGICAL);
+		for (auto link : rs_links)
+		{
+			auto src = static_cast<PortRS*>(link->get_src());
+
+			// If link's version is unset, use default size associated with source port
+			if (link->get_packet_size() == LinkRSLogical::PKT_SIZE_UNSET)
+				link->set_packet_size(src->get_default_packet_size());
+
+			// Do the same for importance
+			if (link->get_importance() == LinkRSLogical::IMPORTANCE_UNSET)
+				link->set_importance(src->get_default_importance());
+		}
+	}
+
+	void init_user_protocols(NodeSystem* sys)
+	{
+		// Gather RS ports from the boundary of the system
 		auto ports = sys->get_children_by_type<PortRS>();
 
-		// Init protocol at user modules
+		// Gather RS ports from inside the system
 		auto nodes = sys->get_children_by_type<NodeUser>();
 		for (auto node : nodes)
 		{
-			// We need to ensure params are resolved so that signal sizes are constant
-			node->resolve_params();
-
 			auto node_ports = node->get_children_by_type<PortRS>();
 			ports.insert(ports.end(), node_ports.begin(), node_ports.end());
 		}
 
-		// Now work on the ports
+		// Do protocol processing
 		for (auto port : ports)
 		{
+			// Do protocol and backpressure processing
 			auto& proto = port->get_proto();
+			auto& bp_status = port->get_bp_status();
+
+			// Initialize backpressure to off, and turn on if
+			// ready signal is discovered below
+			bp_status.force_disable();
 
 			// Browse through signal roles
 			for (auto& rb : port->get_role_bindings())
@@ -93,15 +115,15 @@ namespace
 						": multi-dimensional HDL signal bindings not supported");
 				}
 
-				if (role == PortRS::ADDRESS)
+				if (role.type == PortRS::ADDRESS)
 				{
 					proto.add_terminal_field({ FIELD_USERADDR, hdl_bnd.get_bits() }, role);
 				}
-				else if (role == PortRS::EOP)
+				else if (role.type == PortRS::EOP)
 				{
 					proto.add_terminal_field({ FIELD_EOP, 1 }, role);
 				}
-				else if (role == PortRS::DATA || role == PortRS::DATABUNDLE)
+				else if (role.type == PortRS::DATA || role.type == PortRS::DATABUNDLE)
 				{
 					// Create a domain field
 					unsigned domain = flow::DomainRS::get_port_domain(port, sys);
@@ -115,9 +137,9 @@ namespace
 
 					proto.add_terminal_field(f_inst, role);
 				}
-				else if (role == PortRS::READY)
+				else if (role.type == PortRS::READY)
 				{
-					port->get_bp_status().status = RSBackpressure::ENABLED;
+					bp_status.force_enable();
 				}
 			}
 		}
@@ -209,7 +231,7 @@ namespace
 			for (auto addr_bin : bin_by_addr)
 			{
 				// Create the transmission
-				unsigned xmis_id = fstate.new_transmission();
+				TransmissionID xmis_id = fstate.new_transmission();
 
 				// Add links to the transmission
 				for (auto link : addr_bin.second)
@@ -487,7 +509,11 @@ namespace
 		// It has only logical links. Give it a crossbar topology.
 		best_config.topo = snapshot;
 		make_crossbar_topo(best_config.topo);
-		
+
+		// Measure contention for crossbar topology
+		//topo_opt::ContentionMap xbar_contention = 
+			//topo_opt::measure_initial_contention(best_config.topo, fstate);
+
 		// Implement the initial crossbar topology and measure its area
 		best_config.impl = best_config.topo->clone();
 		topo_do_routing(best_config.impl);
@@ -555,19 +581,113 @@ namespace
 		}
 	}
 
+	void process_latency_queries(NodeSystem* sys)
+	{
+		auto& queries = sys->get_spec().latency_queries;
+		auto& link_rel = sys->get_link_relations();
+
+		for (auto& query : queries)
+		{
+			unsigned chain_latency = 0;
+
+			// Current and last logical link IDs in chain, going backwards
+			auto log_it = query.chain_links.rbegin();
+			auto log_it_end = query.chain_links.rend();
+
+			LinkID cur_log_id = *log_it;
+			Link* cur_log = sys->get_link(cur_log_id);
+
+			// The source of the current logical link (aka the end of traversal,
+			// since we're going backwards)
+			HierObject* cur_log_src = cur_log->get_src();
+
+			// Current external physical link.
+			Link* cur_ext_phys =
+				cur_log->get_sink()->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->get_link0();
+
+			while (true)
+			{
+				// Get source of current physical link
+				HierObject* cur_phys_src = cur_ext_phys->get_src();
+
+				// Reached beginning of logical link?
+				if (cur_phys_src == cur_log_src)
+				{
+					// Advance to next logical link
+					log_it++;
+
+					// Reached end of chain?
+					if (log_it == log_it_end)
+					{
+						// done
+						break;
+					}
+					else
+					{
+						// Update things related to current logical link	
+						cur_log_id = *log_it;
+						cur_log = sys->get_link(cur_log_id);
+						cur_log_src = cur_log->get_src();
+					}
+				}
+
+				// Traverse backwards through node, get latency. Examine all candidates
+				// and find the one that continues with the correct logical link
+				for (auto int_link :
+					cur_phys_src->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->links())
+				{
+					// Get the external physical link that feeds this interal link
+					Link* next_ext_phys = int_link->get_src_ep()->get_sibling()->get_link0();
+
+					// Does it exist, and does it continue the logical link we want?
+					if (next_ext_phys &&
+						link_rel.is_contained_in(cur_log_id, next_ext_phys->get_id()))
+					{
+						// Use it: update latency, and update cur_ext_phys to continue traversal
+						cur_ext_phys = next_ext_phys;
+						auto cur_phys_int = static_cast<LinkRSPhys*>(int_link);
+						chain_latency += cur_phys_int->get_latency();
+						break;
+					}
+				}
+			} // end while(true)
+
+			// chain_latency is set. create a system HDL parameter to hold it
+			sys->set_int_param(query.param_name, (int)chain_latency);
+		} // end foreach query
+	}
+
+	void resolve_size_params(NodeSystem* sys)
+	{
+		// Make HDL port sizes/bindings in the system constant by
+		// resolving parameter expressions.
+		//
+		// Do this for the system node itself, as well as user nodes.
+
+		auto resolv_nodes = 
+			sys->get_children_by_type<NodeUser, std::vector<Node*>>();
+		resolv_nodes.push_back(sys);
+
+		for (auto node : resolv_nodes)
+			node->resolve_size_params();
+	}
+
     void do_system(NodeSystem* sys)
     {
 		FlowStateOuter fstate;
 
-		sys->resolve_params();
+		resolve_size_params(sys);
 
 		rs_assign_domains(sys, fstate);
 		rs_create_transmissions(sys, fstate);
 		rs_find_manual_domains(sys, fstate);
 		rs_print_domain_stats(sys, fstate);
 
-		init_user_rs_ports(sys);
+		init_user_protocols(sys);
+		init_elemental_transmission_specs(sys);
 		do_all_domains(sys, fstate);
+
+		process_latency_queries(sys);
 
 		connect_conduits(sys);
 		hdl::elab_system(sys);

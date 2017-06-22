@@ -174,9 +174,10 @@ Port * PortConduit::export_port(const std::string& name, NodeSystem* context)
 		auto& role = old_subp->get_role();
 
 		const auto& old_bind = old_subp->get_hdl_binding();
-		const auto& old_hdl_port = get_node()->get_hdl_state().get_port(old_bind.get_port_name());
+		auto old_hdl_port = get_node()->get_hdl_state().get_port(old_bind.get_port_name());
 
 		// Create a new HDL port on the system
+		assert(old_hdl_port->sizes_are_resolved());
 		auto new_hdl_name = util::str_con_cat(name, role.tag);
 		context->get_hdl_state().get_or_create_port(new_hdl_name, old_hdl_port->get_width(),
 			old_hdl_port->get_depth(), old_hdl_port->get_dir());
