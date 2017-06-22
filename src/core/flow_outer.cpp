@@ -81,14 +81,20 @@ namespace
 
 	void init_user_protocols(NodeSystem* sys)
 	{
-		// Gather RS ports from the boundary of the system
-		auto ports = sys->get_children_by_type<PortRS>();
+		// Search (all user nodes) + (this system)'s ports		
+		auto nodes = sys->get_children_by_type<NodeUser, std::vector<Node*>>();
+		nodes.push_back(sys);
 
-		// Gather RS ports from inside the system
-		auto nodes = sys->get_children_by_type<NodeUser>();
+		// Now scan these nodes for RS ports that have at least one logical
+		// link attached to them
+		std::vector<PortRS*> ports;
 		for (auto node : nodes)
 		{
-			auto node_ports = node->get_children_by_type<PortRS>();
+			auto node_ports = node->get_children<PortRS>([=](const PortRS* p)
+			{
+				return p->get_endpoint(NET_RS_LOGICAL, 
+					p->get_effective_dir(sys))->is_connected();
+			});
 			ports.insert(ports.end(), node_ports.begin(), node_ports.end());
 		}
 
@@ -436,46 +442,6 @@ namespace
 		}
 	}
 
-	void connect_conduits(NodeSystem* sys)
-	{
-		// Find conduit links
-		auto links = sys->get_links(NET_CONDUIT);
-
-		for (auto cnd_link : links)
-		{
-			auto cnd_src = dynamic_cast<PortConduit*>(cnd_link->get_src());
-			auto cnd_sink = dynamic_cast<PortConduit*>(cnd_link->get_sink());
-
-			// Get the source's subports
-			auto src_subs = cnd_src->get_subports();
-
-			// For each src subport, find the subport on the sink with a matching tag
-			for (auto src_sub : src_subs)
-			{
-				auto& tag = src_sub->get_role().tag;
-
-				// If one is not found, continue but throw warnings later
-				auto sink_sub = cnd_sink->get_subport(tag);
-				if (!sink_sub)
-				{
-					genie::log::warn("connecting %s to %s: %s is missing field '%s'",
-						cnd_src->get_hier_path().c_str(),
-						cnd_sink->get_hier_path().c_str(),
-						cnd_sink->get_hier_path().c_str(),
-						tag.c_str());
-					continue;
-				}
-
-				// Does the sub->sub direction need to be reversed?
-				bool swapdir = src_sub->get_effective_dir(sys) == Port::Dir::IN;
-				if (swapdir)
-					std::swap(src_sub, sink_sub);
-
-				sys->connect(src_sub, sink_sub, NET_CONDUIT_SUB);
-			}
-		}
-	}
-
 	AreaMetrics measure_impl_area(NodeSystem* sys)
 	{
 		AreaMetrics result;
@@ -689,7 +655,6 @@ namespace
 
 		process_latency_queries(sys);
 
-		connect_conduits(sys);
 		hdl::elab_system(sys);
 		hdl::write_system(sys);
     }

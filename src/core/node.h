@@ -96,14 +96,5 @@ namespace impl
 		std::vector<LinksContainer> m_links;
 		LinkRelations m_link_rel;
     };
-
-	class IInstantiable
-	{
-	public:
-		virtual Node* instantiate() const = 0;
-
-	protected:
-		~IInstantiable() = default;
-	};
 }
 }

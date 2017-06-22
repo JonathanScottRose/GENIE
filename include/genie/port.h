@@ -71,6 +71,10 @@ namespace genie
 		), IN, OUT);
 
         virtual Dir get_dir() const = 0;
+		virtual void add_signal(const SigRoleID& role,
+			const std::string& sig_name, const std::string& width) = 0;
+		virtual void add_signal_ex(const SigRoleID& role,
+			const HDLPortSpec&, const HDLBindSpec&) = 0;
 
     protected:
         virtual ~Port() = default;
@@ -81,11 +85,6 @@ namespace genie
     public:
 		static SigRoleType FWD, REV, IN, OUT, INOUT;
 
-		virtual void add_signal(const SigRoleID& role,
-			const std::string& sig_name, const std::string& width) = 0;
-		virtual void add_signal_ex(const SigRoleID& role,
-			const HDLPortSpec&, const HDLBindSpec&) = 0;
-
 	protected:
 		virtual ~PortConduit() = default;
     };
@@ -95,10 +94,6 @@ namespace genie
     public:
 		static SigRoleType VALID, READY, DATA, DATABUNDLE, EOP, ADDRESS;
 
-		virtual void add_signal(const SigRoleID& role,
-			const std::string& sig_name, const std::string& width) = 0;
-		virtual void add_signal_ex(const SigRoleID& role,
-			const HDLPortSpec&, const HDLBindSpec&) = 0;
 		virtual void set_logic_depth(unsigned) = 0;
 		virtual void set_default_packet_size(unsigned) = 0;
 		virtual void set_default_importance(float) = 0;

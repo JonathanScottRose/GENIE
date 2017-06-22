@@ -11,8 +11,8 @@ const SigRoleType SigRoleType::INVALID = std::numeric_limits<unsigned>::max();
 // SigRoleType - for internal registration
 //
 
-SigRoleDef::SigRoleDef(const std::string& name, bool uses_tags)
-	: m_name(name), m_uses_tags(uses_tags)
+SigRoleDef::SigRoleDef(const std::string& name, bool uses_tags, Sense sense)
+	: m_name(name), m_uses_tags(uses_tags), m_sense(sense)
 {
 }
 

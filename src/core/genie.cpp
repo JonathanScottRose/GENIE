@@ -256,18 +256,14 @@ void genie::init(genie::FlowOptions* opts, genie::ArchParams* arch)
 	NetClock::init();
 	NetReset::init();
 	NetConduit::init();
-	NetConduitSub::init();
 	NetTopo::init();
 	NetRSLogical::init();
 	NetRSPhys::init();
-	NetRSSub::init();
 
 	impl::PortClock::init();
 	impl::PortReset::init();
 	impl::PortConduit::init();
-	impl::PortConduitSub::init();
 	impl::PortRS::init();
-	impl::PortRSSub::init();
 
     NodeSplit::init();
 	NodeMerge::init();

@@ -30,7 +30,7 @@ NodeUser::NodeUser(const std::string & name, const std::string & hdl_name)
 {
 }
 
-NodeUser* NodeUser::instantiate() const
+HierObject* NodeUser::instantiate() const
 {
 	return clone();
 }

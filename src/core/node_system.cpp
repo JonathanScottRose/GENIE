@@ -12,6 +12,7 @@
 #include "node_user.h"
 #include "flow.h"
 #include "genie_priv.h"
+#include "hdl_elab.h"
 
 using namespace genie::impl;
 using Dir = genie::Port::Dir;
@@ -99,7 +100,7 @@ genie::Node * NodeSystem::create_instance(const std::string & mod_name,
 	instance->set_name(inst_name);
 	add_child(instance);
 
-	return instance;
+	return static_cast<Node*>(instance);
 }
 
 genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & opt_name)
@@ -108,7 +109,8 @@ genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & op
 	assert(orig);
 
 	// We must resolve parameters first
-	orig_impl->get_node()->resolve_size_params();
+	auto node = orig_impl->get_node();
+	node->resolve_size_params();
 
 	// 1) Check if port is exportable: must not already belong to the system
 	if (orig_impl->get_node() == this)
@@ -129,22 +131,14 @@ genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & op
 		new_name = opt_name;
 	}
 
-	// The remainder of the work is port-type specific
+	// Do port type specific work to create the actual exported port
 	auto new_port = orig_impl->export_port(new_name, this);
 
-	// Now we just make a connection from the old to the new.
-	// The exported port, which belongs to a Node within this system, can be looked
-	// at to dictate the connection direction. If it's an IN, it will be the sink, and if
-	// it's an OUT, it will be the source.
-	
-	auto ptinfo = genie::impl::get_port_type(orig_impl->get_type());
-
-	auto exlink_src = orig_impl; // assume original port is the source (OUT)
-	auto exlink_sink = new_port;
-	if (orig_impl->get_dir() == Port::Dir::IN)
-		std::swap(exlink_src, exlink_sink);
-
-	connect(exlink_src, exlink_sink, ptinfo->get_default_network());
+	// Connect with HDL signals
+	bool orig_is_src = orig_impl->get_dir() == Port::Dir::OUT;
+	hdl::connect_ports(this,
+		orig_is_src ? orig_impl : new_port,
+		orig_is_src ? new_port: orig_impl);
 
 	return new_port;
 }
@@ -257,7 +251,7 @@ NodeSystem::~NodeSystem()
 {
 }
 
-Node* NodeSystem::instantiate() const
+HierObject* NodeSystem::instantiate() const
 {
 	// Instantiating a System yields a user node
 	auto result = new NodeUser(get_name(), get_hdl_name());
@@ -265,10 +259,10 @@ Node* NodeSystem::instantiate() const
 	// Copy HDL state
 	result->set_hdl_state(const_cast<hdl::HDLState&>(m_hdl_state));
 
-	// Copy ports
-	for (auto port : get_children_by_type<Port>())
+	// Instantiate ports
+	for (auto port : get_children_by_type<IInstantiable>())
 	{
-		result->add_child(port->clone());
+		result->add_child(port->instantiate());
 	}
 
 	return result;

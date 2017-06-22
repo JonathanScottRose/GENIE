@@ -130,5 +130,14 @@ namespace impl
 		std::unordered_map <std::string, HierObject*> m_children;
 		std::unordered_map<NetType, EndpointPair> m_endpoints;
 	};
+
+	class IInstantiable
+	{
+	public:
+		virtual HierObject* instantiate() const = 0;
+
+	protected:
+		~IInstantiable() = default;
+	};
 }
 }

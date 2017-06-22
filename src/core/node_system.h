@@ -73,7 +73,7 @@ namespace impl
 		~NodeSystem();
 
 		NodeSystem* clone() const override;
-        Node* instantiate() const override;
+        HierObject* instantiate() const override;
 		void prepare_for_hdl() override;
 		void annotate_timing() override;
 		AreaMetrics annotate_area() override;

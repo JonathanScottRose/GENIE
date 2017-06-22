@@ -10,14 +10,11 @@ namespace impl
 {
 	class NetRSLogical;
 	class NetRSPhys;
-	class NetRSSub;
 	class LinkRSLogical;
 	class LinkRSPhys;
-	class LinkRSSub;
 
 	extern NetType NET_RS_LOGICAL;
 	extern NetType NET_RS_PHYS;
-	extern NetType NET_RS_SUB;
 
 	class NetRSLogical : public NetworkDef
 	{
@@ -96,31 +93,6 @@ namespace impl
 		// >0 : number of register levels (latency)
 		// <=0 : combinational depth in LUTs
 		int m_lat_or_comb;
-	};
-
-	///
-	///
-
-	class NetRSSub : public NetworkDef
-	{
-	public:
-		static void init();
-		Link* create_link() const override;
-
-	protected:
-		NetRSSub();
-		~NetRSSub() = default;
-	};
-
-	class LinkRSSub : public Link
-	{
-	public:
-		LinkRSSub();
-		LinkRSSub(const LinkRSSub&);
-		~LinkRSSub();
-
-		Link* clone() const override;
-	protected:
 	};
 }
 }

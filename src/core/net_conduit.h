@@ -7,12 +7,9 @@ namespace genie
 namespace impl
 {
 	class NetConduit;
-	class NetConduitSub;
 	using LinkConduit = Link;
-	using LinkConduitSub = Link;
 
 	extern NetType NET_CONDUIT;
-	extern NetType NET_CONDUIT_SUB;
 
 	class NetConduit : public NetworkDef
 	{
@@ -23,17 +20,6 @@ namespace impl
 	protected:
 		NetConduit();
 		~NetConduit() = default;
-	};
-
-	class NetConduitSub : public NetworkDef
-	{
-	public:
-		static void init();
-		Link* create_link() const override;
-
-	protected:
-		NetConduitSub();
-		~NetConduitSub() = default;
 	};
 }
 }
