@@ -304,7 +304,7 @@ function Builder:sys_param(name)
     self.cur_sys:create_sys_param(name)
 end
 
---- Registers a Verilog signal with an Interface.
+--- Registers an HDL signal with an Interface.
 -- Applies to the Interface created by the most recent call to @{Builder:interface} or its specialized
 -- convenience functions. The `role` and `vname` arguments are mandatory. Some types of signals also require
 -- a tag. If width is not specified, it defaults to 1.
@@ -316,6 +316,33 @@ end
 function Builder:signal(...)
     if not self.cur_port then error("no current port") end
     self.cur_port:add_signal(...)
+end
+
+--- Registers an HDL signal with an Interface.
+-- An advanced version of add_signal to more finely control
+-- the size of the HDL port and the size of the binding to the HDL port.
+-- Expects two structures: a PortSpec and a BindSpec.
+-- The PortSpec structure shall be a table with the following fields:
+--   name: the name of the HDL port
+--   width: an expression specifying the width in bits of the HDL port
+--   depth: an expression specifying the second size dimension of the HDL port
+-- Both width and depth are expressions that must evaluate to an integer and may contain
+-- references to @{Node} parameters. If either field is absent, it is defaulted to '1'.
+-- The BindSpec structure specifies the range of the HDL Port to bind to for this role.
+-- It shall be a table with the following fields:
+--   lo_slice: the lower bound of the second dimension of the HDL port to bind to, default 0
+--   slices: the number of second-dimension indicies to bind over, default 1
+--   lo_bit: the least-significant bit to bind to, must be 0 if slices is > 1, default 0
+--   width: the number of bits, starting from lo_bit, to bind, must be the entire port width
+--          if slices > 1
+-- @function add_signal_ex
+-- @tparam string role port type specific role
+-- @tparam string tag unique user-defined tag needed for some roles
+-- @tparam table port_spec a PortSpec structure, as defined above
+-- @tparam table bind_spec a BindSpec structure, as defined above
+function Builder:signal_ex(...)
+	if not self.cur_port then error("no current port") end
+	self.cur_port:add_signal_ex(...)
 end
 
 --- Marks a set of RS Links as temporally exclusive.
@@ -356,8 +383,6 @@ end
 -- @tparam int size transmission size in clock cycles
 function Builder:packet_size(size)
 	if not self.cur_port then error("no current port") end
-	if self.cur_port:get_type() ~= 'rs' then error("not an RS port") end
-	
 	self.cur_port:set_default_packet_size(size)
 end
 
@@ -366,8 +391,6 @@ end
 -- @tparam int imp importance from 0-1
 function Builder:importance(importance)
 	if not self.cur_port then error("no current port") end
-	if self.cur_port:get_type() ~= 'rs' then error("not an RS port") end
-	
 	self.cur_port:set_default_importance(importance)
 end
 

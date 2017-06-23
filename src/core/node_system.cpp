@@ -256,8 +256,13 @@ HierObject* NodeSystem::instantiate() const
 	// Instantiating a System yields a user node
 	auto result = new NodeUser(get_name(), get_hdl_name());
 
-	// Copy HDL state
-	result->set_hdl_state(const_cast<hdl::HDLState&>(m_hdl_state));
+	// Create HDL ports with same names and sizes
+	auto& new_hdls = result->get_hdl_state();
+	for (auto& i : m_hdl_state.get_ports())
+	{
+		auto& vport = i.second;
+		new_hdls.add_port(vport.get_name(), vport.get_width(), vport.get_depth(), vport.get_dir());
+	}
 
 	// Instantiate ports
 	for (auto port : get_children_by_type<IInstantiable>())

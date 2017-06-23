@@ -339,13 +339,15 @@ Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 	}
 
 	// Check if a link already exists, and return it if so
+	/*
 	for (auto existing_link : src_ep->links())
 	{
 		if (existing_link->get_sink_ep() == sink_ep)
 		{
+			assert(false);
 			return existing_link;
 		}
-	}
+	}*/
 
 	// Create link and set its src/sink
 	Link* link = def->create_link();

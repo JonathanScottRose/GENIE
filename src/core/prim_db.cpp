@@ -32,7 +32,8 @@ void PrimDB::initialize(const std::string& filename,
 	std::vector<unsigned> col_map(col_enum.size());
 
 	// Get and validate number of columns
-	assert(fscanf(fp, " COLS %u", &n_cols) == 1);
+	auto fret = fscanf(fp, " COLS %u", &n_cols);
+	assert(fret == 1);
 	assert(n_cols == col_enum.size());
 	m_n_cols = n_cols;
 
@@ -40,18 +41,21 @@ void PrimDB::initialize(const std::string& filename,
 	for (unsigned i = 0; i < n_cols; i++)
 	{
 		char col_name[128];
-		assert(fscanf(fp, " %128[^ \n]", col_name) == 1);
+		fret = fscanf(fp, " %128[^ \n]", col_name);
+		assert(fret == 1);
 
 		// Lookup enum for string
 		unsigned enum_pos = 0;
-		assert(col_enum.from_string(col_name, enum_pos));
+		bool bret = col_enum.from_string(col_name, enum_pos);
+		assert(bret);
 
 		// Column i in file is this column enum
 		col_map[i] = enum_pos;
 	}
 
 	// Get number of rows
-	assert(fscanf(fp, " ROWS %u", &n_rows) == 1);
+	fret = fscanf(fp, " ROWS %u", &n_rows);
+	assert(fret == 1);
 
 	// Calculate size of tnode block for each row and allocate
 	// tnode data
@@ -71,7 +75,8 @@ void PrimDB::initialize(const std::string& filename,
 		for (unsigned colno = 0; colno < n_cols; colno++)
 		{
 			unsigned col_val;
-			assert(fscanf(fp, " %u", &col_val) == 1);
+			fret = fscanf(fp, " %u", &col_val);
+			assert(fret == 1);
 			col_vals[col_map[colno]] = col_val;
 		}
 
@@ -87,15 +92,17 @@ void PrimDB::initialize(const std::string& filename,
 		RowData& rowdata = row_it->second;
 		
 		// Parse resources TODO make more flexible
-		assert(fscanf(fp, " ALM %u MemALM %u CombALUT %u Reg %u",
-			&rowdata.alm, &rowdata.mem_alm, &rowdata.comb, &rowdata.reg) == 4);
+		fret = fscanf(fp, " ALM %u MemALM %u CombALUT %u Reg %u",
+			&rowdata.alm, &rowdata.mem_alm, &rowdata.comb, &rowdata.reg);
+		assert(fret == 4);
 
 		// Set tnodes pointer. Each row has the same number of tnode pairs for now in memory.
 		rowdata.tnode_ofs = rowno * tnode_blk_size;
 
 		// Get number of actual tnodes in file
 		unsigned n_file_tnodes;
-		assert(fscanf(fp, " NODES %u", &n_file_tnodes) == 1);
+		fret = fscanf(fp, " NODES %u", &n_file_tnodes);
+		assert(fret == 1);
 
 		// Parse the nodes
 		for (unsigned nodeno = 0; nodeno < n_file_tnodes; nodeno++)
@@ -103,13 +110,14 @@ void PrimDB::initialize(const std::string& filename,
 			char src_str[128];
 			char sink_str[128];
 			unsigned tnode_val;
-			assert(fscanf(fp, " %128[^ \n] %128[^ \n] %u", src_str, sink_str, &tnode_val) == 3);
+			fret = fscanf(fp, " %128[^ \n] %128[^ \n] %u", src_str, sink_str, &tnode_val);
+			assert(fret == 3);
 
 			// Get enum-based indices
 			unsigned src_enum_pos;
 			unsigned sink_enum_pos;
-			assert(tnode_enum_src.from_string(src_str, src_enum_pos));
-			assert(tnode_enum_sink.from_string(sink_str, sink_enum_pos));
+			bool bret = tnode_enum_src.from_string(src_str, src_enum_pos); assert(bret);
+			bret = tnode_enum_sink.from_string(sink_str, sink_enum_pos); assert(bret);
 
 			// Put in table
 			unsigned tab_pos = src_enum_pos*m_n_tnode_sink + sink_enum_pos;
