@@ -5,14 +5,14 @@
 
 using namespace genie::impl;
 
-const SigRoleType SigRoleType::INVALID = std::numeric_limits<SigRoleType>::max();
+const SigRoleType SigRoleType::INVALID = std::numeric_limits<unsigned>::max();
 
 //
 // SigRoleType - for internal registration
 //
 
-SigRoleDef::SigRoleDef(const std::string& name, bool uses_tags)
-	: m_name(name), m_uses_tags(uses_tags)
+SigRoleDef::SigRoleDef(const std::string& name, bool uses_tags, Sense sense)
+	: m_name(name), m_uses_tags(uses_tags), m_sense(sense)
 {
 }
 
@@ -52,7 +52,6 @@ SigRoleType::operator unsigned() const
 
 SigRoleType SigRoleType::from_string(const std::string& str)
 {
-	std::string str_low = util::str_tolower(str);
 	return genie::impl::get_sig_role_from_str(str);
 }
 

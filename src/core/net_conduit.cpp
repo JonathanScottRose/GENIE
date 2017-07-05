@@ -27,25 +27,3 @@ Link* NetConduit::create_link() const
 	return new LinkConduit();
 }
 
-//
-// Conduit Sub
-//
-
-NetType genie::impl::NET_CONDUIT_SUB;
-
-void NetConduitSub::init()
-{
-	NET_CONDUIT_SUB = impl::register_network(new NetConduitSub);
-}
-
-NetConduitSub::NetConduitSub()
-{
-	m_short_name = "conduit_sub";
-	m_default_max_conn_in = 1;
-	m_default_max_conn_out = Endpoint::UNLIMITED;
-}
-
-Link* NetConduitSub::create_link() const
-{
-	return new LinkConduitSub();
-}

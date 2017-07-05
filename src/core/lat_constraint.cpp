@@ -228,7 +228,7 @@ namespace
 		using Op = genie::SyncConstraint::Op;
 
 		auto sys = sstate.sys;
-		auto& sync_constraints = sys->get_sync_constraints();
+		auto& sync_constraints = sys->get_spec().sync_constraints;
 
 		for (auto& sync_constraint : sync_constraints)
 		{
@@ -353,7 +353,7 @@ namespace
 	{
 		using namespace graph;
 		auto sys = sstate.sys;
-		unsigned max_logic_depth = sys->get_max_logic_depth();
+		unsigned max_logic_depth = sys->get_spec().max_logic_depth;
 		auto& reg_graph = sstate.reg_graph;
 
 		E2Attr<Link*> g1_e2link;
@@ -489,7 +489,7 @@ namespace
 
 	void create_reg_constraints(SolverState& sstate)
 	{
-		unsigned max_weight = sstate.sys->get_max_logic_depth();
+		unsigned max_weight = sstate.sys->get_spec().max_logic_depth;
 		auto& reg_graph = sstate.reg_graph;
 
 		struct SnakeState

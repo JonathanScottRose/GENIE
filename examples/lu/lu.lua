@@ -1,8 +1,10 @@
 require 'topo_xbar'
 require 'builder'
 require 'math'
+require 'util'
 dofile 'cpu.lua'
 
+--[[
 function topo_lobe(sys, N_CPU, N_MEM, DISABLE_BCAST)
     local function inp_ring(things, reg_input, has_extern_in, has_extern_out)
         local last = nil
@@ -133,44 +135,15 @@ function topo_lobe(sys, N_CPU, N_MEM, DISABLE_BCAST)
     
 	-- connect everything else using a crossbar
 	topo_xbar(sys)
-	
-	--[[
-    -- go/done
-    local sp = sys:add_split('go_split')
-    local mg = sys:add_merge('done_merge')
-    local mg_reg = sys:add_buffer('done_merge_reg')
-    local ctrl_go = sys:get_object('ctrl_node.cpu_go'):get_topo_port()
-    local ctrl_done = sys:get_object('ctrl_node.cpu_done'):get_topo_port()
-    
-    sys:add_link(ctrl_go, sp)
-    sys:add_link(mg, mg_reg)
-    sys:add_link(mg_reg, ctrl_done)
-    
-    for n = 0,N_CPU-1 do
-        local cpu = sys:get_object('cpu'..n)
-        local cpu_go = cpu:get_object('go'):get_topo_port()
-        local cpu_done = cpu:get_object('done'):get_topo_port()
-        local rg = sys:add_buffer('go_reg'..n)
-        sys:add_link(sp, rg)
-        sys:add_link(rg, cpu_go)
-        sys:add_link(cpu_done, mg)
-    end
-    
-    -- nblocks
-    sp = sys:add_split('nblocks_split')
-    sys:add_link(sys:get_object('ctrl_node.nblocks'):get_topo_port(), sp)
-    for m = 0,N_MEM-1 do
-        sys:add_link(sp, sys:get_object('mem'..m..'.nblocks'):get_topo_port())
-    end 
-	--]]
 end
+--]]
 
 local function is_pwr_of_2 (a) 
     local i = 0
     assert (a > 0) 
     while (a > 0) do
         i = i + (a % 2) 
-        a = bit32.rshift(a, 1)
+        a = a >> 1
     end
     return (i == 1) 
 end
@@ -185,8 +158,8 @@ local IMP = tonumber(genie.argv.IMP) or 1
 assert (is_pwr_of_2(N_MEM)) 
 
 -- dependent parameters 
-local N_CPUBITS = math.max(1,genie.clog2(N_CPU))
-local N_MEMBITS = math.max(1,genie.clog2(N_MEM))
+local N_CPUBITS = math.max(1,util.clog2(N_CPU))
+local N_MEMBITS = math.max(1,util.clog2(N_MEM))
 
 -- static parameters; those we do not sweep over
 local BURSTBITS = 6
@@ -203,8 +176,8 @@ define_cpu(b, N_MEM, false, 'cpu', PERF_SIM)
 
 -- define memory controller node
 b:component('mem','mem_lu2phy')
-	b:clock_sink('clk','clk')
-	b:reset_sink('reset','reset')
+	b:clock_sink('clk')
+	b:reset_sink('reset')
     
     b:rs_sink('rdreq', 'clk')
 		b:importance(IMP)
@@ -214,11 +187,7 @@ b:component('mem','mem_lu2phy')
         b:signal('databundle','blky','i_net_rdreq_blky',MAX_BDIMBITS)
         b:signal('databundle','whichbufs','i_net_rdreq_whichbufs',3)
         b:signal('databundle','whichpage','i_net_rdreq_whichpage',1)
-        b:signal('lpid','i_net_rdreq_lpid','LPID_BITS') 
-        for i=0,N_CPU-1 do
-			b:linkpoint('cpu'..i, i , 'broadcast')
-		end
-        b:linkpoint('bcast', N_CPU, 'broadcast')
+        b:signal('address','i_net_rdreq_lpid','LPID_BITS') 
     
     b:rs_src('rdresp', 'clk')
 		b:packet_size(512)
@@ -228,20 +197,16 @@ b:component('mem','mem_lu2phy')
         b:signal('databundle','whichpage','o_net_rdresp_whichpage',1)
         b:signal('valid','o_net_rdresp_valid')
         b:signal('ready','i_net_rdresp_ready')
-        b:signal('lpid','o_net_rdresp_lpid', 'LPID_BITS')
-        for i=0,N_CPU-1 do
-			b:linkpoint('cpu'..i, i , 'broadcast')
-		end
-        b:linkpoint('bcast', N_CPU, 'broadcast')
+        b:signal('address','o_net_rdresp_lpid', 'LPID_BITS')
 
     b:rs_sink('wrreq', 'clk')
 		b:packet_size(512)
         b:signal('databundle','data','i_net_wrreq_data',MEM_DWIDTH)
         b:signal('databundle','blkx','i_net_wrreq_x',MAX_BDIMBITS)
         b:signal('databundle','blky','i_net_wrreq_y',MAX_BDIMBITS)
-        b:signal('valid','i_net_wrreq_valid')
+        b:signal('databundle','sop','i_net_wrreq_sop',1)
+		b:signal('valid','i_net_wrreq_valid')
         b:signal('ready','o_net_wrreq_ready')
-        b:signal('sop','i_net_wrreq_sop')
 
     b:rs_sink('nblocks','clk')
         b:signal('data','i_nblocks',MAX_BDIMBITS)
@@ -264,8 +229,8 @@ b:component('mem','mem_lu2phy')
 
 -- define control node
 b:component('ctrl','ctrl_top')
-	b:clock_sink('clk','clk')
-	b:reset_sink('reset','reset')
+	b:clock_sink('clk')
+	b:reset_sink('reset')
     b:rs_sink('i_rdreq','clk')
 		b:importance(IMP)
         b:signal('valid','i_rdreq')
@@ -281,10 +246,7 @@ b:component('ctrl','ctrl_top')
         b:signal('databundle','blky','o_rdreq_blky',MAX_BDIMBITS)
         b:signal('databundle','whichbufs','o_rdreq_whichbufs','3')
         b:signal('databundle','whichpage','o_rdreq_whichpage','1')
-        b:signal('lpid','o_rdreq_lpid',N_MEMBITS)
-        for i=0,N_MEM-1 do
-            b:linkpoint('mem'..i, i, 'broadcast')
-        end
+        b:signal('address','o_rdreq_lpid',N_MEMBITS)
 
     b:rs_src('cpu_go','clk')
         b:signal('valid','o_go')
@@ -293,10 +255,7 @@ b:component('ctrl','ctrl_top')
         b:signal('databundle','blkx','o_go_blkx',MAX_BDIMBITS)
         b:signal('databundle','blkymax','o_go_blkymax',MAX_BDIMBITS)
         b:signal('databundle','blkxmin','o_go_blkxmin',MAX_BDIMBITS)
-        b:signal('lpid','o_go_lpid',N_CPUBITS)
-        for i=0,N_CPU-1 do
-            b:linkpoint('cpu'..i, i, 'broadcast')
-        end
+        b:signal('address','o_go_lpid',N_CPUBITS)
     
     b:rs_sink('cpu_done', 'clk')
         b:signal('valid','i_done')
@@ -312,10 +271,10 @@ b:component('ctrl','ctrl_top')
 		b:signal('out','done','o_done','1')
 
 -- define system        
-local sys = b:system('lu')
+b:system('lu')
     -- embed these to allow simulator testbench to pick them up
-    b:parameter('N_CPU', N_CPU);
-    b:parameter('N_MEM', N_MEM);
+    b:int_param('N_CPU', N_CPU);
+    b:int_param('N_MEM', N_MEM);
     
     -- top-level clock and reset inputs
     b:clock_sink('clk_a', 'clk_a')
@@ -323,55 +282,77 @@ local sys = b:system('lu')
     b:reset_sink('reset', 'reset')
     
     -- instantiate control node
-	b:instance('ctrl_node','ctrl')
-        b:parameter('N', N_CPU)
-        b:parameter('M', N_MEM)
+	b:instance('ctrl','ctrl_node')
+        b:int_param('N', N_CPU)
+        b:int_param('M', N_MEM)
 
     b:export('ctrl_node.ctrl_top', 'ctrl')
-    b:link('clk_b','ctrl_node.clk')
-    b:link('reset','ctrl_node.reset');
+    b:clock_link('clk_b','ctrl_node.clk')
+    b:reset_link('reset','ctrl_node.reset');
     
     -- instantiate memory controllers, connect them to control node
     for i = 0, N_MEM-1 do 
         local mem_inst = 'mem' .. i
-        b:instance(mem_inst, 'mem')
-            b:parameter('MEM_AWIDTH', MEM_AWIDTH)
-            b:parameter('BURSTBITS', BURSTBITS)
-            b:parameter('READ_BURST', MEM_READ_BURST)
-            b:parameter('WRITE_BURST', MEM_WRITE_BURST)
-            b:parameter('N', N_CPU)
-            b:parameter('M', N_MEM)
-            b:parameter('RDREQ_BUF_DEPTH', MEM_RDREQ_BUF_DEPTH)
-            b:parameter('RDRESP_BUF_DEPTH', MEM_RDRESP_BUF_DEPTH)
-            b:parameter('LPID_BITS', math.max(1, genie.clog2(N_CPU+1)))
-            b:parameter('BCAST_LPID', N_CPU)
+        b:instance('mem', mem_inst)
+            b:int_param('MEM_AWIDTH', MEM_AWIDTH)
+            b:int_param('BURSTBITS', BURSTBITS)
+            --b:int_param('READ_BURST', MEM_READ_BURST)
+            --b:int_param('WRITE_BURST', MEM_WRITE_BURST)
+            b:int_param('N', N_CPU)
+            b:int_param('M', N_MEM)
+            --b:int_param('RDREQ_BUF_DEPTH', MEM_RDREQ_BUF_DEPTH)
+            --b:int_param('RDRESP_BUF_DEPTH', MEM_RDRESP_BUF_DEPTH)
+            b:int_param('LPID_BITS', math.max(1, util.clog2(N_CPU+1)))
+            b:int_param('BCAST_LPID', N_CPU)
 
         -- these are top-level conduit ports that drive the memory controller.
         -- the signal names are made explicit, and all N_MEM ports map to ranges of
         -- the same verilog ports
         b:conduit_src('read' .. i)
-            b:signal('in','data','i_read_data',{MEM_DWIDTH*N_MEM, MEM_DWIDTH, i*MEM_DWIDTH})
-            b:signal('in','valid','i_read_valid',{N_MEM, 1, i})
-            b:signal('in','waitrequest','i_read_waitrequest',{N_MEM, 1, i}) 
-            b:signal('out','addr','o_read_addr',{MEM_AWIDTH*N_MEM, MEM_AWIDTH, i*MEM_AWIDTH})
-            b:signal('out','burstcount','o_read_burstcount',{BURSTBITS*N_MEM, BURSTBITS, i*BURSTBITS})
-            b:signal('out','req','o_read_req',{N_MEM, 1, i}) 
+			b:signal_ex('in','data', 
+				{name='i_read_data',width=MEM_DWIDTH,depth=N_MEM},
+				{width=MEM_DWIDTH,lo_slice=i})
+            b:signal_ex('in','valid',
+				{name='i_read_valid',width=N_MEM},
+				{width=1,lo_bit=i})
+            b:signal_ex('in','waitrequest',
+				{name='i_read_waitrequest',width=N_MEM},
+				{width=1,lo_bit=i})
+			b:signal_ex('out','addr',
+				{name='o_read_addr',width=MEM_AWIDTH,depth=N_MEM},
+				{width=MEM_AWIDTH,lo_slice=i})
+            b:signal_ex('out','burstcount',
+				{name='o_read_burstcount',width=BURSTBITS,depth=N_MEM},
+				{width=BURSTBITS,lo_slice=i})
+			b:signal_ex('out','req',
+				{name='o_read_req',width=N_MEM},
+				{width=1,lo_bit=i})
             
         b:conduit_src('write' .. i)
-            b:signal('in','waitrequest','i_write_waitrequest',{N_MEM, 1, i})
-            b:signal('out','addr','o_write_addr',{MEM_AWIDTH*N_MEM, MEM_AWIDTH, i*MEM_AWIDTH}) 
-            b:signal('out','burstcount','o_write_burstcount',{BURSTBITS*N_MEM, BURSTBITS, i*BURSTBITS}) 
-            b:signal('out','data','o_write_data',{MEM_DWIDTH*N_MEM, MEM_DWIDTH, i*MEM_DWIDTH}) 
-            b:signal('out','req','o_write_req',{N_MEM, 1, i})             
+			b:signal_ex('in','waitrequest',
+				{name='i_write_waitrequest',width=N_MEM},
+				{width=1,lo_bit=i})
+			b:signal_ex('out','addr',
+				{name='o_write_addr',width=MEM_AWIDTH,depth=N_MEM},
+				{width=MEM_AWIDTH,lo_slice=i})
+            b:signal_ex('out','burstcount',
+				{name='o_write_burstcount',width=BURSTBITS,depth=N_MEM},
+				{width=BURSTBITS,lo_slice=i})
+            b:signal_ex('out','data', 
+				{name='o_write_data',width=MEM_DWIDTH,depth=N_MEM},
+				{width=MEM_DWIDTH,lo_slice=i})
+            b:signal_ex('out','req',
+				{name='o_write_req',width=N_MEM},
+				{width=1,lo_bit=i})
         
-        b:link('clk_b',mem_inst .. '.clk')
-        b:link('reset',mem_inst .. '.reset')
+        b:clock_link('clk_b',mem_inst .. '.clk')
+        b:reset_link('reset',mem_inst .. '.reset')
         if DISABLE_BCAST==0 then
-            b:link('ctrl_node.o_rdreq.' .. mem_inst, mem_inst .. '.rdreq.bcast')
+            b:rs_link('ctrl_node.o_rdreq', mem_inst .. '.rdreq', i, N_CPU)
         end
-        b:link('ctrl_node.nblocks', mem_inst .. '.nblocks')
-        b:link(mem_inst .. '.read', 'read' .. i)
-        b:link(mem_inst .. '.write', 'write' .. i)
+        b:rs_link('ctrl_node.nblocks', mem_inst .. '.nblocks')
+        b:conduit_link(mem_inst .. '.read', 'read' .. i)
+        b:conduit_link(mem_inst .. '.write', 'write' .. i)
     end
     
     -- instantiate the CEs
@@ -380,18 +361,18 @@ local sys = b:system('lu')
         local cpu_inst = 'cpu' .. i
         local model = is_bpu and 'bpu' or 'cpu'
         
-        b:instance(cpu_inst, model)
-            b:parameter('DISABLE_BCAST',DISABLE_BCAST)
+        b:instance(model, cpu_inst)
+            b:int_param('DISABLE_BCAST',DISABLE_BCAST)
             
-        b:link('clk_b', cpu_inst .. '.clk_b') 
-        b:link('clk_a', cpu_inst .. '.clk_a') 
-        b:link('reset', cpu_inst .. '.reset')
+        b:clock_link('clk_b', cpu_inst .. '.clk_b') 
+        b:clock_link('clk_a', cpu_inst .. '.clk_a') 
+        b:reset_link('reset', cpu_inst .. '.reset')
     
         -- links to control node
-        b:link('ctrl_node.cpu_go.' .. cpu_inst, cpu_inst .. '.go')
-        b:link(cpu_inst .. '.done', 'ctrl_node.cpu_done')
+        b:rs_link('ctrl_node.cpu_go', cpu_inst .. '.go', i)
+        b:rs_link(cpu_inst .. '.done', 'ctrl_node.cpu_done')
         if DISABLE_BCAST==0 then
-            b:link(cpu_inst .. '.rdreq.ctrl', 'ctrl_node.i_rdreq')
+            b:rs_link(cpu_inst .. '.rdreq', 'ctrl_node.i_rdreq', N_CPU)
         end
     
         -- links to memory controllers
@@ -401,20 +382,20 @@ local sys = b:system('lu')
             
             -- write requests: ce0 goes to all, ce1+ goes to just one
             if is_bpu or i % N_MEM == j then
-                b:link(cpu_inst .. '.wrreq.' .. mem_inst, mem_inst .. '.wrreq')
+                b:rs_link(cpu_inst .. '.wrreq', mem_inst .. '.wrreq', j)
             end
             
             -- read requests: ce0 goes to all, ce1+ goes to just one
             -- read replies: all go to ce0, just one goes to ce1+
             -- no broadcast: ce1+ behaves like ce0
             if is_bpu or DISABLE_BCAST==1 or i % N_MEM == j then
-                b:link(cpu_inst .. '.rdreq.' .. mem_inst, mem_inst .. '.rdreq.' .. cpu_inst)
-                b:link(mem_inst .. '.rdresp.' .. cpu_inst, cpu_inst .. '.rdresp')
+                b:rs_link(cpu_inst .. '.rdreq', mem_inst .. '.rdreq', j, i)
+                b:rs_link(mem_inst .. '.rdresp', cpu_inst .. '.rdresp', i)
             end
             
             -- read reply broadcasts: goes to all ce
             if DISABLE_BCAST==0 then
-                local l = b:link(mem_inst .. '.rdresp.bcast', cpu_inst .. '.rdresp')
+                local l = b:rs_link(mem_inst .. '.rdresp', cpu_inst .. '.rdresp', N_CPU)
 				table.insert(rdresp_bcasts, l)
             end
         end
@@ -425,8 +406,10 @@ local sys = b:system('lu')
 		end
     end 
 	
+	--[[
 	if TOPOLOGY == 1 then 
 		topo_xbar(sys, true, true, false)
 	elseif TOPOLOGY == 2 then
 		topo_lobe(sys,N_CPU,N_MEM,DISABLE_BCAST)
 	end
+	--]]

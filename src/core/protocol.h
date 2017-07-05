@@ -66,6 +66,7 @@ namespace impl
 	class FieldSet
 	{
 	public:
+		void add_nocheck(const FieldInst&);
 		void add(const FieldInst&);
 		void add(const FieldSet&);
 		void remove(const FieldInst&);
@@ -113,6 +114,7 @@ namespace impl
 	public:
 		void add_terminal_field(const FieldInst&, const SigRoleID&);
 		const FieldSet& terminal_fields() const;
+		FieldSet terminal_fields_nonconst() const;
 		bool has_terminal_field(const FieldID&) const;
 		FieldInst* get_terminal_field(const FieldID&);
 

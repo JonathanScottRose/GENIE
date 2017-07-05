@@ -49,6 +49,14 @@ namespace lua_api
 		std::vector<T*> result;
 		narg = lua_absindex(L, narg);
 
+		// Check if singular object
+		if (auto obj = lua_if::to_object<T>(narg))
+		{
+			result.push_back(obj);
+			return result;
+		}
+
+		// Try array or set
 		lua_pushnil(L);
 		while (lua_next(L, narg))
 		{

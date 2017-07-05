@@ -148,6 +148,7 @@ namespace hdl
 		PROP_GET_SET(width, const IntExpr&, m_width);
         PROP_GET_SET(depth, const IntExpr&, m_depth);
 
+		bool sizes_are_resolved();
         void resolve_params(ParamResolver&);
 		
 		const Bindings& bindings() const { return m_bindings; }

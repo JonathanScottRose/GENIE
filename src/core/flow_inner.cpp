@@ -129,7 +129,7 @@ namespace
 		// exclusive with every logical link carried by the second topo link.
 		
 		auto sys = fstate.sys;
-		auto& excl = sys->get_link_exclusivity();
+		auto& excl = sys->get_spec().excl_info;
 		auto& rel = sys->get_link_relations();
 		auto fs_out = fstate.outer;
 
@@ -298,7 +298,8 @@ namespace
 		for (auto user_port : user_ports)
 		{
 			// System-facing endpoint
-			auto ep = user_port->get_endpoint(NET_RS_PHYS, user_port->get_effective_dir(sys));
+			auto user_port_dir = user_port->get_effective_dir(sys);
+			auto ep = user_port->get_endpoint(NET_RS_PHYS, user_port_dir);
 			auto rs_link = static_cast<LinkRSPhys*>(ep->get_link0());
 			if (!rs_link)
 				continue;
@@ -310,8 +311,32 @@ namespace
 				// If only one address bin exists, no conversion is necessary,
 				// as that one bin's value can be injected as a constant.
 				auto user_rep = make_srcsink_flow_rep(fstate, user_port);
-				if (user_rep.get_n_addr_bins() <= 1)
+
+				auto& addr_bins = user_rep.get_addr_bins();
+				if (addr_bins.size() == 1)
 				{
+					// Just one bin. We can const it!
+					unsigned addr = addr_bins.begin()->first;
+					unsigned addr_bits = std::max(1U, user_rep.get_size_in_bits());
+
+					// If this addr is ADDR_ANY, then the user did a silly thing:
+					// they gave this port an address signal but didn't make use of it.
+					// Since they don't care, we'll pick an const 0.
+
+					if (addr == AddressRep::ADDR_ANY)
+					{
+						genie::log::warn("%s: has address signal but no bound transmissions.",
+							user_port->get_hier_path().c_str());
+						addr = 0;
+					}
+
+					// Do this for sink ports only
+					if (user_port_dir == Port::Dir::IN)
+					{
+						proto.set_const(FIELD_USERADDR, 
+							BitsVal(addr_bits).set_val(0, 0, addr, addr_bits));
+					}
+										
 					continue;
 				}
 				else if (user_rep.exists(AddressRep::ADDR_ANY))
@@ -432,7 +457,7 @@ namespace
 				auto& src_proto = cur_src->get_proto();
 
 				// Carriage set += (what sink needs) - (what src provides)
-				carriage_set.add(sink_proto.terminal_fields());
+				carriage_set.add(sink_proto.terminal_fields_nonconst());
 				carriage_set.subtract(src_proto.terminal_fields());
 
 				// Make the intermediate Node carry the carriage set, if it is able.
@@ -557,6 +582,43 @@ namespace
 				}
 			} // foreach feeder
 		}
+	}
+
+	void splice_backpressure(PortRS* orig_src, PortRS* new_sink, PortRS* new_src, PortRS* orig_sink)
+	{
+		auto& orig_sink_bp = orig_sink->get_bp_status();
+		RSBackpressure::Status cur_status = orig_sink_bp.status;
+		
+		// Make sure orig_sink has been decided already.
+		// We will propagate this backwards.
+		assert(cur_status != RSBackpressure::UNSET);
+
+		// Propagate through new_src and new_sink
+		for (auto port : { new_src, new_sink })
+		{
+			auto& bp = port->get_bp_status();
+
+			if (bp.configurable)
+			{
+				// If it's disabled, keep it the same or upgrade it to enabled.
+				// If it's enabled, keep it that way and propagate the enabledness further back
+				if (bp.status == RSBackpressure::DISABLED ||
+					bp.status == RSBackpressure::UNSET)
+					bp.status = cur_status;
+				else
+					cur_status = RSBackpressure::ENABLED;
+			}
+			else
+			{
+				// If not configurable, make sure it's not mismatched in a bad way
+				assert(!(cur_status == RSBackpressure::ENABLED &&
+					bp.status == RSBackpressure::DISABLED));
+			}
+		}
+
+		// Make sure orig_src is the same setting
+		auto& orig_src_bp = orig_src->get_bp_status();
+		assert(orig_src_bp.status == cur_status);
 	}
 
 	void default_eops(FlowStateInner& fstate)
@@ -961,6 +1023,7 @@ namespace
 				sys->splice(orig_link, md->get_input(), md->get_output());
 				sys->connect(clock_driver, md->get_clock_port(), NET_CLOCK);
 				flow::splice_carrier_protocol(orig_src, orig_sink, md);
+				splice_backpressure(orig_src, md->get_input(), md->get_output(), orig_sink);
 			}
 			else
 			{
@@ -980,11 +1043,23 @@ namespace
 
 					sys->connect(clock_driver, rg->get_clock_port(), NET_CLOCK);
 					flow::splice_carrier_protocol(link_src, link_sink, rg);
+					splice_backpressure(link_src, rg->get_input(), rg->get_output(), link_sink);
 				}
 			}
 
+			// Reset link latency to 0 now that it's been realized
 			orig_link->set_latency(0);
 			pipe_no++;
+		}
+	}
+
+	void annotate_timing(FlowStateInner& fstate)
+	{
+		auto sys = fstate.sys;
+
+		for (auto node : sys->get_nodes())
+		{
+			node->annotate_timing();
 		}
 	}
 }
@@ -1001,16 +1076,18 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 	realize_topo_links(fstate);
 	insert_addr_converters_user(fstate);
 	insert_addr_converters_split(fstate);
-	do_protocol_carriage(fstate);
+	do_protocol_carriage(fstate); // all protocol updating is incremental past this point
 
 	connect_clocks(fstate);
 	insert_clockx(fstate);
 
+	do_backpressure(fstate); // all backpressure updating is incremental past this point
+
+	annotate_timing(fstate);
 	flow::solve_latency_constraints(sys);
 	realize_latencies(fstate);
 
 	connect_resets(fstate);
-	do_backpressure(fstate);
 	default_eops(fstate);
 	default_xmis_ids(fstate);
 }

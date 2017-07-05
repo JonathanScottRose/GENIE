@@ -16,11 +16,18 @@ namespace
 	const char OUTPORT_NAME[] = "out";
 	const char CLOCKPORT_NAME[] = "clock";
 	const char RESETPORT_NAME[] = "reset";
+
+	PrimDB* s_prim_db;
+	SMART_ENUM(DB_COLS, WIDTH, BP);
+	SMART_ENUM(DB_SRC, I_VALID, I_READY, I_DATA, INT);
+	SMART_ENUM(DB_SINK, O_VALID, O_READY, O_DATA, INT);
 }
 
 void NodeReg::init()
 {
 	genie::impl::register_reserved_module(MODNAME);
+	s_prim_db = genie::impl::load_prim_db(MODNAME,
+		DB_COLS::get_table(), DB_SRC::get_table(), DB_SINK::get_table());
 }
 
 NodeReg::NodeReg()
@@ -95,6 +102,53 @@ void NodeReg::prepare_for_hdl()
 {
 	auto& proto = get_carried_proto();
 	set_int_param("WIDTH", proto.get_total_width());
+}
+
+void NodeReg::annotate_timing()
+{
+	// pointless for now - these are added AFTER constraint satisfaction
+}
+
+AreaMetrics NodeReg::annotate_area()
+{
+	AreaMetrics result;
+	unsigned node_width = get_carried_proto().get_total_width();
+	bool bp = get_output()->get_bp_status().status == RSBackpressure::ENABLED;
+	unsigned col_vals[DB_COLS::size()];
+
+	col_vals[DB_COLS::BP] = bp ? 1 : 0;
+
+	auto& ap = genie::impl::get_arch_params();
+
+	if (node_width == 0)
+	{
+		col_vals[DB_COLS::WIDTH] = 0;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics = s_prim_db->get_area_metrics(row);
+		assert(metrics);
+		result = *metrics;
+	}
+	else
+	{
+		// width 1
+		col_vals[DB_COLS::WIDTH] = 1;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_1 = s_prim_db->get_area_metrics(row);
+		assert(metrics_1);
+
+		// width 2
+		col_vals[DB_COLS::WIDTH] = 2;
+		row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics_2 = s_prim_db->get_area_metrics(row);
+		assert(metrics_2);
+
+		result = *metrics_1 + (*metrics_2 - *metrics_1)*node_width;
+	}
+
+	return result;
 }
 
 

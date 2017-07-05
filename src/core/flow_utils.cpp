@@ -166,16 +166,16 @@ DomainRS& FlowStateOuter::new_rs_domain(unsigned id)
 	return result;
 }
 
-unsigned FlowStateOuter::new_transmission()
+TransmissionID FlowStateOuter::new_transmission()
 {
-	unsigned result = m_transmissions.size();
+	TransmissionID result = m_transmissions.size();
 
 	m_transmissions.emplace_back(TransmissionInfo{ {} });
 
 	return result;
 }
 
-void FlowStateOuter::add_link_to_transmission(unsigned xmis, LinkID link)
+void FlowStateOuter::add_link_to_transmission(TransmissionID xmis, LinkID link)
 {
 	auto& xm = m_transmissions[xmis];
 
@@ -185,7 +185,7 @@ void FlowStateOuter::add_link_to_transmission(unsigned xmis, LinkID link)
 	m_link_to_xmis[link] = xmis;
 }
 
-const std::vector<LinkID>& FlowStateOuter::get_transmission_links(unsigned xmis)
+const std::vector<LinkID>& FlowStateOuter::get_transmission_links(TransmissionID xmis)
 {
 	return m_transmissions[xmis].links;
 }
@@ -195,7 +195,7 @@ unsigned FlowStateOuter::get_n_transmissions() const
 	return m_transmissions.size();
 }
 
-unsigned genie::impl::flow::FlowStateOuter::get_transmission_for_link(LinkID link)
+TransmissionID genie::impl::flow::FlowStateOuter::get_transmission_for_link(LinkID link)
 {
 	auto it = m_link_to_xmis.find(link);
 	assert(it != m_link_to_xmis.end());

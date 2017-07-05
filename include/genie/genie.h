@@ -49,7 +49,7 @@ namespace genie
 
         bool no_mdelay = false;
 
-		unsigned max_logic_depth = 2;
+		unsigned max_logic_depth = 5;
     };
 
     struct ArchParams

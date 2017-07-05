@@ -4,6 +4,7 @@
 #include "port_clockreset.h"
 #include "port_rs.h"
 #include "genie_priv.h"
+#include "flow.h"
 
 using namespace genie::impl;
 using hdl::PortBindingRef;
@@ -93,16 +94,17 @@ PortRS * NodeConv::get_output() const
 void NodeConv::configure(const AddressRep & in_rep, const FieldID & in_field, 
 	const AddressRep & out_rep, const FieldID & out_field)
 {
+	using flow::TransmissionID;
 	m_table.clear();
 
-	// Go through every output representation address bin. Get the (->to) address.
-	// Use one transmission from that bin and find its address in
-	// the input representation to use as the (from->) address.
-	for (auto& out_bin : out_rep.get_addr_bins())
+	// For every input representation address bin, use the address
+	// as the 'from' address. Use one transmission from that bin and
+	// get its address in the output representation as the 'to' address.
+	for (auto& in_bin : in_rep.get_addr_bins())
 	{
-		unsigned to_addr = out_bin.first;
-		unsigned exemplar_xmis = out_bin.second.front();
-		unsigned from_addr = in_rep.get_addr(exemplar_xmis);
+		unsigned from_addr = in_bin.first;
+		TransmissionID exemplar_xmis = in_bin.second.front();
+		unsigned to_addr = out_rep.get_addr(exemplar_xmis);
 		m_table.emplace_back(from_addr, to_addr);
 	}
 
@@ -149,3 +151,15 @@ void NodeConv::prepare_for_hdl()
 }
 
 
+void NodeConv::annotate_timing()
+{
+	// todo
+}
+
+AreaMetrics NodeConv::annotate_area()
+{
+	// todo srsly
+	AreaMetrics result;
+	result.comb = m_out_width;
+	return result;
+}

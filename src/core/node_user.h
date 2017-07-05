@@ -16,8 +16,10 @@ namespace impl
         NodeUser(const std::string& name, const std::string& hdl_name);
 
 		NodeUser* clone() const override;
-        NodeUser* instantiate() const override;
+        HierObject* instantiate() const override;
 		void prepare_for_hdl() override;
+		void annotate_timing() override;
+		AreaMetrics annotate_area() override;
 
     protected:
         NodeUser(const NodeUser&);

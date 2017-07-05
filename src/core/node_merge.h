@@ -20,6 +20,8 @@ namespace impl
         // Generic copy of an existing one
         NodeMerge* clone() const override;
 		void prepare_for_hdl() override;
+		void annotate_timing() override;
+		AreaMetrics annotate_area() override;
 
 		PROP_GET(n_inputs, unsigned, m_n_inputs);
 		void create_ports();
@@ -32,6 +34,10 @@ namespace impl
 		NodeMerge(const NodeMerge&) = default;
 
 		void init_vlog();
+		void annotate_timing_nonex();
+		void annotate_timing_ex();
+		AreaMetrics annotate_area_nonex();
+		AreaMetrics annotate_area_ex();
 
 		unsigned m_n_inputs;
 		bool m_is_exclusive;

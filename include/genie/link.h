@@ -18,6 +18,8 @@ namespace genie
 
 		virtual unsigned get_src_addr() const = 0;
 		virtual unsigned get_sink_addr() const = 0;
+		virtual void set_packet_size(unsigned size) = 0;
+		virtual void set_importance(float imp) = 0;
 
 	protected:
 		~LinkRS() = default;

@@ -16,6 +16,8 @@ namespace impl
     class PortClock : public Port
     {
     public:
+		static SigRoleType CLOCK;
+
 		static void init();
 
         PortClock(const std::string& name, genie::Port::Dir dir);
@@ -24,17 +26,14 @@ namespace impl
         ~PortClock() = default;
 
         PortClock* clone() const override;
-        void resolve_params(ParamResolver&) override;
 		Port* export_port(const std::string&, NodeSystem*) override;
 		PortType get_type() const override { return PORT_CLOCK; }
 
-        PROP_GET_SET(binding, const hdl::PortBindingRef&, m_binding);
+		const hdl::PortBindingRef& get_binding();
+		void set_binding(const hdl::PortBindingRef&);
 
 		PortClock* get_connected_clk_port(Node* context) const;
 		PortClock* get_driver(Node* context) const;
-
-    protected:
-        hdl::PortBindingRef m_binding;
     };
 
 	extern PortType PORT_RESET;
@@ -42,6 +41,8 @@ namespace impl
     class PortReset : public Port
     {
     public:
+		static SigRoleType RESET;
+
 		static void init();
 
         PortReset(const std::string& name, genie::Port::Dir dir);
@@ -50,14 +51,11 @@ namespace impl
         ~PortReset() = default;
 
         PortReset* clone() const override;
-        void resolve_params(ParamResolver&) override;
 		Port* export_port(const std::string&, NodeSystem*) override;
 		PortType get_type() const override { return PORT_RESET; }
 
-        PROP_GET_SET(binding, const hdl::PortBindingRef&, m_binding);
-
-    protected:
-        hdl::PortBindingRef m_binding;
+		const hdl::PortBindingRef& get_binding();
+		void set_binding(const hdl::PortBindingRef&);
     };
 }
 }

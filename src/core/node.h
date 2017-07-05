@@ -4,6 +4,7 @@
 #include "hdl.h"
 #include "network.h"
 #include "genie/node.h"
+#include "prim_db.h"
 
 namespace genie
 {
@@ -39,13 +40,18 @@ namespace impl
         // Internal API
 		virtual ~Node();
 
+		void reintegrate(HierObject*) override;
+
 		virtual void prepare_for_hdl() = 0;
+		virtual void annotate_timing() = 0;
+		virtual AreaMetrics annotate_area() = 0;
 
 		PROP_GET_SET(hdl_name, const std::string&, m_hdl_name);
         Node* get_parent_node() const;
 		PROP_GET_SETR(hdl_state, hdl::HDLState&, m_hdl_state);
 
-        void resolve_params();
+        void resolve_size_params();
+		void resolve_all_params();
         NodeParam* get_param(const std::string& name);
         const Params& get_params() const { return m_params; }
 		void set_bits_param(const std::string parm_name, const BitsVal& val);
@@ -90,14 +96,5 @@ namespace impl
 		std::vector<LinksContainer> m_links;
 		LinkRelations m_link_rel;
     };
-
-	class IInstantiable
-	{
-	public:
-		virtual Node* instantiate() const = 0;
-
-	protected:
-		~IInstantiable() = default;
-	};
 }
 }

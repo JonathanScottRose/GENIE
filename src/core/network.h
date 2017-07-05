@@ -134,8 +134,8 @@ namespace impl
 
 		NetType get_type() const;
 
-		// Duplicate link.
 		virtual Link* clone() const;
+		//virtual bool is_duplicate(Link* other) const;
 
 	protected:
 		LinkID m_id;

@@ -167,16 +167,41 @@ Node::Node(const Node& o)
 	}
 }
 
-Node * Node::get_parent_node() const
+void Node::reintegrate(HierObject *obj)
 {
-    Node* result = const_cast<Node*>(this);
-    while (result = dynamic_cast<Node*>(result->get_parent()))
-        ;
+	// Reintegrate recursively
+	for (auto our_child : this->get_children())
+	{
+		auto their_child = obj->get_child_as<HierObject>(our_child->get_name());
+		if (their_child)
+		{
+			our_child->reintegrate(their_child);
+		}
+	}
 
-    return result;
 }
 
-void Node::resolve_params()
+Node * Node::get_parent_node() const
+{
+	return dynamic_cast<Node*>(get_parent());
+}
+
+void Node::resolve_size_params()
+{
+	NodeParamResolver resolv(this);
+
+	// Resolve expresisons within child ports
+	auto ports = get_children_by_type<Port>();
+	for (auto p : ports)
+	{
+		p->resolve_params(resolv);
+	}
+
+	// Resolve expressions within HDL-related stuff
+	m_hdl_state.resolve_params(resolv);
+}
+
+void Node::resolve_all_params()
 {
     NodeParamResolver resolv(this);
 
@@ -186,15 +211,7 @@ void Node::resolve_params()
         p.second->resolve(resolv);
     }
 
-    // Resolve expresisons within child ports
-    auto ports = get_children_by_type<Port>();
-    for (auto p : ports)
-    {
-        p->resolve_params(resolv);
-    }
-
-    // Resolve expressions within HDL-related stuff
-    m_hdl_state.resolve_params(resolv);
+	resolve_size_params();
 }
 
 
@@ -322,13 +339,15 @@ Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 	}
 
 	// Check if a link already exists, and return it if so
+	/*
 	for (auto existing_link : src_ep->links())
 	{
 		if (existing_link->get_sink_ep() == sink_ep)
 		{
+			assert(false);
 			return existing_link;
 		}
-	}
+	}*/
 
 	// Create link and set its src/sink
 	Link* link = def->create_link();

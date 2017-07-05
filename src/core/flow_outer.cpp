@@ -14,20 +14,20 @@
 #include "net_clockreset.h"
 #include "port_conduit.h"
 #include "port_rs.h"
+#include "topo_optimize.h"
 
 using namespace genie::impl;
 using genie::Exception;
 using flow::FlowStateOuter;
+using flow::TransmissionID;
 
 namespace
 {
-	NodeSystem * create_snapshot(FlowStateOuter& fstate,
+	NodeSystem * create_snapshot(NodeSystem* sys, FlowStateOuter& fstate,
 		unsigned dom_id)
 	{
 		std::unordered_set<HierObject*> dom_nodes;
 		std::vector<Link*> dom_links;
-
-		auto sys = fstate.sys;
 
 		// Gather all RS logical links for the given domain
 		auto& dom_rs_link_ids = fstate.get_rs_domain(dom_id)->get_links();
@@ -61,29 +61,53 @@ namespace
 		return sys->create_snapshot(dom_nodes, dom_links);
 	}
 
-	void init_user_rs_ports(FlowStateOuter& fstate)
+	void init_elemental_transmission_specs(NodeSystem* sys)
 	{
-		auto sys = fstate.sys;
+		// Apply RS Port packet size/importance to individual RS logical links
+		auto rs_links = sys->get_links_casted<LinkRSLogical>(NET_RS_LOGICAL);
+		for (auto link : rs_links)
+		{
+			auto src = static_cast<PortRS*>(link->get_src());
 
-		// Visit RS ports in user modules as well as top-level ones in the system that
-		// may have been exported.
-		auto ports = sys->get_children_by_type<PortRS>();
+			// If link's version is unset, use default size associated with source port
+			if (link->get_packet_size() == LinkRSLogical::PKT_SIZE_UNSET)
+				link->set_packet_size(src->get_default_packet_size());
 
-		// Init protocol at user modules
-		auto nodes = sys->get_children_by_type<NodeUser>();
+			// Do the same for importance
+			if (link->get_importance() == LinkRSLogical::IMPORTANCE_UNSET)
+				link->set_importance(src->get_default_importance());
+		}
+	}
+
+	void init_user_protocols(NodeSystem* sys)
+	{
+		// Search (all user nodes) + (this system)'s ports		
+		auto nodes = sys->get_children_by_type<NodeUser, std::vector<Node*>>();
+		nodes.push_back(sys);
+
+		// Now scan these nodes for RS ports that have at least one logical
+		// link attached to them
+		std::vector<PortRS*> ports;
 		for (auto node : nodes)
 		{
-			// We need to ensure params are resolved so that signal sizes are constant
-			node->resolve_params();
-
-			auto node_ports = node->get_children_by_type<PortRS>();
+			auto node_ports = node->get_children<PortRS>([=](const PortRS* p)
+			{
+				return p->get_endpoint(NET_RS_LOGICAL, 
+					p->get_effective_dir(sys))->is_connected();
+			});
 			ports.insert(ports.end(), node_ports.begin(), node_ports.end());
 		}
 
-		// Now work on the ports
+		// Do protocol processing
 		for (auto port : ports)
 		{
+			// Do protocol and backpressure processing
 			auto& proto = port->get_proto();
+			auto& bp_status = port->get_bp_status();
+
+			// Initialize backpressure to off, and turn on if
+			// ready signal is discovered below
+			bp_status.force_disable();
 
 			// Browse through signal roles
 			for (auto& rb : port->get_role_bindings())
@@ -97,15 +121,15 @@ namespace
 						": multi-dimensional HDL signal bindings not supported");
 				}
 
-				if (role == PortRS::ADDRESS)
+				if (role.type == PortRS::ADDRESS)
 				{
 					proto.add_terminal_field({ FIELD_USERADDR, hdl_bnd.get_bits() }, role);
 				}
-				else if (role == PortRS::EOP)
+				else if (role.type == PortRS::EOP)
 				{
 					proto.add_terminal_field({ FIELD_EOP, 1 }, role);
 				}
-				else if (role == PortRS::DATA || role == PortRS::DATABUNDLE)
+				else if (role.type == PortRS::DATA || role.type == PortRS::DATABUNDLE)
 				{
 					// Create a domain field
 					unsigned domain = flow::DomainRS::get_port_domain(port, sys);
@@ -119,19 +143,17 @@ namespace
 
 					proto.add_terminal_field(f_inst, role);
 				}
-				else if (role == PortRS::READY)
+				else if (role.type == PortRS::READY)
 				{
-					port->get_bp_status().status = RSBackpressure::ENABLED;
+					bp_status.force_enable();
 				}
 			}
 		}
 	}
 
-	void rs_assign_domains(FlowStateOuter& fstate)
+	void rs_assign_domains(NodeSystem* sys, FlowStateOuter& fstate)
 	{
 		using namespace graph;
-
-		auto sys = fstate.sys;
 
 		// We care about link->eid mapping and port->vid mapping
 		Attr2E<Link*> link_to_eid;
@@ -187,10 +209,8 @@ namespace
 		}
 	}
 
-	void rs_create_transmissions(FlowStateOuter& fstate)
+	void rs_create_transmissions(NodeSystem* sys, FlowStateOuter& fstate)
 	{
-		auto sys = fstate.sys;
-
 		// Go through all flows (logical RS links).
 		// Bin them by source
 		auto links = sys->get_links(NET_RS_LOGICAL);
@@ -217,7 +237,7 @@ namespace
 			for (auto addr_bin : bin_by_addr)
 			{
 				// Create the transmission
-				unsigned xmis_id = fstate.new_transmission();
+				TransmissionID xmis_id = fstate.new_transmission();
 
 				// Add links to the transmission
 				for (auto link : addr_bin.second)
@@ -234,13 +254,11 @@ namespace
 		}
 	}
 
-	void rs_find_manual_domains(FlowStateOuter& fstate)
+	void rs_find_manual_domains(NodeSystem* sys, FlowStateOuter& fstate)
 	{
 		// Look for all existing Topo links.
 		// This early in the flow, all such links were manually-created.
 		// Then, mark the domains of the endpoints as 'manual'.
-
-		auto sys = fstate.sys;
 
 		for (auto link : sys->get_links(NET_TOPO))
 		{
@@ -259,11 +277,10 @@ namespace
 		}
 	}
 
-	void rs_print_domain_stats(FlowStateOuter& fstate)
+	void rs_print_domain_stats(NodeSystem* sys, FlowStateOuter& fstate)
 	{
 		namespace log = genie::log;
 
-		auto sys = fstate.sys;
 		auto& domains = fstate.get_rs_domains();
 
 		if (domains.size() == 0)
@@ -425,123 +442,219 @@ namespace
 		}
 	}
 
-	void connect_conduits(NodeSystem* sys)
+	AreaMetrics measure_impl_area(NodeSystem* sys)
 	{
-		// Find conduit links
-		auto links = sys->get_links(NET_CONDUIT);
+		AreaMetrics result;
 
-		for (auto cnd_link : links)
+		for (auto node : sys->get_nodes())
 		{
-			auto cnd_src = dynamic_cast<PortConduit*>(cnd_link->get_src());
-			auto cnd_sink = dynamic_cast<PortConduit*>(cnd_link->get_sink());
-
-			// Get the source's subports
-			auto src_subs = cnd_src->get_subports();
-
-			// For each src subport, find the subport on the sink with a matching tag
-			for (auto src_sub : src_subs)
-			{
-				auto& tag = src_sub->get_role().tag;
-
-				// If one is not found, continue but throw warnings later
-				auto sink_sub = cnd_sink->get_subport(tag);
-				if (!sink_sub)
-				{
-					genie::log::warn("connecting %s to %s: %s is missing field '%s'",
-						cnd_src->get_hier_path().c_str(),
-						cnd_sink->get_hier_path().c_str(),
-						cnd_sink->get_hier_path().c_str(),
-						tag.c_str());
-					continue;
-				}
-
-				// Does the sub->sub direction need to be reversed?
-				bool swapdir = src_sub->get_effective_dir(sys) == Port::Dir::IN;
-				if (swapdir)
-					std::swap(src_sub, sink_sub);
-
-				sys->connect(src_sub, sink_sub, NET_CONDUIT_SUB);
-			}
+			result += node->annotate_area();
 		}
+
+		return result;
 	}
 
-	void do_auto_domain(FlowStateOuter& fstate, unsigned dom_id)
+	NodeSystem* do_auto_domain(NodeSystem * snapshot, FlowStateOuter& fstate, unsigned dom_id)
 	{
-		auto sys = fstate.sys;
-		NodeSystem* snapshot = create_snapshot(fstate, dom_id);
+		// A pair representing a "system configuration":
+		// a topology-only system and the full system that it implements/elaborates into.
+		// It also holds the area usage of the implementation.
+		// Our goal is to find the best such pair!
+		struct SysConfig
+		{
+			NodeSystem* topo = nullptr;
+			NodeSystem* impl = nullptr;
+			AreaMetrics area;
+		};
 
-		// Apply crossbar topology and save snapshot
-		make_crossbar_topo(snapshot);
-		NodeSystem* topo_snapshot = snapshot->clone();
+		// The current 'best' sysconfig: initialized with a crossbar
+		// topology and the implementation that results from it.
+		SysConfig best_config;
+
+		// Take the given system snapshot, which contains just the domain we want.
+		// It has only logical links. Give it a crossbar topology.
+		best_config.topo = snapshot;
+		make_crossbar_topo(best_config.topo);
+
+		// Measure contention for crossbar topology
+		//topo_opt::ContentionMap xbar_contention = 
+			//topo_opt::measure_initial_contention(best_config.topo, fstate);
+
+		// Implement the initial crossbar topology and measure its area
+		best_config.impl = best_config.topo->clone();
+		topo_do_routing(best_config.impl);
+		flow::do_inner(best_config.impl, dom_id, &fstate);
+		best_config.area = measure_impl_area(best_config.impl);
 
 		//
 		// Outer loop starts here
 		//
+		for (bool outer_loop_done = false; !outer_loop_done; )
+		{
+			outer_loop_done = true;
 
-		// Do automatic routing
+			// Create next candidate topology from best_config.topo
+			// If candidate is acceptable, implement it and measure its area.
+			// Two possibilities:
+			//  1) Candidate has worse area: ignore and dispose of candidate config
+			//  2) Candidate has better area: candidate replaces best, dispose of old best, 
+			//     set outer_loop_done = false
+
+			// result: outer_loop_done will eventually remain true because no more acceptable
+			// AND better candidates will be found than the current best
+		}
+	
+		// Return the best possible implementation of the original
+		// domain snapshot
+		delete best_config.topo;
+		return best_config.impl;
+	}
+
+	NodeSystem* do_manual_domain(NodeSystem* snapshot, FlowStateOuter& fstate, unsigned dom_id)
+	{
+		// Do automatic routing on the existing manual topology
 		topo_do_routing(snapshot);
-		
-		// Take the xbar topo system through the inner flow
+
+		// Do the inner flow just once
 		flow::do_inner(snapshot, dom_id, &fstate);
-		
-		// Merge changes
-		sys->reintegrate_snapshot(snapshot);
-		delete snapshot;
 
-		//
-		// Outer loop ends here
-		//
-
-		delete topo_snapshot;
+		return snapshot;
 	}
 
-	void do_manual_domain(FlowStateOuter& fstate, unsigned dom_id)
+	void do_all_domains(NodeSystem* sys, FlowStateOuter& fstate)
 	{
-	}
-
-	void do_all_domains(FlowStateOuter& fstate)
-	{
-		auto sys = fstate.sys;
-
-		// Get IDs of non-manual domains
-		std::vector<unsigned> auto_domains, manual_domains;
-
 		for (auto& dom : fstate.get_rs_domains())
 		{
+			auto dom_id = dom.get_id();
+
+			// Create snapshot of original system, just containing
+			// the current domain and all the nodes connected to it.
+			NodeSystem* in_snapshot = create_snapshot(sys, fstate, dom_id);
+			NodeSystem* out_snapshot = nullptr;
+
 			if (dom.get_is_manual())
-				manual_domains.push_back(dom.get_id());
+			{
+				out_snapshot = do_manual_domain(in_snapshot, fstate, dom_id);
+			}
 			else
-				auto_domains.push_back(dom.get_id());
-		}
+			{
+				out_snapshot = do_auto_domain(in_snapshot, fstate, dom_id);
+			}
 
-		// Do automatic domains first
-		for (auto dom_id : auto_domains)
-		{
-			do_auto_domain(fstate, dom_id);
+			// Integrate the fleshed-out domain into the master system
+			sys->reintegrate_snapshot(out_snapshot);
+			delete out_snapshot;
 		}
+	}
 
-		for (auto dom_id : manual_domains)
+	void process_latency_queries(NodeSystem* sys)
+	{
+		auto& queries = sys->get_spec().latency_queries;
+		auto& link_rel = sys->get_link_relations();
+
+		for (auto& query : queries)
 		{
-			do_manual_domain(fstate, dom_id);
-		}
+			unsigned chain_latency = 0;
+
+			// Current and last logical link IDs in chain, going backwards
+			auto log_it = query.chain_links.rbegin();
+			auto log_it_end = query.chain_links.rend();
+
+			LinkID cur_log_id = *log_it;
+			Link* cur_log = sys->get_link(cur_log_id);
+
+			// The source of the current logical link (aka the end of traversal,
+			// since we're going backwards)
+			HierObject* cur_log_src = cur_log->get_src();
+
+			// Current external physical link.
+			Link* cur_ext_phys =
+				cur_log->get_sink()->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->get_link0();
+
+			while (true)
+			{
+				// Get source of current physical link
+				HierObject* cur_phys_src = cur_ext_phys->get_src();
+
+				// Reached beginning of logical link?
+				if (cur_phys_src == cur_log_src)
+				{
+					// Advance to next logical link
+					log_it++;
+
+					// Reached end of chain?
+					if (log_it == log_it_end)
+					{
+						// done
+						break;
+					}
+					else
+					{
+						// Update things related to current logical link	
+						cur_log_id = *log_it;
+						cur_log = sys->get_link(cur_log_id);
+						cur_log_src = cur_log->get_src();
+					}
+				}
+
+				// Traverse backwards through node, get latency. Examine all candidates
+				// and find the one that continues with the correct logical link
+				for (auto int_link :
+					cur_phys_src->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->links())
+				{
+					// Get the external physical link that feeds this interal link
+					Link* next_ext_phys = int_link->get_src_ep()->get_sibling()->get_link0();
+
+					// Does it exist, and does it continue the logical link we want?
+					if (next_ext_phys &&
+						link_rel.is_contained_in(cur_log_id, next_ext_phys->get_id()))
+					{
+						// Use it: update latency, and update cur_ext_phys to continue traversal
+						cur_ext_phys = next_ext_phys;
+						auto cur_phys_int = static_cast<LinkRSPhys*>(int_link);
+						chain_latency += cur_phys_int->get_latency();
+						break;
+					}
+				}
+			} // end while(true)
+
+			// chain_latency is set. create a system HDL parameter to hold it
+			sys->set_int_param(query.param_name, (int)chain_latency);
+		} // end foreach query
+	}
+
+	void resolve_size_params(NodeSystem* sys)
+	{
+		// Make HDL port sizes/bindings in the system constant by
+		// resolving parameter expressions.
+		//
+		// Do this for the system node itself, as well as user nodes.
+
+		auto resolv_nodes = 
+			sys->get_children_by_type<NodeUser, std::vector<Node*>>();
+		resolv_nodes.push_back(sys);
+
+		for (auto node : resolv_nodes)
+			node->resolve_size_params();
 	}
 
     void do_system(NodeSystem* sys)
     {
 		FlowStateOuter fstate;
-		fstate.sys = sys;
 
-		sys->resolve_params();
+		resolve_size_params(sys);
 
-		rs_assign_domains(fstate);
-		rs_create_transmissions(fstate);
-		rs_find_manual_domains(fstate);
-		rs_print_domain_stats(fstate);
+		rs_assign_domains(sys, fstate);
+		rs_create_transmissions(sys, fstate);
+		rs_find_manual_domains(sys, fstate);
+		rs_print_domain_stats(sys, fstate);
 
-		init_user_rs_ports(fstate);
-		do_all_domains(fstate);
+		init_user_protocols(sys);
+		init_elemental_transmission_specs(sys);
+		do_all_domains(sys, fstate);
 
-		connect_conduits(sys);
+		process_latency_queries(sys);
+
 		hdl::elab_system(sys);
 		hdl::write_system(sys);
     }

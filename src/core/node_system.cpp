@@ -6,11 +6,13 @@
 #include "net_rs.h"
 #include "net_topo.h"
 #include "port.h"
+#include "port_rs.h"
 #include "node_split.h"
 #include "node_merge.h"
 #include "node_user.h"
 #include "flow.h"
 #include "genie_priv.h"
+#include "hdl_elab.h"
 
 using namespace genie::impl;
 using Dir = genie::Port::Dir;
@@ -98,7 +100,7 @@ genie::Node * NodeSystem::create_instance(const std::string & mod_name,
 	instance->set_name(inst_name);
 	add_child(instance);
 
-	return instance;
+	return static_cast<Node*>(instance);
 }
 
 genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & opt_name)
@@ -107,8 +109,8 @@ genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & op
 	assert(orig);
 
 	// We must resolve parameters first
-	resolve_params();
-	orig_impl->get_node()->resolve_params();
+	auto node = orig_impl->get_node();
+	node->resolve_size_params();
 
 	// 1) Check if port is exportable: must not already belong to the system
 	if (orig_impl->get_node() == this)
@@ -129,22 +131,14 @@ genie::Port * NodeSystem::export_port(genie::Port * orig, const std::string & op
 		new_name = opt_name;
 	}
 
-	// The remainder of the work is port-type specific
+	// Do port type specific work to create the actual exported port
 	auto new_port = orig_impl->export_port(new_name, this);
 
-	// Now we just make a connection from the old to the new.
-	// The exported port, which belongs to a Node within this system, can be looked
-	// at to dictate the connection direction. If it's an IN, it will be the sink, and if
-	// it's an OUT, it will be the source.
-	
-	auto ptinfo = genie::impl::get_port_type(orig_impl->get_type());
-
-	auto exlink_src = orig_impl; // assume original port is the source (OUT)
-	auto exlink_sink = new_port;
-	if (orig_impl->get_dir() == Port::Dir::IN)
-		std::swap(exlink_src, exlink_sink);
-
-	connect(exlink_src, exlink_sink, ptinfo->get_default_network());
+	// Connect with HDL signals
+	bool orig_is_src = orig_impl->get_dir() == Port::Dir::OUT;
+	hdl::connect_ports(this,
+		orig_is_src ? orig_impl : new_port,
+		orig_is_src ? new_port: orig_impl);
 
 	return new_port;
 }
@@ -177,7 +171,7 @@ genie::Node * NodeSystem::create_merge(const std::string & opt_name)
 
 void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
 {
-	auto& excl = get_link_exclusivity();
+	auto& excl = get_spec().excl_info;
 
 	for (auto it1 = links.begin(); it1 != links.end(); ++it1)
 	{
@@ -197,13 +191,48 @@ void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
 void NodeSystem::add_sync_constraint(const genie::SyncConstraint & constraint)
 {
 	//TODO: verify
-	auto& cnst = get_sync_constraints();
+	auto& cnst = get_spec().sync_constraints;
 	cnst.push_back(constraint);
 }
 
 void NodeSystem::set_max_logic_depth(unsigned max_depth)
 {
-	m_max_logic_depth = max_depth;
+	get_spec().max_logic_depth = max_depth;
+}
+
+void NodeSystem::create_latency_query(std::vector<genie::LinkRS*> chain, const std::string & param_name)
+{
+	auto& lat_queries = get_spec().latency_queries;
+	lat_queries.emplace_back();
+	auto& query = lat_queries.back();
+
+	PortRS* last_sink = nullptr;
+	
+	for (auto link_pub : chain)
+	{
+		auto link_impl = static_cast<LinkRSLogical*>(link_pub);
+
+		// Get source and sink ports
+		auto src = static_cast<PortRS*>(link_impl->get_src());
+		auto sink = static_cast<PortRS*>(link_impl->get_sink());
+
+		// Test to make sure that the last link's sink and this link's src are bonded
+		// via an internal link through an intervening node
+		if (last_sink)
+		{
+			auto node = src->get_node();
+			if (node->get_links(last_sink, src, NET_RS_PHYS).empty())
+			{
+				throw Exception(node->get_hier_path() + ": has no internal link connecting " +
+					last_sink->get_hier_path() + " and " + src->get_hier_path());
+			}
+		}
+
+		query.chain_links.push_back(link_impl->get_id());
+	}
+
+	// Name of system-level HDL parameter to stuff the answer into later
+	query.param_name = param_name;
 }
 
 //
@@ -212,29 +241,33 @@ void NodeSystem::set_max_logic_depth(unsigned max_depth)
 
 NodeSystem::NodeSystem(const std::string & name)
     : Node(name, name), 
-	m_excl_info(std::make_shared<ExclusivityInfo>()),
-	m_sync_constraints(std::make_shared<SyncConstraints>())
+	m_spec(std::make_shared<SystemSpec>())
 {
 	// Max logic depth defaults to global setting
-	m_max_logic_depth = genie::impl::get_flow_options().max_logic_depth;
+	get_spec().max_logic_depth = genie::impl::get_flow_options().max_logic_depth;
 }
 
 NodeSystem::~NodeSystem()
 {
 }
 
-Node* NodeSystem::instantiate() const
+HierObject* NodeSystem::instantiate() const
 {
 	// Instantiating a System yields a user node
 	auto result = new NodeUser(get_name(), get_hdl_name());
 
-	// Copy HDL state
-	result->set_hdl_state(const_cast<hdl::HDLState&>(m_hdl_state));
-
-	// Copy ports
-	for (auto port : get_children_by_type<Port>())
+	// Create HDL ports with same names and sizes
+	auto& new_hdls = result->get_hdl_state();
+	for (auto& i : m_hdl_state.get_ports())
 	{
-		result->add_child(port->clone());
+		auto& vport = i.second;
+		new_hdls.add_port(vport.get_name(), vport.get_width(), vport.get_depth(), vport.get_dir());
+	}
+
+	// Instantiate ports
+	for (auto port : get_children_by_type<IInstantiable>())
+	{
+		result->add_child(port->instantiate());
 	}
 
 	return result;
@@ -242,6 +275,17 @@ Node* NodeSystem::instantiate() const
 
 void NodeSystem::prepare_for_hdl()
 {
+}
+
+void NodeSystem::annotate_timing()
+{
+	// this should never be called
+	assert(false);
+}
+
+AreaMetrics NodeSystem::annotate_area()
+{
+	return AreaMetrics();
 }
 
 NodeSystem* NodeSystem::clone() const
@@ -268,14 +312,9 @@ std::vector<Node*> NodeSystem::get_nodes() const
     return get_children_by_type<Node>();
 }
 
-ExclusivityInfo & NodeSystem::get_link_exclusivity() const
+SystemSpec& NodeSystem::get_spec() const
 {
-	return *m_excl_info.get();
-}
-
-SyncConstraints & NodeSystem::get_sync_constraints() const
-{
-	return *m_sync_constraints.get();
+	return *m_spec.get();
 }
 
 NodeSystem * NodeSystem::create_snapshot(
@@ -402,10 +441,7 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 }
 
 NodeSystem::NodeSystem(const NodeSystem& o)
-    : Node(o), 
-	m_excl_info(o.m_excl_info),
-	m_sync_constraints(o.m_sync_constraints),
-	m_max_logic_depth(o.m_max_logic_depth)
+    : Node(o), m_spec(o.m_spec)
 {
 }
 

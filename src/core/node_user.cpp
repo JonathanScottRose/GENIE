@@ -30,13 +30,23 @@ NodeUser::NodeUser(const std::string & name, const std::string & hdl_name)
 {
 }
 
-NodeUser* NodeUser::instantiate() const
+HierObject* NodeUser::instantiate() const
 {
 	return clone();
 }
 
 void NodeUser::prepare_for_hdl()
 {
+}
+
+void NodeUser::annotate_timing()
+{
+	// do nothing for user nodes
+}
+
+AreaMetrics NodeUser::annotate_area()
+{
+	return AreaMetrics();
 }
 
 NodeUser* NodeUser::clone() const

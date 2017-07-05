@@ -8,16 +8,17 @@
 #include "net_clockreset.h"
 #include "net_conduit.h"
 #include "net_rs.h"
+#include "sig_role.h"
 
 using namespace genie::impl;
-using RoleBinding = PortRS::RoleBinding;
+using RoleBinding = genie::impl::Port::RoleBinding;
 using Exception = genie::Exception;
 
 namespace
 {
 	void connect_rb(NodeSystem* sys,
-		Node* src_node,	RoleBinding* src_rb, unsigned src_lsb, 
-		Node* sink_node, RoleBinding* sink_rb, unsigned sink_lsb, unsigned width)
+		Node* src_node,	const RoleBinding* src_rb, unsigned src_lsb, 
+		Node* sink_node, const RoleBinding* sink_rb, unsigned sink_lsb, unsigned width)
 	{
 		auto& hdls = sys->get_hdl_state();
 
@@ -264,7 +265,7 @@ namespace
 						sink_lsb = 0;
 					}
 
-					// Check if the fieled was marked const, and if so, tie it to the const value
+					// Check if the field was marked const, and if so, tie it to the const value
 					if (auto const_val = sink_proto.get_const(field.get_id()))
 					{
 						tie_rb(sys, sink_node, sink_rb, *const_val, sink_lsb);
@@ -285,32 +286,16 @@ namespace
 		}
 	}
 
-	template<class PORTTYPE>
-	void do_clockreset(NodeSystem* sys, NetType nettype)
+	void do_non_rs(NodeSystem* sys, NetType nettype)
 	{
 		auto links = sys->get_links(nettype);
 
 		for (auto link : links)
 		{
-			auto src = dynamic_cast<PORTTYPE*>(link->get_src());
-			auto sink = dynamic_cast<PORTTYPE*>(link->get_sink());
+			auto src = static_cast<Port*>(link->get_src());
+			auto sink = static_cast<Port*>(link->get_sink());
 
-			sys->get_hdl_state().connect(src->get_node(), src->get_binding(),
-				sink->get_node(), sink->get_binding());
-		}
-	}
-
-	void do_conduit(NodeSystem* sys)
-	{
-		auto links = sys->get_links(NET_CONDUIT_SUB);
-
-		for (auto link : links)
-		{
-			auto src = dynamic_cast<PortConduitSub*>(link->get_src());
-			auto sink = dynamic_cast<PortConduitSub*>(link->get_sink());
-
-			sys->get_hdl_state().connect(src->get_node(),src->get_hdl_binding(),
-				sink->get_node(), sink->get_hdl_binding());
+			hdl::connect_ports(sys, src, sink);
 		}
 	}
 }
@@ -321,13 +306,48 @@ void hdl::elab_system(NodeSystem* sys)
 	for (auto child : sys->get_children_by_type<Node>())
 	{
 		child->prepare_for_hdl();
-		child->resolve_params();
+		child->resolve_all_params();
 	}
 
-	do_clockreset<PortClock>(sys, NET_CLOCK);
-	do_clockreset<PortReset>(sys, NET_RESET);
-	do_conduit(sys);
+	do_non_rs(sys, NET_CLOCK);
+	do_non_rs(sys, NET_RESET);
+	do_non_rs(sys, NET_CONDUIT);
 	
 	do_rs_readyvalid(sys);
 	do_rs_fields(sys);
+}
+
+void hdl::connect_ports(NodeSystem* sys, genie::impl::Port* src, genie::impl::Port* sink)
+{
+	auto src_node = src->get_node();
+	auto sink_node = sink->get_node();
+
+	for (auto& src_rb : src->get_role_bindings())
+	{
+		auto sink_rb = sink->get_role_binding(src_rb.role);
+		if (!sink_rb)
+			continue;
+
+		auto type_info = genie::impl::get_sig_role(src_rb.role.type);
+		assert(type_info);
+
+		// Swap src/sink based on sense
+		const RoleBinding* src_rb_t = &src_rb;
+		const RoleBinding* sink_rb_t = sink_rb;
+		Node* src_node_t = src_node;
+		Node* sink_node_t = sink_node;
+		switch (type_info->get_sense())
+		{
+		case SigRoleDef::REV:
+		case SigRoleDef::IN:
+			std::swap(src_rb_t, sink_rb_t);
+			std::swap(src_node_t, sink_node_t);
+		}
+
+		// Connect entire bindings together
+		connect_rb(sys,
+			src_node_t, src_rb_t, 0,
+			sink_node_t, sink_rb_t, 0,
+			(unsigned)sink_rb_t->binding.get_bits());
+	}
 }

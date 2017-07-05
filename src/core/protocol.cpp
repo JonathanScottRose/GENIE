@@ -156,6 +156,11 @@ void FieldSet::clear()
 	m_fields.clear();
 }
 
+void FieldSet::add_nocheck(const FieldInst &f)
+{
+	m_fields.push_back(f);
+}
+
 void FieldSet::add(const FieldInst& f)
 {
 	// Add in sorted order
@@ -274,6 +279,18 @@ void PortProtocol::add_terminal_field(const FieldInst& f, const SigRoleID& bnd)
 const FieldSet& PortProtocol::terminal_fields() const
 {
 	return m_terminal_fields;
+}
+
+FieldSet PortProtocol::terminal_fields_nonconst() const
+{
+	FieldSet result;
+	for (auto i : m_terminal_fields.contents())
+	{
+		if (this->get_const(i.get_id()) == nullptr)
+			result.add_nocheck(i);
+	}
+
+	return result;
 }
 
 void PortProtocol::set_const(const FieldID& f, const BitsVal& v)

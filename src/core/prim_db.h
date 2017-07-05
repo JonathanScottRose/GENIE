@@ -9,10 +9,17 @@ namespace impl
 {
 	struct AreaMetrics
 	{
-		unsigned alm;
-		unsigned reg;
-		unsigned comb;
-		unsigned mem_alm;
+		unsigned alm = 0;
+		unsigned reg = 0;
+		unsigned comb = 0;
+		unsigned mem_alm = 0;
+
+		AreaMetrics operator+(const AreaMetrics&) const;
+		AreaMetrics operator-(const AreaMetrics&) const;
+		AreaMetrics operator*(unsigned) const;
+		AreaMetrics& operator+=(const AreaMetrics&);
+		AreaMetrics& operator-=(const AreaMetrics&);
+		AreaMetrics& operator*=(unsigned);
 	};
 
 	class PrimDB

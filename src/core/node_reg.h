@@ -22,6 +22,8 @@ namespace impl
 		// Generic copy of an existing one
 		NodeReg* clone() const override;
 		void prepare_for_hdl() override;
+		void annotate_timing() override;
+		AreaMetrics annotate_area() override;
 
 		PortRS* get_input() const;
 		PortRS* get_output() const;
