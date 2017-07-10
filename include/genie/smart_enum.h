@@ -98,7 +98,7 @@ protected:
 			return result; \
 		} \
 		\
-		static constexpr unsigned size() \
+		static unsigned size() \
 		{ \
 			name##_e vals[] = { __VA_ARGS__ }; \
 			return sizeof(vals) / sizeof(name##_e); \

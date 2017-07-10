@@ -5,7 +5,7 @@ set config_col_names {BP}
 set datapoints {}
 
 # 20 bits is lutram width
-foreach WIDTH {0 1 2 21 22} {
+foreach WIDTH {0 1 2 3 21 22} {
 	foreach BP {0 1} {
 		if {$BP == 0} {
 			set config nobp
