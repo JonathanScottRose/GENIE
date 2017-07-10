@@ -98,10 +98,9 @@ protected:
 			return result; \
 		} \
 		\
-		static unsigned size() \
+		static constexpr unsigned size() \
 		{ \
-			name##_e vals[] = { __VA_ARGS__ }; \
-			return sizeof(vals) / sizeof(name##_e); \
+			return sizeof(_vals) / sizeof(name##_e); \
 		} \
 		\
 		static SmartEnumTable& get_table() \
@@ -111,6 +110,7 @@ protected:
 		} \
 	protected: \
 		name##_e _val; \
+		static constexpr name##_e _vals[] = { __VA_ARGS__ }; \
 	ESC_PAREN bonus \
 	};
 
