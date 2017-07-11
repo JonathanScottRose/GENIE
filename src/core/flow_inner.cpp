@@ -1084,7 +1084,7 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 	do_backpressure(fstate); // all backpressure updating is incremental past this point
 
 	annotate_timing(fstate);
-	flow::solve_latency_constraints(sys);
+	flow::solve_latency_constraints(sys, dom_id);
 	realize_latencies(fstate);
 
 	connect_resets(fstate);

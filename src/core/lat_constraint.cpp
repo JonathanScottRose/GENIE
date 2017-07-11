@@ -15,6 +15,8 @@ using Dir = genie::Port::Dir;
 
 namespace
 {
+	constexpr bool DUMP_REG_GRAPHS = false;
+
 	// LPSolve-specific versions of constraint and objective
 	struct LPConstraint
 	{
@@ -590,10 +592,9 @@ namespace
 					// where yi are binary variables that say whether or not at least one
 					// register is needed on the corresponding external physical link.
 
-					sstate.lp_constraints.emplace_back();
-					auto& lp_constraint = sstate.lp_constraints.back();
+					LPConstraint lp_constraint;
 
-					for (auto it = cur_snake.verts.begin(); it < cur_snake.verts.end(); ++it)
+					for (auto it = cur_snake.verts.begin(); it < cur_snake.verts.end() - 1; ++it)
 					{
 						LinkID link_id = (LinkID)*it;
 						auto varno = get_or_create_reg_var(sstate, link_id);
@@ -604,6 +605,7 @@ namespace
 
 					lp_constraint.op = ROWTYPE_GE;
 					lp_constraint.rhs = 1;
+					sstate.lp_constraints.push_back(lp_constraint);
 				} // if cur snake weight >= max snake weight
 
 				// Get the set of next vertices that the snake head can expand into.
@@ -785,10 +787,27 @@ namespace
 		sstate.lp_objective.direction = LPObjective::MIN;
 	}
 
+	void dump_reg_graph(SolverState& sstate, unsigned dom_id)
+	{
+		auto vfunc = [&](VertexID v) -> std::string
+		{
+			return std::to_string(v);
+		};
 
+		auto efunc = [&](EdgeID e) -> std::string
+		{
+			auto w = sstate.reg_graph_weights[e];
+			return std::to_string(w);
+		};
+
+		auto fname = util::str_con_cat(sstate.sys->get_name(),
+			"reggraph", std::to_string(dom_id));
+
+		sstate.reg_graph.dump(fname, vfunc, efunc);
+	}
 }
 
-void flow::solve_latency_constraints(NodeSystem* sys)
+void flow::solve_latency_constraints(NodeSystem* sys, unsigned dom_id)
 {
 	SolverState sstate;
 	sstate.sys = sys;
@@ -800,6 +819,10 @@ void flow::solve_latency_constraints(NodeSystem* sys)
 	// Binary reg yes/no related
 	create_reg_graph(sstate);
 	postprocess_reg_graph(sstate);
+	if (DUMP_REG_GRAPHS)
+	{
+		dump_reg_graph(sstate, dom_id);
+	}
 	create_reg_constraints(sstate);
 
 	// Objective function
