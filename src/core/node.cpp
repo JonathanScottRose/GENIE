@@ -295,14 +295,17 @@ Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 {
 	const NetworkDef* def = impl::get_network(net);
 	
-	Endpoint* src_ep = src->get_endpoint(net, Port::Dir::OUT);
-	Endpoint* sink_ep = sink->get_endpoint(net, Port::Dir::IN);
+	Endpoint* src_ep = src? src->get_endpoint(net, Port::Dir::OUT) : nullptr;
+	Endpoint* sink_ep = sink? sink->get_endpoint(net, Port::Dir::IN) : nullptr;
 
 	// Do some validation
 	for (auto obj_ep : { std::make_pair(src, src_ep), std::make_pair(sink, sink_ep) })
 	{
 		auto obj = obj_ep.first;
 		auto ep = obj_ep.second;
+
+		if (!obj) continue;
+		else assert(ep);
 
 		// Src and sink must both be children of this Node
 		if (!this->is_parent_of(obj))
@@ -355,8 +358,8 @@ Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 	link->set_sink_ep(sink_ep);
 
 	// Hook up endpoints to the link
-	src_ep->add_link(link);
-	sink_ep->add_link(link);
+	if (src_ep) src_ep->add_link(link);
+	if (sink_ep) sink_ep->add_link(link);
 
 	// Add the link to the system
 	add_link(net, link);

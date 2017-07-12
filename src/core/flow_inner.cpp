@@ -1062,6 +1062,105 @@ namespace
 			node->annotate_timing();
 		}
 	}
+
+	void treeify_merge_nodes(FlowStateInner& fstate)
+	{
+		// TODO Change this later to tech-dependent
+		constexpr unsigned MAX_INPUTS = 4;
+
+		auto sys = fstate.sys;
+		auto& link_rel = sys->get_link_relations();
+
+		auto all_merges = sys->get_children_by_type<NodeMerge>();
+
+		for (auto orig_mg : all_merges)
+		{
+			// Gather oroginal inputs
+			auto orig_inp_ep = orig_mg->get_endpoint(NET_TOPO, Port::Dir::IN);
+			auto orig_inputs = orig_inp_ep->links();
+			if (orig_inputs.size() <= MAX_INPUTS)
+				continue;
+
+			// Disconnect them
+			for (auto input : orig_inputs)
+			{
+				input->get_sink_ep()->remove_link(input);
+				input->set_sink_ep(nullptr);
+			}
+
+			// Set of inputs to current tree level,
+			// initialized to original merge's inputs
+			auto cur_inputs = orig_inputs;
+
+			for (unsigned cur_lvl = 0; cur_inputs.size() > MAX_INPUTS ; cur_lvl++)
+			{
+				// Set of ouputs of current tree level (aka inputs of next)
+				decltype(cur_inputs) cur_outputs = {};
+
+				// Number of merge nodes in this tree level
+				unsigned n_merges = (cur_inputs.size() + MAX_INPUTS - 1) / MAX_INPUTS;
+
+				for (unsigned new_mg_i = 0; new_mg_i < n_merges; new_mg_i++)
+				{
+					// This merge node gets a fair share of however many
+					// inputs are remaining at this level
+					unsigned inputs_this_merge = cur_inputs.size() / (n_merges - new_mg_i);
+
+					// Get our share of inputs, remove them from cur_inputs
+					decltype(cur_inputs) this_inputs;
+					{
+						auto inps_begin = cur_inputs.end() - inputs_this_merge;
+						auto inps_end = cur_inputs.end();
+						this_inputs.assign(inps_begin, inps_end);
+						cur_inputs.erase(inps_begin, inps_end);
+					}
+
+					// Create new merge node
+					NodeMerge* mg = new NodeMerge();
+					mg->set_name(util::str_con_cat(orig_mg->get_name(), "TREE",
+						std::to_string(cur_lvl), std::to_string(new_mg_i)));
+
+					sys->add_child(mg);
+
+					// Connect this_inputs to it
+					auto mg_inp_ep = mg->get_endpoint(NET_TOPO, Port::Dir::IN);
+					for (auto input : this_inputs)
+					{
+						input->set_sink_ep(mg_inp_ep);
+						mg_inp_ep->add_link(input);
+					}
+
+					// Create a dangling connection from the output
+					auto this_output = sys->connect(mg, nullptr, NET_TOPO);
+
+					// Route logical links from inputs over it
+					for (auto input : this_inputs)
+					{
+						auto logicals = link_rel.get_parents(input->get_id(), NET_RS_LOGICAL);
+						for (auto log : logicals)
+							link_rel.add(log, this_output->get_id());
+					}
+
+					// Add to list of outputs of this level
+					cur_outputs.push_back(this_output);
+				} // end foreach merge
+
+				// Make this level's outputs next level's inputs
+				cur_inputs = std::move(cur_outputs);
+			} // end foreach level
+
+			// At this point, cur_inputs has MAX_INPUTS or fewer links.
+			// Attach them to the original merge node
+
+			for (auto final_input : cur_inputs)
+			{
+				orig_inp_ep->add_link(final_input);
+				final_input->set_sink_ep(orig_inp_ep);
+			}
+		} // end foreach original merge node
+	} // end treeify_merge_nodes()
+
+
 }
 
 void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
@@ -1070,6 +1169,8 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 	fstate.dom_id = dom_id;
 	fstate.sys = sys;
 	fstate.outer = fs_out;
+
+	treeify_merge_nodes(fstate);
 
 	make_domain_addr_rep(fstate);
 
