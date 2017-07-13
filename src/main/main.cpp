@@ -78,13 +78,16 @@ namespace
         auto& opts = s_genie_opts;
 		GetOpt::GetOpt_pp args(argc, argv);
 		
+		args >> GetOpt::OptionPresent("dump_reggraph", opts.dump_reggraph);
+		args >> GetOpt::OptionPresent("dump_area", opts.dump_area);
 		args >> GetOpt::OptionPresent("dump_dot", opts.dump_dot);
 		args >> GetOpt::Option("dump_dot", opts.dump_dot_network);
 		args >> GetOpt::OptionPresent("force_full_merge", opts.force_full_merge);
         args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
-        args >> GetOpt::OptionPresent("detailed_stats", opts.detailed_stats);
 		args >> GetOpt::Option("max_logic_depth", opts.max_logic_depth);
-        
+		args >> GetOpt::OptionPresent("no_merge_tree", opts.no_merge_tree);
+		
+
 		{
 			std::string argstr;
 			args >> GetOpt::Option("args", argstr);

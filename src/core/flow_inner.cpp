@@ -1068,6 +1068,9 @@ namespace
 		// TODO Change this later to tech-dependent
 		constexpr unsigned MAX_INPUTS = 4;
 
+		if (genie::impl::get_flow_options().no_merge_tree)
+			return;
+
 		auto sys = fstate.sys;
 		auto& link_rel = sys->get_link_relations();
 

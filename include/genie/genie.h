@@ -40,9 +40,13 @@ namespace genie
         bool dump_dot = false;
         std::string dump_dot_network;
 
-        bool detailed_stats = false;
+		bool dump_area = false;
+
+		bool dump_reggraph = false;
 
         bool force_full_merge = false;
+
+		bool no_merge_tree = false;
 
         bool no_topo_opt = false;
         std::vector<std::string> no_topo_opt_systems;
@@ -69,6 +73,5 @@ namespace genie
     Node* create_module(const std::string& name, const std::string& hdl_name);
 
     void do_flow();
-    void print_stats(Node*);
 }
 

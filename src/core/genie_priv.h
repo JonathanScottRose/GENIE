@@ -43,6 +43,7 @@ namespace impl
 	// Network management
 	NetType register_network(NetworkDef*);
 	const NetworkDef* get_network(NetType id);
+	const NetworkDef* get_network(const std::string& name);
 
 	// Port Types
 	PortType register_port_type(PortTypeDef*);

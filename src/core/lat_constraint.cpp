@@ -15,8 +15,6 @@ using Dir = genie::Port::Dir;
 
 namespace
 {
-	constexpr bool DUMP_REG_GRAPHS = false;
-
 	// LPSolve-specific versions of constraint and objective
 	struct LPConstraint
 	{
@@ -819,7 +817,7 @@ void flow::solve_latency_constraints(NodeSystem* sys, unsigned dom_id)
 	// Binary reg yes/no related
 	create_reg_graph(sstate);
 	postprocess_reg_graph(sstate);
-	if (DUMP_REG_GRAPHS)
+	if (genie::impl::get_flow_options().dump_reggraph)
 	{
 		dump_reg_graph(sstate, dom_id);
 	}

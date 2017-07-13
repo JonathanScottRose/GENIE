@@ -638,6 +638,83 @@ namespace
 			node->resolve_size_params();
 	}
 
+	void dump_detailed_area(NodeSystem* sys)
+	{
+		std::string fname = sys->get_name() + "_area_estimates.txt";
+
+		FILE* fp = fopen(fname.c_str() , "w");
+		if (!fp)
+			return;
+
+		genie::log::debug("Dumping area estimates for %s to %s",
+			sys->get_name().c_str(), fname.c_str());
+
+		fputs("Name\tCOMB\tREG\tMEM\n", fp);
+
+		for (auto node : sys->get_nodes())
+		{
+			auto area = node->annotate_area();
+
+			fprintf(fp, "%s\t%u\t%u\t%u\n",
+				node->get_hier_path().c_str(),
+				area.comb,
+				area.reg,
+				area.mem_alm
+			);
+		}
+
+		fclose(fp);
+	}
+
+	void dump_net_graph(NodeSystem* sys)
+	{
+		auto& netstr = genie::impl::get_flow_options().dump_dot_network;
+
+		auto netdef = genie::impl::get_network(netstr);
+		if (!netdef)
+		{
+			genie::log::debug("Couldn't dump network %s: nettype unknown",
+				netstr.c_str());
+			return;
+		}
+
+		std::string filename = sys->get_name() + "." +
+			netstr + ".dot";
+
+		genie::log::debug("Dumping %s", filename.c_str());
+
+		// Open file, create top-level graph
+		std::ofstream out(filename);
+		out << "digraph {\n";
+
+		// For top-level system graph: create edge for every link
+		auto links = sys->get_links(netdef->get_id());
+		for (auto& link : links)
+		{
+			HierObject* src = link->get_src();
+			HierObject* sink = link->get_sink();
+
+			if (auto p = dynamic_cast<Port*>(src))
+				src = p->get_node();
+
+			if (auto p = dynamic_cast<Port*>(sink))
+				sink = p->get_node();
+
+			//std::string taillabel = src_port->get_hier_path(src_node);
+			//std::string headlabel = sink_port->get_hier_path(sink_node);
+			//std::string attrs = " [headlabel=\"" + headlabel + "\", taillabel=\"" + taillabel + "\"]";
+			std::string attrs;
+
+			out << "\"" << src->get_name()
+				<< "\" -> \"" << sink->get_name()
+				<< "\"" << attrs << ";\n";
+		}
+
+		// Finish main graph
+		out << "}\n";
+		out.close();
+	}
+
     void do_system(NodeSystem* sys)
     {
 		FlowStateOuter fstate;
@@ -657,6 +734,16 @@ namespace
 
 		hdl::elab_system(sys);
 		hdl::write_system(sys);
+
+		if (genie::impl::get_flow_options().dump_area)
+		{
+			dump_detailed_area(sys);
+		}
+
+		if (genie::impl::get_flow_options().dump_dot)
+		{
+			dump_net_graph(sys);
+		}
     }
 }
 

@@ -168,6 +168,16 @@ const NetworkDef* genie::impl::get_network(NetType id)
 	return nullptr;
 }
 
+const NetworkDef * genie::impl::get_network(const std::string & name)
+{
+	for (auto net : m_networks)
+	{
+		if (net->get_name() == name)
+			return net;
+	}
+	return nullptr;
+}
+
 PortType genie::impl::register_port_type(PortTypeDef* info)
 {
 	PortType ret = (PortType)m_port_types.size();
