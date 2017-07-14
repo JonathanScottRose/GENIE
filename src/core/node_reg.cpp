@@ -36,8 +36,8 @@ NodeReg::NodeReg()
 	init_vlog();
 
 	// Clock and reset ports
-	add_port(new PortClock(CLOCKPORT_NAME, Port::Dir::IN, "clk"));
-	add_port(new PortReset(RESETPORT_NAME, Port::Dir::IN, "reset"));
+	add_port(new PortClock(CLOCKPORT_NAME, Port::Dir::IN, "i_clk"));
+	add_port(new PortReset(RESETPORT_NAME, Port::Dir::IN, "i_reset"));
 
 	auto inport = new PortRS(INPORT_NAME, Port::Dir::IN, CLOCKPORT_NAME);
 	inport->add_role_binding(PortRS::VALID, "i_valid");
