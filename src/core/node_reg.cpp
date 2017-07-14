@@ -68,8 +68,8 @@ void NodeReg::init_vlog()
 	using Dir = hdl::Port::Dir;
 
 	auto& hdl = get_hdl_state();
-	hdl.add_port("clk", 1, 1, Dir::IN);
-	hdl.add_port("reset", 1, 1, Dir::IN);
+	hdl.add_port("i_clk", 1, 1, Dir::IN);
+	hdl.add_port("i_reset", 1, 1, Dir::IN);
 	hdl.add_port("i_valid", 1, 1, Dir::IN);
 	hdl.add_port("o_valid", 1, 1, Dir::OUT);
 	hdl.add_port("i_ready", 1, 1, Dir::IN);
