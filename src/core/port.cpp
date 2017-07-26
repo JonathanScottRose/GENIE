@@ -85,7 +85,7 @@ genie::Port::Dir Port::get_effective_dir(Node * contain_ctx) const
 	return result;
 }
 
-const std::vector<Port::RoleBinding>& Port::get_role_bindings() const
+std::vector<Port::RoleBinding>& Port::get_role_bindings()
 {
 	return m_role_bindings;
 }

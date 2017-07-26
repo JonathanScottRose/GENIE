@@ -142,14 +142,16 @@ Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 	}
 
 	// Ok, create exported port now that associated clock is known
-	auto result = context->create_rs_port(name, get_dir(), new_clk_port->get_name());
-	auto result_impl = dynamic_cast<PortRS*>(result);
+	auto result = dynamic_cast<PortRS*>(this->clone());
+	result->set_name(name);
+	result->set_clock_port_name(new_clk_port->get_name());
+	context->add_port(result);
 
-	for (auto& old_rb : m_role_bindings)
+	for (auto& rb : result->get_role_bindings())
 	{
-		auto& role = old_rb.role;
-		const auto& old_bind = old_rb.binding;
-		auto old_hdl_port = get_node()->get_hdl_state().get_port(old_bind.get_port_name());
+		auto& role = rb.role;
+		auto& bind = rb.binding;
+		auto old_hdl_port = get_node()->get_hdl_state().get_port(bind.get_port_name());
 
 		// Create a new HDL port on the system
 		std::string new_hdl_name;
@@ -162,18 +164,14 @@ Port * PortRS::export_port(const std::string & name, NodeSystem* context)
 		context->get_hdl_state().get_or_create_port(new_hdl_name, old_hdl_port->get_width(),
 			old_hdl_port->get_depth(), old_hdl_port->get_dir());
 
-		// Create a binding to this new HDL port.
+		// Update cloned role binding with new HDL port name.
 		// It will have same width/depth but start at slice and bit 0
-		auto new_bind = old_bind;
-		new_bind.set_lo_bit(0);
-		new_bind.set_lo_slice(0);
-		new_bind.set_port_name(new_hdl_name);
-
-		// Add rolebinding to exported port
-		result_impl->add_role_binding(role, new_bind);
+		bind.set_lo_bit(0);
+		bind.set_lo_slice(0);
+		bind.set_port_name(new_hdl_name);
 	}
 
-	return result_impl;
+	return result;
 }
 
 void PortRS::reintegrate(HierObject* obj)

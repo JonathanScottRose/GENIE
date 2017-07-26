@@ -60,7 +60,7 @@ namespace impl
 		genie::Port::Dir get_effective_dir(Node* contain_ctx) const;
 		void resolve_params(ParamResolver&);
 
-		const std::vector<RoleBinding>& get_role_bindings() const;
+		std::vector<RoleBinding>& get_role_bindings();
 		std::vector<RoleBinding> get_role_bindings(SigRoleType type);
 		RoleBinding* get_role_binding(const SigRoleID&);
 		RoleBinding& add_role_binding(const SigRoleID&, const hdl::PortBindingRef&);
