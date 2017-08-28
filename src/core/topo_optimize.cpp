@@ -29,7 +29,7 @@ namespace
 			m_contend.resize(count*count);
 			m_totals.resize(count);
 
-			for (auto& i : m_contend) i = false;
+			for (auto&& i : m_contend) i = false; // weird stuff for std::vector<bool>
 			for (auto& i : m_totals) i = 0;
 		}
 
