@@ -21,6 +21,7 @@ using genie::Exception;
 using flow::FlowStateOuter;
 using flow::TransmissionID;
 
+
 namespace
 {
 	NodeSystem * create_snapshot(NodeSystem* sys, FlowStateOuter& fstate,
@@ -151,6 +152,52 @@ namespace
 		}
 	}
 
+	bool check_sys_or_domain_membership(const std::string& path,
+		NodeSystem* sys, unsigned dom_id, bool* is_sys = nullptr)
+	{
+		// Resolve path to absolute object: a system or an RS port within a system
+		bool result = false;
+		bool throw_warn = false;
+
+		auto obj = genie::impl::get_object(path);
+		if (!obj)
+		{
+			throw_warn = true;
+		}
+		else if (auto obj_sys = dynamic_cast<NodeSystem*>(obj))
+		{
+			// If spec is a system name, just check if it's the same system
+			result = obj_sys == sys;
+
+			if (is_sys) *is_sys = true;
+		}
+		else if (auto obj_port = dynamic_cast<PortRS*>(obj))
+		{
+			// Make sure it belongs to the right system first
+			if (sys->is_parent_of(obj_port))
+			{
+				// Get the domain_id of any logical link attached to this port
+				auto some_link = static_cast<LinkRSLogical*>(obj_port->get_endpoint(NET_RS_LOGICAL,
+					obj_port->get_effective_dir(sys))->get_link0());
+
+				if (some_link)
+				{
+					result = some_link->get_domain_id() == dom_id;
+				}
+			}
+
+			if (is_sys) *is_sys = false;
+		}
+
+		if (throw_warn)
+		{
+			genie::log::warn("could not resolve path %s to a System or RS Port, ignoring",
+				path.c_str());
+		}
+
+		return result;
+	}
+
 	void rs_assign_domains(NodeSystem* sys, FlowStateOuter& fstate)
 	{
 		using namespace graph;
@@ -272,6 +319,25 @@ namespace
 					unsigned dom_id = flow::DomainRS::get_port_domain(port, sys);
 					assert(dom_id != flow::DomainRS::INVALID);
 					fstate.get_rs_domain(dom_id)->set_is_manual(true);
+				}
+			}
+		}
+	}
+
+	void rs_find_noopt_domains(NodeSystem* sys, FlowStateOuter& fstate)
+	{
+		auto& targ_strs = genie::impl::get_flow_options().no_topo_opt_systems;
+
+		for (auto& dom : fstate.get_rs_domains())
+		{
+			unsigned dom_id = dom.get_id();
+
+			for (auto targ_str : targ_strs)
+			{
+				bool is_sys;
+				if (check_sys_or_domain_membership(targ_str, sys, dom_id, &is_sys))
+				{
+					dom.set_opt_disabled(true);
 				}
 			}
 		}
@@ -464,7 +530,6 @@ namespace
 		{
 			NodeSystem* topo = nullptr;
 			NodeSystem* impl = nullptr;
-			AreaMetrics area;
 		};
 
 		// The current 'best' sysconfig: initialized with a crossbar
@@ -472,41 +537,110 @@ namespace
 		SysConfig best_config;
 
 		// Take the given system snapshot, which contains just the domain we want.
-		// It has only logical links. Give it a crossbar topology.
+		// It has only logical links. Give it a crossbar topology and route the links.
 		best_config.topo = snapshot;
 		make_crossbar_topo(best_config.topo);
+		topo_do_routing(best_config.topo);
 
-		// Measure contention for crossbar topology
-		//topo_opt::ContentionMap xbar_contention = 
-			//topo_opt::measure_initial_contention(best_config.topo, fstate);
+		// Initialize topology optimization with the crossbar topology
+		auto tstate = topo_opt::init(best_config.topo, fstate);
 
 		// Implement the initial crossbar topology and measure its area
 		best_config.impl = best_config.topo->clone();
-		topo_do_routing(best_config.impl);
 		flow::do_inner(best_config.impl, dom_id, &fstate);
-		best_config.area = measure_impl_area(best_config.impl);
+		AreaMetrics best_area = measure_impl_area(best_config.impl);
+
+		bool skip_opt = fstate.get_rs_domain(dom_id)->get_opt_disabled();
+		skip_opt |= genie::impl::get_flow_options().no_topo_opt;
+		if (skip_opt)
+		{
+			genie::log::info("skipping topology optimization for domain %s",
+				fstate.get_rs_domain(dom_id)->get_name().c_str());
+		}
 
 		//
 		// Outer loop starts here
 		//
-		for (bool outer_loop_done = false; !outer_loop_done; )
+
+		// A bit hacky:
+		// best_config does not change until all of its possible derived topologies have been explored.
+		// new_best_config is what gets updated as exploration happens.
+		// Eventually, best_config gets replaced with new_best_config if one has been found.
+		// best_area is always updated
+		SysConfig new_best_config;
+
+		for (bool outer_loop_done = skip_opt, found_new_best = false; !outer_loop_done; )
 		{
-			outer_loop_done = true;
+			// Try and get next topology candidate
+			SysConfig cand_config;
+			cand_config.topo = topo_opt::iter_next(tstate);
 
-			// Create next candidate topology from best_config.topo
-			// If candidate is acceptable, implement it and measure its area.
-			// Two possibilities:
-			//  1) Candidate has worse area: ignore and dispose of candidate config
-			//  2) Candidate has better area: candidate replaces best, dispose of old best, 
-			//     set outer_loop_done = false
+			// There exists a candidate
+			if (cand_config.topo)
+			{
+				// If we found a candidate, there could be more
+				outer_loop_done = false;
 
-			// result: outer_loop_done will eventually remain true because no more acceptable
-			// AND better candidates will be found than the current best
+				// Implement the full system based on this topology and measure its area
+				cand_config.impl = cand_config.topo->clone();
+				flow::do_inner(cand_config.impl, dom_id, &fstate);
+				auto cand_area = measure_impl_area(cand_config.impl);
+
+				// If the area is better than the current best topology, then crown a new king.
+				// This also means we can continue the outer loop
+				unsigned best_area_total = best_area.alm + best_area.reg;
+				unsigned cand_area_total = cand_area.alm + cand_area.reg;
+
+				if (cand_area_total < best_area_total)
+				{
+					// best_config is now the best, and
+					// cand_config is now the inferior one
+					std::swap(cand_config, new_best_config);
+					std::swap(cand_area, best_area);
+
+					// A new best is found. Once iteration from the current-best is complete, we'll
+					// replace the current-best with new-best and restart iteration from it
+					found_new_best = true;
+				}
+
+				// Cleanup the system that's worse than new_best_config
+				delete cand_config.impl;
+				delete cand_config.topo;
+			}
+			else if (found_new_best)
+			{
+				// We've run out of candidates that derive from the current base, but
+				// we found a new best candidate among them.
+				// Set a new base, and let iteration restart from that.
+
+				// Replace best_config with new_best_config
+				delete best_config.impl;
+				delete best_config.topo;
+
+				best_config = new_best_config;
+
+				new_best_config.impl = nullptr;
+				new_best_config.topo = nullptr;
+
+				topo_opt::iter_newbase(tstate, best_config.topo);
+
+				outer_loop_done = false;
+				found_new_best = false;
+			}
+			else
+			{
+				// A new best candidate wasn't found among the systems derived from the current base.
+				// End the loop and use the best candidate as the answer.
+				outer_loop_done = true;
+			}
 		}
 	
+		topo_opt::cleanup(tstate);
+
 		// Return the best possible implementation of the original
 		// domain snapshot
 		delete best_config.topo;
+
 		return best_config.impl;
 	}
 
@@ -666,53 +800,57 @@ namespace
 		fclose(fp);
 	}
 
-	void dump_net_graph(NodeSystem* sys)
+	void dump_net_graphs(NodeSystem* sys)
 	{
-		auto& netstr = genie::impl::get_flow_options().dump_dot_network;
+		auto& netstrs = genie::impl::get_flow_options().dump_dot_networks;
 
-		auto netdef = genie::impl::get_network(netstr);
-		if (!netdef)
+		for (auto& netstr : netstrs)
 		{
-			genie::log::debug("Couldn't dump network %s: nettype unknown",
-				netstr.c_str());
-			return;
+			auto netdef = genie::impl::get_network(netstr);
+			if (!netdef)
+			{
+				genie::log::error("Couldn't dump network %s: nettype unknown",
+					netstr.c_str());
+
+				continue;
+			}
+
+			std::string filename = sys->get_name() + "." +
+				netstr + ".dot";
+
+			genie::log::debug("Dumping %s", filename.c_str());
+
+			// Open file, create top-level graph
+			std::ofstream out(filename);
+			out << "digraph {\n";
+
+			// For top-level system graph: create edge for every link
+			auto links = sys->get_links(netdef->get_id());
+			for (auto& link : links)
+			{
+				HierObject* src = link->get_src();
+				HierObject* sink = link->get_sink();
+
+				if (auto p = dynamic_cast<Port*>(src))
+					src = p->get_node();
+
+				if (auto p = dynamic_cast<Port*>(sink))
+					sink = p->get_node();
+
+				//std::string taillabel = src_port->get_hier_path(src_node);
+				//std::string headlabel = sink_port->get_hier_path(sink_node);
+				//std::string attrs = " [headlabel=\"" + headlabel + "\", taillabel=\"" + taillabel + "\"]";
+				std::string attrs;
+
+				out << "\"" << src->get_name()
+					<< "\" -> \"" << sink->get_name()
+					<< "\"" << attrs << ";\n";
+			}
+
+			// Finish main graph
+			out << "}\n";
+			out.close();
 		}
-
-		std::string filename = sys->get_name() + "." +
-			netstr + ".dot";
-
-		genie::log::debug("Dumping %s", filename.c_str());
-
-		// Open file, create top-level graph
-		std::ofstream out(filename);
-		out << "digraph {\n";
-
-		// For top-level system graph: create edge for every link
-		auto links = sys->get_links(netdef->get_id());
-		for (auto& link : links)
-		{
-			HierObject* src = link->get_src();
-			HierObject* sink = link->get_sink();
-
-			if (auto p = dynamic_cast<Port*>(src))
-				src = p->get_node();
-
-			if (auto p = dynamic_cast<Port*>(sink))
-				sink = p->get_node();
-
-			//std::string taillabel = src_port->get_hier_path(src_node);
-			//std::string headlabel = sink_port->get_hier_path(sink_node);
-			//std::string attrs = " [headlabel=\"" + headlabel + "\", taillabel=\"" + taillabel + "\"]";
-			std::string attrs;
-
-			out << "\"" << src->get_name()
-				<< "\" -> \"" << sink->get_name()
-				<< "\"" << attrs << ";\n";
-		}
-
-		// Finish main graph
-		out << "}\n";
-		out.close();
 	}
 
     void do_system(NodeSystem* sys)
@@ -724,6 +862,7 @@ namespace
 		rs_assign_domains(sys, fstate);
 		rs_create_transmissions(sys, fstate);
 		rs_find_manual_domains(sys, fstate);
+		rs_find_noopt_domains(sys, fstate);
 		rs_print_domain_stats(sys, fstate);
 
 		init_user_protocols(sys);
@@ -742,7 +881,7 @@ namespace
 
 		if (genie::impl::get_flow_options().dump_dot)
 		{
-			dump_net_graph(sys);
+			dump_net_graphs(sys);
 		}
     }
 }

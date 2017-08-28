@@ -38,7 +38,7 @@ namespace genie
     struct FlowOptions
     {
         bool dump_dot = false;
-        std::string dump_dot_network;
+        std::vector<std::string> dump_dot_networks;
 
 		bool dump_area = false;
 

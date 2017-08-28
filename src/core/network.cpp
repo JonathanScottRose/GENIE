@@ -341,6 +341,32 @@ HierObject* Link::get_sink() const
 	return get_sink_ep()->get_obj();
 }
 
+void Link::disconnect_src()
+{
+	auto ep = get_src_ep();
+	ep->remove_link(this);
+	set_src_ep(nullptr);
+}
+
+void Link::disconnect_sink()
+{
+	auto ep = get_sink_ep();
+	ep->remove_link(this);
+	set_sink_ep(nullptr);
+}
+
+void Link::reconnect_src(Endpoint* ep)
+{
+	set_src_ep(ep);
+	ep->add_link(this);
+}
+
+void Link::reconnect_sink(Endpoint* ep)
+{
+	set_sink_ep(ep);
+	ep->add_link(this);
+}
+
 Endpoint* Link::get_src_ep() const
 {
 	return m_src;

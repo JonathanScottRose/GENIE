@@ -96,7 +96,7 @@ Graph flow::net_to_graph(NodeSystem* sys, NetType ntype,
 //
 
 DomainRS::DomainRS()
-	: m_is_manual(false), m_id(INVALID)
+	: m_is_manual(false), m_id(INVALID), m_disable_opt(false)
 {
 }
 
@@ -139,7 +139,7 @@ unsigned DomainRS::get_port_domain(PortRS * port, NodeSystem * context)
 // FlowStateOuter
 //
 
-const FlowStateOuter::RSDomains& FlowStateOuter::get_rs_domains() const
+FlowStateOuter::RSDomains& FlowStateOuter::get_rs_domains()
 {
 	return m_rs_domains;
 }

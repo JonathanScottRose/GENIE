@@ -31,6 +31,7 @@ namespace flow
 
 		PROP_GET_SET(id, unsigned, m_id);
 		PROP_GET_SET(is_manual, bool, m_is_manual);
+		PROP_GET_SET(opt_disabled, bool, m_disable_opt);
 		PROP_GET_SET(name, const std::string&, m_name);
 
 		void add_link(LinkID);
@@ -45,6 +46,7 @@ namespace flow
 		unsigned m_id;
 		std::string m_name;
 		bool m_is_manual;
+		bool m_disable_opt;
 		Links m_links;
 		Transmissions m_xmis;
 	};
@@ -54,7 +56,7 @@ namespace flow
 	public:
 		using RSDomains = std::vector<DomainRS>;
 
-		const RSDomains& get_rs_domains() const;
+		RSDomains& get_rs_domains();
 		DomainRS* get_rs_domain(unsigned);
 		DomainRS& new_rs_domain(unsigned id);
 

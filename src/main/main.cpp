@@ -80,14 +80,11 @@ namespace
 		
 		args >> GetOpt::OptionPresent("dump_reggraph", opts.dump_reggraph);
 		args >> GetOpt::OptionPresent("dump_area", opts.dump_area);
-		args >> GetOpt::OptionPresent("dump_dot", opts.dump_dot);
-		args >> GetOpt::Option("dump_dot", opts.dump_dot_network);
 		args >> GetOpt::OptionPresent("force_full_merge", opts.force_full_merge);
         args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
 		args >> GetOpt::Option("max_logic_depth", opts.max_logic_depth);
 		args >> GetOpt::OptionPresent("no_merge_tree", opts.no_merge_tree);
 		
-
 		{
 			std::string argstr;
 			args >> GetOpt::Option("args", argstr);
@@ -101,6 +98,13 @@ namespace
 			args >> GetOpt::Option("debug", hostport);
 			if (!hostport.empty())
 				parse_host_port(hostport, s_debug_host, s_debug_port);
+		}
+
+		{
+			std::string dump_dot_networks;
+			args >> GetOpt::OptionPresent("dump_dot", opts.dump_dot);
+			args >> GetOpt::Option("dump_dot", dump_dot_networks);
+			opts.dump_dot_networks = parse_list(dump_dot_networks);
 		}
 
         {

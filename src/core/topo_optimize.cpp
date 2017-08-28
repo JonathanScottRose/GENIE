@@ -2,531 +2,633 @@
 #include "topo_optimize.h"
 #include "node_system.h"
 #include "node_merge.h"
+#include "node_split.h"
+#include "port.h"
 #include "net_rs.h"
+#include "net_topo.h"
 
 using namespace genie;
 using namespace impl;
+using namespace flow;
 using namespace topo_opt;
-/*
-namespace std
-{
-    template<> class hash<pair<int,int>>
-    {
-    public:
-        size_t operator() (const pair<int,int>& p) const
-        {
-            hash<int> h;
-            return h(p.first) ^ h(p.second);
-        }
-    };
-}
+
+using flow::TransmissionID;
+using flow::FlowStateOuter;
 
 namespace
 {
-	void process_contention_between_links(const std::vector<LinkID>& links,
-		ContentionMap& result, NodeSystem* sys, flow::FlowStateOuter& fstate)
+	// Holds the contention between all pairs of transmissions:
+	// - do they contend?
+	// - for each transmission, the total contention
+	class ContentionMap
 	{
-		auto& excl = sys->get_link_exclusivity();
-
-		// Pairwise comparison between all links
-		for (auto it1 = links.begin(), it_end = links.end(); it1 != it_end; ++it1)
+	public:
+		void init(unsigned count)
 		{
-			auto link1 = *it1;
-			auto xmis1 = fstate.get_transmission_for_link(link1);
-			auto linkp1 = static_cast<LinkRSLogical*>(sys->get_link(link1));
-			unsigned pkt1 = linkp1->get_packet_size();
-			unsigned contention1 = 0;
+			m_count = count;
+			m_contend.resize(count*count);
+			m_totals.resize(count);
 
-			for (auto it2 = it1 + 1; it2 != it_end; ++it2)
+			for (auto& i : m_contend) i = false;
+			for (auto& i : m_totals) i = 0;
+		}
+
+		void add(TransmissionID t1, TransmissionID t2, float val1, float val2)
+		{
+			m_contend[idx(t1, t2)] = true;
+			m_totals[t1] += val1;
+			m_totals[t2] += val2;
+		}
+
+		bool do_contend(TransmissionID t1, TransmissionID t2)
+		{
+			return m_contend[idx(t1, t2)];
+		}
+
+		float get_total(TransmissionID t)
+		{
+			return m_totals[t];
+		}
+
+	protected:
+		static unsigned idx(TransmissionID t1, TransmissionID t2)
+		{
+			if (t1 > t2) std::swap(t1, t2);
+			return t2*(t2 + 1) / 2 + t1;
+		}
+
+
+		unsigned m_count;
+		std::vector<bool> m_contend;
+		std::vector<float> m_totals;
+	};
+}
+
+// Holds context during iteration
+struct topo_opt::TopoOptState
+{
+	FlowStateOuter* fstate;
+
+	ContentionMap xbar_contention;
+
+	NodeSystem* iter_base_sys;
+	ContentionMap iter_base_contention;
+
+	std::vector<NodeMerge*> merge_nodes;
+	unsigned cur_merge1;
+	unsigned cur_merge2;
+};
+
+namespace
+{
+	struct TopoWithLogicalLinks
+	{
+		LinkID topo;
+		std::vector<LinkID> logicals;
+	};
+
+	using MergeInputsBySrc = std::map<std::string, TopoWithLogicalLinks>;
+
+	void process_contention_between_links(const std::vector<LinkID>& links1,
+		const std::vector<LinkID>& links2,
+		NodeSystem* sys, FlowStateOuter* fstate, ContentionMap& result)
+	{
+		auto& excl = sys->get_spec().excl_info;
+
+		for (auto link1 : links1)
+		{
+			auto xmis1 = fstate->get_transmission_for_link(link1);
+			auto linkp1 = static_cast<LinkRSLogical*>(sys->get_link(link1));
+			auto src1 = linkp1->get_src();
+			unsigned pkt1 = linkp1->get_packet_size();
+
+			for (auto link2 : links2)
 			{
-				auto link2 = *it2;
-				auto xmis2 = fstate.get_transmission_for_link(link2);
+				auto xmis2 = fstate->get_transmission_for_link(link2);
 
 				bool same_transmission = xmis1 == xmis2;
+				if (same_transmission)
+					continue;
+
 				bool are_excl = excl.are_exclusive(link1, link2);
+				if (are_excl)
+					continue;
 
-				if (!same_transmission && !are_excl)
+				bool already_contend = result.do_contend(xmis1, xmis2);
+				if (already_contend)
+					continue;
+
+				auto linkp2 = static_cast<LinkRSLogical*>(sys->get_link(link2));
+				auto src2 = linkp2->get_src();
+
+				if (src1 == src2)
+					continue;
+
+				// They contend. Update contention map.
+				// Contention = other guy's packet size
+				unsigned pkt2 = linkp2->get_packet_size();
+
+				// Update contention
+				result.add(xmis1, xmis2, (float)pkt1, (float)pkt2);
+			}
+		}
+	} // end function
+
+	void process_contention_between_link_groups(
+		const std::vector<std::vector<std::vector<LinkID>>>& groups,
+		NodeSystem* sys, FlowStateOuter* fstate, ContentionMap& result)
+	{
+		// Groups contains:
+		//
+		// group1:
+		// list of links
+		// list of links
+		//
+		// group2:
+		// list of links
+		// list of links
+		// ...
+		//
+		// group3: ...
+
+		// Pairwise compare between all <list of links> belonging to different groups
+
+		for (auto it_g1 = groups.begin(), it_g_end = groups.end(); it_g1 != it_g_end; ++it_g1)
+		{
+			auto& group1 = *it_g1;
+
+			for (auto it_g2 = it_g1 + 1; it_g2 != it_g_end; ++it_g2)
+			{
+				auto& group2 = *it_g2;
+
+				// Iterate through lists of links in group1
+				for (auto it_l1 = group1.begin(), it_l1_end = group1.end(); it_l1 != it_l1_end; ++it_l1)
 				{
-					// They contend. Update contention map.
-					// Contention = other guy's packet size
-					auto linkp2 = static_cast<LinkRSLogical*>(sys->get_link(link2));
-					unsigned pkt2 = linkp2->get_packet_size();
-					
-					// Update link2's contention
-					result[link2] += pkt1;
+					auto& list1 = *it_l1;
 
-					// Defer updating link1's contention
-					contention1 += pkt2;
+					for (auto it_l2 = group2.begin(), it_l2_end = group2.end(); it_l2 != it_l2_end; ++it_l2)
+					{
+						auto& list2 = *it_l2;
+
+						process_contention_between_links(list1, list2, sys, fstate, result);
+					}
 				}
 			}
-
-			result[link1] += contention1;
 		}
 	}
 
-
-
-	void process_contention_for_merge_node(NodeMerge* mg,
+	void process_contention_for_merge_node(NodeSystem* sys, FlowStateOuter* fstate, NodeMerge* mg,
 		ContentionMap& result)
 	{
-		// Keep a list of transmissions by input
-		std::vector<std::vector<RSLink*>> xmis_by_input;
+		using genie::impl::Port;
 
-		auto mg_in = mg->get_topo_input();
-		const auto& topo_links = mg_in->get_endpoint_sysface(NET_TOPO)->links();
+		auto& link_rel = sys->get_link_relations();
+
+		// Group logical links by merge node input (links present on same
+		// physical input can't compete with each other)
+		std::vector<std::vector<std::vector<LinkID>>> loglink_by_input;
+
+		auto mg_in = mg->get_endpoint(NET_TOPO, Port::Dir::IN);
+		const auto& topo_links = mg_in->links();
 
 		unsigned n_inputs = topo_links.size();
-		xmis_by_input.resize(n_inputs);
+		loglink_by_input.resize(n_inputs);
 
 		// Populate and sort lists
 		{
-			unsigned i = 0;
+			auto it_vec = loglink_by_input.begin();
 
 			for (auto topo_link : topo_links)
 			{
-				auto ac = topo_link->asp_get<ALinkContainment>();
-				if (ac)
-				{
-					auto rs_links = ac->get_all_parent_links(NET_RS);
-					gather_unique_xmis(rs_links, xmis_by_input[i]);
-				}
-				i++;
+				it_vec->push_back(link_rel.get_parents(topo_link->get_id(), NET_RS_LOGICAL));
+				++it_vec;
 			}
 		}
 
-		measure_contention(xmis_by_input, result);
+		// Process
+		process_contention_between_link_groups(loglink_by_input, sys, fstate, result);
+	}
+
+	void populate_merge_inputs(NodeMerge* mg, MergeInputsBySrc& out, LinkRelations& rel)
+	{
+		using impl::Port;
+
+		auto ep = mg->get_endpoint(NET_TOPO, Port::Dir::IN);
+		auto& topos = ep->links();
+		
+		for (auto& topo : topos)
+		{
+			auto& srcname = topo->get_src()->get_name();
+			auto& entry = out[srcname];
+			entry.topo = topo->get_id();
+			entry.logicals = rel.get_parents(entry.topo, NET_RS_LOGICAL);
+		}
+	}
+
+	bool evaluate_merge_candidate_topoinputs(TopoOptState* tstate,
+		std::vector<LinkID>& topo1,
+		std::vector<LinkID>& topo2,
+		ContentionMap& cand_contention)
+	{
+		// Compare logical links from topo1 with those from topo2
+		// and calculate contention. This is incremental contention vs.
+		// the baseline state when the two merge nodes are not combined.
+		//
+		// Use the incremental contention, plus base contention, and compare that
+		// vs xbar contention and see if this meets importance requirements
+
+		auto fstate = tstate->fstate;
+		auto sys = tstate->iter_base_sys;
+		auto& spec = sys->get_spec();
+		auto& excl_info = spec.excl_info;
+		auto& xbar_contention = tstate->xbar_contention;
+
+		for (auto log_id1 : topo1)
+		{
+			auto xmis1 = fstate->get_transmission_for_link(log_id1);
+			auto linkp1 = static_cast<LinkRSLogical*>(sys->get_link(log_id1));
+			auto src1 = linkp1->get_src();
+			float imp1 = linkp1->get_importance();
+			unsigned pkt1 = linkp1->get_packet_size();
+
+			float xbar_cont1 = xbar_contention.get_total(xmis1);
+
+			for (auto log_id2 : topo2)
+			{
+				auto xmis2 = fstate->get_transmission_for_link(log_id2);
+				
+				auto same_xmis = xmis1 == xmis2;
+				if (same_xmis)
+					continue;
+
+				auto are_excl = excl_info.are_exclusive(log_id1, log_id2);
+				if (are_excl)
+					continue;
+
+				bool already_contend = cand_contention.do_contend(xmis1, xmis2);
+
+				auto linkp2 = static_cast<LinkRSLogical*>(sys->get_link(log_id2));
+				auto src2 = linkp2->get_src();
+
+				auto same_src = src1 == src2;
+				if (same_src)
+					continue;
+
+				float imp2 = linkp2->get_importance();
+				unsigned pkt2 = linkp2->get_packet_size();
+				float xbar_cont2 = xbar_contention.get_total(xmis2);
+
+				// Calculate an incremental contention between the two transmissions
+				float inc_cont1 = (float)pkt2;
+				float inc_cont2 = (float)pkt1;
+
+				// Update contention
+				cand_contention.add(xmis1, xmis2, inc_cont1, inc_cont2);
+
+				// Get total new contention thus far
+				float cand_cont1 = cand_contention.get_total(xmis1);
+				float cand_cont2 = cand_contention.get_total(xmis2);
+				
+				// Do the check
+				if (cand_cont1 > 0 && xbar_cont1 / cand_cont1 < imp1)
+					return false;
+
+				if (cand_cont2 > 0 && xbar_cont2 / cand_cont2 < imp2)
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool evaluate_merge_candidate(TopoOptState* tstate, 
+		NodeMerge* mg1,	MergeInputsBySrc& mg1_inputs,
+		NodeMerge* mg2,	MergeInputsBySrc& mg2_inputs)
+	{
+		// Loop through pairwise: inputs from 1, inputs from 2,
+		// ignoring pairs of inputs that have the same source
+
+		// Make a copy of the contention map from the iterbase
+		ContentionMap cand_contention = tstate->iter_base_contention;
+
+		for (auto& it_mg1 : mg1_inputs)
+		{
+			auto& mg1_srcname = it_mg1.first;
+			auto& mg1_input = it_mg1.second;
+
+			for (auto& it_mg2 : mg2_inputs)
+			{
+				auto& mg2_srcname = it_mg2.first;
+				auto& mg2_input = it_mg2.second;
+
+				// Topo inputs that come from the same src can never conflict
+				if (mg1_srcname == mg2_srcname)
+					continue;
+
+				if (!evaluate_merge_candidate_topoinputs(tstate, 
+					mg1_input.logicals, 
+					mg2_input.logicals, 
+					cand_contention))
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	void fixup_split_nodes(NodeSystem* sys)
+	{
+		using impl::Port;
+		auto& link_rel = sys->get_link_relations();
+
+		// There's two kinds of things to fix:
+		// 1) Split nodes that have only one output need to be removed
+		// 2) Split node that feed other split nodes need to be combined
+
+		auto all_sp = sys->get_children_by_type<NodeSplit>();
+		std::vector<NodeSplit*> nodes_to_erase;
+
+		// First thing:
+		for (auto it = all_sp.begin(); it != all_sp.end(); )
+		{
+			auto sp = *it;
+
+			if (sp->get_n_outputs() == 1)
+			{
+				auto ep_in = sp->get_endpoint(NET_TOPO, Port::Dir::IN);
+				auto ep_out = sp->get_endpoint(NET_TOPO, Port::Dir::OUT);
+
+				// Remove the split node and outgoing link, replace with the incoming link
+				auto link_in = ep_in->get_link0();
+				auto link_out = ep_out->get_link0();
+				auto ep_downstream = link_out->get_sink_ep();
+
+				link_out->disconnect_sink();
+				link_in->disconnect_sink();
+				link_in->reconnect_sink(ep_downstream);
+
+				nodes_to_erase.push_back(sp);
+			}
+			else
+			{
+				++it;
+			}
+		}
+
+		for (auto sp : nodes_to_erase)
+		{
+			delete sys->remove_child(sp);
+			all_sp.erase(std::remove(all_sp.begin(), all_sp.end(), sp));
+		}
+
+		nodes_to_erase.clear();
+
+		// Second thing:
+		for (auto it = all_sp.begin(); it != all_sp.end(); ++it)
+		{
+			auto upstream_sp = *it;
+			std::vector<impl::Link*> links_to_add;
+			std::vector<impl::Link*> links_to_remove;
+
+			// Go through all the outputs of the split node, and look for things that
+			// are also split nodes.
+			auto upstream_sp_out_ep = upstream_sp->get_endpoint(NET_TOPO, Port::Dir::OUT);
+			auto& upstream_sp_out_links = upstream_sp_out_ep->links();
+			for (auto upstream_sp_out_link : upstream_sp_out_links)
+			{
+				auto downstream_sp = dynamic_cast<NodeSplit*>(upstream_sp_out_link->get_sink());
+				if (!downstream_sp)
+					continue;
+
+				// It's a split node. Grab all of its outputs and disconnect from downstream sp
+				auto downstream_sp_out_ep = downstream_sp->get_endpoint(NET_TOPO, Port::Dir::OUT);
+				auto downstream_sp_out_links = downstream_sp_out_ep->links(); // copy! disconnect_src modifies original
+				for (auto downstream_sp_out_link : downstream_sp_out_links)
+					downstream_sp_out_link->disconnect_src();
+
+				links_to_add.insert(links_to_add.end(), downstream_sp_out_links.begin(), downstream_sp_out_links.end());
+
+				// Disconnect the link from upstream to downstream sp
+				upstream_sp_out_link->disconnect_sink();
+				links_to_remove.push_back(upstream_sp_out_link);
+
+				// Kill the downstream split node
+				nodes_to_erase.push_back(downstream_sp);
+			}
+
+			// Remove upstream_sp's outgoing links to now-dead split nodes
+			for (auto link : links_to_remove)
+				sys->disconnect(link);
+
+			// Move all outgoing links from destroyed downstream split nodes to upstream_sp
+			for (auto link : links_to_add)
+				link->reconnect_src(upstream_sp_out_ep);
+		}
+
+		for (auto sp : nodes_to_erase)
+		{
+			delete sys->remove_child(sp);
+		}
+	}
+
+	NodeSystem* create_combined_sys(TopoOptState* tstate,
+		MergeInputsBySrc& mg1_inputs,
+		MergeInputsBySrc& mg2_inputs)
+	{
+		using impl::Port;
+
+		// First, clone the base system
+		NodeSystem* sys = (NodeSystem*)tstate->iter_base_sys->clone();
+		auto& link_rel = sys->get_link_relations();
+
+		// Get the merge nodes in the new system
+		auto mg1 = sys->get_child_as<NodeMerge>(tstate->merge_nodes[tstate->cur_merge1]->get_name());
+		auto mg2 = sys->get_child_as<NodeMerge>(tstate->merge_nodes[tstate->cur_merge2]->get_name());
+
+		// We're going to delete the second merge node and reroute its links to the first one.
+		
+		// Disconnect the second merge node's inputs
+		for (auto it : mg2_inputs)
+		{
+			auto input = sys->get_link(it.second.topo);
+			input->disconnect_sink();
+		}
+
+		// Get and disconnect the second merge node's output
+		auto mg2_output = mg2->get_endpoint(NET_TOPO, Port::Dir::OUT)->get_link0();
+		mg2_output->disconnect_src();
+
+		// Get and disconnect the first merge node's output
+		auto mg1_output = mg1->get_endpoint(NET_TOPO, Port::Dir::OUT)->get_link0();
+		mg1_output->disconnect_src();
+
+		// Remove and destroy the second merge node from the system
+		sys->remove_child(mg2->get_name());
+		delete mg2;
+
+		// Reconnect mg2 inputs to mg1
+		for (auto mg2_input_it : mg2_inputs)
+		{
+			auto& input_src_name = mg2_input_it.first;
+			auto& mg2_input = mg2_input_it.second;
+
+			// Two possibilities:
+			// - If mg1 already has an input with the same source, just move over
+			// all the contained logical links, and destroy the topo link
+			// - If not, then reconnect the topo link to mg1
+
+			auto existing_mg1_it = mg1_inputs.find(input_src_name);
+			if (existing_mg1_it != mg1_inputs.end())
+			{
+				// Get mg1's existing input and reroute the mg2 logical links to it
+				auto mg1_topo_id = existing_mg1_it->second.topo;
+				for (auto logical : mg2_input.logicals)
+				{
+					link_rel.add(logical, mg1_topo_id);
+				}
+
+				// Destroy the mg2 topo link
+				auto mg2_topo_id = mg2_input.topo;
+				sys->disconnect(sys->get_link(mg2_topo_id));
+			}
+			else
+			{
+				// Get the mg2 topo link
+				auto mg2_input_topolink = sys->get_link(mg2_input.topo);
+
+				// Just reconnect it to mg1
+				mg2_input_topolink->reconnect_sink(
+					mg1->get_endpoint(NET_TOPO, Port::Dir::IN));
+			}
+		}
+
+		//
+		// Output part: Create a split node, connected to the output of mg1.
+		// The outputs of the split node will be the original mg1 and mg2 outputs.
+		// The link from mg1 to the split node needs all logical links routed over it.
+		//
+
+		// Create a split node
+		auto sp = new NodeSplit();
+		sp->set_name(sys->make_unique_child_name(util::str_con_cat("sp", mg1->get_name())));
+		sys->add_child(sp);
+
+		// Connect mg1 and mg2 former outputs, as outputs to sp
+		auto sp_out_ep = sp->get_endpoint(NET_TOPO, Port::Dir::OUT);
+		mg1_output->reconnect_src(sp_out_ep);
+		mg2_output->reconnect_src(sp_out_ep);
+
+		// Create a link from mg1 to sp
+		auto mg_sp_link = sys->connect(mg1, sp, NET_TOPO);
+
+		// Route logical links over it
+		for (auto topo : { mg1_output, mg2_output })
+		{
+			auto logicals = link_rel.get_parents(topo->get_id(), NET_RS_LOGICAL);
+			for (auto logical : logicals)
+				link_rel.add(logical, mg_sp_link->get_id());
+		}
+
+		fixup_split_nodes(sys);
+
+		return sys;
 	}
 }
 
-ContentionMap topo_opt::measure_initial_contention(NodeSystem* sys, flow::FlowStateOuter& fstate)
+
+TopoOptState* topo_opt::init(NodeSystem* xbar_sys,
+	flow::FlowStateOuter& fstate)
 {
-	ContentionMap result;
+	// Create state
+	auto ts = new TopoOptState;
 
-	// Measures the intial contention between the system's logical links when there's a crossbar topology.
-	// Every logical sink is fed by a merge node, so all transmissions arriving at a sink must compete with
-	// each other (unless exclusive). We only need to look at all the transmissions arriving at each sink
-	// to determine contention.
+	ts->fstate = &fstate;
 
-	// Sorts logical RS links by destination
-	std::unordered_map<HierObject*, std::vector<LinkID>> dest_to_logicals;
+	// The first base system is the xbar system
+	iter_newbase(ts, xbar_sys);
 
-	for (auto link : sys->get_links(NET_RS_LOGICAL))
-	{
-		dest_to_logicals[link->get_src()].push_back(link->get_id());
-	}
+	// Remember its contention as the xbar contention
+	ts->xbar_contention = ts->iter_base_contention;
 
-	// Look within each sink for a list of rslogicals.
-	// Find contention within each list.
-	for (auto dest : dest_to_logicals)
-	{
-		process_contention_between_links(dest.second, result,
-			sys, fstate);
-	}
+	return ts;
+}
+
+void topo_opt::iter_newbase(TopoOptState* ts, NodeSystem* base)
+{
+	ts->iter_base_sys = base;
 	
+	// Get merge nodes
+	ts->merge_nodes = base->get_children_by_type<NodeMerge>();
+
+	// Initialize which merge nodes we're going to try combining first.
+	// This gets incremented/checked before any combining happens.
+	ts->cur_merge1 = 0;
+	ts->cur_merge2 = 0;
+	
+	// Init/reset contention
+	ts->iter_base_contention.init(ts->fstate->get_n_transmissions());
+
+	// Measure initial contention
+	for (auto mg : ts->merge_nodes)
+	{
+		process_contention_for_merge_node(base,
+			ts->fstate, mg, ts->iter_base_contention);
+	}
+}
+
+NodeSystem* topo_opt::iter_next(TopoOptState* ts)
+{
+	NodeSystem* result = nullptr;
+
+	unsigned n_merges = ts->merge_nodes.size();
+
+	for (bool exit_loop = false; !exit_loop; )
+	{
+		// Handle loop counters
+		ts->cur_merge2++;
+		if (ts->cur_merge2 >= n_merges)
+		{
+			// cur_merge2 reached end of its loop, check/advance cur_merge1
+			// and reset cur_merge2
+			ts->cur_merge1++;
+			ts->cur_merge2 = ts->cur_merge1 + 1;
+			if (ts->cur_merge1 + 1 >= n_merges) // should be >= n_merges-1 thanks unsigned integers
+			{
+				// Done iteration : out of merge node pairs
+				exit_loop = true;
+				continue;
+			}
+		}
+
+		NodeSystem* sys = ts->iter_base_sys;
+		NodeMerge* mg1 = ts->merge_nodes[ts->cur_merge1];
+		NodeMerge* mg2 = ts->merge_nodes[ts->cur_merge2];
+
+		// Evaluate the proposed combination of cur_merge1 and cur_merge2
+		// Get the topo inputs of both merge nodes, get the logical links going
+		// over them, and key the topo inputs by the name of their source
+		MergeInputsBySrc mg1_inputs, mg2_inputs;
+		populate_merge_inputs(mg1, mg1_inputs, sys->get_link_relations());
+		populate_merge_inputs(mg2, mg2_inputs, sys->get_link_relations());
+
+		// Check if combining the two merge nodes will be okay
+		if (!evaluate_merge_candidate(ts, mg1, mg1_inputs, mg2, mg2_inputs))
+		{
+			continue;
+		}
+		else
+		{
+			// It is okay! Make the merge-combination happen, and return a new system
+			result = create_combined_sys(ts, mg1_inputs, mg2_inputs);
+			exit_loop = true;
+		}
+	}
+
 	return result;
 }
 
-
-void fix_split(System* sys, NodeSplit* sp)
+void topo_opt::cleanup(TopoOptState* ts)
 {
-    // 'sp' should have two downstream nodes. Get ports
-    auto sp_topo_out = sp->get_topo_output();
-    auto sp_topo_out_ep = sp_topo_out->get_endpoint_sysface(NET_TOPO);
-    auto sp_downstream_ports = sp_topo_out_ep->get_remote_objs();
-
-    assert(sp_downstream_ports.size() == 2);
-
-    // For each of the two downstream nodes
-    for (auto sp_ds_port : sp_downstream_ports)
-    {
-        auto sp_ds_node = as_a<NodeSplit*>(sp_ds_port->get_node());
-
-        // Check if it's a split node that we're allowed to touch
-        if (!sp_ds_node)
-            continue;
-
-        // Disconnect 'sp' from this split node
-        sys->disconnect(sp_topo_out, sp_ds_port);
-
-        // Get downstream links of this split node
-        auto sp_ds_node_out = sp_ds_node->get_topo_output();
-        auto reroute_links = sp_ds_node_out->get_endpoint_sysface(NET_TOPO)->links();
-
-        // Reconnect each link's source to be 'sp'
-        for (auto reroute_link : reroute_links)
-        {
-            reroute_link->set_src(sp_topo_out_ep);
-            sp_topo_out_ep->add_link(reroute_link);
-        }
-
-        // Delete downstream split node
-        sys->delete_object(sp_ds_node->get_name());
-    }
+	delete ts;
 }
 
-void measure_contention(std::vector<std::vector<RSLink*>>& lists,
-    std::unordered_map<int, unsigned>& result)
-{
-    unsigned n_inputs = lists.size();
-
-    // Within each list
-    for (unsigned i = 0; i < n_inputs; i++)
-    {
-        auto& this_list = lists[i];
-
-        for (auto this_xmis : this_list)
-        {
-            unsigned total_contention = 0;
-
-            auto excl = this_xmis->asp_get<ARSExclusionGroup>();
-
-            // Go through the other lists
-            for (unsigned j = 0; j < n_inputs; j++)
-            {
-                if (i == j) continue;
-
-                // Add packet sizes of contending transmissions to total contention
-                auto& other_list = lists[j];
-                for (auto other_xmis : other_list)
-                {
-                    bool conflict = !excl || !excl->has(other_xmis);
-                    bool same_xmis = this_xmis->get_flow_id() == other_xmis->get_flow_id();
-                    if (conflict && !same_xmis)
-                    {
-                        total_contention += other_xmis->get_pkt_size();
-                    }
-                }
-
-            }
-
-            // Add the worst case competition delay
-            int this_fid = this_xmis->get_flow_id();
-            result[this_fid] += total_contention;
-        } // end foreach transmission in list
-    } // end foreach list
-}
-
-void gather_unique_xmis(std::vector<Link*>& in, std::vector<RSLink*>& out)
-{
-    unsigned n = in.size();
-
-    for (unsigned i = 0; i < n; i++)
-    {
-        auto link_rs = (RSLink*)in[i];
-
-        int i_fid = link_rs->get_flow_id();
-        bool found = false;
-
-        for (auto link_existing : out)
-        {
-            int j_fid = link_existing->get_flow_id();
-            if (i_fid == j_fid)
-            {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found)
-        {
-            out.push_back(link_rs);
-        }
-    }
-}
-
-
-
-void optimize_domain(System* sys, std::vector<NodeMerge*>& merges,
-    std::unordered_map<int, std::vector<RSLink*>>& fid_to_links)
-{
-    // Global cumulative latency within this domain. This never gets
-    // updated.
-    std::unordered_map<int, unsigned> baseline_contention;
-
-    // Incremental latency per merge node. This is initialized based
-    // on the pre-optimization topology, and is updated during optimization.
-    std::unordered_map<NodeMerge*, 
-        std::unordered_map<int, unsigned>> incremental_contention;
-
-    // Populate these initial things
-    for (auto& mg : merges)
-    {
-        auto& incr = incremental_contention[mg];
-        measure_contention_for_merge_node(mg, incr);
-
-        // Add to cumulative
-        for (auto& entry : incr)
-        {
-            baseline_contention[entry.first] += entry.second;
-        }
-    }
-
-    // This copy gets updated
-    auto cur_total_contention = baseline_contention;
-
-    // While can still combine more merge nodes...
-    while(true)
-    {
-        // Keep track of whether we found a legal mergemerge candidate pair,
-        // the members of the best pair, and the best pair's cost.
-        bool best_found = false;
-        float best_cost = 0;
-        NodeMerge* best_node1 = nullptr;
-        NodeMerge* best_node2 = nullptr;
-
-        // Loop through all pairs and find the best pair to merge
-        for (auto it1 = merges.begin(); it1 != merges.end(); ++it1)
-        {
-            NodeMerge* node1 = *it1;
-
-            if (!node1->asp_has<AAutoGen>())
-                continue;
-
-            // Incoming topo links of first merge node
-            auto& node1_topos = node1->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
-
-            // Get lists of RS links, sorted by their physical source
-            std::unordered_map<Port*, std::vector<RSLink*>> node1_rslinks;
-            for (auto topo_link : node1_topos)
-            {
-                auto rs_links = topo_link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
-                auto topo_src = topo_link->get_src();
-                gather_unique_xmis(rs_links, node1_rslinks[topo_src]);
-            }
-
-            for (auto it2 = it1 + 1; it2 != merges.end(); ++it2)
-            {
-                NodeMerge* node2 = *it2;
-
-                if (!node2->asp_has<AAutoGen>())
-                    continue;
-
-                // Incoming topo links of second merge node
-                auto& node2_topos = node2->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
-
-                // Initialize to copy of node1's. Add node2's stuff.
-                auto combined_rslinks = node1_rslinks;
-
-                // Add the things from node2
-                for (auto topo_link : node2_topos)
-                {
-                    auto rs_links = topo_link->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
-                    auto topo_src = topo_link->get_src();
-                    gather_unique_xmis(rs_links, combined_rslinks[topo_src]);
-                }
-
-                // Ugly: convert combined_rslinks into a vector or vectors
-                std::vector<std::vector<RSLink*>> cmb_rslinks_vec;
-                for (auto& bin : combined_rslinks)
-                {
-                    cmb_rslinks_vec.push_back(bin.second);
-                }
-
-                // Measure the incremental contention latencies in the hypothetical combined merge node
-                std::unordered_map<int, unsigned> combined_inc_contention;
-                measure_contention(cmb_rslinks_vec, combined_inc_contention);
-         
-                // Using the measured incremental latency on the combined node,
-                // the original incremental latency pre-combining, and the original end-to-end latency,
-                // calculate the new end-to-end hypthetical latency and see by how much it violates
-                // importance constraints.
-                
-                bool violation = false;
-                float this_cost = 0;
-
-                for (auto& new_comb_it : combined_inc_contention)
-                {
-                    auto fid = new_comb_it.first;
-                    unsigned new_incr = new_comb_it.second;
-                
-                    // Original total contention
-                    unsigned old_baseline = baseline_contention[fid];
-                    unsigned old_total = cur_total_contention[fid];
-                        
-                    // Find original incremental contribution to that value, pre-combine.
-                    // This transmission can appear in node1 AND/OR node2, so sum up both
-
-                    unsigned old_incr = 0;
-
-                    for (auto node : {node1, node2})
-                    {
-                        auto& incrs = incremental_contention[node];
-                        auto old_incr_loc = incrs.find(fid);
-
-                        if (old_incr_loc != incrs.end())
-                        {
-                            old_incr += old_incr_loc->second;
-                        }
-                    }
-
-                    // Calculate the new hypothetical total contention
-                    unsigned new_total = old_total - old_incr + new_incr;
-
-                    // See if it violates importance constraints
-                    auto rslink = fid_to_links[fid].front();
-                    float link_imp = rslink->get_importance();
-                    unsigned link_size = rslink->get_pkt_size();
-
-                    // Check if any link constraint is violated
-                    float ratio = (link_size + old_baseline) / (float)(link_size + new_total);
-                    if (ratio < link_imp)
-                    {
-                        violation = true;
-                        break;
-                    }
-                    else
-                    {
-                        // Add up the margins
-                        this_cost += ratio - link_imp;
-                    }
-                }
-
-                // If any of the links' costs were violated, this isn't a valid combine candidate pair
-                if (violation)
-                {
-                    continue;
-                }
-                else
-                {
-                    if (!best_found || this_cost > best_cost)
-                    {
-                        best_found = true;
-                        best_cost = this_cost;
-                        best_node1 = node1;
-                        best_node2 = node2;
-                    }
-                }
-            }// end loop through 'other' merge nodes
-        } // end looping through all pairs of merge nodes
-
-        // If a legal mergemerge candidate was found, focus on the two 'best' merge nodes
-        // and perform the actual mergemerge operation.
-        //
-        // If not? Then escape from outermost while loop and return from this function
-        if (!best_found)
-        {
-            break;
-        }
-
-        // Arbitrarily choose which of the two merge nodes will remain, as the other one will
-        // be destroyed. Let's make node1 the survivor
-
-        // Grab all the input links of the two merge nodes
-        auto node1_inputs = best_node1->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
-        auto node2_inputs = best_node2->get_topo_input()->get_endpoint_sysface(NET_TOPO)->links();
-
-        // Get the transmissions (RS Links) on each topo link (used later)
-        std::vector<std::vector<Link*>> node1_rslinks, node2_rslinks;
-
-        for (auto tlink : node1_inputs)
-        {
-            auto links = tlink->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
-            node1_rslinks.push_back(links);
-        }
-
-        for (auto tlink : node2_inputs)
-        {
-            auto links = tlink->asp_get<ALinkContainment>()->get_all_parent_links(NET_RS);
-            node2_rslinks.push_back(links);
-        }
-
-        // Disconnect node2's input links and reconnect their sources to node1's input
-        for (unsigned i = 0; i < node2_inputs.size(); i++)
-        {
-            auto input = node2_inputs[i];
-            auto input_src = input->get_src();
-
-            sys->disconnect(input);
-            auto link = sys->connect(input_src, best_node1->get_topo_input());
-
-            // Move transmissions
-            link->asp_get<ALinkContainment>()->add_parent_links(node2_rslinks[i]);
-        }
-
-        // Combine outputs: create a split node. its input: output of remaining merge node
-        // its outputs: original outputs of two merge nodes
-        {
-
-            NodeSplit* sp = new NodeSplit();
-            sp->set_name(sys->make_unique_child_name("split_auto"));
-            sp->asp_add(new AAutoGen);
-            sys->add_child(sp);
-
-            // Get merge node destination links
-            auto node1_out = best_node1->get_topo_output()->get_endpoint_sysface(NET_TOPO)->get_link0();
-            auto node2_out = best_node2->get_topo_output()->get_endpoint_sysface(NET_TOPO)->get_link0();
-
-            auto node1_sink = node1_out->get_sink();
-            auto node2_sink = node2_out->get_sink();
-
-            // Disconnect the outputs of the merge nodes
-            sys->disconnect(node1_out);
-            sys->disconnect(node2_out);
-
-            // Split node's input is merge node1's output
-            auto mg_to_sp = sys->connect(best_node1->get_topo_output(), sp->get_topo_input());
-
-            // Split node's outputs go to original merge node outputs
-            auto sp_to_sink1 = sys->connect(sp->get_topo_output(), node1_sink);
-            auto sp_to_sink2 = sys->connect(sp->get_topo_output(), node2_sink);
-
-            // Re-route carried RS links
-            for (auto rslinks : node1_rslinks)
-            {
-                mg_to_sp->asp_get<ALinkContainment>()->add_parent_links(rslinks);
-                sp_to_sink1->asp_get<ALinkContainment>()->add_parent_links(rslinks);
-            }
-
-            for (auto rslinks : node2_rslinks)
-            {
-                mg_to_sp->asp_get<ALinkContainment>()->add_parent_links(rslinks);
-                sp_to_sink2->asp_get<ALinkContainment>()->add_parent_links(rslinks);
-            }
-
-            // Combine downstream split nodes with the new split node, if possible
-            fix_split(sys, sp);
-        }
-
-        // Recalculate the incremental and global delays
-        std::unordered_map<int, unsigned> new_incr1_contention;
-        measure_contention_for_merge_node(best_node1, new_incr1_contention);
-
-        for (auto& entry : new_incr1_contention)
-        {
-            int fid = entry.first;
-            unsigned new_incr = entry.second;
-            unsigned old_incr = 0;
-
-            // node2 is going away, and node1 is now the combination of the old node1 and node2.
-            // Two operations:
-            // 1) Remove the transmission's former contributions (which came from old node1 or old node2 OR BOTH)
-            // 2) Add the new contribution based on the new combined node1
-
-            // 1) sum up old node1 and/or old node2's contributions for this flow
-            for (auto node : {best_node1, best_node2})
-            {
-                auto& node_bins = incremental_contention[node];
-                auto incr_loc = node_bins.find(fid);
-                if (incr_loc != node_bins.end())
-                {
-                    old_incr += incr_loc->second;
-                }
-            }
-
-            // Remove 1) and add 2)
-            cur_total_contention[fid] += new_incr - old_incr;
-        }
-
-        // Delete the second merge node.
-        sys->delete_object(best_node2->get_name());
-        merges.erase(std::find(merges.begin(), merges.end(), best_node2));
-        incremental_contention[best_node1] = new_incr1_contention;
-        incremental_contention.erase(best_node2);
-
-    } // end while there are still merge nodes to merge
-}
-
-}
-
-
-*/

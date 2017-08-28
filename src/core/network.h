@@ -129,6 +129,12 @@ namespace impl
 		HierObject* get_src() const;
 		HierObject* get_sink() const;
 
+		void disconnect_src();
+		void disconnect_sink();
+
+		void reconnect_src(Endpoint*);
+		void reconnect_sink(Endpoint*);
+
 		void set_src_ep(Endpoint*);
 		void set_sink_ep(Endpoint*);
 

@@ -10,18 +10,12 @@ namespace impl
 {
 namespace topo_opt
 {
-	using ContentionMap = std::unordered_map<LinkID, unsigned>;
-	/*
-	struct State
-	{
-		ContentionMap xbar_contention;
-		std::unordered_map<NodeMerge*, std::vector<flow::TransmissionID>> merge_xmis;
-	};
+	struct TopoOptState;
 
-	void init_state(NodeSystem* sys, 
-
-	ContentionMap measure_initial_contention(NodeSystem* sys, flow::FlowStateOuter& fstate);
-	*/
+	TopoOptState* init(NodeSystem* sys, flow::FlowStateOuter& fstate);
+	void iter_newbase(TopoOptState*, NodeSystem*);
+	NodeSystem* iter_next(TopoOptState*);
+	void cleanup(TopoOptState*);
 }
 }
 }

@@ -14,6 +14,7 @@ namespace impl
 	class PortTypeDef;
 	class SigRoleDef;
 	class PrimDB;
+	class HierObject;
 
 	using NetType = uint16_t;
 	constexpr NetType NET_INVALID = std::numeric_limits<NetType>::max();
@@ -35,6 +36,7 @@ namespace impl
 	bool is_reserved_module(const std::string&);
 
 	// Node management
+	HierObject* get_object(const std::string& path);
     Node* get_node(const std::string& name);
     std::vector<NodeSystem*> get_systems();
     void delete_node(Node* node);

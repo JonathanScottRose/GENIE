@@ -128,6 +128,11 @@ bool genie::impl::is_reserved_module(const std::string& name)
 	return util::exists(m_reserved_modules, name);
 }
 
+HierObject * genie::impl::get_object(const std::string & path)
+{
+	return m_root.get_child_as<HierObject>(path);
+}
+
 Node* genie::impl::get_node(const std::string& name)
 {
 	return m_root.get_child_as<Node>(name);

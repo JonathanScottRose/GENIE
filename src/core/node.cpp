@@ -391,8 +391,8 @@ void Node::disconnect(Link* link)
 	LinkID id = link->get_id();
 
 	// Disconnect the Link from its endpoints
-	src_ep->remove_link(link);
-	sink_ep->remove_link(link);
+	if (src_ep) src_ep->remove_link(link);
+	if (sink_ep) sink_ep->remove_link(link);
 
 	// Remove link from relations
 	m_link_rel.unregister_link(link->get_id());
