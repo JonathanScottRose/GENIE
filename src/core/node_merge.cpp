@@ -276,9 +276,24 @@ AreaMetrics NodeMerge::annotate_area_nonex()
 	col_vals[DB_COLS::EOP] = eop ? 1 : 0;
 	col_vals[DB_COLS::NI] = m_n_inputs;
 
+	// SPECIAL CASE for altera devices:
+	// a 2-to-1 mux driving a register will use zero area for the mux
+	bool radix2_driving_reg =
+		m_n_inputs == 2 && node_width >= 7 && does_feed_reg();
+
 	if (node_width == 0)
 	{
 		col_vals[DB_COLS::WIDTH] = 0;
+		auto row = s_prim_db->get_row(col_vals);
+		assert(row);
+		auto metrics = s_prim_db->get_area_metrics(row);
+		assert(metrics);
+		result = *metrics;
+	}
+	else if (radix2_driving_reg)
+	{
+		// for now: approximate with width=1 (a very small 2-to-1 mux)
+		col_vals[DB_COLS::WIDTH] = 1;
 		auto row = s_prim_db->get_row(col_vals);
 		assert(row);
 		auto metrics = s_prim_db->get_area_metrics(row);
@@ -315,9 +330,22 @@ AreaMetrics NodeMerge::annotate_area_ex()
 	unsigned col_vals[DB_EX_COLS::size()];
 	col_vals[DB_EX_COLS::NI] = m_n_inputs;
 
+	bool radix2_driving_reg =
+		m_n_inputs == 2 && node_width >= 7 && does_feed_reg();
+
 	if (node_width == 0)
 	{
 		col_vals[DB_EX_COLS::WIDTH] = 0;
+		auto row = s_prim_db_ex->get_row(col_vals);
+		assert(row);
+		auto metrics = s_prim_db_ex->get_area_metrics(row);
+		assert(metrics);
+		result = *metrics;
+	}
+	else if (radix2_driving_reg)
+	{
+		// for now: approximate with width=1 (a very small 2-to-1 mux)
+		col_vals[DB_EX_COLS::WIDTH] = 1;
 		auto row = s_prim_db_ex->get_row(col_vals);
 		assert(row);
 		auto metrics = s_prim_db_ex->get_area_metrics(row);
@@ -344,4 +372,18 @@ AreaMetrics NodeMerge::annotate_area_ex()
 	}
 
 	return result;
+}
+
+bool genie::impl::NodeMerge::does_feed_reg()
+{
+	// Get physical output of merge node
+	auto phys_out = get_output()->get_endpoint(NET_RS_PHYS, Port::Dir::OUT);
+
+	// Get remote PortRS
+	auto remote_rs = dynamic_cast<PortRS*>(phys_out->get_remote_obj0());
+	if (!remote_rs)
+		return false;
+
+	// Zero logic depth === directly feeds a register
+	return remote_rs->get_logic_depth() == 0;
 }

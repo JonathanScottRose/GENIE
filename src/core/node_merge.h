@@ -38,6 +38,7 @@ namespace impl
 		void annotate_timing_ex();
 		AreaMetrics annotate_area_nonex();
 		AreaMetrics annotate_area_ex();
+		bool does_feed_reg();
 
 		unsigned m_n_inputs;
 		bool m_is_exclusive;
