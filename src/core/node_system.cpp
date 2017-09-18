@@ -379,10 +379,8 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 
 			moved_links.push_back(ml);
 
-			link->get_src_ep()->remove_link(link);
-			link->get_sink_ep()->remove_link(link);
-			link->set_src_ep(nullptr);
-			link->set_sink_ep(nullptr);
+			link->disconnect_src();
+			link->disconnect_sink();
 		}
 	}
 
@@ -430,10 +428,8 @@ void NodeSystem::reintegrate_snapshot(NodeSystem * src)
 		assert(src_ep && sink_ep); // TODO: can new endpoints be created?
 
 		// Do the connection
-		link->set_src_ep(src_ep);
-		link->set_sink_ep(sink_ep);
-		src_ep->add_link(link);
-		sink_ep->add_link(link);
+		link->reconnect_src(src_ep);
+		link->reconnect_sink(sink_ep);
 	}
 
 	// Reintegrate link relations
@@ -468,5 +464,11 @@ bool ExclusivityInfo::are_exclusive(LinkID link1, LinkID link2)
 	if (link2 < link1)
 		std::swap(link1, link2);
 
-	return m_sets[link1].count(link2) > 0;
+	auto it = m_sets.find(link1);
+	return (it != m_sets.end());
+}
+
+std::vector<LinkID> genie::impl::ExclusivityInfo::get_links_with_exclusivity()
+{
+	return util::keys<std::vector<LinkID>>(m_sets);
 }

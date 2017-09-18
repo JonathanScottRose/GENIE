@@ -62,6 +62,16 @@ namespace impl
 		// Parent
 		HierObject* get_parent() const;
 		bool is_parent_of(const HierObject*) const;
+		template<class T>
+		T* get_parent_by_type() const
+		{
+			T* result = nullptr;
+			for (HierObject* cur = get_parent();
+				cur && !(result = dynamic_cast<T*>(cur));
+				cur = cur->get_parent());
+
+			return result;
+		}
 
 		// Add a child object
 		void add_child(HierObject*);

@@ -61,20 +61,24 @@ namespace flow
 		DomainRS& new_rs_domain(unsigned id);
 
 		unsigned new_transmission();
-		void add_link_to_transmission(unsigned xmis, LinkID link);
-		const std::vector<LinkID>& get_transmission_links(unsigned xmis);
+		void add_link_to_transmission(TransmissionID xmis, LinkID link);
+		const std::vector<LinkID>& get_transmission_links(TransmissionID xmis);
 		unsigned get_n_transmissions() const;
-		unsigned get_transmission_for_link(LinkID link);
+		TransmissionID get_transmission_for_link(LinkID link);
+		
+		void set_transmissions_exclusive(TransmissionID t1, TransmissionID t2);
+		bool are_transmissions_exclusive(TransmissionID t1, TransmissionID t2);
 
 	protected:
 		struct TransmissionInfo
 		{
 			std::vector<LinkID> links;
+			std::unordered_set<TransmissionID> exclusive_with;
 		};
 
 		RSDomains m_rs_domains;
 		std::vector<TransmissionInfo> m_transmissions;
-		std::unordered_map<LinkID, unsigned> m_link_to_xmis;
+		std::unordered_map<LinkID, TransmissionID> m_link_to_xmis;
 	};
 
 	using N2GRemapFunc = std::function<HierObject*(HierObject*)>;

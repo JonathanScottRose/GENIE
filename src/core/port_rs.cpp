@@ -52,6 +52,22 @@ void PortRS::set_logic_depth(unsigned depth)
 
 void PortRS::set_default_packet_size(unsigned size)
 {
+	// Should be done for output ports only
+	NodeSystem* sys = get_parent_by_type<NodeSystem>();
+
+	// If not instantiated in a system, this is a NODE PROTOTYPE. The effective direction
+	// is the nominal direction.
+	
+	Port::Dir eff_dir = sys ?
+		get_effective_dir(sys) :
+		get_dir();
+
+	if (eff_dir != Port::Dir::OUT)
+	{
+		log::warn("setting default packet size on a non-source port %s has no effect",
+			get_hier_path().c_str());
+	}
+
 	m_default_pkt_size = size;
 }
 
@@ -59,6 +75,22 @@ void PortRS::set_default_importance(float imp)
 {
 	if (imp < 0 || imp > 1)
 		throw Exception(get_hier_path() + ": importance must be between 0 and 1");
+
+	// Should be done for output ports only
+	NodeSystem* sys = get_parent_by_type<NodeSystem>();
+
+	// If not instantiated in a system, this is a NODE PROTOTYPE. The effective direction
+	// is the direction.
+
+	Port::Dir eff_dir = sys ?
+		get_effective_dir(sys) :
+		get_dir();
+
+	if (eff_dir != Port::Dir::OUT)
+	{
+		log::warn("setting default importance on a non-source port %s has no effect",
+			get_hier_path().c_str());
+	}
 
 	m_default_importance = imp;
 }

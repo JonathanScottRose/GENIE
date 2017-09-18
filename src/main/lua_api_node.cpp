@@ -16,17 +16,6 @@ namespace
     ///
     /// @type Node
 
-    /// Get the Node's name
-    /// @function get_name
-    /// @treturn string name
-    LFUNC(node_get_name)
-    {
-        auto self = lua_if::check_object<Node>(1);
-        
-        lua_pushstring(L, self->get_name().c_str());
-        return 1;
-    }
-
     /// Set an integer parameter
     /// @function set_int_param
     /// @tparam string name Parameter name
@@ -164,7 +153,6 @@ namespace
 
     LCLASS(Node,
     {
-        LM(get_name, node_get_name),
         LM(set_int_param, node_set_int_param),
         LM(set_str_param, node_set_str_param),
         LM(set_lit_param, node_set_lit_param),

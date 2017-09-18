@@ -54,14 +54,7 @@ HierObject * Port::instantiate() const
 
 Node * Port::get_node() const
 {
-    Node* result = nullptr;
-    HierObject* cur = const_cast<Port*>(this);
-
-    // Get the nearest parent that's a Node
-    while (cur && (result = dynamic_cast<Node*>(cur)) == nullptr)
-        cur = cur->get_parent();
-
-    return result;
+	return get_parent_by_type<Node>();
 }
 
 genie::Port::Dir Port::get_effective_dir(Node * contain_ctx) const

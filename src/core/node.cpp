@@ -183,7 +183,7 @@ void Node::reintegrate(HierObject *obj)
 
 Node * Node::get_parent_node() const
 {
-	return dynamic_cast<Node*>(get_parent());
+	return get_parent_by_type<Node>();
 }
 
 void Node::resolve_size_params()

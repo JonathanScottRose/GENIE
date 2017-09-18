@@ -17,9 +17,10 @@ namespace impl
 		void add(LinkID, LinkID);
 		Set& get_set(LinkID);
 		bool are_exclusive(LinkID, LinkID);
+		std::vector<LinkID> get_links_with_exclusivity();
 		
 	protected:
-		std::unordered_map <LinkID,Set> m_sets;
+		std::unordered_map<LinkID,Set> m_sets;
 	};
 
 	struct LatencyQuery

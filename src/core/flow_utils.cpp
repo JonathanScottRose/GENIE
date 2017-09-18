@@ -201,7 +201,31 @@ TransmissionID genie::impl::flow::FlowStateOuter::get_transmission_for_link(Link
 	assert(it != m_link_to_xmis.end());
 	return it->second;
 }
+
+void genie::impl::flow::FlowStateOuter::set_transmissions_exclusive(TransmissionID t1,
+	TransmissionID t2)
+{
+	// ALways exclusive with yourself
+	if (t1 == t2) 
+		return;
+
+	// Enforce canonical order, use half the space
+	if (t2 < t1) std::swap(t1, t2);
 	
+	m_transmissions[t1].exclusive_with.insert(t2);
+}
 
+bool genie::impl::flow::FlowStateOuter::are_transmissions_exclusive(TransmissionID t1,
+	TransmissionID t2)
+{
+	// Always exclusive with yourself
+	if (t1 == t2)
+		return true;
 
+	if (t2 < t1) std::swap(t1, t2);
 
+	auto& excl = m_transmissions[t1].exclusive_with;
+	auto it = excl.find(t2);
+
+	return (it != excl.end());
+}

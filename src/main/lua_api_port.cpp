@@ -60,17 +60,6 @@ namespace
     ///
     /// @type Port
 
-    /// Get the Port's name
-    /// @function get_name
-    /// @treturn string name
-    LFUNC(port_get_name)
-    {
-        auto self = lua_if::check_object<Port>(1);
-        
-        lua_pushstring(L, self->get_name().c_str());
-        return 1;
-    }
-
     /// Get the Port's direction
     /// @function get_dir
     /// @treturn string direction (IN/OUT)
@@ -172,9 +161,8 @@ namespace
 		return 0;
 	}
 
-    LCLASS(Port,
+    LSUBCLASS(Port, (HierObject),
     {
-        LM(get_name, port_get_name),
 		LM(add_signal, port_add_signal),
 		LM(add_signal_ex, port_add_signal_ex)
     });

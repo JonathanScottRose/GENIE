@@ -110,7 +110,7 @@ namespace
 				if (same_transmission)
 					continue;
 
-				bool are_excl = excl.are_exclusive(link1, link2);
+				bool are_excl = fstate->are_transmissions_exclusive(xmis1, xmis2);
 				if (are_excl)
 					continue;
 
@@ -240,7 +240,6 @@ namespace
 		auto fstate = tstate->fstate;
 		auto sys = tstate->iter_base_sys;
 		auto& spec = sys->get_spec();
-		auto& excl_info = spec.excl_info;
 		auto& xbar_contention = tstate->xbar_contention;
 
 		for (auto log_id1 : topo1)
@@ -261,11 +260,13 @@ namespace
 				if (same_xmis)
 					continue;
 
-				auto are_excl = excl_info.are_exclusive(log_id1, log_id2);
+				auto are_excl = fstate->are_transmissions_exclusive(xmis1, xmis2);
 				if (are_excl)
 					continue;
 
 				bool already_contend = cand_contention.do_contend(xmis1, xmis2);
+				if (already_contend)
+					continue;
 
 				auto linkp2 = static_cast<LinkRSLogical*>(sys->get_link(log_id2));
 				auto src2 = linkp2->get_src();
@@ -349,11 +350,10 @@ namespace
 		std::vector<NodeSplit*> nodes_to_erase;
 
 		// First thing:
-		for (auto it = all_sp.begin(); it != all_sp.end(); )
+		for (auto sp : all_sp)
 		{
-			auto sp = *it;
-
-			if (sp->get_n_outputs() == 1)
+			// If only one output
+			if (sp->get_endpoint(NET_TOPO, Port::Dir::OUT)->links().size() == 1)
 			{
 				auto ep_in = sp->get_endpoint(NET_TOPO, Port::Dir::IN);
 				auto ep_out = sp->get_endpoint(NET_TOPO, Port::Dir::OUT);
@@ -363,15 +363,12 @@ namespace
 				auto link_out = ep_out->get_link0();
 				auto ep_downstream = link_out->get_sink_ep();
 
-				link_out->disconnect_sink();
+				sys->disconnect(link_out);
+				
 				link_in->disconnect_sink();
 				link_in->reconnect_sink(ep_downstream);
 
 				nodes_to_erase.push_back(sp);
-			}
-			else
-			{
-				++it;
 			}
 		}
 

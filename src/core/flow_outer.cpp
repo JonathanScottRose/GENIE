@@ -28,6 +28,7 @@ namespace
 		unsigned dom_id)
 	{
 		std::unordered_set<HierObject*> dom_nodes;
+		std::unordered_set<HierObject*> dom_ports;
 		std::vector<Link*> dom_links;
 
 		// Gather all RS logical links for the given domain
@@ -41,18 +42,20 @@ namespace
 
 			for (auto obj : { rs_link->get_src(), rs_link->get_sink() })
 			{
-				// If the link connects a Port, get the Node of that Port
-				if (auto port = dynamic_cast<Port*>(obj))
+				dom_ports.insert(obj);
+
+				// Get the parent node of this port and put it into the preserve-node set.
+				// Ignore top-level ports (don't add the system itself info this set)
+				auto node = obj->get_parent_by_type<Node>();
+				if (node != sys)
 				{
-					// Ignore top-level ports (don't add the system itself info this set)
-					auto node = port->get_node();
-					if (node != sys)
-						dom_nodes.insert(node);
+					dom_nodes.insert(node);
 				}
 			}
 		}
 
-		// Add clock and reset links to the preserve set
+		// Add clock and reset links to the preserve set (they'll be pruned against the preserve-nodes
+		// so we can be liberal here)
 		for (auto net : { NET_CLOCK, NET_RESET })
 		{
 			auto add_links = sys->get_links(net);
@@ -299,6 +302,23 @@ namespace
 				dom->add_transmission(xmis_id);
 			}
 		}
+
+		// Process exclusivity specs. The specs are in terms of exclusive logical links,
+		// and we'll convert them into exclusive transmissions
+		auto& exspec = sys->get_spec().excl_info;
+		auto exlinks = exspec.get_links_with_exclusivity();
+
+		for (auto link1 : exlinks)
+		{
+			auto& other_links = exspec.get_set(link1);
+			auto xmis1 = fstate.get_transmission_for_link(link1);
+
+			for (auto link2 : other_links)
+			{
+				auto xmis2 = fstate.get_transmission_for_link(link2);
+				fstate.set_transmissions_exclusive(xmis1, xmis2);
+			}
+		}
 	}
 
 	void rs_find_manual_domains(NodeSystem* sys, FlowStateOuter& fstate)
@@ -487,10 +507,16 @@ namespace
 			bool result = false;
 			EList route_edges;
 
-			assert(port_to_vid.count(src) && port_to_vid.count(sink));
-			VertexID v_src = port_to_vid[src];
-			VertexID v_sink = port_to_vid[sink];
-			result = graph::dijkstra(topo_g, v_src, v_sink, nullptr, nullptr, &route_edges);
+			// If route doesn't exist, vertices might not exist either, so check that first
+			auto src_it = port_to_vid.find(src);
+			auto sink_it = port_to_vid.find(sink);
+
+			if (src_it != port_to_vid.end() && sink_it != port_to_vid.end())
+			{
+				VertexID v_src = port_to_vid[src];
+				VertexID v_sink = port_to_vid[sink];
+				result = graph::dijkstra(topo_g, v_src, v_sink, nullptr, nullptr, &route_edges);
+			}
 
 			if (!result)
 			{
@@ -588,8 +614,8 @@ namespace
 
 				// If the area is better than the current best topology, then crown a new king.
 				// This also means we can continue the outer loop
-				unsigned best_area_total = best_area.alm + best_area.reg;
-				unsigned cand_area_total = cand_area.alm + cand_area.reg;
+				unsigned best_area_total = best_area.comb + best_area.reg;
+				unsigned cand_area_total = cand_area.comb + cand_area.reg;
 
 				if (cand_area_total < best_area_total)
 				{
