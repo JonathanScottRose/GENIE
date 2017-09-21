@@ -51,13 +51,7 @@ AreaMetrics NodeUser::annotate_area()
 
 NodeUser* NodeUser::clone() const
 {
-	auto result = new NodeUser(*this);
-
-	// Now copy links and link relations
-	result->copy_links_from(*this);
-	result->m_link_rel = m_link_rel;
-
-	return result;
+	return new NodeUser(*this);
 }
 
 NodeUser::NodeUser(const NodeUser& o)

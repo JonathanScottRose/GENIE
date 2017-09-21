@@ -71,7 +71,7 @@ LinkID LinksContainer::insert_new(Link *link)
 	auto index = m_next_id++;
 	LinkID result(m_type, index);
 	link->set_id(result);
-	
+
 	ensure_size_for_index(index);
 	m_links[index] = link;
 
@@ -82,11 +82,16 @@ void LinksContainer::insert_existing(Link *link)
 {
 	auto id = link->get_id();
 	assert(id != LINK_INVALID);
+
 	auto index = id.get_index();
+	assert(id.get_type() == m_type);
 	
 	ensure_size_for_index(index);
 
-	m_links[index] = link;
+	auto& val_at_pos = m_links[index];
+	assert(val_at_pos == nullptr);	// make sure this ID isn't taken by an existing link
+	val_at_pos = link;
+
 	m_next_id = std::max(m_next_id + 1, index + 1);
 }
 

@@ -144,12 +144,10 @@ Node::Node(const std::string & name, const std::string & hdl_name)
 	set_name(name);
 }
 
-Node::Node(const Node& o)
+Node::Node(const Node& o, bool copy_contents)	
     : HierObject(o), m_hdl_name(o.m_hdl_name),
     m_hdl_state(o.m_hdl_state)
 {
-    // Copy over all the things that every Node has
-
 	// Parameters and values
 	for (auto it : o.m_params)
 	{
@@ -159,11 +157,16 @@ Node::Node(const Node& o)
     // Point HDL state back at us
     m_hdl_state.set_node(this);
 
-	// Ports
-	for (auto p : o.get_children_by_type<Port>())
+	if (copy_contents)
 	{
-		auto p_copy = p->clone();
-		add_child(p_copy);
+		// Copy child objects
+		for (auto c : o.get_children())
+		{
+			add_child(c->clone());
+		}
+
+		// Copy all links
+		copy_links_from(o, o.get_links());
 	}
 }
 
@@ -286,8 +289,15 @@ Link * Node::get_link(LinkID id)
 
 LinkID Node::add_link(NetType type, Link* link)
 {
+	assert(type != NET_INVALID);
 	auto& cont = get_links_cont(type);
 	return cont.insert_new(link);
+}
+
+Link * Node::remove_link(LinkID id)
+{
+	auto& cont = get_links_cont(id.get_type());
+	return cont.remove(id);
 }
 
 
@@ -433,7 +443,7 @@ Link * Node::splice(Link * orig, HierObject * new_sink, HierObject * new_src)
 	orig_sink_ep->add_link(new_link);
 
 	// Add link to the system
-	add_link(net, new_link);
+	add_link(new_link->get_type(), new_link);
 
 	// Transfer containment relationships. Just immediate parents
 	auto old_parents = m_link_rel.get_immediate_parents(orig->get_id());
@@ -492,22 +502,19 @@ void Node::set_param(const std::string& name, NodeParam * param)
 	m_params[name] = param;
 }
 
-void Node::copy_links_from(const Node & src, const Links* just_these)
+void Node::copy_links_from(const Node & src, const Links & links)
 {
-	// Prepare link containers
+	// Copy links from the preserve set, copying only those links
+	// that have endpoints that were also copied from the original Node
+
+	// Prepare our link containers to accept new links
 	for (auto& other_cont : src.m_links)
 	{
 		auto& cont = get_links_cont(other_cont.get_type());
 		cont.prepare_for_copy(other_cont);
 	}
 
-	// If just_these is not null, we'll copy that list. Otherwise,
-	// we need to create a temporary vector of ALL links
-	Links* all_links = nullptr;
-	if (!just_these)
-		all_links = new Links(src.get_links());
-
-	auto& links = just_these ? *just_these : *all_links;
+	// Copy the links
 	for (Link* orig_link : links)
 	{
 		HierObject* orig_src = orig_link->get_src();
@@ -540,9 +547,111 @@ void Node::copy_links_from(const Node & src, const Links* just_these)
 		cont.insert_existing(new_link);
 	}
 
-	// Destroy temp copy of all links if we created one
-	if (all_links)
-		delete all_links;
+	m_link_rel = src.m_link_rel;
+
+	// Prune copied links relations against only the endpoints that exist in this system
+	m_link_rel.prune(this);
+}
+
+void Node::reintegrate_partial(Node * src, const std::vector<HierObject*>& objs, 
+	const std::vector<Link*>& links)
+{
+	using impl::Port;
+
+	// Find links in src that don't exist here.
+	// Record these links in a map that remembers their src/sink by string name.
+	// Disconnect the links from their src/sink in 'src' system, leaving no pointers to them
+	//
+	// Then, move all new Nodes from src system to this system. Because of link disconnection
+	// above, they do not refer to any Links yet.
+	// For any nodes that DO exist in both src and here, do special updating for those.
+	//
+	// Take all the links we remembered before, move them into this system, and reconnect
+	// them using string src/sink names.
+
+	struct MovedLink
+	{
+		Link* link;
+		std::string src;
+		std::string sink;
+	};
+
+	std::vector<MovedLink> moved_links;
+
+	for (auto link : links)
+	{
+		// Skip existing links
+		if (get_link(link->get_id()))
+			continue;
+
+		// Although the link has been moved here, it still connects to objects
+		// in the source system. Remember the old endpoints and disconnect it.
+		MovedLink ml;
+		ml.link = link;
+		ml.src = link->get_src()->get_hier_path(src);
+		ml.sink = link->get_sink()->get_hier_path(src);
+
+		moved_links.push_back(ml);
+
+		link->disconnect_src();
+		link->disconnect_sink();
+
+		src->remove_link(link->get_id());
+		add_link(link->get_type(), link);
+	}
+
+	// 
+	// New links have been plucked out.
+	// Now, handle the child objects 
+	// Identify the ones in src that either:
+	// 1) exist in 'this'
+	// 2) do not exist in 'this'
+	//
+	// The latter are simply moved, changing ownership and parent/child relationships.
+	// For the former, the existing version here stays in place, and a type-specific
+	// reintegration handler is called to copy over state changes
+
+	for (auto child : objs)
+	{
+		auto child_path = child->get_hier_path(src);
+		auto exist_child = dynamic_cast<HierObject*>(this->get_child(child_path));
+
+		if (exist_child)
+		{
+			// Update existing one with new state
+			exist_child->reintegrate(child);
+		}
+		else
+		{
+			// Move ownership to this system
+			src->remove_child(child);
+			this->add_child(child);
+		}
+	}
+
+	// Now, with all new nodes moved, reconnected the moved links
+	for (auto& ml : moved_links)
+	{
+		auto link = ml.link;
+		auto ltype = link->get_type();
+
+		// Get source and sink objects in this system
+		auto src_obj = dynamic_cast<HierObject*>(get_child(ml.src));
+		auto sink_obj = dynamic_cast<HierObject*>(get_child(ml.sink));
+		assert(src_obj && sink_obj);
+
+		// Get the endpoints (TODO: do we need to create them if they don't exist?)
+		auto src_ep = src_obj->get_endpoint(ltype, Port::Dir::OUT);
+		auto sink_ep = sink_obj->get_endpoint(ltype, Port::Dir::IN);
+		assert(src_ep && sink_ep); 
+
+		// Do the connection
+		link->reconnect_src(src_ep);
+		link->reconnect_sink(sink_ep);
+	}
+
+	// Reintegrate link relations
+	m_link_rel.reintegrate(src->m_link_rel);
 }
 
 LinksContainer & Node::get_links_cont(NetType type)

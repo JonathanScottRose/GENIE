@@ -41,6 +41,9 @@ namespace impl
 		virtual ~Node();
 
 		void reintegrate(HierObject*) override;
+		void reintegrate_partial(Node* src,
+			const std::vector<HierObject*>& objs,
+			const std::vector<Link*>& links);
 
 		virtual void prepare_for_hdl() = 0;
 		virtual void annotate_timing() = 0;
@@ -77,17 +80,19 @@ namespace impl
 		void disconnect(Link*);
 		Link* splice(Link* orig, HierObject* new_sink, HierObject* new_src);
 		bool is_link_internal(Link*) const;
+		
+		void copy_links_from(const Node& src, const Links& links);
 
 		PROP_GETR(link_relations, LinkRelations&, m_link_rel);
 
     protected:
 		Node(const std::string& name, const std::string& hdl_name);
-		Node(const Node&);
+		Node(const Node&, bool copy_contents = true);
 
 		void set_param(const std::string& name, NodeParam* param);
-		void copy_links_from(const Node& src, const Links* just_these = nullptr);
 
-		LinkID add_link(NetType, Link*);
+		LinkID add_link(NetType type, Link*);
+		Link* remove_link(LinkID);
 		LinksContainer& get_links_cont(NetType);
 
         std::string m_hdl_name;

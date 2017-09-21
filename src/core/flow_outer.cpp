@@ -13,6 +13,7 @@
 #include "net_topo.h"
 #include "net_clockreset.h"
 #include "port_conduit.h"
+#include "port_clockreset.h"
 #include "port_rs.h"
 #include "topo_optimize.h"
 
@@ -27,12 +28,14 @@ namespace
 	NodeSystem * create_snapshot(NodeSystem* sys, FlowStateOuter& fstate,
 		unsigned dom_id)
 	{
-		std::unordered_set<HierObject*> dom_nodes;
-		std::unordered_set<HierObject*> dom_ports;
+		std::unordered_set<HierObject*> dom_objs;
 		std::vector<Link*> dom_links;
+		std::unordered_set<HierObject*> dom_ports;
+
+		auto* dom = fstate.get_rs_domain(dom_id);
 
 		// Gather all RS logical links for the given domain
-		auto& dom_rs_link_ids = fstate.get_rs_domain(dom_id)->get_links();
+		auto& dom_rs_link_ids = dom->get_links();
 
 		// Gather all Nodes that these RS Links touch
 		for (auto rs_link_id : dom_rs_link_ids)
@@ -42,14 +45,19 @@ namespace
 
 			for (auto obj : { rs_link->get_src(), rs_link->get_sink() })
 			{
+				// Remember the port
 				dom_ports.insert(obj);
 
-				// Get the parent node of this port and put it into the preserve-node set.
-				// Ignore top-level ports (don't add the system itself info this set)
+				// Add the parent of the port (if it belongs to a Node in the system)
+				// or the port itself (if it's a top-level port) to the preserve-obj set.
 				auto node = obj->get_parent_by_type<Node>();
 				if (node != sys)
 				{
-					dom_nodes.insert(node);
+					dom_objs.insert(node);
+				}
+				else
+				{
+					dom_objs.insert(obj);
 				}
 			}
 		}
@@ -62,7 +70,102 @@ namespace
 			dom_links.insert(dom_links.end(), add_links.begin(), add_links.end());
 		}
 
-		return sys->create_snapshot(dom_nodes, dom_links);
+		// Add all top-level clock and reset ports to preserve-obj set.
+		// This is lazier than finding just the ports that we need, but still works.
+		{
+			auto clock_ports = sys->get_children_by_type<PortClock>();
+			auto reset_ports = sys->get_children_by_type<PortReset>();
+
+			dom_objs.insert(clock_ports.begin(), clock_ports.end());
+			dom_objs.insert(reset_ports.begin(), reset_ports.end());
+		}
+
+		// Create a clone of the input system, passing a flag to skip the default
+		// behavior of copying _all_ the contents of the system with it.
+		auto result = new NodeSystem(*sys, false);
+
+		// Make copies of the objects and put them in the snapshot
+		for (auto obj : dom_objs)
+		{
+			result->add_child(obj->clone());
+		}
+
+		// Make copies of the links
+		result->copy_links_from(*sys, dom_links);
+
+		// If the domain is manual, we must extract all the TOPO links, and attached
+		// split and merge nodes, out of the input system and _move_ them to the
+		// new system
+
+		if (dom->get_is_manual())
+		{
+			using namespace graph;
+
+			// Make a graph of the TOPO network
+			V2Attr<HierObject*> v_to_obj;
+			Attr2V<HierObject*> obj_to_v;
+			E2Attr<Link*> e_to_link;
+			Graph g = flow::net_to_graph(sys, NET_TOPO, true,
+				&v_to_obj, &obj_to_v,
+				&e_to_link, nullptr);
+
+			// Identify the subgraph that belong to just the domain we want.
+			// We do this by doing a directed graph traversal starting at the vertices
+			// corresponding to the contents of the dom_ports set (which are all the ports
+			// touched by the logical RS links for this domain).
+
+			// Set of already-visited vertices
+			std::unordered_set<VertexID> visited;
+
+			// Set of vertices yet to explore. Initialize to the vertices correponding to the
+			// dom_ports set of RS ports.
+			std::stack<VertexID> to_visit;
+			for (auto p : dom_ports)
+				to_visit.push(obj_to_v[p]);
+
+			// These hold our outputs: the set of split/merge nodes and topo links for this domain
+			std::vector<HierObject*> dom_splitmerge;
+			std::vector<Link*> dom_topolinks;
+
+			while (!to_visit.empty())
+			{
+				VertexID cur_v = to_visit.top();
+				to_visit.pop();
+
+				if (visited.count(cur_v))
+					continue;
+
+				visited.insert(cur_v);
+
+				// Get object corresponding to the vertex
+				HierObject* cur_obj = v_to_obj[cur_v];
+
+				// If it's not one of the starting ports, then assume it's a split/merge node
+				// and add it to our set of domain split/merges
+				if (dom_ports.count(cur_obj) == 0)
+				{
+					dom_splitmerge.push_back(cur_obj);
+				}
+
+				// Get outgoing edges
+				auto edges = g.dir_edges(cur_v);
+
+				// Convert the edges to links and add them to the set of domain topo links.
+				// Take the vertices at the other side of the edges and use them to continue traversal
+				for (auto e : edges)
+				{
+					dom_topolinks.push_back(e_to_link[e]);
+
+					auto next_v = g.otherv(e, cur_v);
+					to_visit.push(next_v);
+				}
+			}
+
+			// Now move all the affected objs/links to the snapshot
+			result->reintegrate_partial(sys, dom_splitmerge, dom_topolinks);
+		}
+
+		return result;
 	}
 
 	void init_elemental_transmission_specs(NodeSystem* sys)
@@ -702,7 +805,7 @@ namespace
 			}
 
 			// Integrate the fleshed-out domain into the master system
-			sys->reintegrate_snapshot(out_snapshot);
+			sys->reintegrate(out_snapshot);
 			delete out_snapshot;
 		}
 	}

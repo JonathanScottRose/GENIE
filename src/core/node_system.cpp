@@ -290,21 +290,7 @@ AreaMetrics NodeSystem::annotate_area()
 
 NodeSystem* NodeSystem::clone() const
 {
-	auto result = new NodeSystem(*this);
-	
-	// Copy child nodes
-	for (auto child : get_children_by_type<Node>())
-	{
-		auto newc = child->clone();
-		result->add_child(newc);
-	}
-
-	// Now copy links and link relations
-	result->copy_links_from(*this);
-	result->m_link_rel = m_link_rel;
-	result->m_link_rel.prune(result);
-
-	return result;
+	return new NodeSystem(*this);
 }
 
 std::vector<Node*> NodeSystem::get_nodes() const
@@ -317,127 +303,16 @@ SystemSpec& NodeSystem::get_spec() const
 	return *m_spec.get();
 }
 
-NodeSystem * NodeSystem::create_snapshot(
-	const std::unordered_set<HierObject*>& preserve_objs, 
-	const std::vector<Link*>& preserve_links)
+void NodeSystem::reintegrate(HierObject* src_o)
 {
-	// Copies the node and ports only
-	auto result = new NodeSystem(*this);
+	auto src = static_cast<NodeSystem*>(src_o);
 
-	// Make clones of those nodes into the snapshot
-	for (auto node : preserve_objs)
-	{
-		result->add_child(node->clone());
-	}
-
-	// Copy links
-	result->copy_links_from(*this, &preserve_links);
-
-	// Copy link relations and prune it
-	result->m_link_rel = m_link_rel;
-	result->m_link_rel.prune(result);
-
-	return result;
+	// Move (and/or reintegrate) all things from the source
+	reintegrate_partial(src, src->get_children(), src->get_links());
 }
 
-void NodeSystem::reintegrate_snapshot(NodeSystem * src)
-{
-	// Find links in src that don't exist here.
-	// Record these links in a map that remembers their src/sink by string name.
-	// Disconnect the links from their src/sink in 'src' system, leaving no pointers to them
-	//
-	// Then, move all new Nodes from src system to this system. Because of link disconnection
-	// above, they do not refer to any Links yet.
-	// For any nodes that DO exist in both src and here, do special updating for those.
-	//
-	// Take all the links we remembered before, move them into this system, and reconnect
-	// them using string src/sink names.
-	
-	struct MovedLink
-	{
-		Link* link;
-		std::string src;
-		std::string sink;
-	};
-
-	std::vector<MovedLink> moved_links;
-
-	// Move new links from src system here, one network type at a time
-	for (auto& src_cont : src->m_links)
-	{
-		auto& this_cont = this->get_links_cont(src_cont.get_type());
-		auto new_links_of_type = this_cont.move_new_from(src_cont);
-		
-		for (auto link : new_links_of_type)
-		{
-			// Although the link has been moved here, it still connects to objects
-			// in the source system. Remember the old endpoints and disconnect it.
-			MovedLink ml;
-			ml.link = link;
-			ml.src = link->get_src()->get_hier_path(src);
-			ml.sink = link->get_sink()->get_hier_path(src);
-
-			moved_links.push_back(ml);
-
-			link->disconnect_src();
-			link->disconnect_sink();
-		}
-	}
-
-	// 
-	// New links have been plucked out.
-	// Now, handle the child objects (Nodes and Ports).
-	// Identify the ones in src that either:
-	// 1) exist in 'this'
-	// 2) do not exist in 'this'
-	//
-	// The latter are simply moved, changing ownership and parent/child relationships.
-	// For the former, the existing version here stays in place, and a type-specific
-	// reintegration handler is called to copy over state changes
-
-	for (auto child : src->get_children())
-	{
-		auto child_path = child->get_hier_path(src);
-		auto exist_child = dynamic_cast<HierObject*>(this->get_child(child_path));
-
-		if (exist_child)
-		{
-			// Update existing one with new state
-			exist_child->reintegrate(child);
-		}
-		else
-		{
-			// Move ownership to this system
-			src->remove_child(child);
-			this->add_child(child);
-		}
-	}
-
-	// Now, with all new nodes moved, reconnected the moved links
-	for (auto& ml : moved_links)
-	{
-		auto link = ml.link;
-
-		// Get endpoints by name in this system
-		auto src_obj = dynamic_cast<HierObject*>(get_child(ml.src));
-		auto sink_obj = dynamic_cast<HierObject*>(get_child(ml.sink));
-		assert(src_obj && sink_obj);
-
-		auto src_ep = src_obj->get_endpoint(link->get_type(), Dir::OUT);
-		auto sink_ep = sink_obj->get_endpoint(link->get_type(), Dir::IN);
-		assert(src_ep && sink_ep); // TODO: can new endpoints be created?
-
-		// Do the connection
-		link->reconnect_src(src_ep);
-		link->reconnect_sink(sink_ep);
-	}
-
-	// Reintegrate link relations
-	m_link_rel.reintegrate(src->m_link_rel);
-}
-
-NodeSystem::NodeSystem(const NodeSystem& o)
-    : Node(o), m_spec(o.m_spec)
+NodeSystem::NodeSystem(const NodeSystem& o, bool copy_contents)
+    : Node(o, copy_contents), m_spec(o.m_spec)
 {
 }
 

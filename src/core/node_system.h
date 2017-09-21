@@ -71,10 +71,12 @@ namespace impl
 		using LatencyQueries = std::vector<LatencyQuery>;
 
         NodeSystem(const std::string& name);
+		NodeSystem(const NodeSystem&, bool copy_contents = true);
 		~NodeSystem();
 
 		NodeSystem* clone() const override;
         HierObject* instantiate() const override;
+		void reintegrate(HierObject*) override;
 		void prepare_for_hdl() override;
 		void annotate_timing() override;
 		AreaMetrics annotate_area() override;
@@ -82,13 +84,7 @@ namespace impl
         std::vector<Node*> get_nodes() const;
 		SystemSpec& get_spec() const;
 
-		NodeSystem* create_snapshot(const std::unordered_set<HierObject*>&, 
-			const std::vector<Link*>&);
-		void reintegrate_snapshot(NodeSystem* src);
-
     protected:
-		NodeSystem(const NodeSystem&);
-
 		std::shared_ptr<SystemSpec> m_spec;
     };
 }
