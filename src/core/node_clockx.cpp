@@ -63,6 +63,7 @@ NodeClockX::NodeClockX()
 	inport->add_role_binding(PortRS::DATA_CARRIER, "i_data");
     inport->add_role_binding(PortRS::READY, "o_ready");
     inport->get_bp_status().make_configurable();
+	inport->set_keeper_type(PortRS::KeeperType::NON_REG);
 	add_port(inport);
 
 	auto outport = new PortRS(OUTDATAPORT_NAME, Port::Dir::OUT, OUTCLOCKPORT_NAME);
@@ -70,6 +71,7 @@ NodeClockX::NodeClockX()
 	outport->add_role_binding(PortRS::DATA_CARRIER, "o_data");
     outport->add_role_binding(PortRS::READY, "i_ready");
     outport->get_bp_status().make_configurable();
+	outport->set_keeper_type(PortRS::KeeperType::NON_REG);
 	add_port(outport);
 
 	auto int_link = static_cast<LinkRSPhys*>(connect(inport, outport, NET_RS_PHYS));

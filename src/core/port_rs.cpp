@@ -132,7 +132,8 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir,
     : Port(name, dir), m_clk_port_name(clk_port_name),
 	m_logic_depth(0),
 	m_default_pkt_size(1),
-	m_default_importance(1.0f)
+	m_default_importance(1.0f),
+	m_keeper_type(KeeperType::REG)
 {
 	make_connectable(NET_RS_LOGICAL);
 	make_connectable(NET_RS_PHYS);
@@ -225,6 +226,7 @@ HierObject * PortRS::instantiate() const
 	result->m_default_pkt_size = this->m_default_pkt_size;
 	result->m_logic_depth = this->m_logic_depth;
 	result->m_role_bindings = this->m_role_bindings;
+	result->m_keeper_type = this->m_keeper_type;
 
 	return result;
 }

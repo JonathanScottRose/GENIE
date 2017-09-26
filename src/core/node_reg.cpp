@@ -106,7 +106,7 @@ void NodeReg::prepare_for_hdl()
 
 void NodeReg::annotate_timing()
 {
-	// pointless for now - these are added AFTER constraint satisfaction
+	// pointless for now - these are added AFTER constraint satisfaction.
 }
 
 AreaMetrics NodeReg::annotate_area()
@@ -131,15 +131,22 @@ AreaMetrics NodeReg::annotate_area()
 	}
 	else
 	{
-		// width 1
-		col_vals[DB_COLS::WIDTH] = 1;
+		// ALTERA-SPECIFIC: there's a 2-to-1 mux inside the module.
+		// If its width is 7 or more, the logic for the mux goes away and
+		// this module is implemented purely with registers. This version
+		// is stored in the tnode database as WIDTH=7 and WIDTH=8
+
+		bool uses_sload_opt = node_width >= 7;
+
+		// width 1 (or 7)
+		col_vals[DB_COLS::WIDTH] = uses_sload_opt ? 7 : 1;
 		auto row = s_prim_db->get_row(col_vals);
 		assert(row);
 		auto metrics_1 = s_prim_db->get_area_metrics(row);
 		assert(metrics_1);
 
-		// width 2
-		col_vals[DB_COLS::WIDTH] = 2;
+		// width 2 (or 8)
+		col_vals[DB_COLS::WIDTH] = uses_sload_opt ? 8 : 2;
 		row = s_prim_db->get_row(col_vals);
 		assert(row);
 		auto metrics_2 = s_prim_db->get_area_metrics(row);

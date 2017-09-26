@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "node_merge.h"
+#include "node_clockx.h"
 #include "net_topo.h"
 #include "net_rs.h"
 #include "port_clockreset.h"
@@ -384,6 +385,9 @@ bool genie::impl::NodeMerge::does_feed_reg()
 	if (!remote_rs)
 		return false;
 
-	// Zero logic depth === directly feeds a register
-	return remote_rs->get_logic_depth() == 0;
+	// Zero logic depth === directly feeds a register.
+	// Also, only if keeper type is REG
+	return 
+		remote_rs->get_logic_depth() == 0 &&
+		remote_rs->get_keeper_type() == PortRS::KeeperType::REG;
 }

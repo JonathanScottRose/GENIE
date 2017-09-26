@@ -49,6 +49,8 @@ namespace impl
 
 		static void init();
 
+		SMART_ENUM(KeeperType, REG, NON_REG);
+
         PortRS(const std::string& name, genie::Port::Dir dir);
 		PortRS(const std::string& name, genie::Port::Dir dir, const std::string& clk_port_name);
 		PortRS(const PortRS&) = default;
@@ -66,6 +68,7 @@ namespace impl
         PROP_GET_SET(clock_port_name, const std::string&, m_clk_port_name);
 		PROP_GET_SETR(proto, PortProtocol&, m_proto);
 		PROP_GETR(bp_status, RSBackpressure&, m_bp_status);
+		PROP_GET_SET(keeper_type, KeeperType, m_keeper_type);
 
 		PortClock* get_clock_port() const;
 
@@ -80,6 +83,7 @@ namespace impl
         std::string m_clk_port_name;
 		PortProtocol m_proto;
 		RSBackpressure m_bp_status;
+		KeeperType m_keeper_type;
     };
 }
 }
