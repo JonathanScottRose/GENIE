@@ -169,23 +169,38 @@ genie::Node * NodeSystem::create_merge(const std::string & opt_name)
 	return node;
 }
 
-void NodeSystem::make_exclusive(const std::vector<genie::LinkRS*>& links)
+void NodeSystem::make_exclusive(const std::vector<std::vector<genie::LinkRS*>>& sets)
 {
 	auto& excl = get_spec().excl_info;
 
-	for (auto it1 = links.begin(); it1 != links.end(); ++it1)
+	// Iterate over all pairs of sets
+	for (auto it_s1 = sets.begin(); it_s1 != sets.end(); ++it_s1)
 	{
-		auto impl1 = dynamic_cast<LinkRSLogical*>(*it1);
-		assert(impl1);
+		auto& set1 = *it_s1;
 
-		for (auto it2 = it1 + 1; it2 != links.end(); ++it2)
+		for (auto it_s2 = it_s1 + 1; it_s2 != sets.end(); ++it_s2)
 		{
-			auto impl2 = dynamic_cast<LinkRSLogical*>(*it2);
-			assert(impl2);
+			auto& set2 = *it_s2;
 
-			excl.add(impl1->get_id(), impl2->get_id());
-		}
-	}
+			// For each pair of sets, mutually-exclusivify all members of set1
+			// with all members of set2
+
+			for (auto link1 : set1)
+			{
+				auto impl1 = dynamic_cast<LinkRSLogical*>(link1);
+				assert(impl1);
+
+				for (auto link2 : set2)
+				{
+					auto impl2 = dynamic_cast<LinkRSLogical*>(link2);
+					assert(impl2);
+
+					excl.add(impl1->get_id(), impl2->get_id());
+				} // end all links in set2
+			} // end all links in set1
+
+		} // end all set2
+	} // end all set1
 }
 
 void NodeSystem::add_sync_constraint(const genie::SyncConstraint & constraint)
@@ -322,6 +337,9 @@ NodeSystem::NodeSystem(const NodeSystem& o, bool copy_contents)
 
 void ExclusivityInfo::add(LinkID link1, LinkID link2)
 {
+	if (link1 == link2)
+		return;
+
 	// Make canonical ordering
 	if (link2 < link1)
 		std::swap(link1, link2);
@@ -336,6 +354,9 @@ ExclusivityInfo::Set & ExclusivityInfo::get_set(LinkID id)
 
 bool ExclusivityInfo::are_exclusive(LinkID link1, LinkID link2)
 {
+	if (link1 == link2)
+		return true;
+
 	if (link2 < link1)
 		std::swap(link1, link2);
 

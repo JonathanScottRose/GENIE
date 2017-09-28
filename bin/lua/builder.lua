@@ -12,7 +12,7 @@ local g = genie;
 local Builder = genie.Builder
 
 function Builder:__ctor()
-end       
+end		  
 
 --- Defines a new Component.
 -- @tparam string name Component name
@@ -20,9 +20,9 @@ end
 -- @treturn genie.Node raw representation for advanced use
 function Builder:component(name, modl)
 	modl = modl or name
-    self.cur_node = g.create_module(name, modl)
-    self.cur_param_tgt = self.cur_node
-    return self.cur_node
+	self.cur_node = g.create_module(name, modl)
+	self.cur_param_tgt = self.cur_node
+	return self.cur_node
 end
 
 local function create_clockreset_port(self, name, type, dir, sig)
@@ -122,28 +122,28 @@ end
 -- programmatically define several special-case versions of :interface,
 -- for each network type and direction
 for _,i in pairs({{'src', 'out'}, {'sink', 'in'}}) do
-    local suffix = i[1]
-    local ifdir = i[2]
-    
-    Builder['clock_'..suffix] = function(self, name, binding)
+	local suffix = i[1]
+	local ifdir = i[2]
+	
+	Builder['clock_'..suffix] = function(self, name, binding)
 		return create_clockreset_port(self, name, 'clock', ifdir, binding)
-    end
-    
-    Builder['reset_'..suffix] = function(self, name, binding)
+	end
+	
+	Builder['reset_'..suffix] = function(self, name, binding)
 		return create_clockreset_port(self, name, 'reset', ifdir, binding)
-    end
-    
-    Builder['conduit_'..suffix] = function(self, name)
+	end
+	
+	Builder['conduit_'..suffix] = function(self, name)
 		if not self.cur_node then error("Need a Module/System to create an Interface in") end
 		self.cur_port = self.cur_node:create_conduit_port(name, ifdir)
-        return self.cur_port
-    end
-    
-    Builder['rs_'..suffix] = function(self, name, clockif)
-        if not self.cur_node then error("Need a Module/System to create an Interface in") end
+		return self.cur_port
+	end
+	
+	Builder['rs_'..suffix] = function(self, name, clockif)
+		if not self.cur_node then error("Need a Module/System to create an Interface in") end
 		self.cur_port = self.cur_node:create_rs_port(name, ifdir, clockif)
 		return self.cur_port
-    end
+	end
 	
 	Builder['msg_'..suffix] = function(self, name, vname, clockif)
 		local result = self['rs_'..suffix](self, name, clockif)
@@ -157,9 +157,9 @@ end
 -- @treturn genie.System raw representation for advanced use
 function Builder:system(name)
 	self.cur_sys = g.create_system(name)
-    self.cur_node = self.cur_sys
+	self.cur_node = self.cur_sys
 	self.cur_param_tgt = self.cur_sys
-    
+	
 	return self.cur_sys
 end
 
@@ -170,8 +170,8 @@ end
 -- @treturn genie.Node raw representation for advanced use
 function Builder:instance(comp, name)
 	if not self.cur_sys then error("Unexpected 'instance'") end
-    self.cur_param_tgt = self.cur_sys:create_instance(comp, name)
-    return self.cur_param_tgt
+	self.cur_param_tgt = self.cur_sys:create_instance(comp, name)
+	return self.cur_param_tgt
 end
 
 --- Exports an Interface of a Component instance.
@@ -182,7 +182,7 @@ end
 -- @treturn genie.Port raw representation for advanced use
 function Builder:export(iface, name)
 	if not self.cur_sys then error("Unexpected 'export'") end
-    self.cur_port = self.cur_sys:export_port(iface, name)
+	self.cur_port = self.cur_sys:export_port(iface, name)
 	return self.cur_port
 end
 
@@ -243,7 +243,7 @@ end
 -- @treturn Node
 function Builder:split(name)
 	if not self.cur_sys then error("Unexpected 'link'") end
-	local result =  self.cur_sys:create_split(name)
+	local result =	self.cur_sys:create_split(name)
 	self.cur_node = result
 	self.cur_param_tgt = result
 	return result
@@ -268,8 +268,8 @@ end
 -- @tparam string name name
 -- @tparam string val value
 function Builder:int_param(name, val)
-    if not self.cur_param_tgt then error("no current component or system") end
-    self.cur_param_tgt:set_int_param(name, val)
+	if not self.cur_param_tgt then error("no current component or system") end
+	self.cur_param_tgt:set_int_param(name, val)
 end
 
 --- Defines a string parameter.
@@ -278,8 +278,8 @@ end
 -- @tparam string name name
 -- @tparam string val value
 function Builder:str_param(name, val)
-    if not self.cur_param_tgt then error("no current component or system") end
-    self.cur_param_tgt:set_str_param(name, val)
+	if not self.cur_param_tgt then error("no current component or system") end
+	self.cur_param_tgt:set_str_param(name, val)
 end
 
 --- Defines a literal parameter.
@@ -289,8 +289,8 @@ end
 -- @tparam string name name
 -- @tparam string val value
 function Builder:lit_param(name, val)
-    if not self.cur_param_tgt then error("no current component or system") end
-    self.cur_param_tgt:set_lit_param(name, val)
+	if not self.cur_param_tgt then error("no current component or system") end
+	self.cur_param_tgt:set_lit_param(name, val)
 end
 
 --- Defines a system parameter.
@@ -300,8 +300,8 @@ end
 -- 
 -- @tparam string name name
 function Builder:sys_param(name)
-    if not self.cur_sys then error("no current system") end
-    self.cur_sys:create_sys_param(name)
+	if not self.cur_sys then error("no current system") end
+	self.cur_sys:create_sys_param(name)
 end
 
 --- Registers an HDL signal with an Interface.
@@ -314,8 +314,8 @@ end
 -- @tparam string vname Verilog name of signal in module to bind to.
 -- @tparam[opt=1] expression width width in bits of the signal, can be an expression, mandatory only if `tag` specified
 function Builder:signal(...)
-    if not self.cur_port then error("no current port") end
-    self.cur_port:add_signal(...)
+	if not self.cur_port then error("no current port") end
+	self.cur_port:add_signal(...)
 end
 
 --- Registers an HDL signal with an Interface.
@@ -323,18 +323,18 @@ end
 -- the size of the HDL port and the size of the binding to the HDL port.
 -- Expects two structures: a PortSpec and a BindSpec.
 -- The PortSpec structure shall be a table with the following fields:
---   name: the name of the HDL port
---   width: an expression specifying the width in bits of the HDL port
---   depth: an expression specifying the second size dimension of the HDL port
+--	 name: the name of the HDL port
+--	 width: an expression specifying the width in bits of the HDL port
+--	 depth: an expression specifying the second size dimension of the HDL port
 -- Both width and depth are expressions that must evaluate to an integer and may contain
 -- references to @{Node} parameters. If either field is absent, it is defaulted to '1'.
 -- The BindSpec structure specifies the range of the HDL Port to bind to for this role.
 -- It shall be a table with the following fields:
---   lo_slice: the lower bound of the second dimension of the HDL port to bind to, default 0
---   slices: the number of second-dimension indicies to bind over, default 1
---   lo_bit: the least-significant bit to bind to, must be 0 if slices is > 1, default 0
---   width: the number of bits, starting from lo_bit, to bind, must be the entire port width
---          if slices > 1
+--	 lo_slice: the lower bound of the second dimension of the HDL port to bind to, default 0
+--	 slices: the number of second-dimension indicies to bind over, default 1
+--	 lo_bit: the least-significant bit to bind to, must be 0 if slices is > 1, default 0
+--	 width: the number of bits, starting from lo_bit, to bind, must be the entire port width
+--			if slices > 1
 -- @function add_signal_ex
 -- @tparam string role port type specific role
 -- @tparam string tag unique user-defined tag needed for some roles
@@ -350,13 +350,24 @@ end
 -- will ever be used simultaneously.
 -- @tparam array(array(LinkRS) s an array of RS Links (@{genie.LinkRS})
 function Builder:make_exclusive(s)
-    if not self.cur_sys then error("no current system") end
+	if not self.cur_sys then error("no current system") end
 
-    -- ignore nil arg
-    if not s then return end;
-    
-    -- s is now for sure a set of link objects
-    self.cur_sys:make_exclusive(s)    
+	-- ignore nil arg
+	if not s then return end;
+	
+	-- s is now for sure a set of link objects
+	self.cur_sys:make_exclusive(s)	  
+end
+
+--- Marks sets of RS Links ase temporally exclusive.
+-- Each of the N>2 arguments is a set of RS links.
+-- The links within each set are marked as exclusive with the links
+-- in every other set.
+function Builder:make_exclusive_multi(...)
+	if not self.cur_sys then error("no current system") end	  
+	
+	-- s is now for sure a set of link objects
+	self.cur_sys:make_exclusive_multi(...)
 end
 
 --- Sets the combinational logic depth of an RS Port.
@@ -425,8 +436,8 @@ end
 -- @tparam array_or_set(RSLink) chain an array or set of RS Links that form the chain to measure
 -- @tparam string parm_name name of system-level HDL parameter to store the result into
 function Builder:latency_query(...)
-    if not self.cur_sys then error("no current system") end
-    self.cur_sys:create_latency_query(...)
+	if not self.cur_sys then error("no current system") end
+	self.cur_sys:create_latency_query(...)
 end
 
 

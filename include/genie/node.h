@@ -83,7 +83,7 @@ namespace genie
 		virtual Node* create_split(const std::string& name = "") = 0;
 		virtual Node* create_merge(const std::string& name = "") = 0;
 
-		virtual void make_exclusive(const std::vector<LinkRS*>& links) = 0;
+		virtual void make_exclusive(const std::vector<std::vector<LinkRS*>>& sets) = 0;
 		virtual void add_sync_constraint(const SyncConstraint&) = 0;
 		virtual void set_max_logic_depth(unsigned max_depth) = 0;
 		virtual void create_latency_query(std::vector<LinkRS*> chain,

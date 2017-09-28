@@ -60,7 +60,7 @@ namespace impl
 		genie::Node* create_split(const std::string& name = "") override;
 		genie::Node* create_merge(const std::string& name = "") override;
 
-		void make_exclusive(const std::vector<genie::LinkRS*>& links) override;
+		void make_exclusive(const std::vector<std::vector<genie::LinkRS*>>& sets) override;
 		void add_sync_constraint(const SyncConstraint& constraint) override;
 		void set_max_logic_depth(unsigned max_depth) override;
 		void create_latency_query(std::vector<LinkRS*> chain,

@@ -48,6 +48,9 @@ SigRoleType
 void PortRS::set_logic_depth(unsigned depth)
 {
 	m_logic_depth = depth;
+
+	// TODO: this is a hack to make the user experience less verbose
+	set_keeper_type(depth == 0 ? KeeperType::NON_REG : KeeperType::REG);
 }
 
 void PortRS::set_default_packet_size(unsigned size)
@@ -133,7 +136,7 @@ PortRS::PortRS(const std::string & name, genie::Port::Dir dir,
 	m_logic_depth(0),
 	m_default_pkt_size(1),
 	m_default_importance(1.0f),
-	m_keeper_type(KeeperType::REG)
+	m_keeper_type(KeeperType::NON_REG)
 {
 	make_connectable(NET_RS_LOGICAL);
 	make_connectable(NET_RS_PHYS);

@@ -359,8 +359,42 @@ namespace
 	LFUNC(sys_make_exclusive)
 	{
 		auto self = lua_if::check_object<System>(1);
-		auto links = lua_api::get_array_or_set<LinkRS>(L, 2);
-		self->make_exclusive(links);
+		auto args = lua_api::get_array_or_set<LinkRS>(L, 2);
+
+		// Make each link in 'args' into a set of size 1 within a larger vector
+		std::vector<std::vector<LinkRS*>> sets;
+		for (auto arg : args)
+			sets.push_back({ arg });
+
+		self->make_exclusive(sets);
+		return 0;
+	}
+
+	/// Marks sets of RS links as temporally exclusive.
+	///
+	/// Accepts N >= 2 sets. Each set can be a single RS link,
+	/// an array of RS links, or a Set of RS links.
+	/// The members of each set will be marked temporally exclusive with
+	/// all the members of the other N-1 sets.
+	/// @function make_exclusive_multi
+	LFUNC(sys_make_exclusive_multi)
+	{
+		auto self = lua_if::check_object<System>(1);
+
+		// Number of sets = number of args - 1 (exclude the 'self' arg)
+		int nargs = lua_gettop(L);
+		unsigned nsets = (unsigned)nargs - 1;
+
+		if (nsets < 2)
+			luaL_error(L, "need at least 2 arguments");
+
+		// Combine all arguments together
+		std::vector<std::vector<LinkRS*>> sets;
+
+		for (int cur_arg = 2; cur_arg <= nargs; cur_arg++)
+			sets.push_back(lua_api::get_array_or_set<LinkRS>(L, cur_arg));
+
+		self->make_exclusive(sets);
 		return 0;
 	}
 
@@ -445,7 +479,7 @@ namespace
 		{
 			switch (state)
 			{
-				// First (required) and subsequent (optional) path arrays
+			// First (required) and subsequent (optional) path arrays
 			case REQ_PATH:
 			case OPT_PATH:
 			{
@@ -549,6 +583,7 @@ namespace
 		LM(create_split, sys_create_split),
 		LM(create_merge, sys_create_merge),
 		LM(make_exclusive, sys_make_exclusive),
+		LM(make_exclusive_multi, sys_make_exclusive_multi),
 		LM(set_max_logic_depth, sys_set_max_logic_depth),
 		LM(create_sync_constraint, system_create_sync_constraint),
 		LM(create_latency_query, system_create_latency_query)
