@@ -181,14 +181,16 @@ const Graph::Vertex& Graph::getv(VertexID id) const
 
 Graph::Edge& Graph::gete(EdgeID id)
 {
-	assert(E.count(id));
-	return E[id];
+	auto it = E.find(id);
+	assert(it != E.end());
+	return it->second;
 }
 
 const Graph::Edge& Graph::gete(EdgeID id) const
 {
-	assert(E.count(id));
-	return E.at(id);
+	auto it = E.find(id);
+	assert(it != E.end());
+	return it->second;
 }
 
 VertexID Graph::newv()

@@ -680,7 +680,8 @@ namespace
 		AreaMetrics best_area = measure_impl_area(best_config.impl);
 
 		bool skip_opt = fstate.get_rs_domain(dom_id)->get_opt_disabled();
-		skip_opt |= genie::impl::get_flow_options().no_topo_opt;
+		skip_opt |= genie::impl::get_flow_options().no_topo_opt &&
+			genie::impl::get_flow_options().no_topo_opt_systems.empty();
 		if (skip_opt)
 		{
 			genie::log::info("skipping topology optimization for domain %s",

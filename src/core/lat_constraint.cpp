@@ -662,8 +662,8 @@ namespace
 		// Create lpsolve problem
 		// #rows = # of constraints
 		// #cols = # of variables (next_
-		int n_rows = (int)sstate.varno_lat.size() + (int)sstate.varno_reg.size();
-		int n_cols = (int)lp_constraints.size();
+		int n_rows = (int)lp_constraints.size();
+		int n_cols = (int)sstate.varno_lat.size() + (int)sstate.varno_reg.size();
 
 		// Sometimes, there's just nothing to do
 		if (n_rows == 0 || n_cols == 0)
@@ -671,11 +671,9 @@ namespace
 
 		lprec* lp_prob = make_lp(n_rows, n_cols);
 		assert(lp_prob);
-
 		// Set up LPsolve stuff. Keep it quiet wrt stdout
-		set_verbose(lp_prob, NEUTRAL);
-		put_logfunc(lp_prob, nullptr, nullptr);
-		put_msgfunc(lp_prob, nullptr, nullptr, -1);
+		set_verbose(lp_prob, NEUTRAL); // set_verbose(lp_prob, NEUTRAL);
+		set_outputfile(lp_prob, "");
 		
 		// Presolve makes it faster?
 		set_presolve(lp_prob, PRESOLVE_ROWS | PRESOLVE_COLS, get_presolveloops(lp_prob));
@@ -724,10 +722,10 @@ namespace
 		}
 
 		// Solve and get results
-		switch (solve(lp_prob))
+		int solve_result = solve(lp_prob);
+		switch (solve_result)
 		{
 		case NOMEMORY: 
-		case NOFEASFOUND:
 		case INFEASIBLE: 
 		case DEGENERATE:
 		case NUMFAILURE:
@@ -787,9 +785,26 @@ namespace
 
 	void dump_reg_graph(SolverState& sstate, unsigned dom_id)
 	{
+		if (sstate.lp_constraints.empty())
+			return;
+
 		auto vfunc = [&](VertexID v) -> std::string
 		{
-			return std::to_string(v);
+			// Get reg variable, if exists
+			auto it_reg = sstate.link_to_varno_reg.find((LinkID)v);
+			if (it_reg != sstate.link_to_varno_reg.end())
+			{
+				// Should have lat variable too
+				auto it_lat = sstate.link_to_varno_lat.find((LinkID)v);
+				assert(it_lat != sstate.link_to_varno_lat.end());
+
+				return std::to_string(v) + "(R" + std::to_string(it_reg->second) +
+					" L" + std::to_string(it_lat->second) + ")";
+			}
+			else
+			{
+				return std::to_string(v);
+			}
 		};
 
 		auto efunc = [&](EdgeID e) -> std::string
@@ -802,8 +817,39 @@ namespace
 			"reggraph", std::to_string(dom_id));
 
 		sstate.reg_graph.dump(fname, vfunc, efunc);
+
+		std::ofstream of(fname + "_lp.txt");
+		for (auto& cns : sstate.lp_constraints)
+		{
+			for (unsigned i = 0; i < cns.coefs.size(); i++)
+			{
+				if (i > 0) of << " + ";
+				of << cns.coefs[i] << "*" << cns.varnos[i];
+			}
+
+			switch (cns.op)
+			{
+			case ROWTYPE_LE: of << " <= "; break;
+			case ROWTYPE_EQ: of << " = "; break;
+			case ROWTYPE_GE: of << " >= "; break;
+			default:assert(false);
+			}
+
+			of << cns.rhs << '\n';
+		}
+
+		of << ((sstate.lp_objective.direction == LPObjective::MIN) ?
+			"MIN " : "MAX ");
+
+		for (unsigned i = 0; i < sstate.lp_objective.coef.size(); i++)
+		{
+			if (i > 0) of << " + ";
+			of << sstate.lp_objective.coef[i] << "*" << sstate.lp_objective.varno[i];
+		}
 	}
 }
+
+
 
 void flow::solve_latency_constraints(NodeSystem* sys, unsigned dom_id)
 {
@@ -817,15 +863,16 @@ void flow::solve_latency_constraints(NodeSystem* sys, unsigned dom_id)
 	// Binary reg yes/no related
 	create_reg_graph(sstate);
 	postprocess_reg_graph(sstate);
-	if (genie::impl::get_flow_options().dump_reggraph)
-	{
-		dump_reg_graph(sstate, dom_id);
-	}
 	create_reg_constraints(sstate);
 
 	// Objective function
 	create_obj_func(sstate);
 	
+	if (genie::impl::get_flow_options().dump_reggraph)
+	{
+		dump_reg_graph(sstate, dom_id);
+	}
+
 	// Solve and annotate latencies
 	solve_lp_constraints(sstate);
 }

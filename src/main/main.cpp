@@ -60,7 +60,7 @@ namespace
         // Extract item,item,item... from string
         for (auto cur_pos = list.cbegin(), end_pos = list.cend(); cur_pos != end_pos; )
         {
-            static std::regex pattern(R"(((\w+)(,)?).*)");
+            static std::regex pattern(R"((([^,]+)(,)?).*)");
             std::smatch mr;
 
             if (!std::regex_match(cur_pos, end_pos, mr, pattern))
