@@ -67,40 +67,33 @@ std::string HierObject::get_hier_path(const genie::HierObject* rel_to) const
 
 	// For now, HierPath is just a string.
 	std::string result = get_name();
-
+	
 	// Construct the path by walking backwards through our parents and adding their names, until
 	// a parentless node is found (this is the root, whose name we don't append).
-	for (HierObject* cur_obj = get_parent(); cur_obj != nullptr; )
+	HierObject* cur_obj = get_parent();
+	while (cur_obj)
 	{
 		HierObject* cur_parent = cur_obj->get_parent();
 
 		// If we've hit the 'relative-to' object, stop traversing
 		if (rel_to_2 && cur_obj == rel_to_2)
 			break;
-		
-		// If we've hit the root node, also stop traversing
-		if (cur_parent == nullptr)
-		{
-			// If there was a rel-to object provided, it means
-			// it was never seen, and is unrelated. This is an error.
-			if (rel_to_2)
-			{
-				// Make sure to call the versions of this function that won't
-				// throw more exceptions
-				throw Exception(rel_to->get_hier_path() + ": not an ancestor of " +
-					get_hier_path());
-			}
-			else
-			{
-				break;
-			}
-		}
 
 		// Append name
 		result = cur_obj->get_name() + PATH_SEP + result;
 
 		// Retreat up the hierarchy one level
 		cur_obj = cur_parent;
+	}
+	
+	// If there was a rel-to object provided, but we hit the root node,
+	// then this is an error.
+	if (rel_to_2 && cur_obj == nullptr)
+	{
+		// Make sure to call the versions of this function that won't
+		// throw more exceptions
+		throw Exception(rel_to->get_hier_path() + ": not an ancestor of " +
+			get_hier_path());
 	}
 
 	return result;
