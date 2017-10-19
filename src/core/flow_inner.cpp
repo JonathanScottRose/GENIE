@@ -1086,8 +1086,7 @@ namespace
 			// Disconnect them
 			for (auto input : orig_inputs)
 			{
-				input->get_sink_ep()->remove_link(input);
-				input->set_sink_ep(nullptr);
+				input->disconnect_sink();
 			}
 
 			// Set of inputs to current tree level,
@@ -1156,13 +1155,10 @@ namespace
 
 			for (auto final_input : cur_inputs)
 			{
-				orig_inp_ep->add_link(final_input);
-				final_input->set_sink_ep(orig_inp_ep);
+				final_input->reconnect_sink(orig_inp_ep);
 			}
 		} // end foreach original merge node
 	} // end treeify_merge_nodes()
-
-
 }
 
 void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
