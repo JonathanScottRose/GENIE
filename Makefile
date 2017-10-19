@@ -72,7 +72,7 @@ CORE_HFILES=$(wildcard $(addsuffix /*.h, $(CORE_SRCDIRS)))
 CORE_HFILES_PUB=$(wildcard include/genie/*.h)
 CORE_OBJS=$(patsubst %.cpp,%.o,$(CORE_CFILES))
 
-$(CORE_OBJS): %.o : $(CORE_CFILES) $(CORE_HFILES) $(CORE_HFILES_PUB)
+$(CORE_OBJS): %.o : %.cpp $(CORE_HFILES) $(CORE_HFILES_PUB)
 	$(CC) $(CFLAGS) -Isrc/lp_solve -c $*.cpp -o $@ 
 
 $(LIB_CORE): $(CORE_OBJS) $(LPS_OBJS)
