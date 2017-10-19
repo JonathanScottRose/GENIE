@@ -438,8 +438,6 @@ namespace
 		// First, clone the base system
 		NodeSystem* sys = (NodeSystem*)tstate->iter_base_sys->clone();
 		auto& link_rel = sys->get_link_relations();
-
-		flow::dump_graph(sys, NET_TOPO, "blah.dot", true);
 		
 		// Get the merge nodes in the new system
 		auto mg1 = sys->get_child_as<NodeMerge>(tstate->merge_nodes[tstate->cur_merge1]->get_name());
