@@ -948,38 +948,7 @@ namespace
 			std::string filename = sys->get_name() + "." +
 				netstr + ".dot";
 
-			genie::log::debug("Dumping %s", filename.c_str());
-
-			// Open file, create top-level graph
-			std::ofstream out(filename);
-			out << "digraph {\n";
-
-			// For top-level system graph: create edge for every link
-			auto links = sys->get_links(netdef->get_id());
-			for (auto& link : links)
-			{
-				HierObject* src = link->get_src();
-				HierObject* sink = link->get_sink();
-
-				if (auto p = dynamic_cast<Port*>(src))
-					src = p->get_node();
-
-				if (auto p = dynamic_cast<Port*>(sink))
-					sink = p->get_node();
-
-				//std::string taillabel = src_port->get_hier_path(src_node);
-				//std::string headlabel = sink_port->get_hier_path(sink_node);
-				//std::string attrs = " [headlabel=\"" + headlabel + "\", taillabel=\"" + taillabel + "\"]";
-				std::string attrs;
-
-				out << "\"" << src->get_name()
-					<< "\" -> \"" << sink->get_name()
-					<< "\"" << attrs << ";\n";
-			}
-
-			// Finish main graph
-			out << "}\n";
-			out.close();
+			flow::dump_graph(sys, netdef->get_id(), filename, false);
 		}
 	}
 

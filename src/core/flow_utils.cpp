@@ -229,3 +229,50 @@ bool genie::impl::flow::FlowStateOuter::are_transmissions_exclusive(Transmission
 
 	return (it != excl.end());
 }
+
+void genie::impl::flow::dump_graph(Node* node, NetType net, const std::string& filename, bool labels)
+{
+	genie::log::debug("Dumping %s", filename.c_str());
+
+	// Open file, create top-level graph
+	std::ofstream out(filename);
+	out << "digraph {\n";
+
+	// For top-level system graph: create edge for every link
+	auto links = node->get_links(net);
+	for (auto& link : links)
+	{
+		HierObject* src = link->get_src();
+		HierObject* sink = link->get_sink();
+
+		std::string taillabel;
+		std::string headlabel;
+		
+		if (auto p = dynamic_cast<Port*>(src))
+		{
+			Node* srcnode = p->get_node();
+			taillabel = src->get_hier_path(srcnode);
+			src = srcnode;
+		}
+
+		if (auto p = dynamic_cast<Port*>(sink))
+		{
+			Node* sinknode = p->get_node();
+			headlabel = sink->get_hier_path(sinknode);
+			sink = sinknode;
+		}
+
+		//std::string attrs = 
+		std::string attrs = labels ?
+			" [headlabel=\"" + headlabel + "\", taillabel=\"" + taillabel + "\"]" :
+			"";
+
+		out << "\"" << src->get_name()
+			<< "\" -> \"" << sink->get_name()
+			<< "\"" << attrs << ";\n";
+	}
+
+	// Finish main graph
+	out << "}\n";
+	out.close();
+}

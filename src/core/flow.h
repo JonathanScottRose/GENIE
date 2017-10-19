@@ -95,6 +95,7 @@ namespace flow
 
 	void do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out);
 	void solve_latency_constraints(NodeSystem* sys, unsigned dom_id);
+	void dump_graph(Node* node, NetType net, const std::string& filename, bool labels);
 }
 }
 }

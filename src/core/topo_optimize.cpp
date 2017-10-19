@@ -218,7 +218,8 @@ namespace
 		
 		for (auto& topo : topos)
 		{
-			auto& srcname = topo->get_src()->get_name();
+			// TODO: mg->get_parent() is a lazy stand-in for the current system
+			auto srcname = topo->get_src()->get_hier_path(mg->get_parent());
 			auto& entry = out[srcname];
 			entry.topo = topo->get_id();
 			entry.logicals = rel.get_parents(entry.topo, NET_RS_LOGICAL);
@@ -438,6 +439,8 @@ namespace
 		NodeSystem* sys = (NodeSystem*)tstate->iter_base_sys->clone();
 		auto& link_rel = sys->get_link_relations();
 
+		flow::dump_graph(sys, NET_TOPO, "blah.dot", true);
+		
 		// Get the merge nodes in the new system
 		auto mg1 = sys->get_child_as<NodeMerge>(tstate->merge_nodes[tstate->cur_merge1]->get_name());
 		auto mg2 = sys->get_child_as<NodeMerge>(tstate->merge_nodes[tstate->cur_merge2]->get_name());
@@ -504,7 +507,7 @@ namespace
 		// The outputs of the split node will be the original mg1 and mg2 outputs.
 		// The link from mg1 to the split node needs all logical links routed over it.
 		//
-
+		
 		// Create a split node
 		auto sp = new NodeSplit();
 		sp->set_name(sys->make_unique_child_name(util::str_con_cat("sp", mg1->get_name())));
