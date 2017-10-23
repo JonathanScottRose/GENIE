@@ -302,7 +302,7 @@ namespace
 			auto rs_link = static_cast<LinkRSPhys*>(ep->get_link0());
 			if (!rs_link)
 				continue;
-
+			
 			auto& proto = user_port->get_proto();
 			if (proto.has_terminal_field(FIELD_USERADDR))
 			{

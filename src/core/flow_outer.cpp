@@ -230,7 +230,44 @@ namespace
 
 				if (role.type == PortRS::ADDRESS)
 				{
-					proto.add_terminal_field({ FIELD_USERADDR, hdl_bnd.get_bits() }, role);
+					// Validity check: the bit width of the signal needs to be big enough
+					// for all addresses associated with this port.
+
+					unsigned phys_bits = hdl_bnd.get_bits();
+
+					// Find out whether we're dealing with a source or sink.
+					auto dir = port->get_effective_dir(sys);
+
+					// Get the appropriate endpoint
+					auto ep = port->get_endpoint(NET_RS_LOGICAL, dir);
+
+					// Get links
+					auto& links = ep->links();
+
+					// Browse through the addresses
+					for (auto link : links)
+					{
+						auto rs_link = static_cast<LinkRSLogical*>(link);
+						auto user_addr = dir == Port::Dir::OUT ?
+							rs_link->get_src_addr() : rs_link->get_sink_addr();
+
+						assert(user_addr != AddressRep::ADDR_INVALID);
+						if (user_addr != AddressRep::ADDR_ANY)
+						{
+							unsigned addr_bits = (unsigned)util::log2(user_addr);
+							if (addr_bits > phys_bits)
+							{
+								throw Exception(port->get_hier_path() +
+									": port address width " + std::to_string(phys_bits) +
+									" is too small for logical link " +
+									link->get_src()->get_hier_path() + " -> " +
+									link->get_sink()->get_hier_path() +
+									" with address " + std::to_string(user_addr));
+							}
+						}
+					}
+
+					proto.add_terminal_field({ FIELD_USERADDR, phys_bits }, role);
 				}
 				else if (role.type == PortRS::EOP)
 				{
