@@ -71,7 +71,7 @@ std::string HierObject::get_hier_path(const genie::HierObject* rel_to) const
 	// Construct the path by walking backwards through our parents and adding their names, until
 	// a parentless node is found (this is the root, whose name we don't append).
 	HierObject* cur_obj = get_parent();
-	while (cur_obj)
+	while (cur_obj && cur_obj->get_name() != UNNAMED_OBJECT)
 	{
 		HierObject* cur_parent = cur_obj->get_parent();
 
