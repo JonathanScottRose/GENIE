@@ -38,8 +38,10 @@ module genie_pipe_stage #
 				data0 <= ready0? i_data : data1;
 			end
 			
-			valid1 <= i_valid;
-			data1 <= i_data;
+			if (ready0) begin
+				valid1 <= i_valid;
+				data1 <= i_data;
+			end
 		end
 	end
 	
