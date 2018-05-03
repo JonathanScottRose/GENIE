@@ -1,35 +1,3 @@
-module genie_mux #
-(
-	parameter lpm_widths = 0,
-	parameter lpm_size = 0,
-	parameter lpm_pipeline = 0,
-	parameter lpm_width = 0
-)
-(
-	input [(lpm_width*lpm_size)-1:0] data,
-	input [lpm_widths-1:0] sel,
-	output [lpm_width-1:0] result
-);
-
-reg [lpm_width-1:0] tmp;
-reg match;
-
-always @* begin : mux
-	integer i;
-	tmp = 0;
-	
-	for (i = 0; i < lpm_size; i = i + 1) begin
-		match = i[lpm_widths-1:0] == sel;
-		tmp = tmp | (data[i*lpm_width +: lpm_width] & {(lpm_width){match}});
-	end
-end
-
-assign result = tmp;
-
-endmodule
-
-
-
 module cur_input_calc #
 (
 	parameter NI = 1,
@@ -180,7 +148,7 @@ always @ (posedge clk or posedge reset) begin
     else state <= nextstate;
 end
 
-wire data_sent = (o_valid && o_ready);
+wire data_sent = (o_valid && i_ready);
 
 always_comb begin
     nextstate = state;
