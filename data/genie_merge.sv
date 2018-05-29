@@ -158,7 +158,7 @@ always_comb begin
     case (state)
         S_FLOW_THROUGH: begin
             cur_input = calced_input;
-            last_input_load = '1;
+            last_input_load = data_sent;
             if (data_sent && !o_eop) nextstate = S_LOCKED;
         end
         
