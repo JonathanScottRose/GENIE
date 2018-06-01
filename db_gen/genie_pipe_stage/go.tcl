@@ -4,7 +4,7 @@ set param_col_names {WIDTH}
 set config_col_names {BP}
 set datapoints {}
 
-foreach WIDTH {0 1 2} {
+foreach WIDTH {0 1 2 7 8} {
 	foreach BP {0 1} {
 		if {$BP == 0 } {
 			set config nobp
