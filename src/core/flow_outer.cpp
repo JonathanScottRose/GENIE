@@ -476,6 +476,20 @@ namespace
 			{
 				if (port)
 				{
+					// Sanity check: if a topo link exists, make sure RS logical links exist too
+					auto log_ep = port->get_endpoint(NET_RS_LOGICAL, port->get_effective_dir(sys));
+					if (!log_ep)
+					{
+						throw Exception(port->get_hier_path() +
+							": manually-spefified topology link on port that isn't RS-connectible");
+					}
+					
+					if (!log_ep->is_connected())
+					{
+						throw Exception(port->get_hier_path() +
+							": manually-spefified topology link on port with no logical RS links");
+					}
+
 					unsigned dom_id = flow::DomainRS::get_port_domain(port, sys);
 					assert(dom_id != flow::DomainRS::INVALID);
 					fstate.get_rs_domain(dom_id)->set_is_manual(true);
