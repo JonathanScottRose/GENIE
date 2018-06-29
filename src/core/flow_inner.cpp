@@ -190,7 +190,10 @@ namespace
 
 		for (auto mg : merges)
 		{
-			check_merge_node_exclusivity(fstate, mg);
+			if (!genie::impl::get_flow_options().force_full_merge)
+			{
+				check_merge_node_exclusivity(fstate, mg);
+			}
 			mg->create_ports();
 		}
 
