@@ -151,7 +151,7 @@ namespace
         return 1;
     }
 
-    LCLASS(Node,
+    LSUBCLASS(Node, (HierObject),
     {
         LM(set_int_param, node_set_int_param),
         LM(set_str_param, node_set_str_param),
