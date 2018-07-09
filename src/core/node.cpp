@@ -315,7 +315,6 @@ Link * Node::connect(HierObject * src, HierObject * sink, NetType net)
 		auto ep = obj_ep.second;
 
 		if (!obj) continue;
-		else assert(ep);
 
 		// Src and sink must both be children of this Node
 		if (!this->is_parent_of(obj))
