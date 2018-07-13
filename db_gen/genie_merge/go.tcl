@@ -5,7 +5,7 @@ set config_col_names {BP EOP}
 set datapoints {}
 
 foreach WIDTH {0 1 2} {
-	foreach NI {2 3 4 5 6 7 8} {
+	foreach NI {2 3 4} {
 		foreach BP {0 1} {
 			foreach EOP {0 1} {
 				switch "$BP $EOP" {

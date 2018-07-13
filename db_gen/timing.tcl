@@ -53,19 +53,22 @@ foreach spec $nodespecs {
 	set out_name [lindex $spec 2]
 	set out_str [lindex $spec 3]
 	
-	set coll [get_path -from $in_str -to $out_str]
+	# change npaths to 0 to get highest number of logic levels
+	# leave npaths at 1 to get # of logic levels for longest (ns) path
+	set coll [get_path -from $in_str -to $out_str -npaths 0]
 	set coll_size [get_collection_size $coll]
 	
-	if { $coll_size > 1 } {
-		post_message -type error "$in_str to $out_str yielded multiple paths"
-		qexit -error
-	} elseif { $coll_size == 0 } {
+	if { $coll_size == 0 } {
 		# default to 0 if no paths found
 		set result 0
 	} else {
-		# if 1 path found, get actual logic depth
+		# find path with most logic levels
+		set result 0
 		foreach_in_collection path $coll {
-			set result [get_path_info -num_logic_levels $path]
+			set lev [get_path_info -num_logic_levels $path]
+			if {$lev > $result} {
+				set result $lev
+			}
 		}
 	}
 	

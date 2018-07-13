@@ -334,7 +334,7 @@ end
 --	 slices: the number of second-dimension indicies to bind over, default 1
 --	 lo_bit: the least-significant bit to bind to, must be 0 if slices is > 1, default 0
 --	 width: the number of bits, starting from lo_bit, to bind, must be the entire port width
---			if slices > 1
+--			if slices > 1, and defaults to 1
 -- @function add_signal_ex
 -- @tparam string role port type specific role
 -- @tparam string tag unique user-defined tag needed for some roles
