@@ -615,12 +615,20 @@ namespace
 				// If not configurable, make sure it's not mismatched in a bad way
 				assert(!(cur_status == RSBackpressure::ENABLED &&
 					bp.status == RSBackpressure::DISABLED));
+
+				// It is possible to upgrade from DISABLED to ENABLED
+				if (cur_status == RSBackpressure::DISABLED &&
+					bp.status == RSBackpressure::ENABLED)
+				{
+					cur_status = RSBackpressure::ENABLED;
+				}
 			}
 		}
 
-		// Make sure orig_src is the same setting
+		// Make sure orig_src is compatible
 		auto& orig_src_bp = orig_src->get_bp_status();
-		assert(orig_src_bp.status == cur_status);
+		assert(!(orig_src_bp.status == RSBackpressure::DISABLED &&
+			cur_status == RSBackpressure::ENABLED));
 	}
 
 	void default_eops(FlowStateInner& fstate)
