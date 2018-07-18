@@ -385,7 +385,7 @@ end
 -- This overrides the global setting in the GENIE options.
 -- @tparam integer depth
 function Builder:max_logic_depth(depth)
-	if not self.sys then error("no current system") end
+	if not self.cur_sys then error("no current system") end
 	self.cur_sys:set_max_logic_depth(depth)
 end
 
