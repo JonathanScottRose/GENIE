@@ -1003,11 +1003,22 @@ namespace
 		}
 	}
 
+	void print_sys_info(NodeSystem* sys, FlowStateOuter& fstate)
+	{
+		namespace log = genie::log;
+
+		// Add more here
+		log::info("System %s: using max logic depth of %u",
+			sys->get_name().c_str(), sys->get_spec().max_logic_depth);
+	}
+
     void do_system(NodeSystem* sys)
     {
 		FlowStateOuter fstate;
 
 		resolve_size_params(sys);
+
+		print_sys_info(sys, fstate);
 
 		rs_assign_domains(sys, fstate);
 		rs_create_transmissions(sys, fstate);
