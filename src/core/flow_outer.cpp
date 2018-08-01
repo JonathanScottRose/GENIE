@@ -19,6 +19,7 @@
 
 using namespace genie::impl;
 using genie::Exception;
+using genie::AddressVal;
 using flow::FlowStateOuter;
 using flow::TransmissionID;
 
@@ -418,7 +419,7 @@ namespace
 		unsigned flow_id = 0;
 		for (auto src_bin : bin_by_src)
 		{
-			std::unordered_map<unsigned, std::vector<LinkRSLogical*>> bin_by_addr;
+			std::unordered_map<AddressVal, std::vector<LinkRSLogical*>> bin_by_addr;
 			for (auto link : src_bin.second)
 			{
 				bin_by_addr[link->get_src_addr()].push_back(link);

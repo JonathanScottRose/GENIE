@@ -49,7 +49,7 @@ namespace impl
 		genie::Link* create_reset_link(genie::HierObject* src, genie::HierObject* sink) override;
 		genie::Link* create_conduit_link(genie::HierObject* src, genie::HierObject* sink) override;
 		genie::LinkRS* create_rs_link(genie::HierObject* src, genie::HierObject* sink,
-			unsigned src_addr, unsigned sink_addr) override;
+			AddressVal src_addr, AddressVal sink_addr) override;
 		genie::LinkTopo* create_topo_link(genie::HierObject* src, genie::HierObject* sink) override;
 
 		genie::Node* create_instance(const std::string& mod_name,

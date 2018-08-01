@@ -15,6 +15,7 @@
 #include "hdl_elab.h"
 
 using namespace genie::impl;
+using genie::AddressVal;
 using Dir = genie::Port::Dir;
 
 //
@@ -51,7 +52,7 @@ genie::Link * NodeSystem::create_conduit_link(genie::HierObject * src, genie::Hi
 }
 
 genie::LinkRS * NodeSystem::create_rs_link(genie::HierObject * src, genie::HierObject * sink,
-	unsigned src_addr, unsigned sink_addr)
+	AddressVal src_addr, AddressVal sink_addr)
 {
 	auto src_imp = dynamic_cast<HierObject*>(src);
 	auto sink_imp = dynamic_cast<HierObject*>(sink);

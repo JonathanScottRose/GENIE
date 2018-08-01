@@ -3,20 +3,21 @@
 
 
 using namespace genie::impl;
+using genie::AddressVal;
 
 AddressRep::AddressRep()
 	: m_size_in_bits(0), m_size_needs_recalc(true)
 {
 }
 
-void AddressRep::insert(unsigned xmis, unsigned addr)
+void AddressRep::insert(unsigned xmis, AddressVal addr)
 {
 	m_addr2xmis[addr].push_back(xmis);
 	m_xmis2addr[xmis] = addr;
 	m_size_needs_recalc = true;
 }
 
-std::vector<unsigned> AddressRep::get_xmis(unsigned addr) const
+std::vector<unsigned> AddressRep::get_xmis(AddressVal addr) const
 {
 	std::vector<unsigned> result;
 	auto it = m_addr2xmis.find(addr);
@@ -26,13 +27,13 @@ std::vector<unsigned> AddressRep::get_xmis(unsigned addr) const
 	return result;
 }
 
-unsigned AddressRep::get_addr(unsigned xmis) const
+AddressVal AddressRep::get_addr(unsigned xmis) const
 {
 	auto it = m_xmis2addr.find(xmis);
 	return it == m_xmis2addr.end() ? ADDR_INVALID : it->second;
 }
 
-bool AddressRep::exists(unsigned addr) const
+bool AddressRep::exists(AddressVal addr) const
 {
 	return m_addr2xmis.count(addr) != 0;
 }
@@ -56,7 +57,7 @@ unsigned AddressRep::get_size_in_bits() const
 		// Get max value of all addresses
 		for (auto it : m_addr2xmis)
 		{
-			unsigned addr = it.first;
+			AddressVal addr = it.first;
 
 			// ADDR_ANY represents "no representation"
 			if (addr == ADDR_ANY)
@@ -64,7 +65,7 @@ unsigned AddressRep::get_size_in_bits() const
 			else if (addr == ADDR_INVALID)
 				assert(false); // shouldn't be any of these in here
 
-			unsigned bits = util::log2((int)addr + 1);
+			unsigned bits = util::log2(addr + 1);
 			m_size_in_bits = std::max(m_size_in_bits, bits);
 		}
 

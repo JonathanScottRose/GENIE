@@ -17,6 +17,7 @@ namespace impl
 namespace flow
 {
 	using TransmissionID = unsigned;
+	constexpr TransmissionID XMIS_INVALID = std::numeric_limits<TransmissionID>::max();
 
 	class DomainRS
 	{

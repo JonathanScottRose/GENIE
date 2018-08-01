@@ -72,8 +72,8 @@ namespace genie
 		virtual Link* create_reset_link(HierObject* src, HierObject* sink) = 0;
 		virtual Link* create_conduit_link(HierObject* src, HierObject* sink) = 0;
 		virtual LinkRS* create_rs_link(HierObject* src, HierObject* sink,
-			unsigned src_addr = LinkRS::ADDR_ANY,
-			unsigned sink_addr = LinkRS::ADDR_ANY) = 0;
+			AddressVal src_addr = LinkRS::ADDR_ANY,
+			AddressVal sink_addr = LinkRS::ADDR_ANY) = 0;
 		virtual LinkTopo* create_topo_link(HierObject* src, HierObject* sink) = 0;
 
 		virtual Node* create_instance(const std::string& mod_name,

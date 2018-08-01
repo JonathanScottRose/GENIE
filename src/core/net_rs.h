@@ -30,8 +30,8 @@ namespace impl
 	class LinkRSLogical : public genie::LinkRS, public Link
 	{
 	public:
-		unsigned get_src_addr() const override;
-		unsigned get_sink_addr() const override;
+		AddressVal get_src_addr() const override;
+		AddressVal get_sink_addr() const override;
 		void set_packet_size(unsigned) override;
 		void set_importance(float) override;
 
@@ -46,15 +46,15 @@ namespace impl
 		LinkRSLogical* clone() const override;
 		
 		PROP_GET_SET(domain_id, unsigned, m_domain_id);
-		PROP_SET(src_addr, unsigned, m_src_addr);
-		PROP_SET(sink_addr, unsigned, m_sink_addr);
+		PROP_SET(src_addr, AddressVal, m_src_addr);
+		PROP_SET(sink_addr, AddressVal, m_sink_addr);
 		PROP_GET(packet_size, unsigned, m_pkt_size);
 		PROP_GET(importance, float, m_importance);
 
 	protected:
 		unsigned m_domain_id;
-		unsigned m_src_addr;
-		unsigned m_sink_addr;
+		AddressVal m_src_addr;
+		AddressVal m_sink_addr;
 		unsigned m_pkt_size;
 		float m_importance;
 	};

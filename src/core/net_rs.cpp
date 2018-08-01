@@ -5,6 +5,7 @@
 #include "genie_priv.h"
 
 using namespace genie::impl;
+using genie::AddressVal;
 
 //
 // NetRSLogical
@@ -33,12 +34,12 @@ Link* NetRSLogical::create_link() const
 // LinkRSLogical
 //
 
-unsigned LinkRSLogical::get_src_addr() const
+AddressVal LinkRSLogical::get_src_addr() const
 {
 	return m_src_addr;
 }
 
-unsigned LinkRSLogical::get_sink_addr() const
+AddressVal LinkRSLogical::get_sink_addr() const
 {
 	return m_sink_addr;
 }

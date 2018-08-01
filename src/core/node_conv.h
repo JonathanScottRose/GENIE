@@ -35,7 +35,7 @@ namespace impl
 
 		void init_vlog();
 
-		std::vector<std::pair<unsigned, unsigned>> m_table;
+		std::vector<std::pair<AddressVal, AddressVal>> m_table;
 		unsigned m_in_width;
 		unsigned m_out_width;
 	};

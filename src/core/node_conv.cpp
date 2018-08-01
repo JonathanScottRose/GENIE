@@ -8,6 +8,7 @@
 
 using namespace genie::impl;
 using hdl::PortBindingRef;
+using genie::AddressVal;
 
 namespace
 {
@@ -100,12 +101,16 @@ void NodeConv::configure(const AddressRep & in_rep, const FieldID & in_field,
 	// For every input representation address bin, use the address
 	// as the 'from' address. Use one transmission from that bin and
 	// get its address in the output representation as the 'to' address.
+	// Only consider the case where the mapping exists in both in_rep and out_rep.
 	for (auto& in_bin : in_rep.get_addr_bins())
 	{
-		unsigned from_addr = in_bin.first;
+		AddressVal from_addr = in_bin.first;
 		TransmissionID exemplar_xmis = in_bin.second.front();
-		unsigned to_addr = out_rep.get_addr(exemplar_xmis);
-		m_table.emplace_back(from_addr, to_addr);
+		AddressVal to_addr = out_rep.get_addr(exemplar_xmis);
+		if (to_addr != AddressRep::ADDR_INVALID)
+		{
+			m_table.emplace_back(from_addr, to_addr);
+		}
 	}
 
 	// Set conversion bit sizes
@@ -142,8 +147,18 @@ void NodeConv::prepare_for_hdl()
 	{
 		auto& entry = m_table[i];
 
-		in_vals.set_val(0, i, entry.first, m_in_width);
-		out_vals.set_val(0, i, entry.second, m_out_width);
+		// TODO: handle bigger widths properly!
+		in_vals.set_val(0, i, entry.first & 0xFFFFFFFF, std::min(m_in_width, 32U));
+		if (m_in_width > 32)
+		{
+			in_vals.set_val(32, i, entry.first >> 32ULL, m_in_width - 32);
+		}
+
+		out_vals.set_val(0, i, entry.second & 0xFFFFFFFF, std::min(m_out_width, 32U));
+		if (m_out_width > 32)
+		{
+			out_vals.set_val(32, i, entry.second >> 32ULL, m_out_width - 32);
+		}
 	}
 
 	set_bits_param("IN_VALS", in_vals);

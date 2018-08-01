@@ -11,13 +11,16 @@ namespace genie
 		~Link() = default;
 	};
 
+	// TODO: use proper arbitrary-length bit vectors
+	using AddressVal = uint64_t;
+
 	class LinkRS : virtual public Link
 	{
 	public:
-		static const unsigned ADDR_ANY = std::numeric_limits<unsigned>::max();
+		static const AddressVal ADDR_ANY = std::numeric_limits<AddressVal>::max();
 
-		virtual unsigned get_src_addr() const = 0;
-		virtual unsigned get_sink_addr() const = 0;
+		virtual AddressVal get_src_addr() const = 0;
+		virtual AddressVal get_sink_addr() const = 0;
 		virtual void set_packet_size(unsigned size) = 0;
 		virtual void set_importance(float imp) = 0;
 

@@ -32,7 +32,8 @@ namespace
 	{
 		auto self = lua_if::check_object<LinkRS>(1);
 
-		unsigned result = self->get_src_addr();
+		// TODO: larger widths than 32 for user addresses
+		unsigned result = (unsigned)self->get_src_addr();
 		if (result == LinkRS::ADDR_ANY)
 			lua_pushnil(L);
 		else
@@ -52,7 +53,7 @@ namespace
 	{
 		auto self = lua_if::check_object<LinkRS>(1);
 
-		unsigned result = self->get_sink_addr();
+		unsigned result = (unsigned)self->get_sink_addr();
 		if (result == LinkRS::ADDR_ANY)
 			lua_pushnil(L);
 		else

@@ -18,6 +18,7 @@
 
 using namespace genie::impl;
 using genie::Exception;
+using genie::AddressVal;
 using Dir = genie::Port::Dir;
 using flow::FlowStateOuter;
 
@@ -58,7 +59,7 @@ namespace
 		auto& link_rel = sys->get_link_relations();
 
 		// transmission ID to address.
-		std::unordered_map<unsigned, unsigned> trans2addr;
+		std::unordered_map<unsigned, AddressVal> trans2addr;
 
 		// Find out which outputs each transmission's flows go to, and create
 		// a one-hot mask out of that.
@@ -77,7 +78,7 @@ namespace
 				// Add to bitmask
 				auto xmis_id = fs_out->get_transmission_for_link(rs_link);
 
-				trans2addr[xmis_id] |= (1 << i);
+				trans2addr[xmis_id] |= ((AddressVal)1) << ((AddressVal)i);
 			}
 		}
 
@@ -318,7 +319,7 @@ namespace
 				if (addr_bins.size() == 1)
 				{
 					// Just one bin. We can const it!
-					unsigned addr = addr_bins.begin()->first;
+					AddressVal addr = addr_bins.begin()->first;
 					unsigned addr_bits = std::max(1U, user_rep.get_size_in_bits());
 
 					// If this addr is ADDR_ANY, then the user did a silly thing:
@@ -335,8 +336,13 @@ namespace
 					// Do this for sink ports only
 					if (user_port_dir == Port::Dir::IN)
 					{
-						proto.set_const(FIELD_USERADDR, 
-							BitsVal(addr_bits).set_val(0, 0, addr, addr_bits));
+						// TODO: handle larger widths properly
+						BitsVal addr_bitval(addr_bits);
+						addr_bitval.set_val(0, 0, addr & 0xFFFFFFFF, std::min(addr_bits, 32U));
+						if (addr_bits > 32)
+							addr_bitval.set_val(32, 0, addr >> 32ULL, addr_bits - 32);
+						
+						proto.set_const(FIELD_USERADDR, addr_bitval);
 					}
 										
 					continue;
@@ -390,11 +396,16 @@ namespace
 			if (sp_rep.get_n_addr_bins() == 1)
 			{
 				auto& proto = sp->get_input()->get_proto();
-				unsigned addr = sp_rep.get_addr_bins().begin()->first;
+				AddressVal addr = sp_rep.get_addr_bins().begin()->first;
 				unsigned n_bits = sp->get_n_outputs();
 				
+				// TODO: handle bigger values properly!
 				BitsVal conzt(n_bits, 1);
-				conzt.set_val(0, 0, addr, n_bits);
+				conzt.set_val(0, 0, addr & 0xFFFFFFFF, std::min(n_bits, 32U));
+				if (n_bits > 32)
+				{
+					conzt.set_val(32, 0, addr >> 32ULL, n_bits - 32U);
+				}
 				
 				proto.set_const(FIELD_SPLITMASK, conzt);
 			}
@@ -652,6 +663,8 @@ namespace
 
 	void default_xmis_ids(FlowStateInner& fstate_in)
 	{
+		using flow::TransmissionID;
+
 		auto sys = fstate_in.sys;
 		auto fstate_out = fstate_in.outer;
 		auto& link_rel = sys->get_link_relations();
@@ -670,21 +683,21 @@ namespace
 			if (sink->has_field(FIELD_XMIS_ID) && !src->has_field(FIELD_XMIS_ID))
 			{
 				// Now, gather all the logical RS links passing through this physical link.
-				// All these locial RS links MUST belong to the same transmission ID,
+				// All these logical RS links MUST belong to the same transmission ID,
 				// otherwise a converter failed to be inserted earlier in the flow.
 				//
 				// Once we have this single transmission's ID, we can insert it as a constant
 				// into the sink's port protocol.
 
 				auto log_link_ids = link_rel.get_parents(phys_link->get_id(), NET_RS_LOGICAL);
-				unsigned xmis_id = AddressRep::ADDR_INVALID;
+				TransmissionID xmis_id = flow::XMIS_INVALID;
 
 				for (auto log_link_id : log_link_ids)
 				{
 					auto this_xmis_id = fstate_out->get_transmission_for_link(log_link_id);
 
 					// Make sure all logical links have the same transmission ID
-					if (xmis_id != AddressRep::ADDR_INVALID && xmis_id != this_xmis_id)
+					if (xmis_id != flow::XMIS_INVALID && xmis_id != this_xmis_id)
 					{
 						assert(false);
 					}
@@ -695,11 +708,17 @@ namespace
 				}
 
 				// Convert transmission ID into address
-				unsigned xmis_addr = addr_rep.get_addr(xmis_id);
+				AddressVal xmis_addr = addr_rep.get_addr(xmis_id);
 				
+				// TODO: handle larger values properly
 				FieldInst* field = sink->get_field(FIELD_XMIS_ID);
-				BitsVal xmis_id_val(field->get_width());
-				xmis_id_val.set_val(0, 0, xmis_addr, field->get_width());
+				auto field_width = field->get_width();
+				BitsVal xmis_id_val(field_width);
+				xmis_id_val.set_val(0, 0, xmis_addr & 0xFFFFFFFF, std::min(field_width, 32U));
+				if (field_width > 32)
+				{
+					xmis_id_val.set_val(0, 32, xmis_addr >> 32ULL, field_width - 32U);
+				}
 
 				auto& sink_proto = sink->get_proto();
 				sink_proto.set_const(FIELD_XMIS_ID, xmis_id_val);
