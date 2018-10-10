@@ -412,7 +412,7 @@ end
 -- the sink and source Interfaces to make the Chain contiguous.
 --
 -- The constraint takes on the form: `p1 [+/-p2, +/-p3, ...] OP rhs` where rhs is an integer, OP is a comparison operator
--- (<, <=, =, >= >), and `pn` are paths, represented as arrays of RS Links. Terms p2 and up are optional.
+-- (<, <=, =, >= >), and `pn` are paths, represented as arrays of RS Links. Terms `p2` and up are optional.
 -- @tparam array(RSLink) p1 first chain term
 -- @tparam[opt] string pn_sign sign of successive chain term, either `+` or `-`
 -- @tparam[opt] array(RSLink) pn successive chain term
