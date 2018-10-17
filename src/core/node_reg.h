@@ -16,6 +16,9 @@ namespace impl
 	public:
 		static void init();
 
+		// Static version, used for a hypothetical non-existent instance
+		static AreaMetrics estimate_area(unsigned width, bool bp);
+
 		// Create a new one
 		NodeReg();
 

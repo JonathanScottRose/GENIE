@@ -20,6 +20,10 @@ genie::Link * NodeUser::create_internal_link(genie::PortRS * src, genie::PortRS 
 		}
 	}
 
+	// TODO: make proper Internal link type?
+	src_imp->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->set_max_links(Endpoint::UNLIMITED);
+	sink_imp->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->set_max_links(Endpoint::UNLIMITED);
+
 	auto link = static_cast<LinkRSPhys*>(this->connect(src_imp, sink_imp, NET_RS_PHYS));
 	link->set_latency(latency);
 	return link;

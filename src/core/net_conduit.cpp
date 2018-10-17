@@ -19,7 +19,7 @@ NetConduit::NetConduit()
 {
 	m_short_name = "conduit";
 	m_default_max_conn_in = 1;
-	m_default_max_conn_out = 1;
+	m_default_max_conn_out = Endpoint::UNLIMITED;
 }
 
 Link* NetConduit::create_link() const

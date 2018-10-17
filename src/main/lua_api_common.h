@@ -56,10 +56,15 @@ namespace lua_api
 			return result;
 		}
 
+		//auto ltype = lua_typename(L, lua_type(L, narg));
+
 		// Try array or set
 		lua_pushnil(L);
 		while (lua_next(L, narg))
 		{
+			//auto ktype = lua_typename(L, lua_type(L, -2));
+			//auto vtype = lua_typename(L, lua_type(L, -1));
+
 			// Try key
 			T* obj = lua_if::to_object<T>(-2);
 

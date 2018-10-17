@@ -111,9 +111,15 @@ void NodeReg::annotate_timing()
 
 AreaMetrics NodeReg::annotate_area()
 {
-	AreaMetrics result;
 	unsigned node_width = get_carried_proto().get_total_width();
 	bool bp = get_output()->get_bp_status().status == RSBackpressure::ENABLED;
+
+	return estimate_area(node_width, bp);
+}
+
+AreaMetrics NodeReg::estimate_area(unsigned node_width, bool bp)
+{
+	AreaMetrics result;
 	unsigned col_vals[DB_COLS::size()];
 
 	col_vals[DB_COLS::BP] = bp ? 1 : 0;

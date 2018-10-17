@@ -84,6 +84,7 @@ namespace
         args >> GetOpt::OptionPresent("no_mdelay", opts.no_mdelay);
 		args >> GetOpt::Option("max_logic_depth", opts.max_logic_depth);
 		args >> GetOpt::OptionPresent("no_merge_tree", opts.no_merge_tree);
+		args >> GetOpt::OptionPresent("split_tree", opts.split_tree);
 		
 		{
 			std::string argstr;

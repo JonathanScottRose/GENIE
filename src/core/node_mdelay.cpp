@@ -126,19 +126,34 @@ void NodeMDelay::annotate_timing()
 
 AreaMetrics NodeMDelay::annotate_area()
 {
-	AreaMetrics result;
 	unsigned node_width = get_carried_proto().get_total_width();
 	bool bp = get_output()->get_bp_status().status == RSBackpressure::ENABLED;
+
+	return estimate_area(node_width, m_delay, bp);
+}
+
+AreaMetrics NodeMDelay::estimate_area(unsigned node_width, unsigned cycles, bool bp)
+{
+	AreaMetrics result;
 	unsigned col_vals[DB_COLS::size()];
 
 	col_vals[DB_COLS::BP] = bp ? 1 : 0;
 
 	auto& ap = genie::impl::get_arch_params();
 
-	if (node_width == 0)
+	// We shouldn't be here if using just 1 cycle of delay
+	cycles = std::max(2U, cycles);
+
+	// If width*depth is small enough, just do a single lookup, as this is going
+	// to be implemented with luts+FFs instead of LUTRAM
+	if (node_width * cycles <= 32)
 	{
-		col_vals[DB_COLS::WIDTH] = 0;
-		col_vals[DB_COLS::CYCLES] = 2;
+		node_width = 1 << (util::log2(node_width));
+		cycles = 1 << (util::log2(cycles));
+		
+		// Just do one lookup and return it
+		col_vals[DB_COLS::WIDTH] = node_width;
+		col_vals[DB_COLS::CYCLES] = cycles;
 		auto row = s_prim_db->get_row(col_vals);
 		assert(row);
 		auto metrics = s_prim_db->get_area_metrics(row);
@@ -147,36 +162,20 @@ AreaMetrics NodeMDelay::annotate_area()
 	}
 	else
 	{
-		// Base cycles, base width
+		// Quantize usage to chunks of lutram
+		// Base cycles, base width (single LUTRAM chunks)
 		col_vals[DB_COLS::WIDTH] = 1;
-		col_vals[DB_COLS::CYCLES] = 2;
+		col_vals[DB_COLS::CYCLES] = (ap.lutram_depth);
 		auto row = s_prim_db->get_row(col_vals);
 		assert(row);
 		auto metrics_base = s_prim_db->get_area_metrics(row);
 		assert(metrics_base);
 
-		// Base cycles, next width
-		col_vals[DB_COLS::WIDTH] = (ap.lutram_width + 1);
-		col_vals[DB_COLS::CYCLES] = 2;
-		row = s_prim_db->get_row(col_vals);
-		assert(row);
-		auto metrics_width = s_prim_db->get_area_metrics(row);
-		assert(metrics_width);
-
-		// Next cycles, base width
-		col_vals[DB_COLS::WIDTH] = 1;
-		col_vals[DB_COLS::CYCLES] = (ap.lutram_depth + 1);
-		row = s_prim_db->get_row(col_vals);
-		assert(row);
-		auto metrics_depth = s_prim_db->get_area_metrics(row);
-		assert(metrics_depth);
-
+		// Determine number of chunks
 		unsigned w_slices = (node_width + ap.lutram_width - 1) / ap.lutram_width;
-		unsigned d_slices = (m_delay + ap.lutram_depth - 1) / ap.lutram_depth;
+		unsigned d_slices = (cycles + ap.lutram_depth - 1) / ap.lutram_depth;
 
-		result = *metrics_base +
-			(*metrics_width - *metrics_base)*w_slices +
-			(*metrics_depth - *metrics_base)*d_slices;
+		result = *metrics_base * w_slices * d_slices;
 	}
 
 	return result;

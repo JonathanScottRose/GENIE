@@ -48,6 +48,8 @@ namespace genie
 
 		bool no_merge_tree = false;
 
+		bool split_tree = false;
+
         bool no_topo_opt = false;
         std::vector<std::string> no_topo_opt_systems;
 

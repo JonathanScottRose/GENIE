@@ -147,7 +147,7 @@ for _,i in pairs({{'src', 'out'}, {'sink', 'in'}}) do
 	
 	Builder['msg_'..suffix] = function(self, name, vname, clockif)
 		local result = self['rs_'..suffix](self, name, clockif)
-		result:signal('valid', vname)
+		self:signal('valid', vname)
 		return result
 	end
 end
@@ -360,7 +360,7 @@ function Builder:make_exclusive(s)
 end
 
 --- Marks sets of RS Links ase temporally exclusive.
--- Each of the N>2 arguments is a set of RS links.
+-- Each of the N>=2 arguments is a set or array of RS links.
 -- The links within each set are marked as exclusive with the links
 -- in every other set.
 function Builder:make_exclusive_multi(...)

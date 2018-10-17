@@ -15,6 +15,7 @@ namespace impl
 	{
 	public:
 		static void init();
+		static AreaMetrics estimate_area(unsigned width, unsigned depth, bool bp);
 
 		// Create a new one
 		NodeMDelay();

@@ -8,6 +8,8 @@
 #include "genie_priv.h"
 #include "prim_db.h"
 
+#include "flow.h"
+
 using namespace genie::impl;
 using hdl::PortBindingRef;
 
@@ -133,6 +135,9 @@ void NodeSplit::annotate_timing()
 {
 	// Get node config
 	bool bp = get_input()->get_bp_status().status == RSBackpressure::ENABLED;
+
+	if (m_n_outputs > 32)
+		flow::dump_graph(this->get_parent_node(), NET_RS_PHYS, "bigdebug.dot", false);
 
 	unsigned col_vals[DB_COLS::size()];
 	col_vals[DB_COLS::N] = m_n_outputs; assert(m_n_outputs <= 32);

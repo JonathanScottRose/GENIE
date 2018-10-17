@@ -586,7 +586,13 @@ namespace
 					// Not configurable? Just make sure backpressures are compatible then.
 					assert(next_bp.status != RSBackpressure::UNSET);
 
-					if (next_bp.status == RSBackpressure::DISABLED &&
+					// TODO: this is a hack.
+					// Relax compatibility rules when traversing an internal link.
+					bool is_internal = cur_port->get_dir() == Port::Dir::OUT &&
+						next_port->get_dir() == Port::Dir::IN;
+
+					if (!is_internal &&
+						next_bp.status == RSBackpressure::DISABLED &&
 						cur_bp.status == RSBackpressure::ENABLED)
 					{
 						throw Exception("Incompatible backpressure: " + cur_port->get_hier_path() +
@@ -1033,12 +1039,15 @@ namespace
 
 			unsigned width = flow::calc_transmitted_width(orig_link);
 			unsigned latency = orig_link->get_latency();
+			bool bp = ((PortRS*)orig_link->get_sink())->get_bp_status().status == RSBackpressure::ENABLED;
 
-			// Insert a chain of regs, or a mem, depending on which is cheaper
-			unsigned reg_cost = width * latency;
-			unsigned mem_cost = width + latency + 8; // TODO: is the 8 hardcoded?
+			// Estimate cost for reg version vs mem version
+			AreaMetrics reg_cost = NodeReg::estimate_area(width, bp) * latency;
+			AreaMetrics mem_cost = NodeMDelay::estimate_area(width, latency, bp);
 
-			if (!genie::impl::get_flow_options().no_mdelay && mem_cost < reg_cost)
+			// Insert a chain of regs, or a mem, depending on which is cheaper (based on ALM count)
+			// TODO: this is so arch-specific it hurts
+			if (!genie::impl::get_flow_options().no_mdelay && mem_cost.alm < reg_cost.reg/2) // 2 reg per ALM
 			{
 				auto md = new NodeMDelay();
 				md->set_delay(latency);
@@ -1157,8 +1166,7 @@ namespace
 					auto mg_inp_ep = mg->get_endpoint(NET_TOPO, Port::Dir::IN);
 					for (auto input : this_inputs)
 					{
-						input->set_sink_ep(mg_inp_ep);
-						mg_inp_ep->add_link(input);
+						input->reconnect_sink(mg_inp_ep);
 					}
 
 					// Create a dangling connection from the output
@@ -1189,6 +1197,102 @@ namespace
 			}
 		} // end foreach original merge node
 	} // end treeify_merge_nodes()
+
+	void treeify_split_nodes(FlowStateInner& fstate)
+	{
+		// TODO Change this later to tech-dependent
+		constexpr unsigned MAX_OUTPUTS = 6;
+
+		if (!genie::impl::get_flow_options().split_tree)
+			return;
+
+		auto sys = fstate.sys;
+		auto& link_rel = sys->get_link_relations();
+
+		auto all_splits = sys->get_children_by_type<NodeSplit>();
+
+		for (auto orig_sp : all_splits)
+		{
+			// Gather original outputs
+			auto orig_out_ep = orig_sp->get_endpoint(NET_TOPO, Port::Dir::OUT);
+			auto orig_outputs = orig_out_ep->links();
+			if (orig_outputs.size() <= MAX_OUTPUTS)
+				continue;
+
+			// Disconnect them
+			for (auto output : orig_outputs)
+			{
+				output->disconnect_src();
+			}
+
+			// Set of outputs to current tree level,
+			// initialized to original split's outputs
+			auto cur_outputs = orig_outputs;
+
+			for (unsigned cur_lvl = 0; cur_outputs.size() > MAX_OUTPUTS; cur_lvl++)
+			{
+				// Set of inputs to current tree level (aka outputs of next)
+				decltype(cur_outputs) cur_inputs = {};
+
+				// Number of split nodes in this tree level
+				unsigned n_splits = (cur_outputs.size() + MAX_OUTPUTS - 1) / MAX_OUTPUTS;
+
+				for (unsigned new_sp_i = 0; new_sp_i < n_splits; new_sp_i++)
+				{
+					// This split node gets a fair share of however many
+					// outputs are remaining at this level
+					unsigned outputs_this_split = cur_outputs.size() / (n_splits - new_sp_i);
+
+					// Get our share of outputs, remove them from cur_outputs
+					decltype(cur_outputs) this_outputs;
+					{
+						auto outs_begin = cur_outputs.end() - outputs_this_split;
+						auto outs_end = cur_outputs.end();
+						this_outputs.assign(outs_begin, outs_end);
+						cur_outputs.erase(outs_begin, outs_end);
+					}
+
+					// Create new split node
+					NodeSplit* sp = new NodeSplit();
+					sp->set_name(util::str_con_cat(orig_sp->get_name(), "TREE",
+						std::to_string(cur_lvl), std::to_string(new_sp_i)));
+
+					sys->add_child(sp);
+
+					// Connect this_outputs to it
+					auto sp_out_ep = sp->get_endpoint(NET_TOPO, Port::Dir::OUT);
+					for (auto output : this_outputs)
+					{
+						output->reconnect_src(sp_out_ep);
+					}
+
+					// Create a dangling connection from the input
+					auto this_input = sys->connect(nullptr, sp, NET_TOPO);
+
+					// Route logical links from outputs over it
+					for (auto output : this_outputs)
+					{
+						auto logicals = link_rel.get_parents(output->get_id(), NET_RS_LOGICAL);
+						for (auto log : logicals)
+							link_rel.add(log, this_input->get_id());
+					}
+
+					// Add to list of inputs of this level
+					cur_inputs.push_back(this_input);
+				} // end foreach split
+
+				  // Make this level's inputs next level's outputs
+				cur_outputs = std::move(cur_inputs);
+			} // end foreach level
+
+			// At this point, cur_outputs has MAX_OUTPUTS or fewer links.
+			// Attach them to the original split
+			for (auto final_output : cur_outputs)
+			{
+				final_output->reconnect_src(orig_out_ep);
+			}
+		} // end foreach original split node
+	} // end treeify_split_nodes()
 }
 
 void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
@@ -1199,6 +1303,7 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 	fstate.outer = fs_out;
 
 	treeify_merge_nodes(fstate);
+	treeify_split_nodes(fstate);
 
 	make_domain_addr_rep(fstate);
 
