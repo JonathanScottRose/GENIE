@@ -60,7 +60,7 @@ module genie_pipe_stage #
 	//     (
 	//         .d(i_valid),
 	//         .clk(i_clk),
-	//         .clrn(~reset),
+	//         .clrn(~i_reset),
 	//         .ena(xfer),
 	//         .asdata(valid1),
 	//         .sload(nready0),
@@ -74,7 +74,7 @@ module genie_pipe_stage #
 	//     (
 	//         .d(1'b1),
 	//         .clk(i_clk),
-	//         .clrn(~reset),
+	//         .clrn(~i_reset),
 	//         .ena(1'b1),
 	//         .asdata(1'b0),
 	//         .sload(xfer),
