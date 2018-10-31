@@ -9,6 +9,7 @@ namespace genie
 namespace impl
 {
 	class PortRS;
+	class PortClock;
 
 	extern FieldType FIELD_SPLITMASK;
 
@@ -31,6 +32,7 @@ namespace impl
 		void create_ports();
 		PortRS* get_input() const;
 		PortRS* get_output(unsigned) const;
+		PortClock* get_clock_port() const;
 
     protected:
         NodeSplit(const NodeSplit&);

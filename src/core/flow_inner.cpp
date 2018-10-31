@@ -1201,7 +1201,7 @@ namespace
 	void treeify_split_nodes(FlowStateInner& fstate)
 	{
 		// TODO Change this later to tech-dependent
-		constexpr unsigned MAX_OUTPUTS = 6;
+		constexpr unsigned MAX_OUTPUTS = 18;
 
 		if (!genie::impl::get_flow_options().split_tree)
 			return;
@@ -1293,6 +1293,265 @@ namespace
 			}
 		} // end foreach original split node
 	} // end treeify_split_nodes()
+
+	void lat_systolic_transform(FlowStateInner& fstate)
+	{
+		auto sys = fstate.sys;
+		auto& link_rel = sys->get_link_relations();
+
+		// Find split nodes whose fanouts have different latencies.
+		// Turn this into a chain of split nodes that feed the same destinations,
+		// with the links in the split node chain 'sharing' the latency differences
+		// between the original destinations. This will save registers.
+
+		// Conditions: find split nodes that have three or more outputs. Among all the outputs,
+		// at least three must have different latency values.
+		auto split_nodes = sys->get_children_by_type<NodeSplit>();
+		for (auto orig_sp : split_nodes)
+		{
+			// A topology+physical link pair for outputs of the original split node
+			struct TopoPhys
+			{
+				LinkTopo* topo;
+				LinkRSPhys* phys;
+			};
+
+			// Sort the split node's outputs into latency bins, in increasing order.
+			// std::map automatically does this for us.
+			std::map<unsigned, std::vector<TopoPhys>> lat_bins;
+
+			for (unsigned i = 0; i < orig_sp->get_n_outputs(); i++)
+			{
+				auto out_port = orig_sp->get_output(i);
+				TopoPhys tp;
+
+				tp.phys = (LinkRSPhys*)out_port->get_endpoint(NET_RS_PHYS, Port::Dir::OUT)->get_link0();
+				auto out_link_topo_id = link_rel.get_immediate_parents(tp.phys->get_id()).front();
+				
+				assert(out_link_topo_id != LINK_INVALID);
+				tp.topo = (LinkTopo*)sys->get_link(out_link_topo_id);
+
+				lat_bins[tp.phys->get_latency()].push_back(tp);
+			}
+
+			// At least 2 different bins guarantees at least 2 split node outputs with differing latencies.
+			// If less than this, we can skip this entire split node
+			unsigned n_bins = lat_bins.size();
+			if (n_bins < 2)
+				continue;
+
+			// For now, we only support split nodes that are in pure broadcast mode, as this
+			// means we don't have to worry about inserting new conv nodes.
+			// TODO: expand this
+			if (orig_sp->get_input()->get_proto().get_const(FieldID(FIELD_SPLITMASK))
+				== nullptr)
+			{
+				continue;
+			}
+
+			// Modifications begin now. We disconnect all the original split node's outputs,
+			// both topo and phys variety.
+			for (auto& bin : lat_bins)
+			{
+				for (auto& tp : bin.second)
+				{
+					tp.phys->disconnect_src();
+					tp.topo->disconnect_src();
+				}
+			}
+
+			// Disconnect the orig split node's input too
+			TopoPhys orig_sp_in;
+			orig_sp_in.phys = 
+				(LinkRSPhys*)orig_sp->get_input()->get_endpoint(NET_RS_PHYS, Port::Dir::IN)->get_link0();
+			orig_sp_in.topo = 
+				(LinkTopo*)orig_sp->get_endpoint(NET_TOPO, Port::Dir::IN)->get_link0();
+
+			orig_sp_in.phys->disconnect_sink();
+			orig_sp_in.topo->disconnect_sink();
+
+			// Grab the clock driver of the split node, and destroy the clock link
+			PortClock* orig_sp_clk_driver = nullptr;
+			{
+				PortClock* clock_sink = orig_sp->get_input()->get_clock_port();
+				orig_sp_clk_driver = clock_sink->get_driver(sys);
+				auto clk_link = clock_sink->get_endpoint(NET_CLOCK, Port::Dir::IN)->get_link0();
+				sys->disconnect(clk_link);
+			}
+			assert(orig_sp_clk_driver);
+
+			// Kill the original split node
+			std::string orig_name = orig_sp->get_name();
+			sys->remove_child(orig_sp);
+			delete orig_sp;
+
+			// Holds the new chain of split nodes.
+			// There's one for each latency bin, except sometimes the last split node that handles
+			// the last two latency bins at the same time.
+			std::vector<NodeSplit*> sp_nodes;
+
+			// Previous split node in the chain
+			NodeSplit* prev_sp = nullptr;
+			unsigned prev_lat;
+
+			// Walk through the latency bins and create split nodes
+			for (auto bin_it = lat_bins.begin(); bin_it != lat_bins.end(); ++bin_it)
+			{
+				unsigned cur_lat = bin_it->first;
+				auto& cur_bin = bin_it->second;
+
+				// Are we at the end of the chain?
+				bool last_bin = (bin_it == --lat_bins.end());
+
+				// If the last bin's size is 1, we can do an optimization and make its lone
+				// member an output of the second-last bin's split node, rather than it wastefully
+				// getting its own split node.
+				bool combine_with_prev = last_bin && cur_bin.size() == 1;
+
+				// Not last bin means create a split node
+				if (!combine_with_prev)
+				{
+					// Create and name new split node
+					NodeSplit* cur_sp = new NodeSplit();
+					cur_sp->set_name(orig_name + "_systol" + std::to_string(cur_lat));
+					sys->add_child(cur_sp);
+					sp_nodes.push_back(cur_sp);
+
+					// Connect clock
+					sys->connect(orig_sp_clk_driver, cur_sp->get_clock_port(), NET_CLOCK);
+
+					// Connect split node's input. If this is the first one in the chain (prev_sp is null),
+					// then use the original topo link for the deleted split node. Otherwise, create a new
+					// link to the previous split node in the chain, set its latency, and route the right RS links over it.
+
+					if (!prev_sp)
+					{
+						// Feed with original topo and phys links.
+						// NOTE: a split node's physical input port exists well before
+						// it is "configured" so this is okay.
+						Endpoint* in_ep = cur_sp->get_endpoint(NET_TOPO, Port::Dir::IN);
+						orig_sp_in.topo->reconnect_sink(in_ep);
+						in_ep = cur_sp->get_input()->get_endpoint(NET_RS_PHYS, Port::Dir::IN);
+						orig_sp_in.phys->reconnect_sink(in_ep);
+					}
+					else
+					{
+						// Chain to previous split node (TOPO)
+						LinkTopo* chain_topo = (LinkTopo*)sys->connect(prev_sp, cur_sp, NET_TOPO);
+
+						// Associate RS logical links with this new topo link
+						// (to remainder of chain, as well as to this split node's local egress)
+						for (auto bin_it2 = bin_it; bin_it2 != lat_bins.end(); ++bin_it2)
+						{
+							// For each egress topo link in this bin
+							for (auto tp_in_bin : bin_it2->second)
+							{
+								// Gather RS parents
+								auto logicals = link_rel.get_parents(tp_in_bin.topo->get_id(), 
+									NET_RS_LOGICAL);
+
+								// Associate them with chain link
+								for (auto logical : logicals)
+									link_rel.add(logical, chain_topo->get_id());
+							}
+						}
+
+						// Create a dangling phys link that terminates at this split node's input, 
+						// but doesn't yet connect to previous split node (its ports aren't created yet)
+						auto chain_phys = (LinkRSPhys*)sys->connect(nullptr, cur_sp->get_input(),
+							NET_RS_PHYS);
+
+						// Parent/child relationship for phys link
+						link_rel.add(chain_topo->get_id(), chain_phys->get_id());
+
+						// Latency on this new phys link = 
+						// current cumulative latency - previous cumulative latency
+						chain_phys->set_latency(cur_lat - prev_lat);
+					}
+
+					prev_sp = cur_sp;
+					prev_lat = cur_lat;
+				} // !last_bin
+
+				// Attach existing/former TOPO split outputs. 
+				// The last two bins will re-use the same prev_sp.
+				// Readjust the latencies of PHYS links.
+				for (auto& tp : cur_bin)
+				{
+					tp.topo->reconnect_src(prev_sp->get_endpoint(NET_TOPO, Port::Dir::OUT));
+					
+					// These will end up being:
+					// (first bin's latency) for first bin
+					// (last bin - secondlast bin) for the last bin
+					// 0 for the rest in between
+					tp.phys->set_latency(cur_lat - prev_lat);
+				}
+			} // iterate through bins and create split nodes
+
+			// Traverse in reverse order, from end of chain, to make updating of
+			// protocol and backpressure go in the right order.
+			std::reverse(sp_nodes.begin(), sp_nodes.end());
+
+			// Connect phys links, specifically the OUTPUT ports of each split node,
+			// which were just created.
+			for (auto sp_node : sp_nodes)
+			{
+				// Create physical ports.
+				sp_node->create_ports();
+
+				// Update splitmask
+				// This is also going to be a fixed const value for broadcasting only.
+				{
+					auto& proto = sp_node->get_input()->get_proto();
+					unsigned n_bits = sp_node->get_n_outputs();
+					uint64_t addr = (1 << (n_bits - 1)) - 1;
+
+					// TODO: handle bigger values properly!
+					BitsVal conzt(n_bits, 1);
+					conzt.set_val(0, 0, addr & 0xFFFFFFFF, std::min(n_bits, 32U));
+					if (n_bits > 32)
+					{
+						conzt.set_val(32, 0, addr >> 32ULL, n_bits - 32U);
+					}
+
+					proto.set_const(FIELD_SPLITMASK, conzt);
+				}
+
+				// Get output topo links
+				auto& topo_links = sp_node->get_endpoint(NET_TOPO, Port::Dir::OUT)->links();
+
+				// Iterate through topo links and obtain the associated phys link for each.
+				// We connect them to sequentially-numbered output ports on the split node
+				int idx = 0;
+				for (auto topo_link : topo_links)
+				{
+					// Output port
+					auto phys_out = sp_node->get_output(idx);
+
+					// Associated physical link
+					auto phys_link = link_rel.get_children(topo_link, NET_RS_PHYS, sys).front();
+					assert(phys_link);
+
+					// Connect
+					phys_link->reconnect_src(phys_out->get_endpoint(NET_RS_PHYS, Port::Dir::OUT));
+
+					auto phys_sink = (PortRS*)phys_link->get_sink();
+					auto orig_phys_src = (PortRS*)orig_sp_in.phys->get_src();
+
+					// Update carrier protocol. We do this for every input->output path
+					// This looks at the fields at the super-source (whatever fed the
+					// original split node at the front of the systolic chain)
+					flow::splice_carrier_protocol(orig_phys_src, phys_sink, sp_node);
+
+					// Update backpressure incrementally
+					splice_backpressure(orig_phys_src, sp_node->get_input(),
+						phys_out, phys_sink);
+
+					idx++;
+				}
+			}
+		} // end orig_sp
+	}
 }
 
 void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
@@ -1319,6 +1578,7 @@ void flow::do_inner(NodeSystem* sys, unsigned dom_id, FlowStateOuter* fs_out)
 
 	annotate_timing(fstate);
 	flow::solve_latency_constraints(sys, dom_id);
+	lat_systolic_transform(fstate);
 	realize_latencies(fstate);
 
 	connect_resets(fstate);

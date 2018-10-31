@@ -124,6 +124,11 @@ PortRS * NodeSplit::get_output(unsigned i) const
 	return get_child_as<PortRS>(OUTPORT_NAME + std::to_string(i));
 }
 
+PortClock * NodeSplit::get_clock_port() const
+{
+	return static_cast<PortClock*>(get_port(CLOCKPORT_NAME));
+}
+
 void NodeSplit::prepare_for_hdl()
 {
 	auto& proto = get_carried_proto();
