@@ -137,90 +137,81 @@ namespace
 		cns.rhs = 1;
 	}
 
-
-	// Take a bag of (topo, rslogical) links.
-	// Decompose into external + internal physical links
-	// external ones: find/create var#
-	// internal ones: find fixed latency and add to sum
-	//
-	// Internal links are found by looking at endpoints of
-	// external links belonging to the bag of given E2E links.
+	// Processes a set of end-to-end (logical, topo) links.
+	// Takes each one, decomposes it into physical links, and
+	// generates lpsolve coefficients and a constant term.
+	// These are passed by reference and can be accumulated-over
+	// by multiple calls to this function.
 	void process_e2e_links(SolverState& sstate,
-		const std::vector<genie::SyncConstraint::ChainTerm::Sign>& signs,
 		const std::vector<LinkID>& e2e_links,
-		std::vector<int>& out_varnos,
-		std::vector<double>& out_coefs,
-		int& out_constant)
+		genie::SyncConstraint::ChainTerm::Sign chain_sign,
+		std::unordered_map<LinkID, int>& out_link_coefs,
+		int& out_const_sum)
 	{
 		auto sys = sstate.sys;
-
 		auto& link_rel = sys->get_link_relations();
 
-		// Take all e2e links from the bag and decompose into external phys links
-		std::unordered_map<LinkID, genie::SyncConstraint::ChainTerm::Sign> all_ext_phys;
-		for (auto it = e2e_links.begin(); it != e2e_links.end(); ++it)
-		{
-			auto e2e_link = *it;
-			auto sign = signs.at(it - e2e_links.begin());
+		// These remember the sources and sinks of every external physical link
+		// touched while decomposing e2e links into physical links.
+		// Will be used to handle internal links after handling all external links.
+		std::unordered_set<HierObject*> phys_srcs, phys_sinks;
 
+		// Walk through all e2e links composing the chain and decompose each
+		// into a set of physical links.
+		for (auto e2e_link : e2e_links)
+		{
 			// Decompose the end-to-end link into physical links
-			auto ext_phys = link_rel.get_children(e2e_link, NET_RS_PHYS);
+			auto phys_links = link_rel.get_children(e2e_link, NET_RS_PHYS);
 
-			// Insert the physical links along with their +/- sign
-			for (auto link : ext_phys)
+			// Walk through the physical links
+			for (auto phys_link_id : phys_links)
 			{
-				all_ext_phys[link] = sign;
+				// Each physical link contributes either a +1 or -1 coefficient depending
+				// on the sign of the chain term it's part of.
+				// Accumulate these.
+				out_link_coefs[phys_link_id] +=
+					chain_sign == genie::SyncConstraint::ChainTerm::PLUS ?
+					1 : -1;
+
+				// Remember the endpoints.
+				auto phys_link = sys->get_link(phys_link_id);
+				phys_srcs.insert(phys_link->get_src());
+				phys_sinks.insert(phys_link->get_sink());
 			}
-		}
+		} // end external links
 
-		// Get, or create, variables for all external phys links in the solver state
-		for (auto it : all_ext_phys)
+		// Next part handles internal links
+		for (auto phys_sink : phys_sinks)
 		{
-			auto link = it.first;
-			auto sign = it.second;
-			int varno = get_or_create_lat_var(sstate, link);
+			// Grab the OUT endpoint of this sink, which should be the source
+			// of any internal link within a module.
+			auto int_src_ep = phys_sink->get_endpoint(NET_RS_PHYS, Port::Dir::OUT);
 
-			// Return the variable number and its sign
-			out_varnos.push_back(varno);
-			out_coefs.push_back(sign == genie::SyncConstraint::ChainTerm::PLUS ?
-				1.0 : -1.0);
-		}
-
-		// Find internal links that join the external links.
-		// For each external link:
-		// 1) gets its sink
-		// 2) if it exists, traverse the internal link that begins at that sink
-		// 3) find the external link on the other side, if it exists
-		// 4) if that external link is in our ext_phys set, then use the
-		// internal link's latency
-		for (auto it : all_ext_phys)
-		{
-			auto link = it.first;
-			auto sign = it.second;
-
-			auto ext_sink = sys->get_link(link)->get_sink();
-			auto int_src_ep = ext_sink->get_endpoint(NET_RS_PHYS, Dir::OUT);
-			if (!int_src_ep)
-				continue;
-
-			// Look at internal link(s)
+			// If there are any internal links, follow them.
 			for (auto int_link : int_src_ep->links())
 			{
-				auto int_sink_ep = int_link->get_sink_ep();
-				auto other_phys = int_sink_ep->get_sibling()->get_link0();
-				if (all_ext_phys.count(other_phys->get_id()))
+				// Here is the other side of the internal link
+				auto int_sink_port = int_link->get_sink();
+
+				// If the other side of this internal link is actually
+				// the source port of a physical link we've traversed in this chain,
+				// then it's part of a contiguous path, and we should include
+				// the link's internal latency in the accumulated constant that's
+				// supposed to be updated by this function.
+
+				if (phys_srcs.count(int_sink_port) > 0)
 				{
 					// This internal link bridges two physical links in ext_phys.
 					// This means we should consider its internal latency.
-
 					int increment = (int)((LinkRSPhys*)(int_link))->get_latency();
-					if (sign == genie::SyncConstraint::ChainTerm::MINUS)
+					if (chain_sign == genie::SyncConstraint::ChainTerm::MINUS)
 						increment = -increment;
 
-					out_constant += increment;
+					// This accumulates into the constant term
+					out_const_sum += increment;
 				}
 			}
-		}
+		} // end internal links
 	}
 
 	void process_sync_constraints(SolverState& sstate)
@@ -232,39 +223,55 @@ namespace
 
 		for (auto& sync_constraint : sync_constraints)
 		{
-			std::vector<LinkID> log_link_ids;
-			std::vector<genie::SyncConstraint::ChainTerm::Sign> signs;
-
 			// Not every sync constraint applies to the domain being processed.
 			// If a logical link named in the constraint doesn't seem to exist
 			// in the system, we should skip the constraint.
 			bool ignore_constraint = false;
 
-			// Each chain term consists of a bunch of logical links and a sign.
+			// Holds coefficients for each physical link term.
+			// Canonically these are all initially zero,
+			// and then each processed chain will accumulate coefficients
+			// into here.
+			std::unordered_map<LinkID, int> link_2_coef;
+
+			// The accumulation of all constant terms from each chain.
+			// Also modified during each pass of the chainterm loop.
+			int const_sum = 0;
+
+			// Process each chain term in the constraint
 			for (auto& chainterm : sync_constraint.chains)
 			{
-				// Decompose the chain into logical links.
-				for (auto log_link : chainterm.links)
-				{
-					auto impl = dynamic_cast<LinkRSLogical*>(log_link);
-					assert(impl);
+				// Gather chainterm's logical links into this set.
+				// Basically gonna just be a copy.
+				std::vector<LinkID> e2e_links;
 
-					auto link_id = impl->get_id();
-					if (sys->get_link(link_id) == nullptr)
+				for (auto log_link_generic : chainterm.links)
+				{
+					auto log_link = dynamic_cast<LinkRSLogical*>(log_link_generic);
+					assert(log_link);
+
+					// Log_link points to a link in the original system, but not
+					// necessarily in the current domain.
+					auto log_link_id = log_link->get_id();
+					if (sys->get_link(log_link_id) == nullptr)
 					{
 						ignore_constraint = true;
 						break;
 					}
 
-					// Insert sign + logical link
-					signs.push_back(chainterm.sign);
-					log_link_ids.push_back(link_id);
+					e2e_links.push_back(log_link_id);
 				}
 
 				if (ignore_constraint)
 					break;
+
+				// Accumulate coefficients+constants for this chain
+				process_e2e_links(sstate, e2e_links, chainterm.sign, link_2_coef, const_sum);
 			}
 
+			// If any logical link doesn't exist in this domain, ignore this
+			// constraint altogether.
+			// TODO: this can be optimized somehow
 			if (ignore_constraint)
 				continue;
 
@@ -272,13 +279,24 @@ namespace
 			sstate.lp_constraints.emplace_back();
 			auto& lp_constraint = sstate.lp_constraints.back();
 
-			// Convert (signs, logical link IDS) to (coefficient, variable #) and sum of
-			// constant latencies
-			int const_sum = 0;
-			process_e2e_links(sstate, signs, log_link_ids,
-				lp_constraint.varnos, lp_constraint.coefs, const_sum);
+			// Convert link_2_coef and into LPSolve variable numbers and coefficients.
+			for (auto it : link_2_coef)
+			{
+				auto link = it.first;
+				auto coef = it.second;
+				
+				// Get/create a latency-type variable.
+				// This is an internal association for us between the LPSolve variable,
+				// and the physical link that it represents.
+				int varno = get_or_create_lat_var(sstate, link);
 
-			// Set the RHS constant
+				// Add variable and its coefficient to the lpsolve constraint
+				lp_constraint.varnos.push_back(varno);
+				lp_constraint.coefs.push_back((double)coef);
+			}
+
+			// Set the RHS constant of the lpsolve constraint, using the user-provided constant
+			// and the accumnulation of internal link latencies stored in const_sum
 			lp_constraint.rhs = sync_constraint.rhs - const_sum;
 
 			// Set the operator to match the user operator
@@ -316,14 +334,32 @@ namespace
 			if (topo_min == 0 && topo_max == LinkTopo::REGS_UNLIMITED)
 				continue;
 
-			// Prepare variable #s and coefficients to represent physical links
+			// Break down just this topo link into a physical link and
+			// generate coefficients+constants for lp problem
+			std::unordered_map<LinkID, int> phys_2_coef;
+			int const_sum;
+
+			process_e2e_links(sstate, { topo_link->get_id() }, 
+				Sign::PLUS, phys_2_coef, const_sum);
+
+			// Convert phys_2_coef into lpsolve variable numbers+coefficients
 			std::vector<int> varnos;
 			std::vector<double> coefs;
-			int const_sum = 0;
 
-			// Process a single end-to-end link (this topo link) with a plus sense
-			process_e2e_links(sstate, { Sign::PLUS }, { topo_link->get_id() },
-				varnos, coefs, const_sum);
+			// Convert link_2_coef and into LPSolve variable numbers and coefficients.
+			for (auto it : phys_2_coef)
+			{
+				auto link = it.first;
+				auto coef = it.second;
+
+				// Get/create a latency-type variable.
+				// This is an internal association for us between the LPSolve variable,
+				// and the physical link that it represents.
+				int varno = get_or_create_lat_var(sstate, link);
+
+				varnos.push_back(varno);
+				coefs.push_back((double)coef);
+			}
 
 			// If min_regs was specified, create an LPSolve constraint
 			if (topo_min > 0)
@@ -333,7 +369,7 @@ namespace
 				lp_constraint.coefs = coefs;
 				lp_constraint.varnos = varnos;
 				lp_constraint.op = ROWTYPE_GE;
-				lp_constraint.rhs = (int)topo_min;
+				lp_constraint.rhs = (int)topo_min - const_sum;
 			}
 
 			// If max_regs specified, create an LPSolve constraint
@@ -344,7 +380,7 @@ namespace
 				lp_constraint.coefs = coefs;
 				lp_constraint.varnos = varnos;
 				lp_constraint.op = ROWTYPE_LE;
-				lp_constraint.rhs = (int)topo_max;
+				lp_constraint.rhs = (int)topo_max - const_sum;
 			}
 		}
 	}
@@ -846,6 +882,30 @@ namespace
 			if (i > 0) of << " + ";
 			of << sstate.lp_objective.coef[i] << "*" << sstate.lp_objective.varno[i];
 		}
+
+		of.close();
+		of.open(fname + "_edges.txt");
+		for (auto vid : sstate.reg_graph.iter_verts)
+		{
+			auto link = sstate.sys->get_link((LinkID)vid);
+
+			// Not all vertices represent links
+			if (!link || link->get_type() != NET_RS_PHYS)
+				continue;
+
+			auto srcname = link->get_src()->get_hier_path(sstate.sys);
+			auto sinkname = link->get_sink()->get_hier_path(sstate.sys);
+
+			of << std::to_string(vid) + ": " + srcname + " -> " + sinkname << std::endl;
+		}
+
+		for (auto& entry : sstate.varno_lat_to_link)
+		{
+			auto link = sstate.sys->get_link(entry.second);
+			auto srcname = link->get_src()->get_hier_path(sstate.sys);
+			auto sinkname = link->get_sink()->get_hier_path(sstate.sys);
+			of << "L" + std::to_string(entry.first) + ": " + srcname + " -> " + sinkname << std::endl;
+		}
 	}
 }
 
@@ -862,7 +922,7 @@ void flow::solve_latency_constraints(NodeSystem* sys, unsigned dom_id)
 
 	// Binary reg yes/no related
 	create_reg_graph(sstate);
-	postprocess_reg_graph(sstate);
+	//postprocess_reg_graph(sstate);
 	create_reg_constraints(sstate);
 
 	// Objective function

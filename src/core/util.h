@@ -265,6 +265,15 @@ namespace impl
 			return result;
 		}
 
+		// https://stackoverflow.com/questions/2960434/c-population-count-of-unsigned-64-bit-integer-with-a-maximum-value-of-15
+		static unsigned popcnt(uint64_t w)
+		{
+			w -= (w >> 1) & 0x5555555555555555ULL;
+			w = (w & 0x3333333333333333ULL) + ((w >> 2) & 0x3333333333333333ULL);
+			w = (w + (w >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
+			return unsigned((w * 0x0101010101010101ULL) >> 56);
+		}
+
 		// Declared in separate file
 		extern std::string get_exe_path();
 	}

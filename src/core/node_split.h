@@ -34,12 +34,15 @@ namespace impl
 		PortRS* get_output(unsigned) const;
 		PortClock* get_clock_port() const;
 
+		PROP_GET_SET(unicast, bool, m_is_unicast);
+
     protected:
         NodeSplit(const NodeSplit&);
 
 		void init_vlog();
 
 		unsigned m_n_outputs;
+		bool m_is_unicast;
     };
 }
 }

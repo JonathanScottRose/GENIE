@@ -85,6 +85,8 @@ namespace
 		args >> GetOpt::Option("max_logic_depth", opts.max_logic_depth);
 		args >> GetOpt::OptionPresent("no_merge_tree", opts.no_merge_tree);
 		args >> GetOpt::OptionPresent("split_tree", opts.split_tree);
+		args >> GetOpt::OptionPresent("split_unicast", opts.split_unicast);
+
 		
 		{
 			std::string argstr;

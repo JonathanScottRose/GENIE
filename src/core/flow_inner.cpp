@@ -390,6 +390,13 @@ namespace
 			// Make an addr representation for its input
 			auto sp_rep = make_split_node_rep(fstate, sp);
 
+			if (genie::impl::get_flow_options().split_unicast)
+			{
+				// Configure the split node as 'pure unicast' if the address
+				// representation allows it.
+				sp->set_unicast(sp_rep.is_pure_unicast());
+			}
+
 			// If there's just one address bin, then the split node always
 			// broadcasts to the same outputs. We can tie off the mask with
 			// a constant, rather than inserting a converter.

@@ -75,4 +75,18 @@ unsigned AddressRep::get_size_in_bits() const
 	return m_size_in_bits;
 }
 
+bool AddressRep::is_pure_unicast() const
+{
+	// Examine all address values to make sure they contain exactly one '1' each
+	for (auto& entry : m_xmis2addr)
+	{
+		auto addr = entry.second;
+
+		if (util::popcnt(addr) > 1)
+			return false;
+	}
+
+	return true;
+}
+
 

@@ -39,7 +39,7 @@ void NodeSplit::init()
 }
 
 NodeSplit::NodeSplit()
-    : Node(MODNAME, MODNAME), m_n_outputs(0)
+    : Node(MODNAME, MODNAME), m_n_outputs(0), m_is_unicast(false)
 {
 	init_vlog();
 
@@ -65,7 +65,7 @@ NodeSplit::~NodeSplit()
 }
 
 NodeSplit::NodeSplit(const NodeSplit& o)
-    : Node(o), ProtocolCarrier(o), m_n_outputs(o.m_n_outputs)
+    : Node(o), ProtocolCarrier(o), m_n_outputs(o.m_n_outputs), m_is_unicast(o.m_is_unicast)
 {	
     // Create a copy of an existing NodeSplit
 }
@@ -134,6 +134,7 @@ void NodeSplit::prepare_for_hdl()
 	auto& proto = get_carried_proto();
 	set_int_param("WIDTH", proto.get_total_width());
 	set_int_param("N", m_n_outputs);
+	set_int_param("NO_MULTICAST", m_is_unicast ? 1 : 0);
 }
 
 void NodeSplit::annotate_timing()
@@ -144,7 +145,7 @@ void NodeSplit::annotate_timing()
 	unsigned col_vals[DB_COLS::size()];
 	col_vals[DB_COLS::N] = m_n_outputs; assert(m_n_outputs <= 32);
 	col_vals[DB_COLS::BP] = bp ? 1 : 0;
-	col_vals[DB_COLS::NO_MULTICAST] = 0; // TODO: implement this
+	col_vals[DB_COLS::NO_MULTICAST] = m_is_unicast ? 1 : 0; 
 
 	auto row = s_prim_db->get_row(col_vals);
 	auto tnodes = s_prim_db->get_tnodes(row);
@@ -197,7 +198,7 @@ AreaMetrics NodeSplit::annotate_area()
 	unsigned col_vals[DB_COLS::size()];
 	col_vals[DB_COLS::N] = m_n_outputs; assert(m_n_outputs <= 32);
 	col_vals[DB_COLS::BP] = bp ? 1 : 0;
-	col_vals[DB_COLS::NO_MULTICAST] = 0; // TODO: implement this
+	col_vals[DB_COLS::NO_MULTICAST] = m_is_unicast ? 1 : 0;
 
 	auto row = s_prim_db->get_row(col_vals);
 	assert(row);

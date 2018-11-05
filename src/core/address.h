@@ -33,6 +33,8 @@ namespace impl
 		unsigned get_n_addr_bins() const;
 
 		unsigned get_size_in_bits() const;
+
+		bool is_pure_unicast() const;
 	};
 }
 }

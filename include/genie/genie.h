@@ -50,6 +50,8 @@ namespace genie
 
 		bool split_tree = false;
 
+		bool split_unicast = false;
+
         bool no_topo_opt = false;
         std::vector<std::string> no_topo_opt_systems;
 
