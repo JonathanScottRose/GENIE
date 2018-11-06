@@ -1511,7 +1511,7 @@ namespace
 				{
 					auto& proto = sp_node->get_input()->get_proto();
 					unsigned n_bits = sp_node->get_n_outputs();
-					uint64_t addr = (1 << (n_bits - 1)) - 1;
+					uint64_t addr = (1 << n_bits) - 1;
 
 					// TODO: handle bigger values properly!
 					BitsVal conzt(n_bits, 1);
