@@ -1443,37 +1443,37 @@ namespace
 					}
 					else
 					{
-						// Chain to previous split node (TOPO)
-						LinkTopo* chain_topo = (LinkTopo*)sys->connect(prev_sp, cur_sp, NET_TOPO);
+// Chain to previous split node (TOPO)
+LinkTopo* chain_topo = (LinkTopo*)sys->connect(prev_sp, cur_sp, NET_TOPO);
 
-						// Associate RS logical links with this new topo link
-						// (to remainder of chain, as well as to this split node's local egress)
-						for (auto bin_it2 = bin_it; bin_it2 != lat_bins.end(); ++bin_it2)
-						{
-							// For each egress topo link in this bin
-							for (auto tp_in_bin : bin_it2->second)
-							{
-								// Gather RS parents
-								auto logicals = link_rel.get_parents(tp_in_bin.topo->get_id(), 
-									NET_RS_LOGICAL);
+// Associate RS logical links with this new topo link
+// (to remainder of chain, as well as to this split node's local egress)
+for (auto bin_it2 = bin_it; bin_it2 != lat_bins.end(); ++bin_it2)
+{
+	// For each egress topo link in this bin
+	for (auto tp_in_bin : bin_it2->second)
+	{
+		// Gather RS parents
+		auto logicals = link_rel.get_parents(tp_in_bin.topo->get_id(),
+			NET_RS_LOGICAL);
 
-								// Associate them with chain link
-								for (auto logical : logicals)
-									link_rel.add(logical, chain_topo->get_id());
-							}
-						}
+		// Associate them with chain link
+		for (auto logical : logicals)
+			link_rel.add(logical, chain_topo->get_id());
+	}
+}
 
-						// Create a dangling phys link that terminates at this split node's input, 
-						// but doesn't yet connect to previous split node (its ports aren't created yet)
-						auto chain_phys = (LinkRSPhys*)sys->connect(nullptr, cur_sp->get_input(),
-							NET_RS_PHYS);
+// Create a dangling phys link that terminates at this split node's input, 
+// but doesn't yet connect to previous split node (its ports aren't created yet)
+auto chain_phys = (LinkRSPhys*)sys->connect(nullptr, cur_sp->get_input(),
+	NET_RS_PHYS);
 
-						// Parent/child relationship for phys link
-						link_rel.add(chain_topo->get_id(), chain_phys->get_id());
+// Parent/child relationship for phys link
+link_rel.add(chain_topo->get_id(), chain_phys->get_id());
 
-						// Latency on this new phys link = 
-						// current cumulative latency - previous cumulative latency
-						chain_phys->set_latency(cur_lat - prev_lat);
+// Latency on this new phys link = 
+// current cumulative latency - previous cumulative latency
+chain_phys->set_latency(cur_lat - prev_lat);
 					}
 
 					prev_sp = cur_sp;
@@ -1486,7 +1486,7 @@ namespace
 				for (auto& tp : cur_bin)
 				{
 					tp.topo->reconnect_src(prev_sp->get_endpoint(NET_TOPO, Port::Dir::OUT));
-					
+
 					// These will end up being:
 					// (first bin's latency) for first bin
 					// (last bin - secondlast bin) for the last bin
@@ -1535,8 +1535,20 @@ namespace
 					// Output port
 					auto phys_out = sp_node->get_output(idx);
 
-					// Associated physical link
-					auto phys_link = link_rel.get_children(topo_link, NET_RS_PHYS, sys).front();
+					// Find associated physical link again. Iterate through phys links and find
+					// the one with the disconnected src. TODO ewwwwww
+					Link* phys_link = nullptr;
+					{
+						auto phys_links = link_rel.get_children(topo_link, NET_RS_PHYS, sys);
+						for (auto link : phys_links)
+						{
+							if (link->get_src_ep() == nullptr)
+							{
+								phys_link = link;
+								break;
+							}
+						}
+					}
 					assert(phys_link);
 
 					// Connect
