@@ -116,7 +116,7 @@ namespace
 	LFUNC(linktopo_set_minmax_regs)
 	{
 		auto self = lua_if::check_object<LinkTopo>(1);
-		lua_Integer min_val = luaL_checkinteger(L, 2);
+		lua_Integer min_val = luaL_optinteger(L, 2, 0);
 		lua_Integer max_val = luaL_optinteger(L, 3, LinkTopo::REGS_UNLIMITED);
 
 		luaL_argcheck(L, min_val >= 0, 2, "min reg level must be nonnegative");

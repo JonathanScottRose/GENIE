@@ -337,7 +337,7 @@ namespace
 			// Break down just this topo link into a physical link and
 			// generate coefficients+constants for lp problem
 			std::unordered_map<LinkID, int> phys_2_coef;
-			int const_sum;
+			int const_sum = 0;
 
 			process_e2e_links(sstate, { topo_link->get_id() }, 
 				Sign::PLUS, phys_2_coef, const_sum);
@@ -922,7 +922,7 @@ void flow::solve_latency_constraints(NodeSystem* sys, unsigned dom_id)
 
 	// Binary reg yes/no related
 	create_reg_graph(sstate);
-	//postprocess_reg_graph(sstate);
+	postprocess_reg_graph(sstate);
 	create_reg_constraints(sstate);
 
 	// Objective function
