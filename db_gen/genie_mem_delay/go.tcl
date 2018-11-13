@@ -4,8 +4,8 @@ set param_col_names {WIDTH CYCLES}
 set config_col_names {BP}
 set datapoints {}
 
-foreach WIDTH {0 1 2 21 22} {
-	foreach CYCLES {2 33 34} {
+foreach WIDTH {0 1 2 4 8 16 21 22} {
+	foreach CYCLES {2 4 8 16 32 33 34} {
 		foreach BP {0 1} {
 			if {$BP == 0 } {
 				set config nobp

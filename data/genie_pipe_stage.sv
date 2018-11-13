@@ -23,11 +23,13 @@ module genie_pipe_stage #
 	
 	always_ff @ (posedge i_clk or posedge i_reset) begin
 		if (i_reset) begin
-			ready0 <= '0;
+			ready0 <= '1;
 			valid1 <= '0;
 			data1 <= 'x;
+			nready0 <= '0;
 		end
 		else begin
+			nready0 <= ~xfer;
 			ready0 <= xfer;
 			
 			if (~nready0) begin
@@ -40,13 +42,10 @@ module genie_pipe_stage #
 	// synthesis translate_off
 	always_ff @ (posedge i_clk or posedge i_reset) begin
 		if (i_reset) begin
-			nready0 <= '0;
 			valid0 <= '0;
 			data0 <= 'x;
 		end
 		else begin
-			nready0 <= xfer ? 1'b0 : 1'b1;
-			
 			if (xfer) begin
 				data0 <= nready0? data1 : i_data;
 				valid0 <= nready0? valid1 : i_valid;
@@ -54,7 +53,7 @@ module genie_pipe_stage #
 		end
 	end
 	// synthesis translate_on
-	
+
 	// synthesis read_comments_as_HDL on
 	//     dffeas valid0_reg
 	//     (
@@ -70,19 +69,6 @@ module genie_pipe_stage #
 	//         .sclr(1'b0)
 	//     );
 	//
-	//     dffeas nready0_reg
-	//     (
-	//         .d(1'b1),
-	//         .clk(i_clk),
-	//         .clrn(~i_reset),
-	//         .ena(1'b1),
-	//         .asdata(1'b0),
-	//         .sload(xfer),
-	//         .q(nready0),
-	//         .prn(1'b1),
-	//         .aload(1'b0),
-	//         .sclr(1'b0)
-	//     );
 	//
 	// genvar i;
 	// generate
