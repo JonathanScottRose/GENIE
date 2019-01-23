@@ -144,39 +144,41 @@ AreaMetrics NodeMDelay::estimate_area(unsigned node_width, unsigned cycles, bool
 	// We shouldn't be here if using just 1 cycle of delay
 	cycles = std::max(2U, cycles);
 
-	// If width*depth is small enough, just do a single lookup, as this is going
-	// to be implemented with luts+FFs instead of LUTRAM
-	if (node_width * cycles <= 32)
+	// TODO: remove this limitation
+	// Need to find a way to model this effectively
+	assert(cycles <= ap.lutram_depth);
+
+	// Available cycles are powers of 2 up to 32
+	cycles = 1 << (util::log2(cycles));
+
+	// How many extra full lutram blocks to stack to obtain desired width?
+	unsigned extra_blocks;
+
+	if (node_width <= ap.lutram_width)
 	{
+		// Available widths: 0, 1, 2, 4, 8, 16, 20
+		if (node_width > 16) node_width = 20;
 		node_width = 1 << (util::log2(node_width));
-		cycles = 1 << (util::log2(cycles));
-		
-		// Just do one lookup and return it
-		col_vals[DB_COLS::WIDTH] = node_width;
-		col_vals[DB_COLS::CYCLES] = cycles;
-		auto row = s_prim_db->get_row(col_vals);
-		assert(row);
-		auto metrics = s_prim_db->get_area_metrics(row);
-		assert(metrics);
-		result = *metrics;
+		extra_blocks = 0;
 	}
 	else
 	{
-		// Quantize usage to chunks of lutram
-		// Base cycles, base width (single LUTRAM chunks)
-		col_vals[DB_COLS::WIDTH] = 1;
-		col_vals[DB_COLS::CYCLES] = (ap.lutram_depth);
-		auto row = s_prim_db->get_row(col_vals);
-		assert(row);
-		auto metrics_base = s_prim_db->get_area_metrics(row);
-		assert(metrics_base);
-
-		// Determine number of chunks
-		unsigned w_slices = (node_width + ap.lutram_width - 1) / ap.lutram_width;
-		unsigned d_slices = (cycles + ap.lutram_depth - 1) / ap.lutram_depth;
-
-		result = *metrics_base * w_slices * d_slices;
+		// Model everything bigger as width=21.
+		// This already uses two blocks, so extra_blocks should be 0
+		extra_blocks = (node_width-1) / ap.lutram_width - 1;
+		node_width = ap.lutram_width + 1;
 	}
+
+	// Just do one lookup and return it
+	col_vals[DB_COLS::WIDTH] = node_width;
+	col_vals[DB_COLS::CYCLES] = cycles;
+	auto row = s_prim_db->get_row(col_vals);
+	assert(row);
+	auto metrics = s_prim_db->get_area_metrics(row);
+	assert(metrics);
+	result = *metrics;
+	
+	result.mem_alm += extra_blocks * 10; // arch-specific, not in database! FIXME
 
 	return result;
 }

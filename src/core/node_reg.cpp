@@ -158,7 +158,8 @@ AreaMetrics NodeReg::estimate_area(unsigned node_width, bool bp)
 		auto metrics_2 = s_prim_db->get_area_metrics(row);
 		assert(metrics_2);
 
-		result = *metrics_1 + (*metrics_2 - *metrics_1)*node_width;
+		unsigned width_delta = node_width - (uses_sload_opt ? 7 : 1);
+		result = *metrics_1 + (*metrics_2 - *metrics_1)*width_delta;
 	}
 
 	return result;

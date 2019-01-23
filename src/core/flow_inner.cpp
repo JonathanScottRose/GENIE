@@ -1049,12 +1049,18 @@ namespace
 			bool bp = ((PortRS*)orig_link->get_sink())->get_bp_status().status == RSBackpressure::ENABLED;
 
 			// Estimate cost for reg version vs mem version
-			AreaMetrics reg_cost = NodeReg::estimate_area(width, bp) * latency;
-			AreaMetrics mem_cost = NodeMDelay::estimate_area(width, latency, bp);
+			AreaMetrics reg_metrics = NodeReg::estimate_area(width, bp) * latency;
+			AreaMetrics mem_metrics = NodeMDelay::estimate_area(width, latency, bp);
+
+			// Each mem_alm is worth two regs
+			// TODO: this is so arch-specific it hurts
+			unsigned reg_cost = reg_metrics.comb + reg_metrics.reg;
+			unsigned mem_cost = mem_metrics.comb + mem_metrics.reg + mem_metrics.mem_alm * 2;
 
 			// Insert a chain of regs, or a mem, depending on which is cheaper (based on ALM count)
-			// TODO: this is so arch-specific it hurts
-			if (!genie::impl::get_flow_options().no_mdelay && mem_cost.alm < reg_cost.reg/2) // 2 reg per ALM
+			if (latency > 1 && 
+				!genie::impl::get_flow_options().no_mdelay && 
+				mem_cost < reg_cost) // 2 reg per ALM
 			{
 				auto md = new NodeMDelay();
 				md->set_delay(latency);
@@ -1443,37 +1449,37 @@ namespace
 					}
 					else
 					{
-// Chain to previous split node (TOPO)
-LinkTopo* chain_topo = (LinkTopo*)sys->connect(prev_sp, cur_sp, NET_TOPO);
+						// Chain to previous split node (TOPO)
+						LinkTopo* chain_topo = (LinkTopo*)sys->connect(prev_sp, cur_sp, NET_TOPO);
 
-// Associate RS logical links with this new topo link
-// (to remainder of chain, as well as to this split node's local egress)
-for (auto bin_it2 = bin_it; bin_it2 != lat_bins.end(); ++bin_it2)
-{
-	// For each egress topo link in this bin
-	for (auto tp_in_bin : bin_it2->second)
-	{
-		// Gather RS parents
-		auto logicals = link_rel.get_parents(tp_in_bin.topo->get_id(),
-			NET_RS_LOGICAL);
+						// Associate RS logical links with this new topo link
+						// (to remainder of chain, as well as to this split node's local egress)
+						for (auto bin_it2 = bin_it; bin_it2 != lat_bins.end(); ++bin_it2)
+						{
+							// For each egress topo link in this bin
+							for (auto tp_in_bin : bin_it2->second)
+							{
+								// Gather RS parents
+								auto logicals = link_rel.get_parents(tp_in_bin.topo->get_id(),
+									NET_RS_LOGICAL);
 
-		// Associate them with chain link
-		for (auto logical : logicals)
-			link_rel.add(logical, chain_topo->get_id());
-	}
-}
+								// Associate them with chain link
+								for (auto logical : logicals)
+									link_rel.add(logical, chain_topo->get_id());
+							}
+						}
 
-// Create a dangling phys link that terminates at this split node's input, 
-// but doesn't yet connect to previous split node (its ports aren't created yet)
-auto chain_phys = (LinkRSPhys*)sys->connect(nullptr, cur_sp->get_input(),
-	NET_RS_PHYS);
+						// Create a dangling phys link that terminates at this split node's input, 
+						// but doesn't yet connect to previous split node (its ports aren't created yet)
+						auto chain_phys = (LinkRSPhys*)sys->connect(nullptr, cur_sp->get_input(),
+							NET_RS_PHYS);
 
-// Parent/child relationship for phys link
-link_rel.add(chain_topo->get_id(), chain_phys->get_id());
+						// Parent/child relationship for phys link
+						link_rel.add(chain_topo->get_id(), chain_phys->get_id());
 
-// Latency on this new phys link = 
-// current cumulative latency - previous cumulative latency
-chain_phys->set_latency(cur_lat - prev_lat);
+						// Latency on this new phys link = 
+						// current cumulative latency - previous cumulative latency
+						chain_phys->set_latency(cur_lat - prev_lat);
 					}
 
 					prev_sp = cur_sp;
