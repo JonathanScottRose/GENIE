@@ -435,13 +435,13 @@ namespace
 				// from the port to a register inside the module (worst-cased).
 				unsigned logic_depth = port->get_logic_depth();
 
-				// If logic depth >= max_logic_depth, then this external link must
+				// If logic depth > max_logic_depth, then this external link must
 				// be registered no matter what.
 				// If this is the case:
 				// Force the latency to be >= 1 of the external link (no need for involving binary variables)
 				// Don't even bother to create a new vertex/edge in the reg graph.
 
-				if (logic_depth >= max_logic_depth)
+				if (logic_depth > max_logic_depth)
 				{
 					int varno_lat = get_or_create_lat_var(sstate, ext_link_id);
 					create_forced_nonzero_lat_constraint(sstate, varno_lat);
