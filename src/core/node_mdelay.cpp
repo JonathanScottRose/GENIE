@@ -158,7 +158,7 @@ AreaMetrics NodeMDelay::estimate_area(unsigned node_width, unsigned cycles, bool
 	{
 		// Available widths: 0, 1, 2, 4, 8, 16, 20
 		if (node_width > 16) node_width = 20;
-		node_width = 1 << (util::log2(node_width));
+		else node_width = 1 << (util::log2(node_width));
 		extra_blocks = 0;
 	}
 	else
