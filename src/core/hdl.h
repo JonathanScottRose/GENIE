@@ -142,6 +142,8 @@ namespace hdl
         Port(Port&&);
 		~Port();
 
+		Port& operator=(Port&&) = default;
+
 		PROP_GET_SET(name, const std::string&, m_name);
 		PROP_GET_SET(dir, Dir, m_dir);
 		PROP_GET_SET(parent, HDLState*, m_parent);

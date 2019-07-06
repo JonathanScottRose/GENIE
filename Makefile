@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS=-std=c++11 -Iinclude $(if $(DEBUG),-g,-O2) -Wno-write-strings
-LFLAGS=-ldl -lboost_regex
+LFLAGS=-ldl
 
 EXE=$(EXEDIR)/genie
 LIB_LUA=$(LIBDIR)/lua.a

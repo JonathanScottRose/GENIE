@@ -22,7 +22,6 @@
   <ItemGroup>
     <ClInclude Include="$(SrcDir)\lp_solve\**\*.h" />
     <ClCompile Include="$(SrcDir)\lp_solve\**\*.c" Exclude="$(SrcDir)\lp_solve\lp_BFP*.c;$(SrcDir)\lp_solve\lusol?*.c" />
-    <ClCompile Include="$(SrcDir)\lp_solve\lusol.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

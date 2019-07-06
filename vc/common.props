@@ -18,9 +18,9 @@
     <SrcDir>$(BaseDir)/src</SrcDir>
     <IncludeDir>$(BaseDir)/include</IncludeDir>
     <IntDir>$(SolutionDir)/$(ProjectName)/$(Configuration)$(PlatformArchitecture)\</IntDir>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
-	<WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+	<WindowsTargetPlatformVersion>10</WindowsTargetPlatformVersion>
     <OutDir Condition="'$(ConfigurationType)'=='StaticLibrary'">$(BaseDir)/lib/</OutDir>
     <OutDir Condition="'$(ConfigurationType)'=='Application'">$(BaseDir)/bin/</OutDir>
   </PropertyGroup>
